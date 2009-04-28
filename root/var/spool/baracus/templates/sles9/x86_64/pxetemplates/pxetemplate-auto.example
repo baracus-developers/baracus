@@ -1,0 +1,7 @@
+DEFAULT install
+PROMPT 0
+TIMEOUT 0
+
+LABEL install	
+	kernel /kernel/PXEKERNEL
+	append acpitag brokenmodules=qla2300 initrd=/initrd/PXEINITRD install=nfs://SITEIP/COREDIR/linux-core/SLES9-X86-64 autoyast=nfs://SITEIP/COREDIR/linux-core/installdb/HEXIP textmode=1

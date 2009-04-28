@@ -1,0 +1,3 @@
+#!/bin/bash
+
+ssh blade9 /etc/nagios/objects/prod/add_hosts $*

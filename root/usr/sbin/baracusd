@@ -1,0 +1,127 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use Getopt::Long;
+use AppConfig;
+
+use lib "/usr/share/baracus/perl";
+
+use SqlTFTPd qw(%OPCODES);
+use SqlFS;
+
+my $debug = shift;
+
+##
+my $sysconfig = AppConfig->new( {CREATE => 1} );
+
+$sysconfig->define( 'hooksdir=s',
+                    'logsdir=s',
+                    'dbasedir=s',
+                    'datadir=s'
+                   );
+
+$sysconfig->file('/etc/sysconfig/baracus');
+
+my $hooksdir = $sysconfig->get( 'hooksdir'    ); # /var/spool/baracus/hooks
+my $logsdir  = $sysconfig->get( 'logsdir'     ); # /var/spool/baracus/logs
+my $dbasedir = $sysconfig->get( 'dbasedir'    ); # /var/spool/baracus
+my $datadir  = $sysconfig->get( 'datadir'     ); # /usr/share/baracus
+
+if ( $debug ) {
+print "hooksdir $hooksdir\n";
+print "logsdir  $logsdir \n";
+print "dbasedir $dbasedir\n";
+print "datadir  $datadir \n";
+}
+
+# create and/or connect to our database to serve up TFTP files
+my $dbname = "$dbasedir/sqltftpd.db";
+print "dbname   $dbname\n" if ( $debug );
+my $sqlfsOBJ = SqlFS->new( 'DataSource' => "dbi:SQLite:dbname=$dbname")
+    or die "Unable to create new instance of SqlFS\n";
+
+my $listener = SqlTFTPd->new( 'SqlFSHandle' => $sqlfsOBJ, 'Timeout' => 10 )
+    or die SqlTFTPd->error;
+
+#my $logfile = "$logsdir/baracusd.log";
+#print "logfile  $logfile\n" if ( $debug );
+#open my $log, ">>", $logfile
+#    or die "unable to open log file: $!";
+
+# if first time we've launched load the root pxe file
+my $pxefile = "$datadir/pxelinux.0";
+print "pxefile  $pxefile\n" if ( $debug );
+unless ( $sqlfsOBJ->find( $pxefile ) )
+{
+#    print $log "Initial launch of baracusd - initializing $dbname\n";
+    print "Initial launch of baracusd - initializing $dbname\n" if ($debug);
+    $sqlfsOBJ->store( $pxefile );
+}
+
+#printf $log "SqlTFTPd listener is bound to %s:%d\n",
+#    $listener->{'LocalAddr'} ? $listener->{'LocalAddr'} : "'any address'",
+#    $listener->{'LocalPort'};
+
+printf "SqlTFTPd listener is bound to %s:%d\n",
+    $listener->{'LocalAddr'} ? $listener->{'LocalAddr'} : "'any address'",
+    $listener->{'LocalPort'} if ( $debug );
+
+while (1) {
+    # wait for any request (RRQ or WRQ)
+    if (my $request = $listener->waitRQ()) {
+        # received request
+#        printf $log "Received a %s from peer %s for file '%s'\n",
+#            $OPCODES{$request->{'_REQUEST_'}{'OPCODE'}},
+#                     $request->{'_REQUEST_'}{'PeerAddr'},
+#                     $request->{'_REQUEST_'}{'FileName'};
+        printf "Received a %s from peer %s for file '%s'\n",
+            $OPCODES{$request->{'_REQUEST_'}{'OPCODE'}},
+                     $request->{'_REQUEST_'}{'PeerAddr'},
+                     $request->{'_REQUEST_'}{'FileName'};
+
+        if ( &validateURL( $request ) ) {
+#            print $log "Finished processing build validation URL\n";
+            print "Finished processing build validation URL\n";
+        }
+        # process the request
+        elsif ($request->processRQ()) {
+#            print $log "OK, transfer completed successfully\n";
+            print "OK, transfer completed successfully\n";
+        } else {
+#            print $log SqlTFTPd->error;
+            print SqlTFTPd->error . "\n";
+        }
+    } else {
+        # request not received (timed out waiting for request etc.)
+#        print $log SqlTFTPd->error if ( SqlTFTPd->error );
+        print SqlTFTPd->error . "\n" if ( "SqlTFTPd->error" ne "" );
+    }
+}
+
+sub validateURL
+{
+    my $request = shift;
+
+    my $ip = $request->{'_REQUEST_'}{'PeerAddr'};
+    my $name = $request->{'_REQUEST_'}{'FileName'};
+
+    if ( $name =~ m|.*/baracus/uuid/([-0-9a-zA-Z]{36})\?(\S+).*$| ) {
+        my $uuid=$1;
+        my $hostname=$2;
+        print "CHECKING peer $ip as hostname $hostname with $uuid\n";
+        my $status = system("$hooksdir/baracus_dbupdate $hostname $ip $uuid");
+        if ( $status != 0 ) {
+            print "FAILED peer $ip verification as hostname $hostname with $uuid\n";
+        }
+        else {
+            print "VERIFIED peer $ip as hostname $hostname with $uuid invoking $hooksdir/baracus_hook\n";
+            system("$hooksdir/baracus_hook $hostname $ip");
+        }
+        # was a valid validate url - even if a spoofing attempt
+        return 1;
+    }
+    # was not a valid validate url - so we need to continue processing tftp
+    return 0;
+}

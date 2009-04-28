@@ -1,0 +1,11 @@
+# httpd configuration for Baracus share
+Alias %ALIAS% %SERVERDIR%
+<Directory %SERVERDIR%>
+
+    Options +Indexes +FollowSymLinks
+    IndexOptions +NameWidth=*
+
+    Order allow,deny
+    Allow from all
+
+</Directory>

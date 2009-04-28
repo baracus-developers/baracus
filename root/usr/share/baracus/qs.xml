@@ -1,0 +1,253 @@
+<?xml version='1.0'?>
+<config>
+
+	<distribution>
+		<os>sles11-x86_64</os>
+		<basepath>sles11/ga/x86_64</basepath>
+		<pxepath>dvd1/boot/x86_64/loader</pxepath>
+		<sp>ga</sp>
+		<file iso="SLES-11-DVD-x86_64-GM-DVD1.iso">
+			<md5>50a2bd45cd12c3808c3ee48208e2586b</md5>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-x86_64-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=X8FFufxq0nU~&mirror=AkamaiHost&nohost=false]]></url>
+			<path>sles11/ga/x86_64/dvd1</path>
+			<addon>base</addon>
+			</file>
+		<file iso="SLE-11-SDK-DVD-x86_64-GM-Media1.iso">
+			<md5>d36ec61c33f3c2771835eb16e16a6097</md5>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FfQKpDcAhPVY%7E%2FSLE-11-SDK-DVD-x86_64-GM-Media1.iso&buildid=fQKpDcAhPVY~&fileid=ypy97U_hIsk~&mirror=AkamaiHost&nohost=false]]></url>
+			<path>sles11/ga/x86_64/sdk</path>
+			<addon>new</addon>
+		</file>
+	</distribution>
+
+	<distribution>
+		<os>sles11-i586</os>
+		<basepath>sles11/ga/i586</basepath>
+		<pxepath>dvd1/boot/i586/loader</pxepath>
+		<sp>ga</sp>
+		<file iso="SLES-11-DVD-i586-GM-DVD1.iso">
+			<md5>4958d4dde2575666355c8a1c5858bab0</md5>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-i586-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=-lJMHbIN6s8~&mirror=AkamaiHost&nohost=false]]></url>
+			<path>sles11/ga/i586/dvd1</path>
+			<addon>base</addon>
+		</file>
+		<file iso="SLE-11-SDK-DVD-i586-GM-Media1.iso">
+			<md5>00493a6e1b410f82cb55bee7f4bbcdf7</md5>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FfQKpDcAhPVY%7E%2FSLE-11-SDK-DVD-i586-GM-Media1.iso&buildid=fQKpDcAhPVY~&fileid=rGCeRIQi57g~&mirror=AkamaiHost&nohost=false]]></url>
+			<path>sles11/ga/i586/sdk</path>
+			<addon>new</addon>
+		</file>
+	</distribution>
+
+	<distribution>
+		<os>sles10-x86_64</os>
+		<basepath>sles10/sp2/x86_64</basepath>
+		<pxepath>dvd1/boot/x86_64/loader</pxepath>
+		<sp>2</sp>
+		<file iso="SLES-10-SP2-DVD-x86_64-GM-DVD1.iso">
+			<md5>dab2c4b8fc9939b33535ab2d321f3f2e</md5>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FxWohTS2zkSs%7E%2FSLES-10-SP2-DVD-x86_64-GM-DVD1.iso&buildid=xWohTS2zkSs~&fileid=ymcKKUqgjzY~&mirror=AkamaiHost&nohost=false]]></url>
+			<path>sles10/sp2/x86_64/dvd1</path>
+			<addon>base</addon>
+		</file>
+		<file iso="SLE-10-SP2-SDK-DVD-x86_64-GM-DVD1.iso">
+			<md5>b94f022deb50d6aa79d4fcba0caf6de9</md5>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FeRAdQttrkeA%7E%2FSLE-10-SP2-SDK-DVD-x86_64-GM-DVD1.iso&buildid=eRAdQttrkeA~&fileid=MHiLlQ3CVls~&mirror=AkamaiHost&nohost=false]]></url>
+			<path>sles10/sp2/x86_64/sdk</path>
+			<addon>yes</addon>
+`		</file>
+	</distribution>
+
+	<distribution>
+		<os>sles10-i386</os>
+		<sp>2</sp>
+		<basepath>sles10/sp2/i386</basepath>
+		<pxepath>dvd1/boot/i386/loader</pxepath>
+		<file iso="SLES-10-SP2-DVD-i386-GM-DVD1.iso">
+			<md5>2b91efeb8a62e2824302bf9269080252</md5>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FxWohTS2zkSs%7E%2FSLES-10-SP2-DVD-i386-GM-DVD1.iso&buildid=xWohTS2zkSs~&fileid=6Hjh1FLHxbI~&mirror=AkamaiHost&nohost=false]]></url>
+			<path>sles10/sp2/i386/dvd1</path>
+			<addon>base</addon>
+		</file>
+		<file iso="SLE-10-SP2-SDK-DVD-i386-GM-DVD1.iso">
+			<md5>24ff4387f1f2f6c830e48f2bf04c69f3</md5>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FeRAdQttrkeA%7E%2FSLE-10-SP2-SDK-DVD-i386-GM-DVD1.iso&buildid=eRAdQttrkeA~&fileid=QGCEXAwuCIE~&mirror=AkamaiHost&nohost=false]]></url>
+			<path>sles10/sp2/i386/sdk</path>
+			<addon>yes</addon>
+		</file>
+	</distribution>
+
+	<distribution>
+		<os>sles9-i386</os>
+		<sp>4</sp>
+		<basepath>sles9/i386/</basepath>
+		<pxepath>SUSE-SLES-9-Service-Pack-Version-4/CD1/boot/loader</pxepath>
+		<file iso="SLES-9-i386-RC5-CD1.iso">
+			<md5>cc419d86f3f5ff99395ca4de9d967600</md5>
+			<path>sles9/i386/SUSE-SLES-Version-9/CD1</path>
+			<product>SUSE-SLES-Version-9</product>
+			<order>2</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD1.iso&buildid=1HYSkGYIYow~&fileid=ifVmcyYyHI8~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+		<file iso="SLES-9-i386-RC5-CD2.iso">
+			<md5>86e97184aae42ba6013ea7460372ffe5</md5>
+			<path>sles9/i386/SUSE-CORE-Version-9/CD1</path>
+			<product>SUSE-CORE-Version-9</product>
+			<order>3</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD2.iso&buildid=1HYSkGYIYow~&fileid=ggZLuF8gzBk~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+		<file iso="SLES-9-i386-RC5-CD3.iso">
+			<md5>f880b3ba92fc43add18259c9437f648d</md5>
+			<path>sles9/i386/SUSE-CORE-Version-9/CD2</path>
+			<product>SUSE-CORE-Version-9</product>
+			<order>3</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD3.iso&buildid=1HYSkGYIYow~&fileid=UdUk3-pqQX8~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+		<file iso="SLES-9-i386-RC5-CD4.iso">
+			<md5>bc7b88f34a8142bacbdd4d1fddd3fc50</md5>
+			<path>sles9/i386/SUSE-CORE-Version-9/CD3</path>
+			<product>SUSE-CORE-Version-9</product>
+			<order>3</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD4.iso&buildid=1HYSkGYIYow~&fileid=QqQh7kju3bc~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+		<file iso="SLES-9-i386-RC5-CD5.iso">
+			<md5>7844c76fc9f39a2af9ef6751ec18af60</md5>
+			<path>sles9/i386/SUSE-CORE-Version-9/CD4</path>
+			<product>SUSE-CORE-Version-9</product>
+			<order>3</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD5.iso&buildid=1HYSkGYIYow~&fileid=GwZ8-ENEJSo~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+		<file iso="SLES-9-SP4-CD-i386-GM-CD1.iso">
+			<md5>864c50512100f9bee15a7fdb2c63bf1c</md5>
+			<path>sles9/i386/SUSE-SLES-9-Service-Pack-Version-4/CD1</path>
+			<product>SUSE-SLES-9-Service-Pack-Version-4</product>
+			<order>1</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FH9EGDY9GAn8%7E%2FSLES-9-SP4-CD-i386-GM-CD1.iso&buildid=H9EGDY9GAn8~&fileid=fuS7imDVfzY~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+		<file iso="SLES-9-SP4-CD-i386-GM-CD2.iso">
+			<md5>f3741e2bada1f8d6bda2083bc4d1b7ba</md5>
+			<path>sles9/i386/SUSE-SLES-9-Service-Pack-Version-4/CD2</path>
+			<product>SUSE-SLES-9-Service-Pack-Version-4</product>
+			<order>1</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FH9EGDY9GAn8%7E%2FSLES-9-SP4-CD-i386-GM-CD2.iso&buildid=H9EGDY9GAn8~&fileid=0rxrxZa2O74~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+		<file iso="SLES-9-SP4-CD-i386-GM-CD3.iso">
+			<md5>8a573afbd7ec0204556d9d8d4f93d2cf</md5>
+			<path>sles9/i386/SUSE-SLES-9-Service-Pack-Version-4/CD3</path>
+			<product>SUSE-SLES-9-Service-Pack-Version-4</product>
+			<order>1</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FH9EGDY9GAn8%7E%2FSLES-9-SP4-CD-i386-GM-CD3.iso&buildid=H9EGDY9GAn8~&fileid=2MmSSSaTtfU~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+		<file iso="SLES-9-SP4-CD-i386-GM-CD4.iso">
+			<md5>569978236827c65306fb07716db09b2e</md5>
+			<path>sles9/i386/SUSE-SLES-9-Service-Pack-Version-4/CD4</path>
+			<product>SUSE-SLES-9-Service-Pack-Version-4</product>
+			<order>1</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FH9EGDY9GAn8%7E%2FSLES-9-SP4-CD-i386-GM-CD4.iso&buildid=H9EGDY9GAn8~&fileid=KU4VXici924~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+	</distribution>
+
+	<distribution>
+		<os>sles9-x86_64</os>
+		<sp>4</sp>
+		<basepath>sles9/x86_64/</basepath>
+		<pxepath>SUSE-SLES-9-Service-Pack-Version-4/CD1/boot/loader</pxepath>
+		<file iso="SLES-9-x86-64-RC5-CD1.iso">
+			<md5>1fb270a7123895abc846a377c3d1dfdd</md5>
+			<path>sles9/x86_64/SUSE-SLES-Version-9/CD1</path>
+			<product>SUSE-SLES-Version-9</product>
+			<order>2</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD1.iso&buildid=1HYSkGYIYow~&fileid=ZNNOE1Oc9tM~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+		<file iso="SLES-9-x86-64-RC5-CD2.iso">
+			<md5>1579c82c85fe71b4cc68685d638c883d</md5>
+			<path>sles9/x86_64/SUSE-CORE-Version-9/CD1</path>
+			<product>SUSE-CORE-Version-9</product>
+			<order>3</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD2.iso&buildid=1HYSkGYIYow~&fileid=vaOYguJ9wKM~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+		<file iso="SLES-9-x86-64-RC5-CD3.iso">
+			<md5>5330a150eb51542d378dbe281f2315a2</md5>
+			<path>sles9/x86_64/SUSE-CORE-Version-9/CD2</path>
+			<product>SUSE-CORE-Version-9</product>
+			<order>3</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD3.iso&buildid=1HYSkGYIYow~&fileid=KAKtiXWbing~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+		<file iso="SLES-9-x86-64-RC5-CD4.iso">
+			<md5>a9d5b0dddd45f378f97ea9bca2b12b11</md5>
+			<path>sles9/x86_64/SUSE-CORE-Version-9/CD3</path>
+			<product>SUSE-CORE-Version-9</product>
+			<order>3</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD4.iso&buildid=1HYSkGYIYow~&fileid=IXHQ1ksNFjE~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+		<file iso="SLES-9-x86-64-RC5-CD5.iso">
+			<md5>dc6de0d488e4dbf6aef322f7aadba7dd</md5>
+			<path>sles9/x86_64/SUSE-CORE-Version-9/CD4</path>
+			<product>SUSE-CORE-Version-9</product>
+			<order>3</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD5.iso&buildid=1HYSkGYIYow~&fileid=yo-bi-8mYWg~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+		<file iso="SLES-9-x86-64-RC5-CD6.iso">
+			<md5>2324e164faab72df89e4078b6a7c1aec</md5>
+			<path>sles9/x86_64/SUSE-CORE-Version-9/CD5</path>
+			<product>SUSE-CORE-Version-9</product>
+			<order>3</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD6.iso&buildid=1HYSkGYIYow~&fileid=hqLUkaIVhVw~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+		<file iso="SLES-9-SP4-CD-x86_64-GM-CD1.iso">
+			<md5>45afad1ce28037736d104adfd99a2fd6</md5>
+			<path>sles9/x86_64/SUSE-SLES-9-Service-Pack-Version-4/CD1</path>
+			<product>SUSE-SLES-9-Service-Pack-Version-4</product>
+			<order>1</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FMDhnIu6tHOk%7E%2FSLES-9-SP4-CD-x86_64-GM-CD1.iso&buildid=MDhnIu6tHOk~&fileid=mqbybi7N0SQ~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+		<file iso="SLES-9-SP4-CD-x86_64-GM-CD2.iso">
+			<md5>14fa18cbf05d82343849469bd4c0e6d1</md5>
+			<path>sles9/x86_64/SUSE-SLES-9-Service-Pack-Version-4/CD2</path>
+			<product>SUSE-SLES-9-Service-Pack-Version-4</product>
+			<order>1</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FMDhnIu6tHOk%7E%2FSLES-9-SP4-CD-x86_64-GM-CD2.iso&buildid=MDhnIu6tHOk~&fileid=29aiUMZosnA~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+		<file iso="SLES-9-SP4-CD-x86_64-GM-CD3.iso">
+			<md5>0a2b65a44b97fe563cafad62c1b4e473</md5>
+			<path>sles9/x86_64/SUSE-SLES-9-Service-Pack-Version-4/CD3</path>
+			<product>SUSE-SLES-9-Service-Pack-Version-4</product>
+			<order>1</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FMDhnIu6tHOk%7E%2FSLES-9-SP4-CD-x86_64-GM-CD3.iso&buildid=MDhnIu6tHOk~&fileid=DPY5zSthiY8~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+		<file iso="SLES-9-SP4-CD-x86_64-GM-CD4.iso">
+			<md5>19b7189b847c1e68e16bd8f1d0afff4f</md5>
+			<path>sles9/x86_64/SUSE-SLES-9-Service-Pack-Version-4/CD4</path>
+			<product>SUSE-SLES-9-Service-Pack-Version-4</product>
+			<order>1</order>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FMDhnIu6tHOk%7E%2FSLES-9-SP4-CD-x86_64-GM-CD4.iso&buildid=MDhnIu6tHOk~&fileid=AcmXCFkFiC0~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+	</distribution>
+
+	<distribution>
+		<os>slert-x86_64</os>
+		<basepath>sles10/sp2/x86_64</basepath>
+		<sp>2</sp>
+		<requires>sles10-x86_64</requires>
+		<file iso="SLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso">
+			<md5>a8601be6ad153a50d811dada3e4c2d61</md5>
+			<path>sles10/sp2/x86_64/slert</path>
+			<addon>yes</addon>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FsDXgx7pyw0Q%7E%2FSLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso&buildid=sDXgx7pyw0Q~&fileid=EZOK0eJ6_sU~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+	</distribution>
+
+	<distribution>
+		<os>slert-i386</os>
+		<basepath>sles10/sp2/i386</basepath>
+		<sp>2</sp>
+		<requires>sles10-i386</requires>
+		<file iso="SLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso">
+			<md5>a8601be6ad153a50d811dada3e4c2d61</md5>
+			<path>sles10/sp2/i386/slert</path>
+			<addon>yes</addon>
+			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FsDXgx7pyw0Q%7E%2FSLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso&buildid=sDXgx7pyw0Q~&fileid=EZOK0eJ6_sU~&mirror=AkamaiHost&nohost=false]]></url>
+		</file>
+	</distribution>
+
+</config>

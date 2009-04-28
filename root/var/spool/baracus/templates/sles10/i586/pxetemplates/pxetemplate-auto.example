@@ -1,0 +1,7 @@
+DEFAULT install
+PROMPT 0
+TIMEOUT 0
+
+LABEL install
+        kernel /kernel/PXEKERNEL
+        append brokenmodules=qla2xxx BOOTARGS initrd=/initrd/PXEINITRD install=nfs://SITEIP/COREDIR/linux-core/SLES10-GA/i586/ autoyast=nfs://SITEIP/COREDIR/linux-core/installdb/HEXIP textmode=1
