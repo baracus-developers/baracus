@@ -2,19 +2,20 @@
 
 Summary:   Tool to create SLE/SUSE remote build trees
 Name:      baracus
-Version:   0.16
+Version:   0.17
 Release:   0
 Group:     System/Services
 License:   GPLv2
 Packager:  Daniel Westervelt <dwestervelt@novell.com>
 BuildRoot: %{_tmppath}/%{name}-%{version}-buildroot
 Source:    %{name}-%{version}.tar.gz
-Source1:   sysconfig.%name
+Source1:   sysconfig.%{name}
+Source2:   initd.%{name}d
 Requires:  perl, perl-XML-Simple, perl-libwww-perl, perl-Data-UUID
 Requires:  perl-Config-General, perl-Config-Simple, perl-AppConfig
 Requires:  perl-TermReadKey, perl-DBI, perl-DBD-SQLite, rsync
 %if 0%{?suse_version} <= 1100
-Requires:  sqlite > 3.2
+Requires:  sqlite >= 3.3
 %else
 Requires: sqlite3
 %endif
@@ -35,10 +36,14 @@ necessary distribution tree.
 mkdir -p %{buildroot}
 cp -r $PWD/* %{buildroot}/.
 
-chmod 755 %{buildroot}/%{_initrddir}/%{name}d
-install -D -m644 %{S:1} %{buildroot}/var/adm/fillup-templates/sysconfig.baracus
+install -D -m644 %{S:1} %{buildroot}/var/adm/fillup-templates/sysconfig.%{name}
+install -D -m755 %{S:2} %{buildroot}/%{_initrddir}/%{name}d
 ln -s ../..%{_initrddir}/%{name}d %{buildroot}/%{_sbindir}/rc%{name}d
+chmod 755 %{buildroot}/%{_initrddir}/%{name}d
+chmod 700 %{buildroot}/%{_datadir}/%{name}/.gnupg
 mkdir %{buildroot}/var/spool/%{name}/isos
+mkdir %{buildroot}/var/spool/%{name}/logs
+mkdir %{buildroot}/var/spool/%{name}/modules
 
 %clean
 rm -Rf %{buildroot}
@@ -59,21 +64,27 @@ rm -Rf %{buildroot}
 %defattr(-,root,root)
 #%doc %{_mandir}/man?/*
 %{_sbindir}/*
-%{_sysconfdir}/baracus.d
-%config %{_initrddir}/baracusd
-%dir %{_datadir}/baracus
-%doc %{_datadir}/baracus/*.xml
-%{_datadir}/baracus/pxelinux.0
-%{_datadir}/baracus/templates
-%{_datadir}/baracus/perl
-%{_datadir}/baracus/.gnupg
+%{_sysconfdir}/%{name}.d
+%config %{_initrddir}/%{name}d
+%dir %{_datadir}/%{name}
+%doc %{_datadir}/%{name}/*.xml
+%{_datadir}/%{name}/pxelinux.0
+%{_datadir}/%{name}/templates
+%{_datadir}/%{name}/perl
+%{_datadir}/%{name}/.gnupg
 /var/spool/%{name}
-%dir /var/spool/%{name}/modules
-%dir /var/spool/%{name}/logs
 %dir /var/spool/%{name}/isos
+%dir /var/spool/%{name}/logs
+%dir /var/spool/%{name}/modules
 /var/adm/fillup-templates/*
 
 %changelog
+* Mon Apr 27 2009 dbahi@novell
+- all tftp files served from db directly
+- baracusd no longer depends on apache2
+- symlink example templates for slert, sle10, sle11 x86_64
+- key added to initrd for sle11 add_on_product handling
+- modify perms for gnupg directory
 * Fri Apr 10 2009 dbahi@novell
 - add golden image templates for pxe and autoyast
 - change -i handling and avoid clobbering files we have
