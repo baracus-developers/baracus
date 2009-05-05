@@ -7,7 +7,44 @@ use lib "/usr/share/baracus/perl";
 
 use SqlFS;
 
+=pod
+
+=head1 NAME
+
+B<directSqlFS> - example tool to excercise the SqlFS database API
+
+=head1 SYNOPSIS
+
+B<directSqlFS> [--source=E<lt>sqlite|pgsqlE<gt>] E<lt>commandE<gt> [options and arguments]
+
+Where E<lt>commandE<gt> is
+
+    help    Usage summary message.
+    man     Detailed man page.
+    drop    Destroy filesystem database table.
+    list    List files in database table.
+    add     Copy to database table from file in specified location.
+    fetch   Copy from database table to file in specified location.
+    detail  Display all details about file in the database table.
+    delete  Remove file specified from database table.
+
+
+=head1 DESCRIPTION
+
+This tool allows files to be added to, removed from, detailed, fetched
+from an SqlFS database filesystem.  Additionally, the database can be
+wiped clean, or all its files contains listed.
+
+In cases where the commands will only interact with the SqlFS,
+e.g. detail and delete, filename arguments are required but path
+information will be ignored. And in cases where the commands will read
+or write to a file outside the SqlFS, e.g. add and fetch, pathing
+information is required to locate the file external to the SqlFS.
+
+=cut
+
 # what DBI schema and database are we using
+my $source = "pgsql"; # default to postgres
 my $datasource;
 my $user;
 
@@ -16,10 +53,6 @@ our $LASTERROR="";
 my $man   = 0;
 my $help  = 0;
 my $debug = 0;
-
-my $source = "pgsql"; # default to postgres
-
-my $pname = $1 if $0 =~ m|.*/([^/].*)|;
 
 my @cmds = ('help', 'man', 'drop', 'list', 'add', 'fetch', 'detail', 'delete');
 
@@ -65,35 +98,6 @@ exit $status;
 die "DOES NOT EXECUTE";
 
 ###########################################################################
-
-=pod
-
-=head1 NAME
-
-B<directSqlFS> - example tool to excercise the SqlFS database API
-
-=head1 SYNOPSIS
-
-B<directSqlFS> [--source=E<lt>sqlite|pgsqlE<gt>] E<lt>commandE<gt> [options and arguments]
-
-Where E<lt>commandE<gt> is
-
-    help    Usage summary message.
-    man     Detailed man page.
-    drop    Destroy filesystem database table.
-    list    List files in database table.
-    add     Copy to database table from file in specified location.
-    fetch   Copy from database table to file in specified location.
-    detail  Display all details about file in the database table.
-    delete  Remove file specified from database table.
-
-=head1 DESCRIPTION
-
-This tool allows files to be added to, removed from, detailed, fetched from
-an SqlFS database filesystem.  Additionally, the database can be wiped clean,
-or all its files contains listed.
-
-In cases where the commands will only interact with the SqlFS, e.g. detail and delete, filename arguments are required but path information will be ignored. And in cases where the commands will read or write to a file outside the SqlFS, e.g. add and fetch, pathing information is required to locate the file external to the SqlFS.
 
 =head1 OPTIONS AND ARGUMENTS
 
