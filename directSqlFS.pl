@@ -45,6 +45,7 @@ information is required to locate the file external to the SqlFS.
 
 # what DBI schema and database are we using
 my $source = "pgsql"; # default to postgres
+my $dbname = "sqltftp";
 my $datasource;
 my $user;
 
@@ -81,11 +82,11 @@ GetOptions(
 $source = lc $source;
 
 if ( "$source" eq "sqlite" ) {
-    $datasource = "dbi:SQLite:dbname=$ENV{'HOME'}/sqlftfp";
+    $datasource = "dbi:SQLite:dbname=$ENV{'HOME'}/$dbname";
     $user = "";
 }
 else {
-    $datasource = "dbi:Pg:dbname=sqlftfp";
+    $datasource = "dbi:Pg:dbname=$dbname";
     $user = "baracus";
 }
 
