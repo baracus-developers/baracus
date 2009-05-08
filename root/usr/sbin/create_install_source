@@ -24,6 +24,7 @@ my $menu;
 my $disable;
 my $list;
 my $verify;
+my $service;
 my $proxy;
 my $help;
 my $verbose;
@@ -36,870 +37,1043 @@ my $troot="";
 my $datadir="";
 my $dbasedir="";
 my $config={};
+my $baracusdir;
+my $start_services;
+my $stop_services;
+our %bdir = ();
 
 sub get_usage() {
 
-        print "usage: create_install_source [subcommand] <options> \n\n";
+    print <<MARKER;
+Usage:
+    create_install_source command [options]
 
-	print "menu           : run full menu mode \n";
-	print "add            : add a new build source \n";
-	print "delete         : delete a build source \n";
-	print "disable        : diable a build source \n";
-	print "list           : list required isos \n";
-	print "verify         : verify build source \n";
-	print "i <directory>  : download iso to directory \n";
-	print "p|proxy        : use proxy for iso downloads \n";
-	print "v|verbose      : verbose output \n";
-	print "h|help         : this (help) message \n\n";
+Where command is one of
 
-        exit;
+    menu                            : run full menu mode 
+    add     --distro <x>            : add a new build source for distribution <x>
+    delete  --distro <x>            : delete a build source for distribution <x>
+    disable --distro <x>            : diable a build source for distribution <x>
+    list    --distro <x>            : list required isos for distribution <x>
+    verify  --distro <x>            : verify build source for distribution <x>
+    service --start                 : start default services
+    service --stop                  : stop default services
+    service --start y [--start y]   : start specified service(s) (nfs,http,dhcpd)
+    service --stop  y [--stop  y]   : stop specified service(s) (nfs,http,dhcpd)
 
+Options are
+
+    -i|--isos                       : 'add' option - download iso to directory 
+    -p|--proxy                      : 'add' option - use proxy for iso downloads 
+    -v|--verbose                    : verbose output 
+    -h|--help                       : this (help) message
+
+MARKER
+
+    exit;
 }
 
 sub dircp {
 
-        my ($target, $source) = @_;
-	if ($verbose) { print "Importing Source: $target\n"; }
+    my ($target, $source) = @_;
+    if ($verbose) {
+        print "Importing Source: $target\n";
+    }
 
-	open(RSYNC, "/usr/bin/rsync -avzHl $source/* $target|") || die ("Cannot open pipe\n");
-	close(RSYNC);
+    open(RSYNC, "/usr/bin/rsync -avzHl $source/* $target|")
+        or die ("Cannot open pipe\n");
+    close(RSYNC);
 }
 
 sub list_isos() {
 
-	my ($os) = @_;
+    my ($os) = @_;
 
-	unless ($os) { print "distribution required, see help for details\n"; exit(1); }
+    unless ($os) {
+        print "distribution required, see help for details\n"; exit(1);
+    }
 
-	if ($config->{distribution}->{$os}) {
-		foreach my $isofile (keys (%{$config->{distribution}->{$os}->{file}})) {
-			print "$isofile\n";
-		}
-	}
-	else { print "$os not valid distribution\n"; }
-	exit;
+    if ($config->{distribution}->{$os}) {
+        foreach my $isofile (keys (%{$config->{distribution}->{$os}->{file}})) {
+            print "$isofile\n";
+        }
+    } else {
+        print "$os not valid distribution\n";
+    }
+    exit;
 }
 
 sub download_iso() {
 
-	my @isofilelist;
-	my $isofile;
-	my $found = 0;
+    my @isofilelist;
+    my $isofile;
+    my $found = 0;
 
-	foreach $isofile (keys (%{$config->{distribution}->{$os}->{file}})) {
-		if ( -f "$iarg/$isofile" ) {
-	 		print "found $iarg/$isofile\n";
-			$found = 1;
-			next;
-		}
-		push @isofilelist, $isofile;
-	}
+    foreach $isofile (keys (%{$config->{distribution}->{$os}->{file}})) {
+        if ( -f "$iarg/$isofile" ) {
+            print "found $iarg/$isofile\n";
+            $found = 1;
+            next;
+        }
+        push @isofilelist, $isofile;
+    }
 
-	if ($found) {
-	print "ISO download requested and files were already found. If checksum\n";
-	print "verification fails for a file, please remove the file and retry.\n";
-	}
-	return unless @isofilelist;
+    if ($found) {
+        print "ISO download requested and files were already found. If checksum\n";
+        print "verification fails for a file, please remove the file and retry.\n";
+    }
+    return unless @isofilelist;
 
-	my $proxyaddr="";
-        my $pusername="";
-        my $ppassword="";
+    my $proxyaddr="";
+    my $pusername="";
+    my $ppassword="";
 
-	if ($proxy) {
-		print "Please enter proxy address: ";
-		chomp($proxyaddr = ReadLine 0);
+    if ($proxy) {
+        print "Please enter proxy address: ";
+        chomp($proxyaddr = ReadLine 0);
 
-		print "Please enter proxy username: ";
-		chomp($pusername = ReadLine 0);
+        print "Please enter proxy username: ";
+        chomp($pusername = ReadLine 0);
 
-		print "Please enter proxy password: ";
-		ReadMode 'noecho';
-		chomp($ppassword = ReadLine 0);
-		ReadMode 'normal';
-		print "\n";
-	}
+        print "Please enter proxy password: ";
+        ReadMode 'noecho';
+        chomp($ppassword = ReadLine 0);
+        ReadMode 'normal';
+        print "\n";
+    }
 
-	print "Please enter (novell.com) userid: ";
-	chomp(my $username = ReadLine 0);
+    print "Please enter (novell.com) userid: ";
+    chomp(my $username = ReadLine 0);
 
-	print "Please enter (novell.com) password: ";
-	ReadMode 'noecho';
-	chomp(my $password = ReadLine 0);
-	ReadMode 'normal';
+    print "Please enter (novell.com) password: ";
+    ReadMode 'noecho';
+    chomp(my $password = ReadLine 0);
+    ReadMode 'normal';
 
-        print "\nDownloading: \n";
-	foreach $isofile ( @isofilelist ) {
-		&get_iso($os,$config->{distribution}->{$os}->{file}->{$isofile}->{url},$isofile,$username,$password,$pusername,$ppassword,$proxyaddr);
-	}
+    print "\nDownloading: \n";
+    foreach $isofile ( @isofilelist ) {
+        &get_iso($os,$config->{distribution}->{$os}->{file}->{$isofile}->{url},$isofile,$username,$password,$pusername,$ppassword,$proxyaddr);
+    }
 }
 
 
 sub get_build_info() {
 
-	my $troot="0";
-	my $iso="";
-	my $type=0;
-	my $ip;
-	my $os;
-	my $sanswer="";
-	my $enable="";
+    my $troot="";
+    my $iso="";
+    my $type="";
+    my $ip;
+    my $os;
+    my $sanswer="";
+    my $enable="";
 
-	## What distribution to create build tree for
-	##
-	print "\nPlease select a distribution: \n";
-	print "-----------------------------\n";
-	foreach my $d (sort { $b cmp $a } keys (%{$config->{distribution}})) {
-		print "$d\n"
-	}
-	print "> ";
-	chomp($os = ReadLine(0));
+    ## What distribution to create build tree for
+    ##
+    print "\nPlease select a distribution: \n";
+    print "-----------------------------\n";
+    foreach my $d (sort { $b cmp $a } keys (%{$config->{distribution}})) {
+        print "$d\n"
+    }
+    print "> ";
+    chomp($os = ReadLine(0));
 
-	## Check if add-on, ie. SLERT, OES
-        ##
-        if ($config->{distribution}->{$os}->{requires}) { ($troot, $type, $ip) = &addon_product($os); }
+    ## Check if add-on, ie. SLERT, OES
+    ##
+    if ($config->{distribution}->{$os}->{requires}) {
+        ($troot, $type, $ip) = &addon_product($os);
+    }
 
-	unless ($config->{distribution}->{$os}->{requires}) {
-		until ($type eq "nfs" || $type eq "http") {
-			print "\nPlease select installation type: \n";
-			print "--------------------------------\n";
-			print "nfs\n";
-			print "http\n\n";
-			print "> ";
-			chomp($type = ReadLine(0));
-			$type =~ tr/[A-Z]/[a-z]/;
-		}
+    unless ($config->{distribution}->{$os}->{requires}) {
+        until ($type eq "nfs" || $type eq "http") {
+            print "\nPlease select installation type: \n";
+            print "--------------------------------\n";
+            print "nfs\n";
+            print "http\n\n";
+            print "> ";
+            chomp($type = ReadLine(0));
+            $type =~ tr/[A-Z]/[a-z]/;
+        }
 
-		until ($enable eq "yes" || $enable eq "no") {
-			print "Enable all necessary services? (yes/no) ";
-			chomp($enable = ReadLine(0));
-			$enable =~ tr/[A-Z]/[a-z]/;
-		}
+        until ($enable eq "yes" || $enable eq "no") {
+            print "Enable all necessary services? (yes/no) ";
+            chomp($enable = ReadLine(0));
+            $enable =~ tr/[A-Z]/[a-z]/;
+        }
 
-		print "Please specify IP address of remote build: ";
-		while ( ((chomp($ip = ReadLine(0)))) && ($ip !~ /^(\d{1,3}\.){3}\d{1,3}$/) ) {
-			print "$ip is NOT a valid IP Address.\n";
-			print "Please specify IP address of remote build: ";
-		}
+        print "Please specify IP address of remote build: ";
+        while ( ((chomp($ip = ReadLine(0)))) && ($ip !~ /^(\d{1,3}\.){3}\d{1,3}$/) ) {
+            print "$ip is NOT a valid IP Address.\n";
+            print "Please specify IP address of remote build: ";
+        }
 
-		print "Please specify a location for root of build tree: ";
-		chomp($troot = ReadLine(0));
-	}
+        print "Please specify a location for root of build tree: ";
+        chomp($troot = ReadLine(0));
+    }
 
-	## Do we need to download the iso files
-	##
-	unless ($iarg) {
-		print "Please enter path to $os iso files: ";
-		chomp($iso = ReadLine(0));
-	}
+    ## Do we need to download the iso files
+    ##
+    unless ($iarg) {
+        print "Please enter path to $os iso files: ";
+        chomp($iso = ReadLine(0));
+    }
 
-# 	print "Calling routine to configure atftpd\n";
-# 	&atftp_config();
-
-	if ($enable eq "yes") { &enable_services($type); }
-	&add_build($os, $troot, $type, $ip, $iso);
+    if ($enable eq "yes") {
+        foreach my $service ("$type", "dhcpd") {
+            &enable_service($service);
+        }
+    }
+    &add_build($os, $troot, $type, $ip, $iso);
 }
 
 sub verify_build() {
 
-	my ($os,$troot) = @_;
-	my $status="";;
-	my $service="";
+    my ($os,$troot) = @_;
+    my $status="";;
+    my $service="";
 
-	unless( -d "$troot/$config->{distribution}->{$os}->{basepath}" ) {
-		print "Build tree does not appear to exist \n";
-		exit(1);
-	}
+    unless ( -d "$troot/$config->{distribution}->{$os}->{basepath}" ) {
+        print "Build tree does not appear to exist \n";
+        exit(1);
+    }
 
-	## Determine Service and Status
-	##
-	open(FILE, "</etc/exports");
-	while(<FILE>) {
-		if (/$config->{distribution}->{$os}->{basepath}/) { $status="enabled"; $service="nfs"; }
-		if ((/^#/) && (/$config->{distribution}->{$os}->{basepath}/)) { $status="disabled"; $service="nfs"; }
-	}
-	close(FILE);
+    ## Determine Service and Status
+    ##
+    open(FILE, "</etc/exports");
+    while (<FILE>) {
+        if (/$config->{distribution}->{$os}->{basepath}/) {
+            $status="enabled"; $service="nfs";
+        }
+        if ((/^#/) && (/$config->{distribution}->{$os}->{basepath}/)) {
+            $status="disabled"; $service="nfs";
+        }
+    }
+    close(FILE);
 
-	unless($service) {
-		if ( -f "/etc/apache2/conf.d/$os\_server.conf") { $status="enabled"; $service="http"; }
-		if ( -f "/etc/apache2/conf.d/$os\_server.disabled") { $status="disabled"; $service="http"; }
-	}
+    unless($service) {
+        if ( -f "/etc/apache2/conf.d/$os\_server.conf") {
+            $status="enabled"; $service="http";
+        }
+        if ( -f "/etc/apache2/conf.d/$os\_server.disabled") {
+            $status="disabled"; $service="http";
+        }
+    }
 
-	## Find build path
-	##
-	print "Target:\t\t$os \n";
-	print "Path:\t\t$troot\/$config->{distribution}->{$os}->{basepath} \n";
-	print "Service:\t$service \n";
-	print "Status:\t\t$status\n";
+    ## Find build path
+    ##
+    print "Target:\t\t$os \n";
+    print "Path:\t\t$troot\/$config->{distribution}->{$os}->{basepath} \n";
+    print "Service:\t$service \n";
+    print "Status:\t\t$status\n";
 }
 
 sub addon_product() {
 
-	my ($os, $troot) = @_;
-	my $baseprod;
+    my ($os, $troot) = @_;
+    my $baseprod;
 
-	## Check if add-on, ie. SLERT
-	##
-	if ($config->{distribution}->{$os}->{requires}) {
-		$troot = "$troot/$config->{distribution}->{$os}->{basepath}";
-		my $path="";
-		$troot = "/" .  (split /\//, $troot)[1];
-		my $basedistro = (split /-/, $config->{distribution}->{$os}->{requires})[0];
-		find ({ wanted => sub { if ($_ eq $basedistro) { $path = "$File::Find::dir/$_"; } } }, "$troot");
-		unless ($path) {
-			print "Install base not found \n";
-			exit(1);
-		}
-		$troot = $path;
-		$troot =~ s/\/$basedistro//;
-		my $baseos = $config->{distribution}->{$os}->{requires};
+    ## Check if add-on, ie. SLERT
+    ##
+    if ($config->{distribution}->{$os}->{requires}) {
+	my $baseos = $config->{distribution}->{$os}->{requires};
+	unless ($troot) {
+            print "Install base, $baseos, not found.\n";
+            exit(1);
+        }
 
-		## Verify SLE base product if addon
-		##
-		print "Verifying base SLES product\n";
-		foreach my $isofile (keys (%{$config->{distribution}->{$baseos}->{file}})) {
-			if ( ! -d "$troot/$config->{distribution}->{$baseos}->{file}->{$isofile}->{path}" ) {
-				print "Cannot verify required SLES base installation at $troot\n";
-				exit(1);
-			}
-			if ($config->{distribution}->{$baseos}->{file}->{$isofile}->{addon} eq "base") {
-				$baseprod = "$troot/$config->{distribution}->{$baseos}->{file}->{$isofile}->{path}";
-			}
-		}
+        ## Verify SLE base product if addon
+        ##
+        print "Verifying base SLES product\n";
+        foreach my $isofile (keys (%{$config->{distribution}->{$baseos}->{file}})) {
+            if ( ! -d "$troot/$config->{distribution}->{$baseos}->{file}->{$isofile}->{path}" ) {
+                print "Cannot verify required SLES base installation at $troot\n";
+                exit(1);
+            }
+            if ($config->{distribution}->{$baseos}->{file}->{$isofile}->{addon} eq "base") {
+                $baseprod = "$troot/$config->{distribution}->{$baseos}->{file}->{$isofile}->{path}";
+            }
+        }
 
-		open(FILE, "<$baseprod/add_on_products");
-		while(<FILE>) {
-			$type = (split /\//, $_)[0];
-			$type =~ s/://;
-			$ip = (split /\//, $_)[2];
-		}
-		close(FILE);
-	}
+        open(FILE, "<$baseprod/add_on_products");
+        while (<FILE>) {
+            $type = (split /\//, $_)[0];
+            $type =~ s/://;
+            $ip = (split /\//, $_)[2];
+        }
+        close(FILE);
+    }
 
-	my @args = ($troot,$type,$ip);
-	return(@args);
-
+    my @args = ($troot,$type,$ip);
+    return(@args);
 }
 
 sub add_build() {
 
-	my ($os, $troot, $datadir, $type, $ip, $iso) = @_;
+    my ($os, $troot, $datadir, $type, $ip, $iso) = @_;
 
-	(my $distro, my $arch) = split(/-/,$os);
+    (my $distro, my $arch) = split(/-/,$os);
 
-	## Test if selection is valid
-	##
-	my @osarray;
-	foreach my $d (keys (%{$config->{distribution}})) {
-		push(@osarray, $d);
-	}
-	unless ( grep( /^$os/,@osarray ) ) {
-		print "unknown distribution\n";
-		exit(1);
-	}
+    ## Test if selection is valid
+    ##
+    my @osarray;
+    foreach my $d (keys (%{$config->{distribution}})) {
+        push(@osarray, $d);
+    }
+    unless ( grep( /^$os/,@osarray ) ) {
+        print "unknown distribution\n";
+        exit(1);
+    }
 
-	## Check if add-on, ie. SLERT, OES
-	##
-	if ($config->{distribution}->{$os}->{requires}) { ($troot, $type, $ip) = &addon_product($os, $troot); }
+    ## Check if add-on, ie. SLERT, OES
+    ##
+    if ($config->{distribution}->{$os}->{requires}) {
+        ($troot, $type, $ip) = &addon_product($os, $troot);
+    }
 
-	&download_iso()	if ($iarg);
+    &download_iso() if ($iarg);
 
-	print "Calling routine to locate iso files\n";
-        my $isoarray = &verify_iso($distro,$arch,$os,$troot,$iso);
-        my @isoarray = @$isoarray;
+    print "Calling routine to locate iso files\n";
+    my $isoarray = &verify_iso($distro,$arch,$os,$troot,$iso);
+    my @isoarray = @$isoarray;
 
-	print "Calling routine to generate tree\n";
-	#if ($distro eq "sles10" || $distro eq "slert") { &create_sle10_build($os,$troot,$type,$ip,@isoarray) }
-	if ($distro eq "sles9") { &create_sle9_build($os,$troot,$type,$ip,@isoarray); }
-	else { &create_sle10_build($os,$troot,$type,$ip,@isoarray); }
+    print "Calling routine to generate tree\n";
 
-	unless ($config->{distribution}->{$os}->{requires}) {
-		if ($verbose) { print "Calling routine to configure $type\n"; }
-		&service_config($type,$troot,$datadir,$os);
-		if ($verbose) { print "Calling routine to configure PXE\n"; }
-		&pxe_config($troot,$datadir,$os,$type,$ip);
-	}
+    if ($distro eq "sles9") {
+        &create_sle9_build($os,$troot,$type,$ip,@isoarray);
+    } else {
+        &create_sle10_build($os,$troot,$type,$ip,@isoarray);
+    }
 
+    unless ($config->{distribution}->{$os}->{requires}) {
+        print "Calling routine to configure $type\n" if ($verbose);
+        &service_config($type,$troot,$datadir,$os);
+        print "Calling routine to configure PXE\n" if ($verbose);
+        &pxe_config($troot,$datadir,$os,$type,$ip);
+    }
 }
 
 sub remove_build() {
 
-	my ($os,$troot) = @_;
+    my ($os,$troot) = @_;
 
-	print "Removing $os \n";
+    print "Removing $os \n";
 
-	if ($config->{distribution}->{$os}->{requires}) {
-		my $dir = (split /-/, $os)[0];
-		rmtree("$troot\/$config->{distribution}->{$os}->{basepath}/$dir");
-	}
-	else {
-		print "Should actually remove service entry (nfs,http,etc..) \n";
-		rmtree("$troot\/$config->{distribution}->{$os}->{basepath}");
-	}
+    if ($config->{distribution}->{$os}->{requires}) {
+        my $dir = (split /-/, $os)[0];
+        rmtree("$troot\/$config->{distribution}->{$os}->{basepath}/$dir");
+    } else {
+        print "Should actually remove service entry (nfs,http,etc..) \n";
+        rmtree("$troot\/$config->{distribution}->{$os}->{basepath}");
+    }
 
 }
 
 sub disable_build() {
 
-	my ($os,$troot,$type) = @_;
+    my ($os,$troot,$type) = @_;
 
-	print "Disabling $os \n";
+    print "Disabling $os \n";
 
-	if ($type eq "nfs") {
-		open(FILE, "</etc/exports");
-		my $nfsfile = join '', <FILE>;
-		close(FILE);
+    if ($type eq "nfs") {
+        open(FILE, "</etc/exports");
+        my $nfsfile = join '', <FILE>;
+        close(FILE);
 
-		$nfsfile =~ s/$troot\/$config->{distribution}->{$os}->{basepath}/#$troot\/$config->{distribution}->{$os}->{basepath}/g;
+        $nfsfile =~ s/$troot\/$config->{distribution}->{$os}->{basepath}/#$troot\/$config->{distribution}->{$os}->{basepath}/g;
 
-		open(FILE, ">/etc/exports");
-		print FILE $nfsfile;
-		close(FILE);
+        open(FILE, ">/etc/exports");
+        print FILE $nfsfile;
+        close(FILE);
 
-		open(SERVICE, "/usr/sbin/exportfs -r|");
-	}
+        system("/usr/sbin/exportfs -r");
+    }
 
-	if ($type eq "http") {
-		if ( -f "/etc/apache2/conf.d/$os\_server.conf") {
-			move("/etc/apache2/conf.d/$os\_server.conf","/etc/apache2/conf.d/$os\_server.disabled");
-		}
-		else {
-			print "$os service not found \n";
-		}
-	}
+    if ($type eq "http") {
+        if ( -f "/etc/apache2/conf.d/$os\_server.conf") {
+            move("/etc/apache2/conf.d/$os\_server.conf","/etc/apache2/conf.d/$os\_server.disabled");
+        } else {
+            print "$os service not found \n";
+        }
+    }
 
 }
 
 sub enable_build() {
 
-	my ($os,$troot,$type) = @_;
+    my ($os,$troot,$type) = @_;
 
-	print "Enabling $os \n";
+    print "Enabling $os \n";
 
-	if ($type eq "nfs") {
-                open(FILE, "</etc/exports");
-                my $nfsfile = join '', <FILE>;
-                close(FILE);
+    if ($type eq "nfs") {
+        open(FILE, "</etc/exports");
+        my $nfsfile = join '', <FILE>;
+        close(FILE);
 
-                $nfsfile =~ s/#$troot\/$config->{distribution}->{$os}->{basepath}/$troot\/$config->{distribution}->{$os}->{basepath}/g;
+        $nfsfile =~ s/#$troot\/$config->{distribution}->{$os}->{basepath}/$troot\/$config->{distribution}->{$os}->{basepath}/g;
 
-                open(FILE, ">/etc/exports");
-                print FILE $nfsfile;
-                close(FILE);
+        open(FILE, ">/etc/exports");
+        print FILE $nfsfile;
+        close(FILE);
 
-                open(SERVICE, "/usr/sbin/exportfs -r|");
-		close(SERVICE);
+        system("/usr/sbin/exportfs -r");
+    }
+
+    if ($type eq "http") {
+        if (-f "/etc/apache2/conf.d/$os\_server.disabled") {
+            move("/etc/apache2/conf.d/$os\_server.disabled","/etc/apache2/conf.d/$os\_server.conf");
+            system("/etc/init.d/apache2 reload");
+        } else {
+            print "$os service not found \n";
         }
-
-	if ($type eq "http") {
-		if (-f "/etc/apache2/conf.d/$os\_server.disabled") {
-			move("/etc/apache2/conf.d/$os\_server.disabled","/etc/apache2/conf.d/$os\_server.conf");
-			open(SERVICE, "/etc/init.d/apache2 reload|");
-			close(SERVICE);
-		}
-		else {
-			print "$os service not found \n";
-		}
-	}
+    }
 }
 
 sub verify_iso() {
 
-	use Digest::MD5 qw(md5 md5_hex md5_base64);
+    use Digest::MD5 qw(md5 md5_hex md5_base64);
 
-	my ($distro,$arch,$os,$troot,$iso) = @_;
-	my $bad=0;
-	my @isoarray;
+    my ($distro,$arch,$os,$troot,$iso) = @_;
+    my $bad=0;
+    my @isoarray;
 
-	## test directory for iso files
-	if (! -d $iso) {
-		print "directory does not exist: $iso \n";
-		exit(1);
-	}
+    ## test directory for iso files
+    if (! -d $iso) {
+        print "directory does not exist: $iso \n";
+        exit(1);
+    } else {
+        ## Verify all iso files are present
+        ##
+        print "Searching for required iso files ...\n";
+        foreach my $isofile (keys (%{$config->{distribution}->{$os}->{file}})) {
+            $bad=0;
+            find ({ wanted => sub { if ($_ eq $isofile) { if ($verbose) { print "found $File::Find::dir/$_\n"; } push (@isoarray, "$File::Find::dir/$_"); $bad=1; } }, follow => 1 }, $iso);
+            if ($bad == 0) {
+                print "failed: missing $isofile file\n"; exit(1);
+            }
+        }
 
-	else {
-		## Verify all iso files are present
-		##
-		print "Searching for required iso files ...\n";
-		foreach my $isofile (keys (%{$config->{distribution}->{$os}->{file}})) {
-			$bad=0;
-			find ({ wanted => sub { if ($_ eq $isofile) { if ($verbose) { print "found $File::Find::dir/$_\n"; } push (@isoarray, "$File::Find::dir/$_"); $bad=1; } }, follow => 1 }, $iso);
-			if ($bad == 0) { print "failed: missing $isofile file\n"; exit(1); }
-		}
+        if (($iarg) || ($check)) {
+            ## Verify md5sum of each iso
+            ##
+            print "Verifing iso checksums ...\n";
 
-		if (($iarg) || ($check)) {
-			## Verify md5sum of each iso
-			##
-			print "Verifing iso checksums ...\n";
-
-			foreach (@isoarray) {
-					my @isos = split(/\//, $_);
-					open(FILE, $_) or die die "Can't open '$_': $!";
-					binmode(FILE);
-					my $md5 = Digest::MD5->new->addfile(*FILE)->hexdigest;
-					chomp($md5);
-					if ($verbose) { print "$_:  $md5 => $config->{distribution}->{$os}->{file}->{$isos[-1]}->{md5}\n"; }
-					if ( $md5 ne $config->{distribution}->{$os}->{file}->{$isos[-1]}->{md5} ) { print "failed\n $_ has a bad md5, please verify source\n"; exit(1); };
-			}
-		}
-	}
-	return(\@isoarray);
+            foreach (@isoarray) {
+                my @isos = split(/\//, $_);
+                open(FILE, $_) or die die "Can't open '$_': $!";
+                binmode(FILE);
+                my $md5 = Digest::MD5->new->addfile(*FILE)->hexdigest;
+                chomp($md5);
+                if ($verbose) {
+                    print "$_:  $md5 => $config->{distribution}->{$os}->{file}->{$isos[-1]}->{md5}\n";
+                }
+                if ( $md5 ne $config->{distribution}->{$os}->{file}->{$isos[-1]}->{md5} ) {
+                    print "failed\n $_ has a bad md5, please verify source\n"; exit(1);
+                }
+                ;
+            }
+        }
+    }
+    return(\@isoarray);
 }
 
 sub make_paths() {
 
-	my ($troot, $os, @isoarray) = @_;
-	foreach (@isoarray) {
-		my @fpath = split(/\//, $_);
-		my $isofile = $fpath[-1];
-		if ( -d "$troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path}" ) {
-			print "$troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path} directory exists \n";
-			return 1;
-		}
-		else {
-			if ($verbose) { print "Creating Build Path $troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path}\n"; }
-			mkpath "$troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path}" || die ("Cannot create directory\n");
-		}
-	}
+    my ($troot, $os, @isoarray) = @_;
+    foreach (@isoarray) {
+        my @fpath = split(/\//, $_);
+        my $isofile = $fpath[-1];
+        if ( -d "$troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path}" ) {
+            print "$troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path} directory exists \n";
+            return 1;
+        } else {
+            if ($verbose) {
+                print "Creating Build Path $troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path}\n";
+            }
+            mkpath "$troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path}" || die ("Cannot create directory\n");
+        }
+    }
 
-	## Create /tmp/directory to mount iso files for copy
-	##
-	my $tdir = tempdir();
-	mkdir $tdir, 0755 || die ("Cannot create directory\n");
+    ## Create /tmp/directory to mount iso files for copy
+    ##
+    my $tdir = tempdir();
+    mkdir $tdir, 0755 || die ("Cannot create directory\n");
 
-	foreach (@isoarray) {
-		open(OISO, "mount -o loop $_ $tdir|") || die ("Cannot mount iso\n");
-		close(OISO);
-		my @fpath = split(/\//, $_);
-		my $isofile = $fpath[-1];
-		dircp("$troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path}", $tdir);
+    foreach (@isoarray) {
+        open(OISO, "mount -o loop $_ $tdir|") || die ("Cannot mount iso\n");
+        close(OISO);
+        my @fpath = split(/\//, $_);
+        my $isofile = $fpath[-1];
+        dircp("$troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path}", $tdir);
 
-		open(CISO, "umount $tdir|") || die ("Cannot open pipe\n");;
-		close(CISO);
-	}
-	return 0;
+        open(CISO, "umount $tdir|") || die ("Cannot open pipe\n");;
+        close(CISO);
+    }
+    return 0;
 }
 
 sub create_sle10_build() {
 
-	my ($os,$troot,$type,$ip,@isoarray) = @_;
-	my $baseprod;
-	my $baseos = $os;
+    my ($os,$troot,$type,$ip,@isoarray) = @_;
+    my $baseprod;
+    my $baseos = $os;
 
-	## Check for addon products
-	##
-	if ($config->{distribution}->{$os}->{requires}) {
-		$baseos = $config->{distribution}->{$os}->{requires};
-	}
+    ## Check for addon products - SLERT, SDK, OES
+    ##
+    if ($config->{distribution}->{$os}->{requires}) {
+        $baseos = $config->{distribution}->{$os}->{requires};
+    }
 
-	# if make_paths returns 1 directory (and likely build tree already exist)
-	if ( &make_paths($troot,$os,@isoarray) ) {
-		return;
-	}
+    # if make_paths returns 1 directory (and likely build tree already exist)
+    if ( &make_paths($troot,$os,@isoarray) ) {
+        # return if we don't have any add-on work to do
+        if ( $baseos eq $os ) { return; }
+    }
 
-	## Setup add_on_products
-	##
-	foreach my $isofile (keys (%{$config->{distribution}->{$baseos}->{file}})) {
-		if ($config->{distribution}->{$baseos}->{file}->{$isofile}->{addon} eq "base") {
-			$baseprod = "$troot/$config->{distribution}->{$baseos}->{file}->{$isofile}->{path}";
-		}
-	}
-	foreach my $isofile (keys (%{$config->{distribution}->{$os}->{file}})) {
-		if ($config->{distribution}->{$os}->{file}->{$isofile}->{addon} eq "yes") {
-			open(PRODUCTS, ">>$baseprod/add_on_products") || die ("Cannot open file\n");
-			print PRODUCTS "$type://$ip$troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path}\n";
-			close(PRODUCTS);
-		}
-		if ($config->{distribution}->{$os}->{file}->{$isofile}->{addon} eq "new") {
-			my $output = new IO::File(">$baseprod/add_on_products.xml");
-			my $writer = new XML::Writer(OUTPUT => $output, , DATA_MODE => 1, DATA_INDENT => 1);
-			my $description = "$isofile";
-			$description = (split /\./, $description)[0];
+    ## Setup add_on_products
+    ##
+    foreach my $isofile (keys (%{$config->{distribution}->{$baseos}->{file}})) {
+        if ($config->{distribution}->{$baseos}->{file}->{$isofile}->{addon} eq "base") {
+            $baseprod = "$troot/$config->{distribution}->{$baseos}->{file}->{$isofile}->{path}";
+        }
+    }
+    foreach my $isofile (keys (%{$config->{distribution}->{$os}->{file}})) {
+        if ($config->{distribution}->{$os}->{file}->{$isofile}->{addon} eq "yes") {
+            my $addonfile = "$baseprod/add_on_products";
+            my $addonline = "$type://$ip$troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path}";
+            my $skip = 0;
+            if ( -e $addonfile ) {
+                open(PRODUCTS, "<$addonfile") || die ("Cannot open $addonfile: $!\n");
+                while (<PRODUCTS>) {
+                    if (m|$addonline|) {
+                        print "add_on_products entry already exists\n";
+                        $skip = 1;
+                    }
+                }
+                close(PRODUCTS);
+            }
+            unless ( $skip ) {
+                open(PRODUCTS, ">>$addonfile") || die ("Cannot open $addonfile: $!\n");
+                print PRODUCTS "$addonline\n";
+                close(PRODUCTS);
+            }
+        }
+        if ($config->{distribution}->{$os}->{file}->{$isofile}->{addon} eq "new") {
+            # for right now SLE11 only has SDK addon - so if this file exists we skip
+            my $addonfile = "$baseprod/add_on_products.xml";
+            unless( -e $addonfile ) {
+                my $output = new IO::File(">$addonfile");
+                my $writer = new XML::Writer(OUTPUT => $output, , DATA_MODE => 1, DATA_INDENT => 1);
+                my $description = "$isofile";
+                $description = (split /\./, $description)[0];
 
-			$writer->xmlDecl();
-			$writer->startTag("add_on_products",
-                                          "xmlns" => "http://www.suse.com/1.0/yast2ns",
-                                          "xmlns:config" => "http://www.suse.com/1.0/configns" );
-			$writer->startTag("product_items",
-                                          "config:type" => "list");
-			$writer->startTag("product_item");
-			$writer->startTag("name");
-			$writer->characters($description);
-			$writer->endTag("name");
-			$writer->startTag("url");
-			$writer->characters("$type://$ip$troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path}");
-			$writer->endTag("url");
-			$writer->startTag("path");
-			$writer->characters("/");
-			$writer->endTag("path");
-			$writer->startTag("ask_user",
-                                          "config:type" => "boolean");
-			$writer->characters("false");
-			$writer->endTag("ask_user");
-			$writer->startTag("selected",
-                                          "config:type" => "boolean");
-			$writer->characters("true");
-			$writer->endTag("selected");
-			$writer->endTag("product_item");
-			$writer->endTag("product_items");
-			$writer->endTag("add_on_products");
-			$writer->end();
-			$output->close();
+                $writer->xmlDecl();
+                $writer->startTag("add_on_products",
+                                  "xmlns" => "http://www.suse.com/1.0/yast2ns",
+                                  "xmlns:config" => "http://www.suse.com/1.0/configns" );
+                $writer->startTag("product_items",
+                                  "config:type" => "list");
+                $writer->startTag("product_item");
+                $writer->startTag("name");
+                $writer->characters($description);
+                $writer->endTag("name");
+                $writer->startTag("url");
+                $writer->characters("$type://$ip$troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path}");
+                $writer->endTag("url");
+                $writer->startTag("path");
+                $writer->characters("/");
+                $writer->endTag("path");
+                $writer->startTag("ask_user",
+                                  "config:type" => "boolean");
+                $writer->characters("false");
+                $writer->endTag("ask_user");
+                $writer->startTag("selected",
+                                  "config:type" => "boolean");
+                $writer->characters("true");
+                $writer->endTag("selected");
+                $writer->endTag("product_item");
+                $writer->endTag("product_items");
+                $writer->endTag("add_on_products");
+                $writer->end();
+                $output->close();
 
-			## Create SHA1SUMS file
-			##
-			use Digest::SHA1 qw(sha1 sha1_hex sha1_base64);
-			open(FILE, ">$baseprod/SHA1SUMS");
-			my $io = IO::File->new( "$baseprod/add_on_products.xml", 'r' );
-			my $sha1 = Digest::SHA1->new;
-			$sha1->addfile($io);
-			$io->close;
-			print FILE $sha1->hexdigest, "  add_on_products.xml\n";
-			close(FILE);
+                ## Create SHA1SUMS file
+                ##
+                use Digest::SHA1 qw(sha1 sha1_hex sha1_base64);
+                open(FILE, ">$baseprod/SHA1SUMS");
+                my $io = IO::File->new( "$addonfile", 'r' );
+                my $sha1 = Digest::SHA1->new;
+                $sha1->addfile($io);
+                $io->close;
+                print FILE $sha1->hexdigest, "  add_on_products.xml\n";
+                close(FILE);
 
-			## Sign SHA!SUMSS
-			##
-			system("gpg", "--homedir=/usr/share/baracus/.gnupg", "-b", "--sign", "--default-key=C685894B", "--armor", "$baseprod/SHA1SUMS");
-			copy("/usr/share/baracus/.gnupg/my-key.gpg", "$baseprod/SHA1SUMS.key");
-			system("ls $baseprod > $baseprod/directory.yast");
-		}
-			
-	}
+                ## Sign SHA!SUMSS
+                ##
+                system("gpg", "--homedir=/usr/share/baracus/.gnupg", "-b", "--sign", "--default-key=C685894B", "--armor", "$baseprod/SHA1SUMS");
+                copy("/usr/share/baracus/.gnupg/my-key.gpg", "$baseprod/SHA1SUMS.key");
+                system("ls $baseprod > $baseprod/directory.yast");
+            }
+        }
+    }
 
-	## Need to make sure license acceptance does not interfere
-	## Remove license.zip and associated entry in media.1/directory.yast
-	##
-	my @dyast;
-	find ({ wanted => sub { if ($_ eq "license.zip") { unlink("$File::Find::dir/$_"); push(@dyast, "$File::Find::dir/"); } } }, "$troot/$config->{distribution}->{$baseos}->{basepath}");
-	foreach my $dyast (@dyast) {
-		open(INFILE, "<$dyast/directory.yast") || die ("Cannot open file\n");
-		my @contents = <INFILE>;
-		close(INFILE);
-		@contents = grep { !/^license\.zip/i } @contents;
-		open(OUTFILE, ">$dyast/directory.yast") || die ("Cannot open file\n");
-		print OUTFILE @contents;
-		close(OUTFILE);
-	}
+    ## Need to make sure license acceptance does not interfere
+    ## Remove license.zip and associated entry in media.1/directory.yast
+    ##
+    my @dyast;
+    find ({ wanted => sub { if ($_ eq "license.zip") { unlink("$File::Find::dir/$_"); push(@dyast, "$File::Find::dir/"); } } }, "$troot/$config->{distribution}->{$baseos}->{basepath}");
+    foreach my $dyast (@dyast) {
+        open(INFILE, "<$dyast/directory.yast") || die ("Cannot open file\n");
+        my @contents = <INFILE>;
+        close(INFILE);
+        @contents = grep { !/^license\.zip/i } @contents;
+        open(OUTFILE, ">$dyast/directory.yast") || die ("Cannot open file\n");
+        print OUTFILE @contents;
+        close(OUTFILE);
+    }
 }
 
 sub create_sle9_build() {
 
-	my ($os,$troot,$type,$ip,@isoarray) = @_;
-	my $baseprod;
-	my %yasthash;
+    my ($os,$troot,$type,$ip,@isoarray) = @_;
+    my $baseprod;
+    my %yasthash;
 
-	# if make_paths returns 1 directory (and likely build tree already exist)
-	if ( &make_paths($troot,$os,@isoarray) ) {
-		return;
-	}
+    # if make_paths returns 1 directory (and likely build tree already exist)
+    if ( &make_paths($troot,$os,@isoarray) ) {
+        return;
+    }
 
-	## Create yast/instorder and yast/order
-	##
-	foreach my $isofile (keys (%{$config->{distribution}->{$os}->{file}})) {
-		if (! $yasthash{$config->{distribution}->{$os}->{file}->{$isofile}->{order} } ) {
-			$yasthash{ $config->{distribution}->{$os}->{file}->{$isofile}->{order} } = $config->{distribution}->{$os}->{file}->{$isofile}->{product};
-		}
-	}
+    ## Create yast/instorder and yast/order
+    ##
+    foreach my $isofile (keys (%{$config->{distribution}->{$os}->{file}})) {
+        if (! $yasthash{$config->{distribution}->{$os}->{file}->{$isofile}->{order} } ) {
+            $yasthash{ $config->{distribution}->{$os}->{file}->{$isofile}->{order} } = $config->{distribution}->{$os}->{file}->{$isofile}->{product};
+        }
+    }
 
-	mkpath "$troot/$config->{distribution}->{$os}->{basepath}/yast" || die ("Cannot create yast directory\n");
-	open(INSTORDER, ">>$troot/$config->{distribution}->{$os}->{basepath}/yast/instorder") || die ("Cannot open file\n");
-	open(ORDER, ">>$troot/$config->{distribution}->{$os}->{basepath}/yast/order") || die ("Cannot open file\n");
-	my $hsize = keys( %yasthash );
-	for (my $count = 1; $count <= $hsize; $count++) {
-		print INSTORDER "$yasthash{$count}/CD1\n";
-		print ORDER "$yasthash{$count}/CD1\t$yasthash{$count}/CD1\n";
-	}
-	close(INSTORDER);
-	close(ORDER);
+    mkpath "$troot/$config->{distribution}->{$os}->{basepath}/yast" || die ("Cannot create yast directory\n");
+    open(INSTORDER, ">>$troot/$config->{distribution}->{$os}->{basepath}/yast/instorder") || die ("Cannot open file\n");
+    open(ORDER, ">>$troot/$config->{distribution}->{$os}->{basepath}/yast/order") || die ("Cannot open file\n");
+    my $hsize = keys( %yasthash );
+    for (my $count = 1; $count <= $hsize; $count++) {
+        print INSTORDER "$yasthash{$count}/CD1\n";
+        print ORDER "$yasthash{$count}/CD1\t$yasthash{$count}/CD1\n";
+    }
+    close(INSTORDER);
+    close(ORDER);
 
-	## Create necessary links (this is sles9 crap logic)
-	##
-	chdir("/$troot/$config->{distribution}->{$os}->{basepath}");
-	symlink("SUSE-SLES-Version-9/CD1/boot","boot");
-	symlink("SUSE-SLES-Version-9/CD1/content","content");
-	symlink("SUSE-SLES-Version-9/CD1/control.xml","control.xml");
-	symlink("SUSE-SLES-Version-9/CD1/media.1","media.1");
+    ## Create necessary links (this is sles9 crap logic)
+    ##
+    chdir("/$troot/$config->{distribution}->{$os}->{basepath}");
+    symlink("SUSE-SLES-Version-9/CD1/boot","boot");
+    symlink("SUSE-SLES-Version-9/CD1/content","content");
+    symlink("SUSE-SLES-Version-9/CD1/control.xml","control.xml");
+    symlink("SUSE-SLES-Version-9/CD1/media.1","media.1");
 
-	symlink("SUSE-SLES-9-Service-Pack-Version-$config->{distribution}->{$os}->{sp}/CD1/linux","linux");
-	symlink("SUSE-SLES-9-Service-Pack-Version-$config->{distribution}->{$os}->{sp}/CD1/driverupdate","driverupdate");
+    symlink("SUSE-SLES-9-Service-Pack-Version-$config->{distribution}->{$os}->{sp}/CD1/linux","linux");
+    symlink("SUSE-SLES-9-Service-Pack-Version-$config->{distribution}->{$os}->{sp}/CD1/driverupdate","driverupdate");
 
-	## Need to make sure license acceptance does not interfere
-	##
-	find ({ wanted => sub { if ($_ eq "info.txt") { unlink("$File::Find::dir/$_"); } } }, "$troot/$config->{distribution}->{$os}->{basepath}");
-
-}
-
-sub atftp_config() {
-
-	## Configure atftp
-	##
-	copy("/etc/sysconfig/atftpd","/etc/sysconfig/atftpd.bak.build");
-	open(ATFTP, ">/etc/sysconfig/atftpd") || die "Cannot open file\n";;
-	print ATFTP "ATFTPD_OPTIONS=\"--daemon --user tftp -v\"\n";
-	print ATFTP "ATFTPD_USE_INETD=\"no\"\n";
-	print ATFTP "ATFTPD_DIRECTORY=\"\/srv\/tftpboot\"\n";
-	close(ATFTP);
-
-	open(ASERVICE, "chkconfig atftpd on|") || die ("Cannot open pipe\n");
-	close(ASERVICE);
+    ## Need to make sure license acceptance does not interfere
+    ##
+    find ({ wanted => sub { if ($_ eq "info.txt") { unlink("$File::Find::dir/$_"); } } }, "$troot/$config->{distribution}->{$os}->{basepath}");
 
 }
 
 sub service_config() {
 
-	my ($type,$troot,$datadir,$os) = @_;
-	my $skip = 0;
+    my ($type,$troot,$datadir,$os) = @_;
+    my $skip = 0;
 
-	if ($type eq "nfs") {
-		open(FILE, "</etc/exports") || die ("Cannot open file\n");
-		while(<FILE>) {
-			if (m|$troot\/$config->{distribution}->{$os}->{basepath}|) {
-				print "NFS export already exists\n";
-				$skip = 1;
-			}
-		}
-		close(FILE);
+    if ($type eq "nfs") {
+        open(FILE, "</etc/exports") || die ("Cannot open file\n");
+        while (<FILE>) {
+            if (m|$troot\/$config->{distribution}->{$os}->{basepath}|) {
+                print "NFS export already exists\n";
+                $skip = 1;
+            }
+        }
+        close(FILE);
 
-		unless($skip) {
-			open(FILE, ">>/etc/exports") || die ("Cannot open file\n");
-			print FILE "$troot\/$config->{distribution}->{$os}->{basepath}\t*(ro,root_squash,insecure,sync,no_subtree_check)\n";
-			close(FILE);
-		}
-	}
+        unless($skip) {
+            open(FILE, ">>/etc/exports") || die ("Cannot open file\n");
+            print FILE "$troot\/$config->{distribution}->{$os}->{basepath}\t*(ro,root_squash,insecure,sync,no_subtree_check)\n";
+            close(FILE);
+        }
+    }
 
-	if ($type eq "http") {
+    if ($type eq "http") {
 
-		if (! -f "/etc/apache2/conf.d/$os\_server.conf") {
+        if (! -f "/etc/apache2/conf.d/$os\_server.conf") {
 
-			## Create /etc/apache2/conf.d/inst_server_conf
-			##
-			open(FILE, "<$datadir/templates/inst_server.conf.in") || die ("Cannot open file\n");
-			my $httpdconf = join '', <FILE>;
-			close(FILE);
+            ## Create /etc/apache2/conf.d/inst_server_conf
+            ##
+            open(FILE, "<$datadir/templates/inst_server.conf.in") || die ("Cannot open file\n");
+            my $httpdconf = join '', <FILE>;
+            close(FILE);
 
-			unless( -d "/etc/apache2/conf.d/") { mkpath "/etc/apache2/conf.d/" || die ("Cannot create directory\n"); }
-			open(FILE, ">/etc/apache2/conf.d/$os\_server.conf") || die ("Cannot open file\n");
-			$httpdconf =~ s/%OS%/$os/g;
-			$httpdconf =~ s|%ALIAS%|/install/|g;
-			$httpdconf =~ s|%SERVERDIR%|$troot/$config->{distribution}->{$os}->{basepath}|g;
-			print FILE $httpdconf;
-			close(FILE);
+            unless ( -d "/etc/apache2/conf.d/") {
+                mkpath "/etc/apache2/conf.d/" || die ("Cannot create directory\n");
+            }
+            open(FILE, ">/etc/apache2/conf.d/$os\_server.conf") || die ("Cannot open file\n");
+            $httpdconf =~ s/%OS%/$os/g;
+            $httpdconf =~ s|%ALIAS%|/install/|g;
+            $httpdconf =~ s|%SERVERDIR%|$troot/$config->{distribution}->{$os}->{basepath}|g;
+            print FILE $httpdconf;
+            close(FILE);
 
 
-			## Update APACHE_SERVER_FLAGS in /etc/sysconfig/apache
-			##
-			my $httpdsys;
-			my @httpdsys;
-			open(FILE, "</etc/sysconfig/apache2") || die ("Cannot open file\n");
-			while (<FILE>) {
-				if (($_ =~ /APACHE_SERVER_FLAGS/) && !($_ =~ /$os\_server/)) { $_ =~ s/.$/ $os\_server\"/g; }
-				push(@httpdsys, $_);
-			}
-			close(FILE);
-			$httpdsys = join '' , @httpdsys;
+            ## Update APACHE_SERVER_FLAGS in /etc/sysconfig/apache
+            ##
+            my $httpdsys;
+            my @httpdsys;
+            open(FILE, "</etc/sysconfig/apache2") || die ("Cannot open file\n");
+            while (<FILE>) {
+                if (($_ =~ /APACHE_SERVER_FLAGS/) && !($_ =~ /$os\_server/)) {
+                    $_ =~ s/.$/ $os\_server\"/g;
+                }
+                push(@httpdsys, $_);
+            }
+            close(FILE);
+            $httpdsys = join '' , @httpdsys;
 
-			copy("/etc/sysconfig/apache2","/etc/sysconfig/apache2.bak.build");
-			open(FILE, ">/etc/sysconfig/apache2") || die ("Cannot open file\n");
-			print FILE $httpdsys;
-			close(FILE);
-		}
-		else {
-			print "HTTP ${os}_server.config already exists \n";
-		}
-	}
+            copy("/etc/sysconfig/apache2","/etc/sysconfig/apache2.bak.build");
+            open(FILE, ">/etc/sysconfig/apache2") || die ("Cannot open file\n");
+            print FILE $httpdsys;
+            close(FILE);
+        } else {
+            print "HTTP ${os}_server.config already exists \n";
+        }
+    }
 }
 
-sub enable_services() {
+sub do_service() {
+    my $startlist = shift;
+    my $stoplist  = shift;
 
-	my $type = shift @_;
+    if ( defined $startlist ) {
+        foreach my $serv ( split(/\s+/, $startlist ) ) {
+            &enable_service( $serv );
+        }
+    }
+    if ( defined $stoplist ) {
+        foreach my $serv ( split(/\s+/, $stoplist ) ) {
+            &disable_service( $serv );
+        }
+    }
+}
 
-	## Enable atftpd
-	##
-	if ($verbose) { print "Enabling aftpd ... \n"; }
-	open(SERVICE, "chkconfig atftpd on|") || die ("Cannot open pipe\n");
-	close(SERVICE);
-	open(SERVICE, "/etc/init.d/atftpd start|") || die ("Cannot open pipe\n");
-	close(SERVICE);
+sub enable_service() {
 
-	## Enable transport service (ie. NFS/HTTPD)
-	##
-	if ($verbose) { print "Enabling $type ... \n"; }
-	$type =~ s/http/apache2/;
-	$type =~ s/nfs/nfsserver/;
-	open(SERVICE, "chkconfig $type on|") || die ("Cannot open pipe\n");
-	close(SERVICE);
-	open(SERVICE, "/etc/init.d/$type start|") || die ("Cannot open pipe\n");
-	close(SERVICE);
+    my $type = shift @_;
 
-	## Enable DHCP
-	##
-	if ($verbose) { print "Enabling dhcpd ... \n"; }
-        open(SERVICE, "chkconfig dhcpd on|") || die ("Cannot open pipe\n");
-        close(SERVICE);
-        open(SERVICE, "/etc/init.d/dhcpd start|") || die ("Cannot open pipe\n");
-        close(SERVICE);
+    ## Enable service
+    ##
+    if ($verbose) {
+        print "Enabling $type ... \n";
+    }
+    $type =~ s/http/apache2/;
+    $type =~ s/nfs/nfsserver/;
+    system("chkconfig $type on");
+    system("/etc/init.d/$type start")
+}
 
+sub disable_service() {
+
+    my $type = shift @_;
+
+    ## Disable service
+    ##
+    if ($verbose) {
+        print "Disabling $type ... \n";
+    }
+    $type =~ s/http/apache2/;
+    $type =~ s/nfs/nfsserver/;
+    system("chkconfig $type off");
+    system("/etc/init.d/$type stop");
 }
 
 sub pxe_config() {
 
-	my ($troot,$datadir,$os,$type,$ip) = @_;
-	my $sp = "$config->{distribution}->{$os}->{sp}";
+    my ($troot,$datadir,$os,$type,$ip) = @_;
+    my $sp = "$config->{distribution}->{$os}->{sp}";
 
-    my $dbname = "$dbasedir/sqltftpd.db";
-    my $sqlfsOBJ = SqlFS->new( 'DataSource' => "dbi:SQLite:dbname=$dbname")
+    my $dbname = "sqltftp";
+
+    # get baracus id information - for dealing with SqlFS
+    my $user = "baracus";
+    my $uid;
+    unless ($uid = (getpwnam($user))[2]) {
+        die "Attempt to run server as non-existent or super user\n";
+    }
+    # set the uid to baracus
+    my $oldid = $>;
+    $> = $uid;
+
+    my $sqlfsOBJ = SqlFS->new( 'DataSource' => "dbi:Pg:dbname=$dbname",
+                               'User' => 'baracus' )
         or die "Unable to create new instance of SqlFS\n";
 
-	unless ($config->{distribution}->{$os}->{requires}) {
+    unless ($config->{distribution}->{$os}->{requires}) {
 
-		unless( $sqlfsOBJ->find( "linux.$os-$sp" ) ) {
-			copy("$troot/$config->{distribution}->{$os}->{basepath}/$config->{distribution}->{$os}->{pxepath}/linux","$dbasedir/linux.$os-SP$sp") or die "Copy failed: $!";
+        unless( $sqlfsOBJ->find( "linux.$os-SP$sp" ) ) {
+            copy("$troot/$config->{distribution}->{$os}->{basepath}/$config->{distribution}->{$os}->{pxepath}/linux","$dbasedir/linux.$os-SP$sp") or die "Copy failed: $!";
             if ( $sqlfsOBJ->store( "$dbasedir/linux.$os-SP$sp" ) ) {
                 warn "failed to store linux.$os-SP$sp in sqlfs\n";
             }
             unlink ( "$dbasedir/linux.$os-SP$sp" );
-		}
-		unless( $sqlfsOBJ->find( "initrd.$os-$sp" ) ) {
-			copy("$troot/$config->{distribution}->{$os}->{basepath}/$config->{distribution}->{$os}->{pxepath}/initrd","$dbasedir/initrd.gz") or die "Copy failed: $!";
-			system("gunzip", "$dbasedir/initrd.gz");
-			copy("/usr/share/baracus/.gnupg/my-key.gpg", "$dbasedir") or die "Copy failed: $!";
-			my $result = `cd $dbasedir; find my-key.gpg | cpio --quiet -o -A -F initrd -H newc >> /dev/null`;
-			system("gzip", "$dbasedir/initrd");
-			copy("$dbasedir/initrd.gz", "$dbasedir/initrd.$os-SP$sp") or die "Copy failed: $!";
+        }
+        unless( $sqlfsOBJ->find( "initrd.$os-SP$sp" ) ) {
+            copy("$troot/$config->{distribution}->{$os}->{basepath}/$config->{distribution}->{$os}->{pxepath}/initrd","$dbasedir/initrd.gz") or die "Copy failed: $!";
+            if ( $os =~ /sles11/ ) {
+                system("gunzip", "$dbasedir/initrd.gz");
+                copy("/usr/share/baracus/.gnupg/my-key.gpg", "$dbasedir/my-key.gpg") or die "Copy failed: $!";
+                my $result = `cd $dbasedir; find my-key.gpg | cpio --quiet -o -A -F initrd -H newc >> /dev/null`;
+                system("gzip", "$dbasedir/initrd");
+                unlink( "$dbasedir/my-key.gpg" );
+            }
+            copy("$dbasedir/initrd.gz", "$dbasedir/initrd.$os-SP$sp") or die "Copy failed: $!";
+            unlink( "$dbasedir/initrd.gz" );
+
             if ( $sqlfsOBJ->store( "$dbasedir/initrd.$os-SP$sp" ) ) {
                 warn "failed to store initrd.$os-SP$sp in sqlfs\n";
             }
-            unlink( "$dbasedir/my-key.gpg" );
-            unlink( "$dbasedir/initrd.gz" );
             unlink( "$dbasedir/initrd.$os-SP$sp" );
-		}
+        }
     }
 
-	## Create example pxelinux.cfg boot file
-	##
-	open(PXEFILE, "<$datadir/templates/pxelinux.template");
-	my $pxe = join '', <PXEFILE>;
-	close(PXEFILE);
+    ## Create example pxelinux.cfg boot file
+    ##
+    open(PXEFILE, "<$datadir/templates/pxelinux.template");
+    my $pxe = join '', <PXEFILE>;
+    close(PXEFILE);
 
-	$pxe =~ s/%OS%/$os/g;
-	$pxe =~ s/%SP%/$sp/g;
-	$pxe =~ s/%TYPE%/$type/g;
-	$pxe =~ s/%IP%/$ip/g;
-	if ( $os =~ /sles9/ ) {
-		$pxe =~ s/%PATH%/$troot\/$config->{distribution}->{$os}->{basepath}/g;
-	}
-	else {
-		$pxe =~ s/%PATH%/$troot\/$config->{distribution}->{$os}->{basepath}\/dvd1/g;
-	}
+    $pxe =~ s/%OS%/$os/g;
+    $pxe =~ s/%SP%/$sp/g;
+    $pxe =~ s/%TYPE%/$type/g;
+    $pxe =~ s/%IP%/$ip/g;
+    if ( $os =~ /sles9/ ) {
+        $pxe =~ s/%PATH%/$troot\/$config->{distribution}->{$os}->{basepath}/g;
+    } else {
+        $pxe =~ s/%PATH%/$troot\/$config->{distribution}->{$os}->{basepath}\/dvd1/g;
+    }
 
     # store won't overwrite ( $name, \$contentref, [ description ] )
     $sqlfsOBJ->storeScalar( "template.$type.$os-SP$sp", \$pxe );
 
     # TODO:  perhaps create a menu of install sources to choose from
-    # NOTE:  oddity is SqlFS is 'flat' so 'default' is only match here
-	unless ( $sqlfsOBJ->find( "pxelinux.cfg/default" ) ) {
+    # NOTE:  SqlFS is 'flat' so 'default' is only used for lookup match here
+    unless ( $sqlfsOBJ->find( "pxelinux.cfg/default" ) ) {
         $sqlfsOBJ->storeScalar( "pxelinux.cfg/default", \$pxe, "template.$type.$os-SP$sp" );
     }
+
+    # restore original, non-baracus, running uid
+    $> = $oldid;
 }
 
 sub get_iso() {
 
-	my ($os,$url,$iso,$username,$password,$pusername,$ppassword,$proxyaddr) = @_;
-        use LWP::UserAgent;
-	my $file="$iarg/$iso";
-	my $br;
-	my $ua;
-	$proxyaddr =~ s/http:\/\///;
-	$ENV{'HTTP_PROXY'} = "http:\/\/$pusername:$ppassword\@$proxyaddr";
+    my ($os,$url,$iso,$username,$password,$pusername,$ppassword,$proxyaddr) = @_;
+    use LWP::UserAgent;
+    my $file="$iarg/$iso";
+    my $br;
+    my $ua;
+    $proxyaddr =~ s/http:\/\///;
+    $ENV{'HTTP_PROXY'} = "http:\/\/$pusername:$ppassword\@$proxyaddr";
 
-	unless(-d $iarg) {
-		mkdir $iarg, 0755 || die ("Cannot create directory\n");
+    unless(-d $iarg) {
+        mkdir $iarg, 0755 || die ("Cannot create directory\n");
 
-	}
+    }
 
-	if ($proxy) { $ua = LWP::UserAgent->new(keep_alive => 1, env_proxy=>1 ) || die "$!"; }
-	else { $ua = LWP::UserAgent->new(keep_alive => 1 ) || die "$!"; }
-	$ua->credentials('cdn.novell.com:80', 'iChain', "$username",  "$password" );
+    if ($proxy) {
+        $ua = LWP::UserAgent->new(keep_alive => 1, env_proxy=>1 ) || die "$!";
+    } else {
+        $ua = LWP::UserAgent->new(keep_alive => 1 ) || die "$!";
+    }
+    $ua->credentials('cdn.novell.com:80', 'iChain', "$username",  "$password" );
 
-        $| = 1;
-	open(FILE, ">$file") || die "Can't open $file: $!\n";
-        my $req = $ua->request(HTTP::Request->new(GET => $url),
-                sub {
-			$br += length($_[0]);
-				if ($_[1]->content_length) {
-					printf STDERR " $iso: [ %d%% ] \r",100*$br/$_[1]->content_length;
-				}
-			binmode FILE;
-			print FILE $_[0] or die "Can't write to $file: $!\n";
-		});
-	if (! $req->is_success) {
-		unlink $file;
-		print $req->status_line, "\n";
-		exit(1);
-	}
-	print "\n";
-	if (fileno(FILE)) {
-		close(FILE) || die "Can't write to $file: $!\n";
-	}
+    $| = 1;
+    open(FILE, ">$file") || die "Can't open $file: $!\n";
+    my $req = $ua->request(HTTP::Request->new(GET => $url),
+                           sub {
+                               $br += length($_[0]);
+                               if ($_[1]->content_length) {
+                                   printf STDERR " $iso: [ %d%% ] \r",100*$br/$_[1]->content_length;
+                               }
+                               binmode FILE;
+                               print FILE $_[0] or die "Can't write to $file: $!\n";
+                           });
+    if (! $req->is_success) {
+        unlink $file;
+        print $req->status_line, "\n";
+        exit(1);
+    }
+    print "\n";
+    if (fileno(FILE)) {
+        close(FILE) || die "Can't write to $file: $!\n";
+    }
+}
+
+sub start_arg_handler() {
+    my $option = shift;
+    my $value  = shift;
+    my @values;
+    if ( $value ne '' ) {
+        # arg specified - push into array
+        @values = split(/[,\s*]/,$value);
+    } else {
+        @values = ( $type, "dhcpd" );
+    }
+    foreach $value (@values) {
+        if (not defined $start_services ){
+            # initialize
+            $start_services = "$value ";
+        }
+        elsif ( $start_services !~ m/$value/ ) {
+            # append if not already present
+            $start_services .= "$value ";
+        }
+        # make sure the start/stop lists are exclusive
+        # according to last specified - like gnu tools
+        if (defined $stop_services) {
+            $stop_services =~ s/$value//g;
+        }
+    }
+}
+
+sub stop_arg_handler() {
+    my $option = shift;
+    my $value  = shift;
+    my @values;
+    if ( $value ne '' ) {
+        # arg specified - push into array
+        @values = split(/[,\s*]/,$value);
+    } else {
+        @values = ( $type, "dhcpd" );
+    }
+    foreach $value (@values) {
+        if (not defined $stop_services ){
+            # initialize
+            $stop_services = "$value ";
+        }
+        elsif ( $stop_services !~ m/$value/ ) {
+            # append if not already present
+            $stop_services .= "$value ";
+        }
+        # make sure the stop/start lists are exclusive
+        # according to last specified - like gnu tools
+        if (defined $start_services) {
+            $start_services =~ s/$value//g;
+        }
+    }
 }
 
 ## Main
 ##
 
-if($ENV{'USER'} ne "root") { print "create_install_source needs to be run as root\n"; exit(1); }
-
-if ($ARGV[0]) { $command = $ARGV[0]; }
-else { $command = "menu"; }
+if ($ARGV[0]) {
+    $command = $ARGV[0];
+} else {
+    &get_usage();
+}
 
 use Getopt::Long;
 use AppConfig;
-use Data::Dumper;
 
 ## Are standard variables set in /etc/sysconfig
 ##
-my $sysconfig = AppConfig->new( { CREATE => 1 } );
-
-$sysconfig->define( "buildroot=s",
-                    "buildtype=s",
-                    "buildip=s",
-                    "buildisos=s",
-                    "datadir=s",
-                    "dbasedir=s"
+my $sysconfigfile = '/etc/sysconfig/baracus';
+my $sysconfig = AppConfig->new( {CREATE => 1} );
+$sysconfig->define( 'baracusdir=s',
+                    'buildtype=s',
+                    'buildip=s',
                    );
+$sysconfig->file( $sysconfigfile );
+$baracusdir = $sysconfig->get( 'baracusdir' ); # ~baracus is default
+$type       = $sysconfig->get( "buildtype" );
+$ip         = $sysconfig->get( "buildip"   );
 
-$sysconfig->file("/etc/sysconfig/baracus");
+if ( $baracusdir =~ m|^~([^/]*)| ) {
+  my $prepath="";
+  if ( "$1" eq "" ) {
+    $prepath = $ENV{HOME}
+  } else {
+    unless ($prepath = (getpwnam($1))[7]) {
+      die "BARACUSDIR has bad use of ~ or non-existent user in $sysconfigfile\n";
+    }
+  }
+  $baracusdir =~ s|^~([^/]*)|$prepath|;
+}
+# remove trailing slash or spaces
+$baracusdir =~ s|/*\s*$||;
 
-$troot   = $sysconfig->get( "buildroot" );
-$type    = $sysconfig->get( "buildtype" );
-$ip      = $sysconfig->get( "buildip"   );
-$isoarg  = $sysconfig->get( "buildisos" );
-$datadir = $sysconfig->get( "datadir"   );
-$dbasedir= $sysconfig->get( "dbasedir"  );
+# store baracus well know directories in global hash 'bdir'
+my @bdirs = qw( builds isos templates modules hooks logs );
+%bdir = (
+         'root' => "$baracusdir",
+         'conf' => "/etc/baracus.d",
+         'data' => "/usr/share/baracus",
+         );
+foreach my $bd (@bdirs) {
+  $bdir{ $bd } = "$baracusdir/$bd";
+}
+if ($verbose) {
+  print "Baracus directories:\n";
+  while ( my ($key,$value) = each ( %bdir ) ) {
+    print "\t$key => $value\n" if ( defined $value );
+  }
+}
+
+$troot   = $bdir{'builds'};  # just remap for now search/replace cleanup later
+$isoarg  = $bdir{'isos'};
+$dbasedir= $bdir{'hooks'};   #  no dbasedir that matters anymore - tmp files here
+$datadir = $bdir{'data'};
 
 unless ($ip) {
-  print "Please edit /etc/sysconfig/baracus and set BUILDIP=<server>\n";
-  exit 1;
+    print "Please edit /etc/sysconfig/baracus and set BUILDIP=<server>\n";
+    exit 1;
 }
 
 GetOptions(
-	'verbose|v!' => \$verbose,
-	'help|h!'    => \$help,
-	'proxy|p!'   => \$proxy,
-	'check|c!'   => \$check,
-	'isos|i!'    => \$iarg,
-	'distro=s'   => \$os,
-        'root=s'     => \$troot,
-        'type=s'     => \$type,
-        'ip=s'       => \$ip,
-	'iso=s'      => \$isoarg,
-	'add!'       => \$add,
-	'remove!'    => \$remove,
-	'disable!'   => \$disable,
-	'enable!'    => \$enable,
-	'verify!'    => \$verify,
-	'menu!'      => \$menu
-) or die "Incorrect usage!\n";
+           'verbose|v!' => \$verbose,
+           'help|h!'    => \$help,
+           'proxy|p!'   => \$proxy,
+           'check|c!'   => \$check,
+           'isos|i!'    => \$iarg,
+           'distro=s'   => \$os,
+           'root=s'     => \$troot,
+           'start:s'    => \&start_arg_handler,
+           'stop:s'     => \&stop_arg_handler,
+           'type=s'     => \$type,
+           'ip=s'       => \$ip,
+           'iso=s'      => \$isoarg,
+           'add'        => \$add,     # command
+           'remove'     => \$remove,  # command
+           'disable'    => \$disable, # command
+           'enable'     => \$enable,  # command
+           'verify'     => \$verify,  # command
+           'service'    => \$service, # command
+           'menu'       => \$menu     # command
+           ) or &get_usage();
 
 &get_usage if ($help);
+
+## Take main action argument and call corresponging Sub
+#
+my %action = (
+              'add'     => \&add_build,
+              'remove'  => \&remove_build,
+              'disable' => \&disable_build,
+              'enable'  => \&enable_build,
+              'list'    => \&list_isos,
+              'verify'  => \&verify_build,
+              'menu'    => \&get_build_info,
+              'service' => \&do_service,
+              );
+
+if (not defined $action{ $command }) {
+    print "Unknown command: $command\n";
+    &get_usage();
+}
 
 $iarg = $isoarg if ($iarg);
 
@@ -909,41 +1083,43 @@ $config = $xml->XMLin($xmlfile, forcearray => [ qw(distribution file) ], keyattr
 
 ## Check arguments are valid (os a required arg for all but menu)
 ##
-if (( "$command" ne "menu" ) && (! defined $config->{distribution}->{$os} )) {
-	print "\nPlease provide the \"--distro <arg>\":\n";
-	print "------------------------------------\n";
-	foreach my $d (sort { $b cmp $a } keys (%{$config->{distribution}})) {
-		print "$d\n"
-	}
-	exit(1);
+if ( "$command" ne "menu" ) {
+    if ( "$command" eq "service" &&
+         (( not defined $stop_services) && (not defined $start_services))) {
+        print "\nWith 'service' you need to specify\nservices to '--start' or '--stop' :\n";
+        print "-----------------------------------\n";
+        print "  service --start  # alone currently defaults to \'$type\' and \'dhcpd\'\n";
+        print "  service --stop   # ditto\n\n";
+        print "  service --start http --stop nfs\n\n";
+        exit(1);
+    }
+    elsif ( "$command" ne "service" &&
+            (! defined $config->{distribution}->{$os} )) {
+        print "\nPlease provide the \"--distro <arg>\":\n";
+        print "------------------------------------\n";
+        foreach my $d (sort { $b cmp $a } keys (%{$config->{distribution}})) {
+            print "$d\n"
+        }
+        exit(1);
+    }
 }
 
-
-## Take main action argument and call corresponging Sub
-#
-my %action = (
-	'add'     => \&add_build,
-	'remove'  => \&remove_build,
-	'disable' => \&disable_build,
-	'enable'  => \&enable_build,
-	'list'    => \&list_isos,
-	'verify'  => \&verify_build,
-	'menu'    => \&get_build_info,
-);
-
 my %arguments = (
-        'add'     => "$os,$troot,$datadir,$type,$ip,$isoarg",
-        'remove'  => "$os,$troot",
-        'disable' => "$os,$troot,$type",
-        'list'    => "$os",
-	'verify'  => "$os,$troot",
-	'enable'  => "$os,$troot,$type",
-        'menu'    => "",
-);
+                 'add'     => [$os,$troot,$datadir,$type,$ip,$isoarg],
+                 'remove'  => [$os,$troot],
+                 'disable' => [$os,$troot,$type],
+                 'list'    => [$os],
+                 'verify'  => [$os,$troot],
+                 'enable'  => [$os,$troot,$type],
+                 'menu'    => [],
+                 'service' => [$start_services,$stop_services],
+                 );
 
 if (defined $action{$command}) {
-	$action{$command}(split(/,/ , $arguments{$command}));
+    print "\$action{ $command }( @{$arguments{$command}} )\n"
+        if $verbose;
+    $action{$command}(@{$arguments{$command}});
 } else {
-	print "not a valid option\n";
-	exit(1);
+    print "not a valid option\n";
+    exit(1);
 }

@@ -26,7 +26,7 @@ Where E<lt>commandE<gt> is
     add     Copy to database table from file in specified location.
     fetch   Copy from database table to file in specified location.
     detail  Display all details about file in the database table.
-    delete  Remove file specified from database table.
+    remove  Delete file specified from database table.
 
 
 =head1 DESCRIPTION
@@ -36,7 +36,7 @@ from an SqlFS database filesystem.  Additionally, the database can be
 wiped clean, or all its files contains listed.
 
 In cases where the commands will only interact with the SqlFS,
-e.g. detail and delete, filename arguments are required but path
+e.g. detail and remove, filename arguments are required but path
 information will be ignored. And in cases where the commands will read
 or write to a file outside the SqlFS, e.g. add and fetch, pathing
 information is required to locate the file external to the SqlFS.
@@ -55,7 +55,7 @@ my $man   = 0;
 my $help  = 0;
 my $debug = 0;
 
-my @cmds = ('help', 'man', 'drop', 'list', 'add', 'fetch', 'detail', 'delete');
+my @cmds = ('help', 'man', 'drop', 'list', 'add', 'fetch', 'detail', 'remove');
 
 my %cmds = (
             'help'   => \&help,
@@ -65,7 +65,7 @@ my %cmds = (
             'add'    => \&add,
             'fetch'  => \&fetch,
             'detail' => \&detail,
-            'delete' => \&delete
+            'remove' => \&remove
             );
 
 GetOptions(
@@ -356,14 +356,14 @@ sub detail
     return 0;
 }
 
-=item delete E<lt>filenameE<gt>
+=item remove E<lt>filenameE<gt>
 
     Takes a filename as argument.
     Removes the file specified from the SqlFS filesystem.
 
 =cut
 
-sub delete
+sub remove
 {
     my @params = @_;
 

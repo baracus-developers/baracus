@@ -225,7 +225,7 @@
 	</distribution>
 
 	<distribution>
-		<os>slert-x86_64</os>
+		<os>slert10-x86_64</os>
 		<basepath>sles10/sp2/x86_64</basepath>
 		<sp>2</sp>
 		<requires>sles10-x86_64</requires>
@@ -238,7 +238,7 @@
 	</distribution>
 
 	<distribution>
-		<os>slert-i386</os>
+		<os>slert10-i386</os>
 		<basepath>sles10/sp2/i386</basepath>
 		<sp>2</sp>
 		<requires>sles10-i386</requires>

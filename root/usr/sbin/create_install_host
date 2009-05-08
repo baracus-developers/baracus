@@ -9,6 +9,7 @@ use Config::Simple;
 use File::Temp qw/ tempdir /;
 use XML::Simple;
 use DBI;
+use DBD::Pg qw(:pg_types);
 
 use lib "/usr/share/baracus/perl";
 
@@ -42,81 +43,138 @@ my $dbh={};
 my $datadir="";
 my $buildip="";
 my $buildroot="";
+my $baracusdir;
+my %bdir;
 my $type="";
+my %multiarg;
+
 sub get_usage() {
 
-        print "usage: create_install_host [subcommand] <options> \n\n";
+    print <<MARKER1;
+Usage:
+    create_install_host command [subcommand] [options]
 
-	print "add            : add a new build source \n";
-	print "delete         : delete a build source \n";
-	print "list           : list required isos \n";
-	print "verify         : verify build source \n";
-	print "v|verbose      : verbose output \n";
-	print "h|help         : this (help) message \n\n";
+Where command is one of
 
-        exit;
+    add     <arg1 arg2 arg3> [etc.] : add a new build source
+                                      for details use: 'add --help'
+    remove  --hostname <x>          : delete a build template for host <x>
+    verify  --hostname <x>          : verify build template for host <x> (TBD)
+    list    <hardware>              : list hardware profiles
+    list    <templates>             : list host templates
+    list    <history>               : list build client template history
 
+Options are
+
+    -v|--verbose                    : verbose output
+    -h|--help                       : this (help) message
+
+MARKER1
+
+    exit 1;
+}
+
+sub get_usage_add() {
+
+    print <<MARKER2;
+Usage:
+    create_install_host add --hostname <x> --mac <y> --ip <z> [more...]
+
+    Where
+
+    --hostname <x>          : <x> intended name for the build client
+    --ip <y>                : <y> client static, or dhcp bound, IP address
+    --mac <z>               : <z> client network interface physical address
+
+    Other required parameters, which may be specified in a profile are:
+
+    --distro <base-arch>    : OS to install on build client - made ready with
+                              'create_install_source add --distro <base-arch>'
+    --hwtype <hwteplate>    : hardware template that describes the build client
+
+    And further parameters include
+
+    --profile <pfile>       : file with networking and other template parameters
+                              there is a 'default' profile of that name here
+                              /etc/baracus.d/profiles/default
+    --module <mfile>        : yast autoinstall scripts to run on build complete
+                              you can specify this option multipls times
+    --vars <variable=value> : a method to specify a command line parameter
+                              that will override those found in the config files
+                              you can specify this option multipls times
+
+MARKER2
+
+    exit 1;
 }
 
 sub get_hexIP() {
 
-	## Determine IP in Hex
-	##
-	my $ip = shift @_;
+    ## Determine IP in Hex
+    ##
+    my $ip = shift @_;
 
-	my @hexIP = split(/\./, $ip);
-	foreach (@hexIP) {
-	$_ = sprintf("%02X", $_);
-	}
-	my $hexIP = join('',@hexIP,);
+    my @hexIP = split(/\./, $ip);
+    foreach (@hexIP) {
+        $_ = sprintf("%02X", $_);
+    }
+    my $hexIP = join('',@hexIP,);
 
-	return($hexIP);
+    return($hexIP);
 
 }
 
 sub get_uuid() {
 
-	## Generate a new UUID
-	##
-	use Data::UUID;
+    ## Generate a new UUID
+    ##
+    use Data::UUID;
 
-	my $ug = new Data::UUID;
+    my $ug = new Data::UUID;
 
-	return $ug->to_string( $ug->create() );
+    return $ug->to_string( $ug->create() );
 }
 
 sub get_rundate() {
 
-        ## Generate timestamp for run
-        ##
-        my $now = time;
-        my $rundate=strftime "%Y-%m-%d %H:%M:%S", localtime($now);
-        return $rundate;
+    ## Generate timestamp for run
+    ##
+    my $now = time;
+    my $rundate=strftime "%Y-%m-%d %H:%M:%S", localtime($now);
+    return $rundate;
 
 }
 
 sub create_db() {
 
-        my $dbname = shift @_;
-        my $dbargs = shift @_;
+    my ($dbh, $dbname, $dbargs) = @_;
 
-	my $dbh = DBI->connect("dbi:SQLite:dbname=$dbname","","",$dbargs)
-	  or die "Cannot connect to $dbname: $DBI::errstr";
+    if ($verbose) {
+        print "Creating initial db\n";
+    }
+    my $create_db = qq|CREATE DATABASE baracus OWNER baracus|;
+    $dbh->do($create_db)
+        or die "Database creation failed:  ",$dbh->errstr;
+}
 
-	my $sql = q|CREATE TABLE templateid ( hostname VARCHAR(32) PRIMARY KEY,
+sub create_tables() {
+
+    my ($dbh, $dbname, $dbargs) = @_;
+
+    my $sql = q|CREATE TABLE templateid ( hostname VARCHAR(32) PRIMARY KEY,
                                               ip VARCHAR(15),
                                               iphex VARCHAR(9),
                                               mac VARCHAR(17),
                                               uuid VARCHAR(37),
                                               state INTEGER,
-                                              cmdline VARCHAR(52),
+                                              cmdline VARCHAR(255),
                                               creation DATE,
                                               change DATE)|;
 
-	$dbh->do( $sql )
-		or die "Table creation failed:  $dbh->errstr";
+    $dbh->do( $sql )
+        or die "Table creation failed:  ",$dbh->errstr;
 
-	my $sqlhist =  q|CREATE TABLE templateidhist (  hostname VARCHAR(32),
+    my $sqlhist =  q|CREATE TABLE templateidhist (  hostname VARCHAR(32),
                                                         hostnameOLD VARCHAR(32),
                                                         ip VARCHAR(15),
                                                         ipOLD VARCHAR(15),
@@ -128,16 +186,16 @@ sub create_db() {
                                                         uuidOLD VARCHAR(37),
                                                         state INTEGER,
                                                         stateOLD INTEGER,
-                                                        cmdline VARCHAR(52),
+                                                        cmdline VARCHAR(255),
                                                         creation DATE,
                                                         creationOLD DATE,
                                                         change DATE,
                                                         changeOLD DATE )|;
 
-	$dbh->do($sqlhist)
-		or die "Table creation failed:  $dbh->errstr";
+    $dbh->do($sqlhist)
+        or die "Table creation failed:  ",$dbh->errstr;
 
-	my $update_trigger = q|CREATE TRIGGER update_templateid AFTER UPDATE OF state ON templateid
+    my $update_trigger = q|CREATE TRIGGER update_templateid AFTER UPDATE OF state ON templateid
                                BEGIN
                                INSERT INTO templateidhist ( hostname,
                                                             hostnameOLD,
@@ -158,13 +216,13 @@ sub create_db() {
                                                             changeOLD )
                                values ( new.hostname, old.hostname, new.ip, old.ip, new.iphex, old.iphex,
                                         new.mac, old.mac, new.uuid, old.uuid, '2', old.state, old.cmdline,
-                                        DATETIME('now'), old.creation, DATETIME('now'), old.change );
+                                        CURRENT_TIMESTAMP, old.creation, CURRENT_TIMESTAMP, old.change );
                                END;|;
 
-	$dbh->do($update_trigger)
-		or die "Table creation failed:  $dbh->errstr";
+    #   $dbh->do($update_trigger)
+    #       or die "Table creation failed:  ",$dbh->errstr;
 
-	my $insert_trigger = q|CREATE TRIGGER insert_templateid AFTER INSERT ON templateid
+    my $insert_trigger = q|CREATE TRIGGER insert_templateid AFTER INSERT ON templateid
                                BEGIN
                                INSERT INTO templateidhist ( hostname,
                                                             hostnameOLD,
@@ -185,13 +243,13 @@ sub create_db() {
                                                             changeOLD )
                                values ( new.hostname, 'null', new.ip, 'null', new.iphex, 'null', new.mac,
                                         'null', new.uuid, 'null', new.state, 'null', new.cmdline,
-                                        DATETIME('now'), 'null', 'null', 'null' );
+                                        CURRENT_TIMESTAMP, 'null', 'null', 'null' );
                                END;|;
 
-	$dbh->do($insert_trigger)
-		or die "Table creation failed:  $dbh->errstr";
+    #   $dbh->do($insert_trigger)
+    #       or die "Table creation failed:  ",$dbh->errstr;
 
-	my $delete_trigger = q|CREATE TRIGGER delete_templateid AFTER DELETE ON templateid
+    my $delete_trigger = q|CREATE TRIGGER delete_templateid AFTER DELETE ON templateid
                                BEGIN
                                INSERT INTO templateidhist ( hostname,
                                                             hostnameOLD,
@@ -211,23 +269,22 @@ sub create_db() {
                                                             change,
                                                             changeOLD )
                                values ( old.hostname, 'null', old.ip, 'null', old.iphex, 'null', old.mac,
-                                        'null', old.uuid, 'null', '4', old.state, old.cmdline, 
-                                        DATETIME('now'), old.creation, 'null', 'null' );
+                                        'null', old.uuid, 'null', '4', old.state, old.cmdline,
+                                        CURRENT_TIMESTAMP, old.creation, 'null', 'null' );
                                END;|;
 
-	$dbh->do($delete_trigger)
-		or die "Table creation failed:  $dbh->errstr";
+    #   $dbh->do($delete_trigger)
+    #       or die "Table creation failed:  ",$dbh->errstr;
 
-	$dbh->disconnect() || warn "disconnect failure: ", $dbh->errstr ;
 }
 
 sub list_db_history() {
 
-	my $hostname = shift @_;
-        $hostname =~ s/\*/\%/g;
-        print "$hostname\n";
+    my $hostname = shift @_;
+    $hostname =~ s/\*/\%/g;
+    print "$hostname\n";
 
-	my $sql = q|SELECT hostname,
+    my $sql = q|SELECT hostname,
                            hostnameOLD,
                            ip,
                            ipOLD,
@@ -247,234 +304,239 @@ sub list_db_history() {
                     FROM templateidhist
                     WHERE hostname LIKE ?|;
 
-	my $sth = $dbh->prepare( $sql )
-	  or die "Cannot prepare sth: $dbh->errstr";
+    my $sth = $dbh->prepare( $sql )
+        or die "Cannot prepare sth: ",$dbh->errstr;
 
-	$sth->execute($hostname)
-	  or die "Cannot execute sth: $sth->errstr";
-	
-	return $sth->fetchall_arrayref();
-#	return $sth->fetchrow_hashref();
+    $sth->execute($hostname)
+        or die "Cannot execute sth: ",$sth->errstr;
+
+    return $sth->fetchall_arrayref();
+    #   return $sth->fetchrow_hashref();
 
 }
 
 sub add_db_host_entry() {
 
-	my $HashRef = shift @_;
-	my %Hash = %$HashRef;
+    my $HashRef = shift @_;
+    my %Hash = %$HashRef;
 
-	my $sql = q|INSERT INTO templateid ( hostname,
-				             ip,
-				             iphex,
-				             mac,
-				             uuid,
-				             state,
+    my $sql = q|INSERT INTO templateid ( hostname,
+                             ip,
+                             iphex,
+                             mac,
+                             uuid,
+                             state,
                                              cmdline,
-				             creation,
-				             change )
-	            VALUES ( ?, ?, ?, ?, ?, 1, ?, DATETIME('now'), DATETIME('now') )|;
+                             creation,
+                             change )
+                VALUES ( ?, ?, ?, ?, ?, 1, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP )|;
 
-	my $sth = $dbh->prepare( $sql )
-	    or die "Cannot prepare sth: $dbh->errstr";
+    my $sth = $dbh->prepare( $sql )
+        or die "Cannot prepare sth: ",$dbh->errstr;
 
-	$sth->bind_param( 1,  $Hash{'hostname'}  );
-	$sth->bind_param( 2,  $Hash{'ip'}        );
-	$sth->bind_param( 3,  $Hash{'hexip'}     );
-	$sth->bind_param( 4,  $Hash{'mac'}       );
-	$sth->bind_param( 5,  $Hash{'uuid'}      );
-	$sth->bind_param( 6,  $Hash{'cmdline'}   );
+    $sth->bind_param( 1,  $Hash{'hostname'}  );
+    $sth->bind_param( 2,  $Hash{'ip'}        );
+    $sth->bind_param( 3,  $Hash{'hexip'}     );
+    $sth->bind_param( 4,  $Hash{'mac'}       );
+    $sth->bind_param( 5,  $Hash{'uuid'}      );
+    $sth->bind_param( 6,  $Hash{'cmdline'}   );
 
-	$sth->execute()
-	    or die "Cannot execute sth: $sth->errstr";
+    $sth->execute()
+        or die "Cannot execute sth: ", $sth->errstr;
 }
 
 sub get_db_host_entry() {
 
-	my $hostname = shift @_;
+    my $hostname = shift @_;
 
-	my $sql = q|SELECT hostname,
-	   	           ip,
-		           iphex,
-		           mac,
-		           uuid,
-		           state,
-		           creation,
-		           change
+    my $sql = q|SELECT hostname,
+                   ip,
+                   iphex,
+                   mac,
+                   uuid,
+                   state,
+                   creation,
+                   change
                     FROM templateid
                     WHERE hostname = ? |;
 
-	my $sth = $dbh->prepare( $sql )
-	  or die "Cannot prepare sth: $dbh->errstr";
+    my $sth = $dbh->prepare( $sql )
+        or die "Cannot prepare sth: ",$dbh->errstr;
 
-	$sth->execute( $hostname )
-	    or die "Cannot execute sth: $sth->errstr";
+    $sth->execute( $hostname )
+        or die "Cannot execute sth: ",$sth->errstr;
 
-	return $sth->fetchrow_hashref();
+    return $sth->fetchrow_hashref();
 }
 
 sub get_db_list_entry() {
 
-        my $sql = q|SELECT hostname,
+    my $sql = q|SELECT hostname,
                            iphex,
                            mac
                     FROM templateid
-		    WHERE state <> '4'|;
+            WHERE state <> '4'|;
 
-	my $sth = $dbh->prepare( $sql )
-	   or die "Cannot prepare sth: $dbh->errstr";
+    my $sth = $dbh->prepare( $sql )
+        or die "Cannot prepare sth: ",$dbh->errstr;
 
-	$sth->execute()
-	   or die "Cannot execute sth: $sth->errstr";
+    $sth->execute()
+        or die "Cannot execute sth: ",$sth->errstr;
 
-	return $sth->fetchall_arrayref();
+    return $sth->fetchall_arrayref();
 
 }
 
 sub update_db_host_entry() {
 
-	my $HashRef = shift @_;
-	my %Hash = %$HashRef;
+    my $HashRef = shift @_;
+    my %Hash = %$HashRef;
 
-	my $sql = q|UPDATE templateid SET ip=?,
-			    	          iphex=?,
-				          mac=?,
-				          uuid=?,
-				          state=5,
-				          change=DATETIME('now')
-	            WHERE hostname=? |;
+    my $sql = q|UPDATE templateid SET ip=?,
+                              iphex=?,
+                          mac=?,
+                          uuid=?,
+                          state=5,
+                          change=CURRENT_TIMESTAMP
+                WHERE hostname=? |;
 
-	my $sth = $dbh->prepare( $sql )
-      	    or die "Cannot prepare sth: $dbh->errstr";
+    my $sth = $dbh->prepare( $sql )
+        or die "Cannot prepare sth: ",$dbh->errstr;
 
-	$sth->bind_param( 1,  $Hash{'ip'}        );
-	$sth->bind_param( 2,  $Hash{'hexip'}     );
-	$sth->bind_param( 3,  $Hash{'mac'}       );
-	$sth->bind_param( 4,  $Hash{'uuid'}      );
-	$sth->bind_param( 5,  $Hash{'hostname'}  );
+    $sth->bind_param( 1,  $Hash{'ip'}        );
+    $sth->bind_param( 2,  $Hash{'hexip'}     );
+    $sth->bind_param( 3,  $Hash{'mac'}       );
+    $sth->bind_param( 4,  $Hash{'uuid'}      );
+    $sth->bind_param( 5,  $Hash{'hostname'}  );
 
-	$sth->execute()
-	    or die "Cannot execute sth: $sth->errstr";
+    $sth->execute()
+        or die "Cannot execute sth: ",$sth->errstr;
 }
 
 sub remove_db_host_entry() {
-	my $hostname = shift @_;
+    my $hostname = shift @_;
 
-#	my $sql = q|UPDATE templateid SET state=4,
-#			     	          change=DATETIME('now')
-#    	            WHERE hostname=? |;
+    #   my $sql = q|UPDATE templateid SET state=4,
+    #                             change=CURRENT_TIMESTAMP
+    #                   WHERE hostname=? |;
 
-	my $sql = q|DELETE FROM templateid
+    my $sql = q|DELETE FROM templateid
                     WHERE hostname=? |;
 
-	my $sth = $dbh->prepare( $sql )
-  	    or die "Cannot prepare sth: $dbh->errstr";
+    my $sth = $dbh->prepare( $sql )
+        or die "Cannot prepare sth: ",$dbh->errstr;
 
-	$sth->execute( $hostname )
-	    or die "Cannot execute sth: $sth->errstr";
+    $sth->execute( $hostname )
+        or die "Cannot execute sth: ",$sth->errstr;
 }
 
 sub add_host_entry() {
 
-	my $HashRef = shift @_;
-	my %Hash = %$HashRef;
+    my $HashRef = shift @_;
+    my %Hash = %$HashRef;
 
-	## Verify Mandatory options
-	##
-	unless (($Hash{'hostname'}) && ($Hash{'ip'}) && ($Hash{'mac'}) && ($Hash{'os'})) {
-		print "Missing Requied Option\n";
-		exit(1);
-	}
+    ## Verify Mandatory parameters
+    ##
+    unless ($Hash{'hostname'}) {
+        print "Missing  --hostname\n";
+        exit 1;
+    }
+    unless ($Hash{'ip'}) {
+        print "Missing  --ip\n";
+        exit 1;
+    }
+    unless ($Hash{'mac'}) {
+        print "Missing  --mac\n";
+        exit 1;
+    }
 
-	my $autoYastTemplate = join "/", $templatedir, $Hash{'os'}, $Hash{'arch'}, $Hash{'yastTemplate'};
-	my $pxeTemplate      = join "/", $templatedir, $Hash{'os'}, $Hash{'arch'}, "pxetemplates", $Hash{'pxeTemplate'};
+    my $autoYastTemplate = join "/", $templatedir, $Hash{'os'}, $Hash{'arch'}, $Hash{'yastTemplate'};
+    my $pxeTemplate      = join "/", $templatedir, $Hash{'os'}, $Hash{'arch'}, "pxetemplates", $Hash{'pxeTemplate'};
 
-	if ($debug) {
-		print "autoYastTemplate = $autoYastTemplate\n";
-		print "pxeTemplate = $pxeTemplate\n";
-	}
+    if ($debug) {
+        print "autoYastTemplate = $autoYastTemplate\n";
+        print "pxeTemplate = $pxeTemplate\n";
+    }
 
-	if ((! -f $autoYastTemplate ) || (! -f $pxeTemplate )) {
-		print "\nOne or both of the base template files for pxe and autoyast cannot be found here:\n";
-		print "\n$autoYastTemplate\n$pxeTemplate\n";
-		print "\nPlease refer to the README found in $templatedir/\n";
-		exit 1;
-	}
+    if ((! -f $autoYastTemplate ) || (! -f $pxeTemplate )) {
+        print "\nOne or both of the base template files for pxe and autoyast cannot be found here:\n";
+        print "\n$autoYastTemplate\n$pxeTemplate\n";
+        print "\nPlease refer to the README found in $templatedir/\n";
+        exit 1;
+    }
 
-	## Read in autoyast template
-        ##
-	open(TEMPLATE, "<$autoYastTemplate") or die "Can't open autoYastTemplate $autoYastTemplate : $!";
-	my $yastfile = join '', <TEMPLATE>;
-	close(TEMPLATE);
+    ## Read in autoyast template
+    ##
+    open(TEMPLATE, "<$autoYastTemplate") or die "Can't open autoYastTemplate $autoYastTemplate : $!";
+    my $yastfile = join '', <TEMPLATE>;
+    close(TEMPLATE);
 
-	open(TEMPLATE, "<$pxeTemplate") or die "Can't open pxeTemplate $pxeTemplate : $!";
-	my $pxefile = join '', <TEMPLATE>;
-	close(TEMPLATE);
+    open(TEMPLATE, "<$pxeTemplate") or die "Can't open pxeTemplate $pxeTemplate : $!";
+    my $pxefile = join '', <TEMPLATE>;
+    close(TEMPLATE);
 
-	my $date = &get_rundate();
-	my $bootmac = $Hash{'mac'};
-	$bootmac =~ s/:/-/g;
-	$bootmac = "01-".$bootmac;
+    my $date = &get_rundate();
+    my $bootmac = $Hash{'mac'};
+    $bootmac =~ s/:/-/g;
+    $bootmac = "01-".$bootmac;
 
-	# get any existing db entry
-	# if none exists add this new
-	# if one exists
-	#    and it is deleted we overwrite
-	#    and it is not deleted we exit
-	my $dbref = &get_db_host_entry( $Hash{'hostname'} );
-	if (! defined $dbref ) {
-	  &add_db_host_entry( $HashRef );
-	}
-	elsif ( $dbref->{'state'} == 4 ) {
-	  &update_db_host_entry( $HashRef );
-	}
-	else {
-	  print "Attempt to add over a non-deleted entry for $Hash{'hostname'}\n";
-	  exit 1;
-	}
+    # get any existing db entry
+    # if none exists add this new
+    # if one exists
+    #    and it is deleted we overwrite
+    #    and it is not deleted we exit
+    my $dbref = &get_db_host_entry( $Hash{'hostname'} );
+    if (! defined $dbref ) {
+        &add_db_host_entry( $HashRef );
+    } elsif ( $dbref->{'state'} == 4 ) {
+        &update_db_host_entry( $HashRef );
+    } else {
+        print "Attempt to add over a non-deleted entry for $Hash{'hostname'}\n";
+        exit 1;
+    }
 
     # add files to sqlfstable for sqltftpd server
 
-    my $dbname = "$dbasedir/sqltftpd.db";
-    my $sqlfsOBJ = SqlFS->new( 'DataSource' => "dbi:SQLite:dbname=$dbname")
+    my $dbname = "sqltftp";
+    my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbname",
+                               'User' => "baracus")
         or die "Unable to create new instance of SqlFS\n";
 
-	if ( $sqlfsOBJ->find("$Hash{'hexip'}") ) {
-		print "$Hash{'hexip'} already exists\n";
-	}
-	else {
-		while ( my ($key, $value) = each(%Hash) ) {
-			$key =~ tr/a-z/A-Z/;
-			$key = "__$key\__";
-			$yastfile =~ s/$key/$value/g;
-		}
-		open(FILE, ">$dbasedir/$Hash{'hexip'}") || die "Cannot open file $Hash{'hexip'}: $!\n";
-		print FILE $yastfile;
-		print FILE "<!-- baracus.Hostname: $Hash{'hostname'} -->\n";
-		print FILE "<!-- baracus.MAC: $Hash{'mac'}; -->\n";
-		print FILE "<!-- baracus.Generated: $date -->\n";
-		close(FILE);
+    if ( $sqlfsOBJ->find("$Hash{'hexip'}") ) {
+        print "$Hash{'hexip'} already exists\n";
+    } else {
+        while ( my ($key, $value) = each(%Hash) ) {
+            $key =~ tr/a-z/A-Z/;
+            $key = "__$key\__";
+            $yastfile =~ s/$key/$value/g;
+        }
+        open(FILE, ">$dbasedir/$Hash{'hexip'}") || die "Cannot open file $Hash{'hexip'}: $!\n";
+        print FILE $yastfile;
+        print FILE "<!-- baracus.Hostname: $Hash{'hostname'} -->\n";
+        print FILE "<!-- baracus.MAC: $Hash{'mac'}; -->\n";
+        print FILE "<!-- baracus.Generated: $date -->\n";
+        close(FILE);
 
         if ( $sqlfsOBJ->store( "$dbasedir/$Hash{'hexip'}" ) ) {
             warn "failed to store $dbasedir/$Hash{'hexip'} in sqlfs\n";
         }
         unlink "$dbasedir/$Hash{'hexip'}";
 
-		if ($verbose) {
-			print "Successfully stored $Hash{'hexip'} \n";
-		}
-	}
+        if ($verbose) {
+            print "Successfully stored $Hash{'hexip'} \n";
+        }
+    }
 
-	if ( $sqlfsOBJ->find( "$bootmac" ) ) {
-		print "$bootmac boot file already exists\n";
-	}
-	else {
-		while ( my ($key, $value) = each(%Hash) ) {
-			$key =~ tr/a-z/A-Z/;
-			$key = "__$key\__";
-			$pxefile =~ s/$key/$value/g;
-		}
-		open(FILE, ">$dbasedir/$bootmac") || die "Cannot open file $bootmac: $!\n";;
-		print FILE $pxefile;
+    if ( $sqlfsOBJ->find( "$bootmac" ) ) {
+        print "$bootmac boot file already exists\n";
+    } else {
+        while ( my ($key, $value) = each(%Hash) ) {
+            $key =~ tr/a-z/A-Z/;
+            $key = "__$key\__";
+            $pxefile =~ s/$key/$value/g;
+        }
+        open(FILE, ">$dbasedir/$bootmac") || die "Cannot open file $bootmac: $!\n";;
+        print FILE $pxefile;
         close(FILE);
 
         if ( $sqlfsOBJ->store( "$dbasedir/$bootmac" ) ) {
@@ -482,306 +544,465 @@ sub add_host_entry() {
         }
         unlink "$dbasedir/$bootmac";
 
-		if ($verbose) {
-			print "Successfully stored $Hash{'hexip'} \n";
-		}
-	}
+        if ($verbose) {
+            print "Successfully stored $Hash{'hexip'} \n";
+        }
+    }
 
-	print "Added $Hash{'hostname'} template \n";
+    print "Added $Hash{'hostname'} template \n";
 }
 
 sub remove_host_entry() {
 
-	my $HashRef = shift @_;
-	my %Hash = %$HashRef;
+    my $HashRef = shift @_;
+    my %Hash = %$HashRef;
 
-	my $dbref = &get_db_host_entry( $Hash{'hostname'} );
+    my $dbref = &get_db_host_entry( $Hash{'hostname'} );
 
-	if (! defined $dbref) {
-	    print "unable to find template for $Hash{'hostname'}\n";
-	    return;
-	}
+    if (! defined $dbref) {
+        print "unable to find template for $Hash{'hostname'}\n";
+        return;
+    }
 
-	my $mac = $dbref->{'mac'};
-	$mac =~ s/:/-/g;
-	$mac = "01-$mac";
+    my $mac = $dbref->{'mac'};
+    $mac =~ s/:/-/g;
+    $mac = "01-$mac";
 
     # remove files from sqlfstable for sqltftpd server
 
-    my $dbname = "$dbasedir/sqltftpd.db";
-    my $sqlfsOBJ = SqlFS->new( 'DataSource' => "dbi:SQLite:dbname=$dbname")
+    #    my $dbname = "$dbasedir/sqltftpd.db";
+    #    my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:SQLite:dbname=$dbname")
+    my $dbname = "sqltftp";
+    my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbname",
+                               'User' => "baracus")
         or die "Unable to create new instance of SqlFS\n";
 
-	if ( $sqlfsOBJ->find( "$dbref->{'iphex'}" ) ) {
-            if ( $sqlfsOBJ->remove( "$dbref->{'iphex'}" ) ) {
-                warn "failed to remove $dbref->{'iphex'} from sqlfs\n";
-            }
-	}
+    if ( $sqlfsOBJ->find( "$dbref->{'iphex'}" ) ) {
+        if ( $sqlfsOBJ->remove( "$dbref->{'iphex'}" ) ) {
+            warn "failed to remove $dbref->{'iphex'} from sqlfs\n";
+        }
+    }
 
-	if ( $sqlfsOBJ->find( "$mac" ) ) {
-            if ( $sqlfsOBJ->remove( "$mac" ) ) {
-                warn "failed to remove $mac from sqlfs\n";
-            }
-	}
+    if ( $sqlfsOBJ->find( "$mac" ) ) {
+        if ( $sqlfsOBJ->remove( "$mac" ) ) {
+            warn "failed to remove $mac from sqlfs\n";
+        }
+    }
 
-	print "Removed: $Hash{'hostname'} [ $dbref->{'iphex'} ] $mac\n";
+    print "Removed: $Hash{'hostname'} [ $dbref->{'iphex'} ] $mac\n";
 
-	# change state of entry to removed
-	&remove_db_host_entry( $Hash{'hostname'} );
+    # change state of entry to removed
+    &remove_db_host_entry( $Hash{'hostname'} );
 }
 
 sub list() {
 
-	my $HashRef = shift @_;
-	my %Hash = %$HashRef;
-	my %hardwareHash;
-	my @modelArray;
+    my $HashRef = shift @_;
+    my %Hash = %$HashRef;
+    my %hardwareHash;
+    my @modelArray;
 
-	unless(($Hash{'subcommand'} eq "hardware") || ($Hash{'subcommand'} eq "templates")  || ($Hash{'subcommand'} eq "history")) {
-                print "requires a type to list\n";
-                exit(1);
+    if ( ($subcommand ne "hardware")  and
+         ($subcommand ne "templates") and
+         ($subcommand ne "history") ) {
+        print "Invalid subcommand for command 'list'\n";
+        &get_usage();
+    }
+
+    if ($Hash{'subcommand'} eq "history") {
+        ## hostname, hostnameOLD, ip, ipOLD, iphex, iphexOLD, mac, macOLD, uuid, uuidOLD, state, stateOLD, cmdline, creation, creationOLD, change, changeOLD
+        ##
+        if (! exists($Hash{'hostname'})) {
+            $Hash{'hostname'} = "%";
         }
-
-        if ($Hash{'subcommand'} eq "history") {
-		## hostname, hostnameOLD, ip, ipOLD, iphex, iphexOLD, mac, macOLD, uuid, uuidOLD, state, stateOLD, cmdline, creation, creationOLD, change, changeOLD
-		##
-		if (! exists($Hash{'hostname'})) { $Hash{'hostname'} = "%"; }
-		my $dbref = &list_db_history($Hash{'hostname'});
-		foreach( @$dbref ) {
-			print "$_->[0] $_->[2] $_->[4] $_->[6] $_->[8] $_->[10] $_->[11] $_->[13] $_->[15]\n";
-		}
+        my $dbref = &list_db_history($Hash{'hostname'});
+        foreach ( @$dbref ) {
+            print "$_->[0] $_->[2] $_->[4] $_->[6] $_->[8] $_->[10] $_->[11] $_->[13] $_->[15]\n";
         }
+    }
 
-	if ($Hash{'subcommand'} eq "hardware") {
-		Config::Simple->import_from("$confdir/hardware.config", \%hardwareHash);
-		while ( (my $key, my $value) = each(%hardwareHash) ) {
-			(my $model, my $data) = split(/\./, $key);
-			if ($data eq "model") {
-				push(@modelArray, $model);
-			}
-		}
-		@modelArray = sort(@modelArray);
-		foreach my $item (@modelArray) {
-			print "$item\t\t\[ $hardwareHash{\"$item.description\"} \]\n";
-		}
-	}
+    if ($Hash{'subcommand'} eq "hardware") {
+        Config::Simple->import_from("$confdir/hardware.config", \%hardwareHash);
+        while ( (my $key, my $value) = each(%hardwareHash) ) {
+            (my $model, my $data) = split(/\./, $key);
+            if ($data eq "model") {
+                push(@modelArray, $model);
+            }
+        }
+        @modelArray = sort(@modelArray);
+        foreach my $item (@modelArray) {
+            print "$item\t\t\[ $hardwareHash{\"$item.description\"} \]\n";
+        }
+    }
 
-	if ($Hash{'subcommand'} eq "templates") {
-		## List all available build templates
-		##
-		my $dbref = &get_db_list_entry();
-		foreach( @$dbref ) {
-			my $bootmac = $_->[2];
-			$bootmac =~ s/:/-/g;
-			$bootmac = "01-$bootmac";
-			if (( -f "/srv/tftpboot/templates/$_->[1]") && ( -f "/srv/tftpboot/pxelinux.cfg/$bootmac")) {
-				print "$_->[0] [ $_->[1] ] $bootmac (verified) \n";
-			}
-			else {
-				print "$_->[0] [ $_->[1] ] $bootmac (missing) \n";
-			}
-		}
-	}
+    if ($Hash{'subcommand'} eq "templates") {
+        ## List all available build templates
+        ##
+        my $dbname = "sqltftp";
+        my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbname",
+                                   'User' => "baracus")
+            or die "Unable to create new instance of SqlFS\n";
+
+        my $dbref = &get_db_list_entry();
+        foreach ( @$dbref ) {
+            my $autoinstallstring = "( missing)";
+            my $pxehexfilestring  = "( missing)";
+            my $iphex   = $_->[1];
+            my $bootmac = $_->[2];
+            $bootmac =~ s/:/-/g;
+            $bootmac = "01-$bootmac";
+            if ( $sqlfsOBJ->find( $iphex ) ) {
+                $autoinstallstring = "(verified)";
+            }
+            if ( $sqlfsOBJ->find( $bootmac ) ) {
+                $pxehexfilestring = "(verified)";
+            }
+            printf "%24s [ %s $autoinstallstring ] %s $pxehexfilestring\n",
+                $_->[0], $iphex, $bootmac;
+
+            #               ntest130 [ 979BE682 ( missing) ] 01-00-12-21-31-29-60 ( missing)
+        }
+    }
 }
 
 sub verify() {
 
-	my $host = shift @_;
+    my %profileHash = %{$_[0]};
 
-	print "Verify $host \n";
+    print "Verify $profileHash{ 'hostname'} ...comming soon. \n";
+}
+
+
+# this arg handling will parse many variations
+# --module=doOne,doTwo --module doThree --module "doFour,doFive doSix"
+# --vars=doOne=hey,doTwo=there --vars "doThree=love,doFour=or doFive=not"
+sub multiarg_handler() {
+    my $option = $_[0];
+    my $value  = $_[1];
+    my @values;
+    if ( $value ne '' ) {
+        # arg specified - push into array
+        @values = split(/[,\s*]/,$value);
+    } else {
+        # no value profided and no defaults
+        # with '=s' should not get here
+        # we could 'die("FINISH")'
+        # but for now just return
+        return;
+    }
+    foreach $value (@values) {
+        if ( $option eq "vars" ) {
+            # special check for key=value assignment syntax
+            die("FINISH") if ( $value !~ m/=/ );
+        }
+        if (not defined $multiarg{ $option } ){
+            # initialize
+            $multiarg{ $option } = "$value ";
+        }
+        elsif ( $multiarg{ $option } !~ m/$value/ ) {
+            # append if not already present
+            $multiarg{ $option } .= "$value ";
+        }
+    }
 }
 
 ## Main
 ##
-
-if($ENV{'USER'} ne "root") { print "create_install_host needs to be run as root\n"; exit(1); }
 
 ## Build command line for historical reference
 ## and point-in-time rebuilding
 ##
 my $cmdline ='';
 for (my $cnt = 0; $cnt <= $#ARGV; $cnt++) {
-	$cmdline = $cmdline."::".$ARGV[$cnt];
+    $cmdline = $cmdline."::".$ARGV[$cnt];
 }
 
 ## Parse out command before getopts::Long
 ##
 if ($ARGV[0]) {
-	$command = $ARGV[0];
-	if ($command eq "list") {
-		if ($ARGV[1]) { $subcommand = $ARGV[1]; }
-		else { print "requires a subcommand\n"; exit 1; }
-	}
+    $command = $ARGV[0];
+    if ($command eq "list") {
+        if ($ARGV[1]) {
+            $subcommand = $ARGV[1];
+        } else {
+            print "Command 'list' requires a subcommand\n";
+            &get_usage();
+        }
+    }
+} else {
+    &get_usage();
 }
-else { $help = "yes"; }
 
 use Getopt::Long;
 use AppConfig;
 
 ## Are standard variables set in /etc/sysconfig
 ##
+my $sysconfigfile = '/etc/sysconfig/baracus';
 my $sysconfig = AppConfig->new( {CREATE => 1} );
-
-$sysconfig->define( 'confdir=s',
-		    'moduledir=s',
-		    'templatedir=s',
-		    'dbasedir=s',
-		    'datadir=s',
+$sysconfig->define( 'baracusdir=s',
+                    'buildtype=s',
                     'buildip=s',
-                    'buildroot=s',
-                    'buildtype=s' );
+                   );
+$sysconfig->file( $sysconfigfile );
+$baracusdir = $sysconfig->get( 'baracusdir' ); # ~baracus is default
+$buildip    = $sysconfig->get( 'buildip'    );
+$type       = $sysconfig->get( 'buildtype'  );
 
-$sysconfig->file('/etc/sysconfig/baracus');
+if ( $baracusdir =~ m|^~([^/]*)| ) {
+    my $prepath="";
+    if ( "$1" eq "" ) {
+        $prepath = $ENV{HOME}
+    } else {
+        unless ($prepath = (getpwnam($1))[7]) {
+            die "BARACUSDIR has bad use of ~ or non-existent user in $sysconfigfile\n";
+        }
+    }
+    $baracusdir =~ s|^~([^/]*)|$prepath|;
+}
+# remove trailing slash or spaces
+$baracusdir =~ s|/*\s*$||;
 
-$confdir     = $sysconfig->get( 'confdir'     ); # /etc/baracus.d profiles *.conf
-$moduledir   = $sysconfig->get( 'moduledir'   ); # /var/spool/baracus/modules
-$templatedir = $sysconfig->get( 'templatedir' ); # /var/spool/baracus/images
-$dbasedir    = $sysconfig->get( 'dbasedir'    ); # /var/spool/baracus
-$datadir     = $sysconfig->get( 'datadir'     ); # /usr/share/baracus
-$buildip     = $sysconfig->get( 'buildip'     ); 
-$buildroot   = $sysconfig->get( 'buildroot'   );
-$type        = $sysconfig->get( 'buildtype'   );
+# store baracus well know directories in global hash 'bdir'
+my @bdirs = qw( builds isos templates modules hooks logs );
+%bdir = (
+         'root' => "$baracusdir",
+         'conf' => "/etc/baracus.d",
+         'data' => "/usr/share/baracus",
+         );
+foreach my $bd (@bdirs) {
+    $bdir{ $bd } = "$baracusdir/$bd";
+}
+if ($verbose) {
+    print "Baracus directories:\n";
+    while ( my ($key,$value) = each ( %bdir ) ) {
+        print "\t$key => $value\n" if ( defined $value );
+    }
+}
+
+$confdir     = $bdir{ 'conf' };
+$moduledir   = $bdir{ 'modules' };
+$templatedir = $bdir{ 'templates' };
+$dbasedir    = $bdir{ 'hooks' }; #strictly a temp dir now - no dbasedir w/pgsql
+$datadir     = $bdir{ 'data' };
+$buildroot   = $bdir{ 'builds' };
 
 unless ($buildip) {
-  print "Please edit /etc/sysconfig/baracus and set BUILDIP=<server>\n";
-  exit 1;
+    print "Please edit /etc/sysconfig/baracus and set BUILDIP=<server>\n";
+    exit 1;
 }
 
 GetOptions(
-	'verbose|v!' => \$verbose,
-	'debug|d!'   => \$debug,
-	'help|h!'    => \$help,
-	'hostname=s' => \$hostname,
-	'ip=s'       => \$ip,
-	'mac=s'      => \$mac,
-	'distro=s'   => \$os,
-        'hwtype=s'   => \$hardware,
-	'module=s'   => \$module,
-	'profile=s'  => \$profile,
-	'vars=s'     => \$vars,
-	'add!'       => \$add,
-	'remove!'    => \$remove,
-	'verify!'    => \$verify,
-	'list!'      => \$list,
-) or die "Incorrect usage!\n";
+           'verbose|v!' => \$verbose,
+           'debug|d!'   => \$debug,
+           'help|h!'    => \$help,
+           'hostname=s' => \$hostname,
+           'ip=s'       => \$ip,
+           'mac=s'      => \$mac,
+           'distro=s'   => \$os,
+           'hwtype=s'   => \$hardware,
+           'profile=s'  => \$profile,
+           'module=s'   => \&multiarg_handler,
+           'vars=s'     => \&multiarg_handler,
+           'add'        => \$add,    # command
+           'remove'     => \$remove, # command
+           'verify'     => \$verify, # command
+           'list'       => \$list,   # command <subcommand>
+           ) or die "Incorrect usage!\n";
 
-&get_usage if ($help);
+$module = $multiarg{ 'module' } if (defined $multiarg{ 'module' });
+$vars   = $multiarg{ 'vars'   } if (defined $multiarg{ 'vars'   });
+
+&get_usage_add if (($command eq "add") and ($help or ($ARGV[1] eq "help")));
+&get_usage if ($help or $command eq "help");
+
+## Take main action argument and call corresponging Sub
+#
+my %action = (
+              'add'     => \&add_host_entry,
+              'remove'  => \&remove_host_entry,
+              'list'    => \&list,
+              'verify'  => \&verify,
+              );
+
+if (! defined $action{$command}) {
+    print "Invalid command provided.\n";
+    exit(1);
+}
+
+if ( ( $command eq "add" ) or
+     ( $command eq "remove" ) or
+     ( $command eq "verify" ) ) {
+    unless ($hostname) {
+        print "Please specify value for --hostname\n";
+        exit 1;
+    }
+}
 
 unless ($profile) {
-	$profile = "default";
+    $profile = "default";
 }
 
 ## Get variables set in a profile
 ##
 my %profileHash;
-#my $conf = new Config::General("$confdir/profiles/$profile");
-#my %profileHash = $conf->getall;
 
 if (($profile) && (-f "$confdir/profiles/$profile")) {
-	my $conf = new Config::General("$confdir/profiles/$profile");
-	%profileHash = $conf->getall;
-	while ((my $key) = each(%profileHash)){
-		if (ref($profileHash{$key}) eq "ARRAY") {
-			print "$key is an ARRAY\n";
-			print "ARRAYs not yet supported\n";
-			exit(1);
-#			foreach my $avalue (@{$profileHash{$key}}){
-#				print "$avalue\n";
-#			}
-		next;
-		}
-	}
-}
-else {
-	print "valid profile required \n";
-	exit(1);
+    my $conf = new Config::General("$confdir/profiles/$profile");
+    %profileHash = $conf->getall;
+    while ((my $key) = each(%profileHash)) {
+        if (ref($profileHash{$key}) eq "ARRAY") {
+            print "$key is an ARRAY\n";
+            print "ARRAYs not yet supported\n";
+            exit(1);
+            #           foreach my $avalue (@{$profileHash{$key}}){
+            #               print "$avalue\n";
+            #           }
+            next;
+        }
+    }
+} else {
+    print "valid profile required \n";
+    exit(1);
 }
 
 
 $profileHash{'uuid'} = &get_uuid;
-if ($hostname) { $profileHash{'hostname'} = $hostname; }
+if ($hostname) {
+    $profileHash{'hostname'} = $hostname;
+}
 if ($command eq "add") {
-	## Commandline options
-	## Mandatory: hostname ip mac
-	## Optional: hwtype distro profile module
-	##
-	$profileHash{'cmdline'} = $cmdline;
-	if ($type) { $profileHash{'type'} = $type; }
-	if ($buildip) { $profileHash{'buildip'} = $buildip; }
-	if ($buildroot) { $profileHash{'buildroot'} = $buildroot; }
-	if ($ip) { $profileHash{'ip'} = $ip; $profileHash{'hexip'} = &get_hexIP($profileHash{'ip'}); }
-	if ($mac) { $profileHash{'mac'} = $mac; }
-	if ($hardware) { $profileHash{'hardware'} = $hardware; }
-	if ($os) { $profileHash{'os'} = $os; }
-	if ($profile) { $profileHash{'profile'} = $profile; }
-	if ($module) {
-		my $modulefile="";
-		foreach my $item (split(/ /, $module)) {
-			open(MODULE, "<$moduledir/$item");
-			$modulefile = join '' ,$modulefile, <MODULE>;
-			close(MODULE);
-			$profileHash{'module'} = $modulefile;
-		}
-	}
+    ## Commandline options
+    ## Mandatory: hostname ip mac
+    ## Optional: hwtype distro profile module
+    ##
+    $profileHash{'cmdline'} = $cmdline;
+    if ($type) {
+        $profileHash{'type'} = $type;
+    }
+    if ($buildip) {
+        $profileHash{'buildip'} = $buildip;
+    }
+    if ($buildroot) {
+        $profileHash{'buildroot'} = $buildroot;
+    }
+    if ($ip) {
+        $profileHash{'ip'} = $ip;
+        $profileHash{'hexip'} = &get_hexIP($profileHash{'ip'});
+    }
+    if ($mac) {
+        $profileHash{'mac'} = $mac;
+    }
+    if ($hardware) {
+        $profileHash{'hardware'} = $hardware;
+    }
+    if ($os) {
+        $profileHash{'os'} = $os;
+    }
+    if ($profile) {
+        $profileHash{'profile'} = $profile;
+    }
+    if ($module) {
+        my $modulefile="";
+        foreach my $item (split(/ /, $module)) {
+            # we should think about wraping the scripts
+            # with the xml CDATA gunk ourselves here so
+            # that the scripts can just be scripts.
+            open(MODULE, "<$moduledir/$item");
+            $modulefile = join '' ,$modulefile, <MODULE>;
+            close(MODULE);
+            $profileHash{'module'} = $modulefile;
+        }
+    }
 
-	## Get Vars from hardware.conf and os.conf
-	##
-	my $osConfig = new Config::Simple("$confdir/os.config");
-	my $hardwareConfig = new Config::Simple("$confdir/hardware.config");
-	my $moduleConfig = new Config::Simple("$confdir/module.config");
+    ## Get Vars from hardware.conf and os.conf
+    ##
+    my $osConfig = new Config::Simple("$confdir/os.config");
+    my $hardwareConfig = new Config::Simple("$confdir/hardware.config");
+    my $moduleConfig = new Config::Simple("$confdir/module.config");
 
-	my $osRef = $osConfig->param(-block=>"$profileHash{'os'}");
-	my $hardwareRef = $hardwareConfig->param(-block=>"$profileHash{'hardware'}");
-	my %moduleHash = $moduleConfig->vars() if ( defined $moduleConfig );
+    die "Need --distro via commandline or profile.\n"
+        unless ($profileHash{'os'});
 
-	my %osHash = %$osRef;
-	my %hardwareHash = %$hardwareRef;
-	while ( my ($key, $value) = each(%osHash) ) {
-		$profileHash{$key} = $value;
-	}
-	while ( my ($key, $value) = each(%hardwareHash) ) {
-		$profileHash{$key} = $value;
-	}
+    die "Need --hwtype via commandline or profile.\n"
+        unless ($profileHash{'hardware'});
 
-	## If passed on command line via vars, then honor those
-	##
-	if ($vars) {
-		my @varray = split(/ /, $vars);
-		foreach my $item (@varray) {
-			(my $key, my $value) = split(/=/, $item);
-			$profileHash{$key} = $value;
-		}
-	}
+    my $osRef = $osConfig->param(-block=>"$profileHash{'os'}");
+    my $hardwareRef = $hardwareConfig->param(-block=>"$profileHash{'hardware'}");
+    my %moduleHash = $moduleConfig->vars() if ( defined $moduleConfig );
+
+    my %osHash = %$osRef;
+    my %hardwareHash = %$hardwareRef;
+    while ( my ($key, $value) = each(%osHash) ) {
+        $profileHash{$key} = $value;
+    }
+    while ( my ($key, $value) = each(%hardwareHash) ) {
+        $profileHash{$key} = $value;
+    }
+
+    ## If passed on command line via vars, then honor those
+    ##
+    if ($vars) {
+        my @varray = split(/ /, $vars);
+        foreach my $item (@varray) {
+            (my $key, my $value) = split(/=/, $item);
+            $profileHash{$key} = $value;
+        }
+    }
 }
 
-if ($subcommand) { $profileHash{'subcommand'} = $subcommand; }
-else { $profileHash{'subcommand'} = ""; }
-
-## Take main action argument and call corresponging Sub
-#
-my %action = (
-	'add'     => \&add_host_entry,
-	'remove'  => \&remove_host_entry,
-	'list'    => \&list,
-	'verify'  => \&verify,
-);
-
-
-if (! defined $action{$command}) {
-	print "not a valid option\n";
-	exit(1);
+if ($subcommand) {
+    $profileHash{'subcommand'} = $subcommand;
+} else {
+    $profileHash{'subcommand'} = "";
 }
 
-$dbname = "$dbasedir/baracus.db";
-$dbargs = { PrintError => 1, AutoCommit => 1 };
+$dbname = "baracus";
+#$dbargs = { PrintError => 1, AutoCommit => 1 };
+$dbargs = {};
+
+# get baracus id information - for dealing with SqlFS
+my $user = "baracus";
+my $uid;
+unless ($uid = (getpwnam($user))[2]) {
+    die "Attempt to run server as non-existent or super user\n";
+}
+# set the uid to baracus
+my $oldid = $>;
+$> = $uid;
 
 ## Check to see if db exists
 ##
-unless (-f $dbname) { &create_db( $dbname, $dbargs ); }
+$dbh = DBI->connect("DBI:Pg:dbname=postgres", "baracus", "")
+    or die "Cannot connect to $dbname: ",$DBI::errstr;
 
-$dbh = DBI->connect("dbi:SQLite:dbname=$dbname","","",$dbargs)
-    or die "Cannot connect to $dbname: $DBI::errstr";
+my $row = 0;
+my $check_db = qq|SELECT count(*) FROM pg_catalog.pg_database WHERE datname = ?|;
+my $sth = $dbh->prepare($check_db)
+    or die "lookup  failed:  ",$dbh->errstr;
+$sth->execute('baracus')
+    or die "lookup failed:  ",$dbh->errstr;
+$sth->bind_columns( \$row );
+$sth->fetch();
+undef $sth;
+if ( $row == 0 ) {
+    &create_db($dbh, $dbname, $dbargs);
+}
+$dbh->disconnect()
+    or warn "disconnect failure: ", $dbh->errstr ;
 
+## Connect to baracus db
+##
+$dbh = DBI->connect("DBI:Pg:dbname=baracus", "baracus", "")
+    or die "Cannot connect to $dbname: ",$DBI::errstr;
+
+if ( $row == 0 ) {
+    &create_tables($dbh, $dbname, $dbargs);
+}
+
+## execute command
+##
 $action{$command}(\%profileHash);
 
 $dbh->disconnect() || warn "disconnect failure: ", $dbh->errstr ;
+

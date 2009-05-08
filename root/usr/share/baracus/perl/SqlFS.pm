@@ -6,6 +6,7 @@ use strict;
 use warnings;
 
 use DBI;
+use DBD::Pg qw(:pg_types);
 
 =head1 NAME
 
@@ -89,21 +90,39 @@ sub new
     # MEDIUMBLOB      16_777_215
     # LARGEBLOB    4_294_967_295
 
+    # no BLOB in Pg so we use BYTEA... or uuendoce and TEXT
+
+    # sql to check for instance of table
+    my $exists_table = qq|SELECT COUNT(*) 
+        FROM pg_catalog.pg_tables WHERE tablename = ?|;
+
+#         id INTEGER NOT NULL PRIMARY KEY is sqlite AUTO_INCREMENT
+#        ( id INTEGER NOT NULL PRIMARY KEY,
+
+#         KEY name( name )                this additional info not
+#         UNIQUE KEY idname ( id, name )  supported by sqlite syntax
+
+#         no AUTO_INCREMENT in pg - we have to create a sequence
+#         we'll be explicit as SERIAL has 'warnings'
+
+    # sql to create a sequence - for autoincrement of 'id'
+    my $create_sequence = qq|CREATE SEQUENCE $cfg{'TableName'}_id_seq|;
+
+#   was  ( id INT DEFAULT NEXTVAL($cfg{'TableName'}_id_seq) PRIMARY KEY,
+
     # sql to create the table
-    my $create_table = qq|CREATE TABLE IF NOT EXISTS $cfg{'TableName'}
-        ( id INTEGER NOT NULL PRIMARY KEY,
+    my $create_table = qq|CREATE TABLE $cfg{'TableName'}
+        ( id SERIAL PRIMARY KEY,
           name VARCHAR(64) NOT NULL,
           description VARCHAR(32),
-          bin MEDIUMBLOB,
+          bin VARCHAR,
           enabled INTEGER,
           insertion DATE,
           change DATE
         )|;
 
-#         id INTEGER NOT NULL PRIMARY KEY is sqlite AUTO_INCREMENT
-
-#         KEY name( name )                this additional info not
-#         UNIQUE KEY idname ( id, name )  supported by sqlite syntax
+    # sql to drop the sequence
+    my $destroy_sequence = qq|DROP SEQUENCE $cfg{'TableName'}_id_seq|;
 
     # sql to drop the table
     my $destroy_table = qq|DROP TABLE $cfg{'TableName'}|;
@@ -124,9 +143,14 @@ sub new
     my $file_delete = qq|DELETE FROM $cfg{'TableName'} where name = ?|;
 
     # insert a file
+#    my $file_store = qq|INSERT INTO $cfg{'TableName'}
+#                        (name, description, bin, enabled, insertion, change)
+#                        VALUES ( ?, ?, ?, ?, DATETIME('now'), NULL)
+#                       |;
+
     my $file_store = qq|INSERT INTO $cfg{'TableName'}
                         (name, description, bin, enabled, insertion, change)
-                        VALUES ( ?, ?, ?, ?, DATETIME('now'), NULL)
+                        VALUES ( ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL)
                        |;
 
     # select for fetch
@@ -135,6 +159,39 @@ sub new
                         WHERE name = ?
                         ORDER BY id
                        |;
+
+    # logic to check if we're playing with a postgresql datasource
+    # if we are - then we need to see that the db we want is available
+    if ( $cfg{'DataSource'} =~ m/(DBI:Pg:dbname=)(.*)/ ) {
+	my $pgds = $1 . "postgres";
+	my $pgdb = $2;
+	$dbh = DBI->connect($pgds, "$cfg{'User'}" )
+	    or croak "Error connecting to database $cfg{'DataSource'}: ",
+	    $DBI::errstr, $@;
+	my $row = 0;
+	# sql to check for instance of database
+	my $exists_database = qq|SELECT COUNT(*) 
+            FROM pg_catalog.pg_database WHERE datname = ?|;
+	my $sth = $dbh->prepare( $exists_database )
+	    or croak "Unable to prepare 'db exists' query:  ",$dbh->errstr;
+	$sth->execute( $pgdb )
+	    or croak "Unable to execute 'db exists' statement:  ",$sth->errstr;
+	$sth->bind_columns( \$row );
+	$sth->fetch();
+	if ( $row == 0 ) {
+	    $sth->finish;
+	    # sql to create instance of database - syntax has issues with ?
+	    my $create_database = qq|CREATE DATABASE $pgdb OWNER $cfg{'User'}|;
+	    $sth = $dbh->prepare( $create_database )
+		or croak "Unable to prepare 'db create':  ",$dbh->errstr;
+	    $sth->execute()
+		or croak "Unable to execute 'db create':  ",$sth->errstr;
+	}
+	$sth->finish;
+	undef $sth;
+	$dbh->disconnect()
+	    or warn "disconnect failure: ", $dbh->errstr ;
+    }
 
     # connect to the DBI data source passed
     if (not $dbh = DBI->connect( "$cfg{'DataSource'}",
@@ -146,11 +203,35 @@ sub new
 
     $dbh->{'RaiseError'} = 1;
 
-    if (not $dbh->do( $create_table ) ) {
-        carp("Error creating table $dbh->errstr: $@\n");
+    # logic to check that the table we want to store files in is avail
+    my $sth;
+    my $row = 0;
+    if ( not ( $sth = $dbh->prepare( $exists_table ) ) ) {
+        $LASTERROR = "Unable to prepare 'exists' query: ", $dbh->errstr;
         return undef;
     }
-
+    if ( not $sth->execute( $cfg{'TableName'} ) ) {
+        $LASTERROR = "Unable to execute 'exists' query: ", $sth->errstr;
+        return undef;
+    }
+    $sth->bind_columns( \$row );
+    $sth->fetch();
+    $sth->finish;
+    undef $sth;
+    if ( $row == 0 ) {
+	if (not $dbh->do( $destroy_sequence ) ) {
+	    carp("Error destroying sequence ",$dbh->errstr, $@,"\n");
+	    return undef;
+	}
+	if (not $dbh->do( $create_sequence ) ) {
+	    carp("Error creating sequence ",$dbh->errstr, $@,"\n");
+	    return undef;
+	}
+	if (not $dbh->do( $create_table ) ) {
+	    carp("Error creating table ",$dbh->errstr, $@,"\n");
+	    return undef;
+	}
+    }
     # max_allowed_packets a mysql specific construct
     my $maxlen = 1048575;
 
@@ -165,14 +246,44 @@ sub new
     return bless { %cfg,
                    'dbh' => $dbh,
                    '_maxlen_' => $maxlen,
-                   'sql_create_table'=> $create_table,
-                   'sql_destroy_table'  => $destroy_table,
+		   'sql_create_sequence' => $create_sequence,
+		   'sql_destroy_sequence' => $destroy_sequence,
+                   'sql_create_table' => $create_table,
+                   'sql_destroy_table' => $destroy_table,
                    'sql_file_detail' => $file_detail,
                    'sql_file_delete' => $file_delete,
                    'sql_file_store' => $file_store,
                    'sql_file_fetch' => $file_fetch,
                    'sql_file_find' => $file_find
                   }, $class;
+}
+
+=item bytea_encode
+
+encode bytestream for VARCHAR storage
+
+=cut
+
+sub bytea_encode
+{
+  my ($in, $out);
+  $in = shift;
+  $out = pack( 'u', $in);
+  return $out;
+}
+
+=item bytea_decode
+
+decode bytestream for VARCHAR storage
+
+=cut
+
+sub bytea_decode
+{
+  my ($in,$out);
+  $in = shift;
+  $out = unpack( 'u', $in );
+  return $out;
 }
 
 =item destroy
@@ -190,12 +301,18 @@ sub destroy
         $LASTERROR = "Error table drop on destroy $self->{'dbh'}->errstr: $@\n";
         return 1;
     }
-
+    if (not $self->{'dbh'}->do( $self->{'sql_destroy_sequence'} ) ) {
+        $LASTERROR = "Error sequence drop on destroy $self->{'dbh'}->errstr: $@\n";
+        return 1;
+    }
+    if (not $self->{'dbh'}->do( $self->{'sql_create_sequence'} ) ) {
+        $LASTERROR = "Error re-creating sequence $self->{'dbh'}->errstr: $@\n";
+        return 1;
+    }
     if (not $self->{'dbh'}->do( $self->{'sql_create_table'} ) ) {
         $LASTERROR = "Error re-creating empty table $self->{'dbh'}->errstr: $@\n";
         return 1;
     }
-
     return 0;
 }
 
@@ -277,7 +394,7 @@ sub detail
     foreach my $ar ( @{ $array_lol } ) {
         my ($nm, $des, $ena, $idate, $cdate, $bin) = @{ $ar };
         $hash->{'rowcount'} += 1;
-        $hash->{'binsize'} += length $bin;
+        $hash->{'binsize'} += length &bytea_decode( $bin );
         if ( $flag_first == 1 ) {
             $flag_first = 0;
             $hash->{'name'} = $nm;
@@ -449,12 +566,15 @@ sub finishStore
 
     $name =~ s|.*/||; # again only the short name
 
+    my $byteas;
     my $bytes = 1;
     my $chunk_size = $self->{'_maxlen_'};
+
     while ( $bytes ) {
         read $fh, $bytes, $chunk_size;
-        $sth->execute( $name, $desc, $bytes, 1 ) # default enabled
-            if $bytes;
+	$byteas = &bytea_encode( $bytes );
+	$sth->execute( $name, $desc, $byteas, 1)
+            if ( $bytes );
     }
 }
 
@@ -491,7 +611,7 @@ sub fetch
     binmode $fh;
 
     while ( my @row = $sth->fetchrow_array() ) {
-        syswrite $fh, $row[0];
+        syswrite $fh, &bytea_decode( $row[0] );
     }
 
     close $fh;
@@ -521,7 +641,7 @@ sub readFH
 
     my $bin;
     while ( my @row = $sth->fetchrow_array() ) {
-        $bin .= $row[0];
+        $bin .= &bytea_decode( $row[0] );
     }
 
     my $fh;

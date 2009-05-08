@@ -93,7 +93,7 @@ our $VERSION = '0.01';
 
 our $LASTERROR;
 
-my $debug;
+my $debug=0;
 
 #
 # Usage: $tftpdOBJ = SqlTFTPd->new( ['SqlFSHandle' => 'SqlFS object'] );
@@ -108,45 +108,61 @@ sub new
 	# read parameters
 	my %cfg = @_;
 
-	# setting defaults
-	$cfg{'SqlFSHandle'} or croak "\nUsage: \$tftpdOBJ = SqlTFTPd->new('SqlFSHandle' => 'reference to SqlFS object' [, LocalPort => portnum ] [, ...] );";
+	return bless {
+	    'LocalPort'   => TFTP_DEFAULT_PORT,
+	    'Timeout'     => 10,
+	    'ACKtimeout'  => 4,
+	    'ACKretries'  => 4,
+	    'Readable'    => 1,
+	    'Writable'    => 0,
+	    'CallBack'    => undef,
+	    'BlkSize'     => TFTP_DEFAULT_BLKSIZE,
+	    'Debug'       => 0,
+	    %cfg,         # merge user parameters
+	    '_UDPSERVER_' => {},
+	    'SqlFSHandle' => {},
+	}, $class;
+}
 
-	my %params = (
-		'Proto' => 'udp',
-		'LocalPort' => $cfg{'LocalPort'} || TFTP_DEFAULT_PORT,
+# return 1 if success, undef if error
+#
+sub open
+{
+    my $self  = shift;
+
+    my %params = (
+	'Proto' => 'udp',
+	'LocalPort' => $self->{'LocalPort'}
 	);
 
-	# bind only to specified address
-	if($cfg{'LocalAddr'})
-	{
-		$params{'LocalAddr'} = $cfg{'LocalAddr'};
-	}
+    # bind only to specified address
+    if($self->{'LocalAddr'})
+    {
+	$params{'LocalAddr'} = $self->{'LocalAddr'};
+    }
 
-	if(my $udpserver = IO::Socket::INET->new(%params))
-	{
+    if(my $udpserver = IO::Socket::INET->new(%params))
+    {
 #removed for using this module with IO v. 1.2301 under SUSE 10.1, O.Z. 15.08.2007
-#		$udpserver->setsockopt(SOL_SOCKET, SO_RCVBUF, 0);
-#		$udpserver->setsockopt(SOL_SOCKET, SO_SNDBUF, 0);
+#	$udpserver->setsockopt(SOL_SOCKET, SO_RCVBUF, 0);
+#	$udpserver->setsockopt(SOL_SOCKET, SO_SNDBUF, 0);
 
-		return bless {
-			'LocalPort'   => TFTP_DEFAULT_PORT,
-			'Timeout'     => 10,
-			'ACKtimeout'  => 4,
-			'ACKretries'  => 4,
-			'Readable'    => 1,
-			'Writable'    => 0,
-			'CallBack'    => undef,
-			'BlkSize'     => TFTP_DEFAULT_BLKSIZE,
-			'Debug'       => 0,
-			%cfg,         # merge user parameters
-			'_UDPSERVER_' => $udpserver
-		}, $class;
-	}
-	else
-	{
-		$LASTERROR = "Error opening socket for listener: $@\n";
-		return(undef);
-	}
+	$self->{'_UDPSERVER_'} = $udpserver;
+    }
+    else
+    {
+	$LASTERROR = "Error opening socket for listener: $@\n";
+	return(undef);
+    }
+    return 1;
+}
+
+sub setSqlFSHandle
+{
+    my $self = shift;
+    my $sqlfsObj = shift;
+
+    $self->{'SqlFSHandle'} = $sqlfsObj;
 }
 
 #
@@ -262,7 +278,7 @@ sub processRQ
 				if($self->{'_REQUEST_'}{'FileName'} =~ /\.\.[\\\/]/)
 				{
 					# requested file contains '..\' or '../'
-					$LASTERROR = sprintf 'Access to \'%s\' is not permitted to %s', $self->{'_REQUEST_'}{'FileName'}, $self->{'_REQUEST_'}{'PeerAddr'};
+					$LASTERROR = sprintf "Access to '%s' is not permitted to %s\n", $self->{'_REQUEST_'}{'FileName'}, $self->{'_REQUEST_'}{'PeerAddr'};
 					$self->sendERR(2);
 					return(undef);
 				}
@@ -304,7 +320,7 @@ sub processRQ
 				else
 				{
 					# file not found
-					$LASTERROR = sprintf 'File \'%s\' not found', $self->{'_REQUEST_'}{'FileName'};
+					$LASTERROR = sprintf "File '%s' not found\n", $self->{'_REQUEST_'}{'FileName'};
 					$self->sendERR(1);
 					return(undef);
 				}
@@ -312,7 +328,7 @@ sub processRQ
 			else
 			{
 				# if server is not readable
-				$LASTERROR = "TFTP Error: Access violation";
+				$LASTERROR = "TFTP Error: Access violation\n";
 				$self->sendERR(2);
 				return(undef);
 			}
@@ -328,7 +344,7 @@ sub processRQ
 				if($self->{'_REQUEST_'}{'FileName'} =~ /\.\.[\\\/]/)
 				{
 					# requested file contains '..\' or '../'
-					$LASTERROR = sprintf 'Access to \'%s\' is not permitted to %s', $self->{'_REQUEST_'}{'FileName'}, $self->{'_REQUEST_'}{'PeerAddr'};
+					$LASTERROR = sprintf "Access to '%s' is not permitted to %s\n", $self->{'_REQUEST_'}{'FileName'}, $self->{'_REQUEST_'}{'PeerAddr'};
 					$self->sendERR(2);
 					return(undef);
 				}
@@ -371,7 +387,7 @@ sub processRQ
 				else
 				{
 					# file not found
-					$LASTERROR = sprintf 'File \'%s\' already exists', $self->{'_REQUEST_'}{'FileName'};
+					$LASTERROR = sprintf "File '%s' already exists\n", $self->{'_REQUEST_'}{'FileName'};
 					$self->sendERR(6);
 					return(undef);
 				}
@@ -379,7 +395,7 @@ sub processRQ
 			else
 			{
 				# if server is not writable
-				$LASTERROR = "TFTP Error: Access violation";
+				$LASTERROR = "TFTP Error: Access violation\n";
 				$self->sendERR(2);
 				return(undef);
 			}
@@ -389,7 +405,7 @@ sub processRQ
 			#################
 			# other opcodes #
 			#################
-			$LASTERROR = sprintf "Opcode %d not supported as request", $self->{'_REQUEST_'}{'OPCODE'};
+			$LASTERROR = sprintf "Opcode %d not supported as request\n", $self->{'_REQUEST_'}{'OPCODE'};
 			$self->sendERR(4);
 			return(undef);
 		}
@@ -561,7 +577,7 @@ sub readFILE
 		}
 		else
 		{
-			$LASTERROR = sprintf "Error $! reading file '%s'", $self->{'_REQUEST_'}{'FileName'};
+			$LASTERROR = sprintf "Error $! reading file '%s'\n", $self->{'_REQUEST_'}{'FileName'};
 			return(undef);
 		}
 	}
@@ -598,7 +614,7 @@ sub writeFILE
 	}
 	else
 	{
-		$LASTERROR = sprintf "TFTP Error DATA block %d is out of sequence, expected block was %d", $self->{'_REQUEST_'}{'LASTBLK'}, $self->{'_REQUEST_'}{'PREVBLK'} + 1;
+		$LASTERROR = sprintf "TFTP Error DATA block %d is out of sequence, expected block was %d\n", $self->{'_REQUEST_'}{'LASTBLK'}, $self->{'_REQUEST_'}{'PREVBLK'} + 1;
 		$self->sendERR(5);
 		return(undef);
 	}
@@ -612,8 +628,6 @@ sub writeFILE
 sub sendFILE
 {
 	my $self = shift;
-
-	$LASTERROR = '';
 
 	while(1)
 	{
@@ -752,7 +766,7 @@ sub recvDATA
 			elsif($opcode eq TFTP_OPCODE_ERROR)
 			{
 				# message is ERR
-				$LASTERROR = sprintf "TFTP error message: %s", $datain;
+				$LASTERROR = sprintf "TFTP error message: %s\n", $datain;
 				return(undef);
 			}
 			else
@@ -822,7 +836,7 @@ sub sendDATA
 					elsif($opcode eq TFTP_OPCODE_ERROR)
 					{
 						# message is ERR
-						$LASTERROR = sprintf "TFTP error message: %s", $datain;
+						$LASTERROR = sprintf "TFTP error message: %s\n", $datain;
 						return(undef);
 					}
 					else
@@ -883,7 +897,7 @@ sub openFILE
 		}
 		else
 		{
-			$LASTERROR = sprintf "Error opening file \'%s\' for reading\n", $self->{'_REQUEST_'}{'FileName'};
+			$LASTERROR = sprintf "Error opening file '%s' for reading\n", $self->{'_REQUEST_'}{'FileName'};
 			return(undef);
 		}
 	}
@@ -901,7 +915,7 @@ sub openFILE
 		}
 		else
 		{
-			$LASTERROR = sprintf "Error opening file \'%s\' for writing\n", $self->{'_REQUEST_'}{'FileName'};
+			$LASTERROR = sprintf "Error opening file '%s' for writing\n", $self->{'_REQUEST_'}{'FileName'};
 			return(undef);
 		}
 	}
@@ -1006,7 +1020,7 @@ sub sendOACK
 							if($lastack)
 							{
 								# ack is not for block 0... ERROR
-								$LASTERROR = sprintf "Received ACK for block %d instead of 0", $lastack;
+								$LASTERROR = sprintf "Received ACK for block %d instead of 0\n", $lastack;
 								return(undef);
 							}
 							return 1;
@@ -1014,7 +1028,7 @@ sub sendOACK
 						elsif($opcode == TFTP_OPCODE_ERROR)
 						{
 							# message is ERR
-							$LASTERROR = sprintf "TFTP error message: %s", $datain;
+							$LASTERROR = sprintf "TFTP error message: %s\n", $datain;
 							return(undef);
 						}
 						else

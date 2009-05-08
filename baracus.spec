@@ -11,14 +11,12 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-buildroot
 Source:    %{name}-%{version}.tar.gz
 Source1:   sysconfig.%{name}
 Source2:   initd.%{name}d
+Source3:   sysconfig.%{name}db
+Source4:   initd.%{name}db
 Requires:  perl, perl-XML-Simple, perl-libwww-perl, perl-Data-UUID
 Requires:  perl-Config-General, perl-Config-Simple, perl-AppConfig
-Requires:  perl-TermReadKey, perl-DBI, perl-DBD-SQLite, rsync
-%if 0%{?suse_version} <= 1100
-Requires:  sqlite >= 3.3
-%else
-Requires: sqlite3
-%endif
+Requires:  perl-TermReadKey, perl-DBI, perl-DBD-SQLite
+Requires:  rsync, apache2, nfsserver, dhcpd, postgresql-server
 Obsoletes: create_install_source < 1.25
 PreReq:    %insserv_prereq %fillup_prereq
 
@@ -38,8 +36,12 @@ cp -r $PWD/* %{buildroot}/.
 
 install -D -m644 %{S:1} %{buildroot}/var/adm/fillup-templates/sysconfig.%{name}
 install -D -m755 %{S:2} %{buildroot}/%{_initrddir}/%{name}d
+install -D -m644 %{S:3} %{buildroot}/var/adm/fillup-templates/sysconfig.%{name}db
+install -D -m755 %{S:4} %{buildroot}/%{_initrddir}/%{name}db
 ln -s ../..%{_initrddir}/%{name}d %{buildroot}/%{_sbindir}/rc%{name}d
+ln -s ../..%{_initrddir}/%{name}db %{buildroot}/%{_sbindir}/rc%{name}db
 chmod 755 %{buildroot}/%{_initrddir}/%{name}d
+chmod 755 %{buildroot}/%{_initrddir}/%{name}db
 chmod 700 %{buildroot}/%{_datadir}/%{name}/.gnupg
 mkdir %{buildroot}/var/spool/%{name}/isos
 mkdir %{buildroot}/var/spool/%{name}/logs
@@ -50,15 +52,20 @@ rm -Rf %{buildroot}
 
 %post
 %{fillup_only}
+%{fillup_only -n baracusdb}
 %{fillup_and_insserv -f -y baracusd}
+%{fillup_and_insserv -f -y baracusdb}
 
 %preun
 %stop_on_removal baracusd
+%stop_on_removal baracusdb
 
 %postun
 %restart_on_update baracusd
+%restart_on_update baracusdb
 %insserv_cleanup
 
+#need addgroup adduser examples
 
 %files
 %defattr(-,root,root)
@@ -66,6 +73,7 @@ rm -Rf %{buildroot}
 %{_sbindir}/*
 %{_sysconfdir}/%{name}.d
 %config %{_initrddir}/%{name}d
+%config %{_initrddir}/%{name}db
 %dir %{_datadir}/%{name}
 %doc %{_datadir}/%{name}/*.xml
 %{_datadir}/%{name}/pxelinux.0

@@ -1,21 +1,18 @@
 ## Path:           Network/Install Server/Baracus
 ## Description:    Install media and network install server management tool
-## ServiceRestart: baracusd
 #
 
 ## Description:	   Base path of all build trees
 ## Type:           string
-## Default:        "/var/spool/baracus/builds"
+## Default:        "~baracus"
+## ServiceRestart: baracusd
 #
-BUILDROOT=/var/spool/baracus/builds
-
-## Description:    Server name or IP address from which to fetch media
-## Type:           string
-## Default:        ""
-# Typically this will be the IP address of this host.  However, it
-# may be desireable to have the build trees served on a machine
-# different than the one the create_install_host system runs on.
-BUILDIP=
+# By default this is home directory of the baracus user.
+# Several subdirectories are expected to reside at this
+# location so just pointing this to an empty, or non-existant
+# directory is not advised.
+#
+BARACUSDIR=~baracus
 
 ## Description:    Default build service type
 ## Type:           string
@@ -23,61 +20,25 @@ BUILDIP=
 #
 # "nfs", "http", "ftp"
 #
+# Note: ftp is not yet fully supported
+#
 BUILDTYPE=nfs
 
-## Description:    Define base root of where iso files are located
+## Description:    Build host IP address
 ## Type:           string
-## Default:        "/var/spool/baracus/isos"
+## Default:        ""
 #
-BUILDISOS=/var/spool/baracus/isos
-
-## Description:    Directory location of baracus database
-## Type:	   string
-## Default:	   "/var/spool/baracus"
+# IP address of the file server of the bracus build direcory
+# responsible for running the config BUILDTYPE protocol.
+# Typically this would be the address of this machine.
 #
-DBASEDIR=/var/spool/baracus
-
-## Description:    Directory in which to store the generated install templates
-## Type:	   string
-## Default:	   "/var/spool/baracus/templates"
-#
-TEMPLATEDIR=/var/spool/baracus/templates
-
-## Description:    Directory where site specific info is stored in module files
-## Type:	   string
-## Default:        "/var/spool/baracus/modules"
-#
-MODULEDIR=/var/spool/baracus/modules
-
-## Description:    Additional configuration information for module and hardware
-## Type:           string
-## Default:        "/etc/baracus.d"
-#
-CONFDIR=/etc/baracus.d
-
-## Description:    Auxillary server configuration template location
-## Type:           string
-## Default:        "/usr/share/baracus"
-#
-DATADIR=/usr/share/baracus
+BUILDIP=
 
 ## Description:    Options to the Baracus daemon
 ## Type:           string
 ## Default:        ""
+## ServiceRestart: baracusd
+#
 # Currently the only valid option is 'debug'
+#
 BARACUSD_OPTIONS=
-
-## Description:    User hooks directory
-## Type:           string
-## Default:        "/var/spool/baracus/hooks"
-# Some points in execution allow for user hooks to extend functionality
-# this is the area provided to find such hooks - by well known names.
-HOOKSDIR=/var/spool/baracus/hooks
-
-## Description:    Any non-database history or log files
-## Type:           string
-## Default:        "/var/spool/baracus/logs"
-# Much is tracked in database files but this directory holds text logs.
-LOGSDIR=/var/spool/baracus/logs
-
-

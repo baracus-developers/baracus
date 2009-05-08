@@ -13,90 +13,136 @@ use SqlFS;
 
 my $debug = shift;
 
-##
+my $sysconfigfile = '/etc/sysconfig/baracus';
 my $sysconfig = AppConfig->new( {CREATE => 1} );
+$sysconfig->define( 'baracusdir=s' );
+$sysconfig->file($sysconfigfile);
+my $baracusdir = $sysconfig->get( 'baracusdir' ); # ~baracus is default
 
-$sysconfig->define( 'hooksdir=s',
-                    'logsdir=s',
-                    'dbasedir=s',
-                    'datadir=s'
-                   );
+print "\$baracusdir after : $baracusdir EOL\n" if $debug;
+if ( $baracusdir =~ m|^~([^/]*)| ) {
+  my $prepath="";
+  if ( "$1" eq "" ) {
+    $prepath = $ENV{HOME}
+  } else {
+    unless ($prepath = (getpwnam($1))[7]) {
+      die "BARACUSDIR has bad use of ~ or non-existent user in $sysconfigfile\n";
+    }
+  }
+  $baracusdir =~ s|^~([^/]*)|$prepath|;
+}
+# remove trailing slash or spaces
+$baracusdir =~ s|/*\s*$||;
+print "\$baracusdir after : $baracusdir EOL\n" if $debug;
 
-$sysconfig->file('/etc/sysconfig/baracus');
-
-my $hooksdir = $sysconfig->get( 'hooksdir'    ); # /var/spool/baracus/hooks
-my $logsdir  = $sysconfig->get( 'logsdir'     ); # /var/spool/baracus/logs
-my $dbasedir = $sysconfig->get( 'dbasedir'    ); # /var/spool/baracus
-my $datadir  = $sysconfig->get( 'datadir'     ); # /usr/share/baracus
-
-if ( $debug ) {
-print "hooksdir $hooksdir\n";
-print "logsdir  $logsdir \n";
-print "dbasedir $dbasedir\n";
-print "datadir  $datadir \n";
+# store baracus well know directories in global hash
+our %bdir = (
+	    'root' => "$baracusdir",
+	    'conf' => "/etc/baracus.d",
+	    'data' => "/usr/share/baracus",
+	   );
+my @bdirs = qw( builds isos templates modules hooks logs );
+foreach my $bd (@bdirs) {
+  $bdir{ $bd } = "$baracusdir/$bd";
+}
+if ($debug) {
+  print "Baracus directories:\n";
+  while ( my ($key,$value) = each ( %bdir ) ) {
+    print "\t$key => $value\n" if ( defined $value );
+  }
 }
 
-# create and/or connect to our database to serve up TFTP files
-my $dbname = "$dbasedir/sqltftpd.db";
-print "dbname   $dbname\n" if ( $debug );
-my $sqlfsOBJ = SqlFS->new( 'DataSource' => "dbi:SQLite:dbname=$dbname")
-    or die "Unable to create new instance of SqlFS\n";
+open(STDOUT, ">>$bdir{'logs'}/baracusd")
+    or die "Unable to open log file: $!\n";
 
-my $listener = SqlTFTPd->new( 'SqlFSHandle' => $sqlfsOBJ, 'Timeout' => 10 )
+my $dovalidate = 1;
+our $validatefile = "$bdir{'hooks'}/verify_client_build";
+if (not -e $validatefile) {
+    print STDOUT "Build client verification script not found:\n\t$validatefile\n";
+    print STDOUT "No confirmation of completed builds or do post install hooks\n";
+    print STDOUT "Please check setting of BARACUSDIR in $sysconfigfile\n";
+    $dovalidate = 0;
+}
+
+our $passedfile = "$bdir{'hooks'}/verify_client_build_passed";
+our $failedfile = "$bdir{'hooks'}/verify_client_build_failed";
+
+# get baracus id information
+my $user = "baracus";
+my $uid;
+unless ($uid = (getpwnam($user))[2]) {
+    die "Attempt to run server as non-existent or super user\n";
+}
+my $listener = SqlTFTPd->new( 'Timeout' => 10 )
     or die SqlTFTPd->error;
 
-#my $logfile = "$logsdir/baracusd.log";
-#print "logfile  $logfile\n" if ( $debug );
-#open my $log, ">>", $logfile
-#    or die "unable to open log file: $!";
-
-# if first time we've launched load the root pxe file
-my $pxefile = "$datadir/pxelinux.0";
-print "pxefile  $pxefile\n" if ( $debug );
-unless ( $sqlfsOBJ->find( $pxefile ) )
-{
-#    print $log "Initial launch of baracusd - initializing $dbname\n";
-    print "Initial launch of baracusd - initializing $dbname\n" if ($debug);
-    $sqlfsOBJ->store( $pxefile );
+unless( $listener->open() ) {
+    print STDOUT "baracusd unable to listen on tftp port: ", $@, "\n";
+    print STDOUT "Try shutting down other possible tftp servers first:\n\n",
+        "\tservice atftpd stop\n",
+        "\tchkconfig atftpd off\n\n",
+        "Or disabling the xinetd based 'tftp' service:\n\n",
+        "\tchkconfig tftp off\n\tservice xinetd restart\n\n";
+    die "Unable to open port for TFTP connections: ", $@, "\n",
+        "please refer to $bdir{'logs'}/baracusd for details.\n";
 }
 
-#printf $log "SqlTFTPd listener is bound to %s:%d\n",
-#    $listener->{'LocalAddr'} ? $listener->{'LocalAddr'} : "'any address'",
-#    $listener->{'LocalPort'};
+print STDOUT "baracusd launched with uid: $>\n";
 
-printf "SqlTFTPd listener is bound to %s:%d\n",
+# set the effective id to baracus
+$> = $uid;
+
+# delayed printing to switch to non-root asap
+printf STDOUT "SqlTFTPd listener is bound to %s:%d\n",
     $listener->{'LocalAddr'} ? $listener->{'LocalAddr'} : "'any address'",
-    $listener->{'LocalPort'} if ( $debug );
+    $listener->{'LocalPort'};
+
+print STDOUT "baracusd now running with uid: $>\n";
+
+# create and/or connect to our database to serve up TFTP files
+my $dbname = "sqltftp";
+my $dbsource = "DBI:Pg:dbname=$dbname";
+print STDOUT "dbsource   $dbsource\n";
+
+my $sqlfsOBJ = SqlFS->new( 'DataSource' => "$dbsource",
+                           'User' => "baracus" )
+    or die "Unable to create new instance of SqlFS\n";
+
+$listener->setSqlFSHandle( $sqlfsOBJ );
+
+# if first time we've launched load the root pxe file
+my $pxefile = "$bdir{'data'}/pxelinux.0";
+unless ( $sqlfsOBJ->find( $pxefile ) )
+{
+    if (not -f $pxefile) {
+        print STDOUT "required file not found: $pxefile";
+        exit 2;
+    }
+    print STDOUT "Initial launch of baracusd - adding $pxefile to db\n";
+    $sqlfsOBJ->store( $pxefile );
+}
 
 while (1) {
     # wait for any request (RRQ or WRQ)
     if (my $request = $listener->waitRQ()) {
         # received request
-#        printf $log "Received a %s from peer %s for file '%s'\n",
-#            $OPCODES{$request->{'_REQUEST_'}{'OPCODE'}},
-#                     $request->{'_REQUEST_'}{'PeerAddr'},
-#                     $request->{'_REQUEST_'}{'FileName'};
         printf "Received a %s from peer %s for file '%s'\n",
             $OPCODES{$request->{'_REQUEST_'}{'OPCODE'}},
                      $request->{'_REQUEST_'}{'PeerAddr'},
                      $request->{'_REQUEST_'}{'FileName'};
 
-        if ( &validateURL( $request ) ) {
-#            print $log "Finished processing build validation URL\n";
-            print "Finished processing build validation URL\n";
+        if ( $dovalidate && &validateURL( $request ) ) {
+            print STDOUT "Finished processing build validation URL\n";
         }
         # process the request
         elsif ($request->processRQ()) {
-#            print $log "OK, transfer completed successfully\n";
-            print "OK, transfer completed successfully\n";
+            printf STDOUT "Successful delivery to peer %s of file '%s'\n",
+                $request->{'_REQUEST_'}{'PeerAddr'},
+                $request->{'_REQUEST_'}{'FileName'};
+
         } else {
-#            print $log SqlTFTPd->error;
-            print SqlTFTPd->error . "\n";
+            print STDOUT SqlTFTPd->error;
         }
-    } else {
-        # request not received (timed out waiting for request etc.)
-#        print $log SqlTFTPd->error if ( SqlTFTPd->error );
-        print SqlTFTPd->error . "\n" if ( "SqlTFTPd->error" ne "" );
     }
 }
 
@@ -110,14 +156,24 @@ sub validateURL
     if ( $name =~ m|.*/baracus/uuid/([-0-9a-zA-Z]{36})\?(\S+).*$| ) {
         my $uuid=$1;
         my $hostname=$2;
-        print "CHECKING peer $ip as hostname $hostname with $uuid\n";
-        my $status = system("$hooksdir/baracus_dbupdate $hostname $ip $uuid");
+        print STDOUT "VERIFYING hostname $hostname ip $ip uuid $uuid\n";
+        my $status = system("$validatefile $hostname $ip $uuid");
         if ( $status != 0 ) {
-            print "FAILED peer $ip verification as hostname $hostname with $uuid\n";
-        }
-        else {
-            print "VERIFIED peer $ip as hostname $hostname with $uuid invoking $hooksdir/baracus_hook\n";
-            system("$hooksdir/baracus_hook $hostname $ip");
+            print STDOUT "VERIFYING FAILED $hostname $ip $uuid\n";
+            if (-x $failedfile) {
+                print STDOUT "INVOKING $failedfile\n";
+                system("$failedfile $hostname $ip $uuid");
+            } else {
+                print STDOUT "no executable failed script found: $failedfile\n";
+            }
+        } else {
+            print STDOUT "VERIFYING PASSED $hostname $ip $uuid\n";
+            if ( -x $passedfile ) {
+                print STDOUT "INVOKING $passedfile\n";
+                system("$passedfile $hostname $ip $uuid");
+            } else {
+                print STDOUT "no executable passed script found: $passedfile\n";
+            }
         }
         # was a valid validate url - even if a spoofing attempt
         return 1;
