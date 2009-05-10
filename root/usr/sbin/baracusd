@@ -54,6 +54,8 @@ if ($debug) {
 
 open(STDOUT, ">>$bdir{'logs'}/baracusd")
     or die "Unable to open log file: $!\n";
+open(STDERR, ">>$bdir{'logs'}/baracusd")
+    or die "Unable to open log file: $!\n";
 
 my $dovalidate = 1;
 our $validatefile = "$bdir{'hooks'}/verify_client_build";

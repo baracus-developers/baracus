@@ -145,18 +145,6 @@ sub get_rundate() {
 
 }
 
-sub create_db() {
-
-    my ($dbh, $dbname, $dbargs) = @_;
-
-    if ($verbose) {
-        print "Creating initial db\n";
-    }
-    my $create_db = qq|CREATE DATABASE baracus OWNER baracus|;
-    $dbh->do($create_db)
-        or die "Database creation failed:  ",$dbh->errstr;
-}
-
 sub create_tables() {
 
     my ($dbh, $dbname, $dbargs) = @_;
@@ -168,8 +156,8 @@ sub create_tables() {
                                               uuid VARCHAR(37),
                                               state INTEGER,
                                               cmdline VARCHAR(255),
-                                              creation DATE,
-                                              change DATE)|;
+                                              creation TIMESTAMP,
+                                              change TIMESTAMP)|;
 
     $dbh->do( $sql )
         or die "Table creation failed:  ",$dbh->errstr;
@@ -187,10 +175,10 @@ sub create_tables() {
                                                         state INTEGER,
                                                         stateOLD INTEGER,
                                                         cmdline VARCHAR(255),
-                                                        creation DATE,
-                                                        creationOLD DATE,
-                                                        change DATE,
-                                                        changeOLD DATE )|;
+                                                        creation TIMESTAMP,
+                                                        creationOLD TIMESTAMP,
+                                                        change TIMESTAMP,
+                                                        changeOLD TIMESTAMP )|;
 
     $dbh->do($sqlhist)
         or die "Table creation failed:  ",$dbh->errstr;
@@ -216,7 +204,7 @@ sub create_tables() {
                                                             changeOLD )
                                values ( new.hostname, old.hostname, new.ip, old.ip, new.iphex, old.iphex,
                                         new.mac, old.mac, new.uuid, old.uuid, '2', old.state, old.cmdline,
-                                        CURRENT_TIMESTAMP, old.creation, CURRENT_TIMESTAMP, old.change );
+                                        CURRENT_TIMESTAMP(2), old.creation, CURRENT_TIMESTAMP(2), old.change );
                                END;|;
 
     #   $dbh->do($update_trigger)
@@ -243,7 +231,7 @@ sub create_tables() {
                                                             changeOLD )
                                values ( new.hostname, 'null', new.ip, 'null', new.iphex, 'null', new.mac,
                                         'null', new.uuid, 'null', new.state, 'null', new.cmdline,
-                                        CURRENT_TIMESTAMP, 'null', 'null', 'null' );
+                                        CURRENT_TIMESTAMP(2), 'null', 'null', 'null' );
                                END;|;
 
     #   $dbh->do($insert_trigger)
@@ -270,7 +258,7 @@ sub create_tables() {
                                                             changeOLD )
                                values ( old.hostname, 'null', old.ip, 'null', old.iphex, 'null', old.mac,
                                         'null', old.uuid, 'null', '4', old.state, old.cmdline,
-                                        CURRENT_TIMESTAMP, old.creation, 'null', 'null' );
+                                        CURRENT_TIMESTAMP(2), old.creation, 'null', 'null' );
                                END;|;
 
     #   $dbh->do($delete_trigger)
@@ -329,7 +317,7 @@ sub add_db_host_entry() {
                                              cmdline,
                              creation,
                              change )
-                VALUES ( ?, ?, ?, ?, ?, 1, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP )|;
+                VALUES ( ?, ?, ?, ?, ?, 1, ?, CURRENT_TIMESTAMP(2), CURRENT_TIMESTAMP(2) )|;
 
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare sth: ",$dbh->errstr;
@@ -548,6 +536,8 @@ sub add_host_entry() {
             print "Successfully stored $Hash{'hexip'} \n";
         }
     }
+    # disconnect and destroy
+    $sqlfsOBJ->discard();
 
     print "Added $Hash{'hostname'} template \n";
 }
@@ -570,8 +560,6 @@ sub remove_host_entry() {
 
     # remove files from sqlfstable for sqltftpd server
 
-    #    my $dbname = "$dbasedir/sqltftpd.db";
-    #    my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:SQLite:dbname=$dbname")
     my $dbname = "sqltftp";
     my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbname",
                                'User' => "baracus")
@@ -588,6 +576,8 @@ sub remove_host_entry() {
             warn "failed to remove $mac from sqlfs\n";
         }
     }
+    # disconnect and destroy
+    $sqlfsOBJ->discard();
 
     print "Removed: $Hash{'hostname'} [ $dbref->{'iphex'} ] $mac\n";
 
@@ -659,9 +649,9 @@ sub list() {
             }
             printf "%24s [ %s $autoinstallstring ] %s $pxehexfilestring\n",
                 $_->[0], $iphex, $bootmac;
-
-            #               ntest130 [ 979BE682 ( missing) ] 01-00-12-21-31-29-60 ( missing)
         }
+        # disconnect and destroy
+        $sqlfsOBJ->discard();
     }
 }
 
@@ -813,7 +803,8 @@ GetOptions(
 $module = $multiarg{ 'module' } if (defined $multiarg{ 'module' });
 $vars   = $multiarg{ 'vars'   } if (defined $multiarg{ 'vars'   });
 
-&get_usage_add if (($command eq "add") and ($help or ($ARGV[1] eq "help")));
+&get_usage_add if (($command eq "add") and
+                   ($help or (defined $ARGV[1] and( $ARGV[1] eq "help"))));
 &get_usage if ($help or $command eq "help");
 
 ## Take main action argument and call corresponging Sub
@@ -961,37 +952,15 @@ $dbname = "baracus";
 #$dbargs = { PrintError => 1, AutoCommit => 1 };
 $dbargs = {};
 
-# get baracus id information - for dealing with SqlFS
+# get baracus id information - for dealing with pg database
 my $user = "baracus";
-my $uid;
-unless ($uid = (getpwnam($user))[2]) {
+unless (my $uid = (getpwnam($user))[2]) {
     die "Attempt to run server as non-existent or super user\n";
 }
 # set the uid to baracus
-my $oldid = $>;
 $> = $uid;
 
-## Check to see if db exists
-##
-$dbh = DBI->connect("DBI:Pg:dbname=postgres", "baracus", "")
-    or die "Cannot connect to $dbname: ",$DBI::errstr;
-
-my $row = 0;
-my $check_db = qq|SELECT count(*) FROM pg_catalog.pg_database WHERE datname = ?|;
-my $sth = $dbh->prepare($check_db)
-    or die "lookup  failed:  ",$dbh->errstr;
-$sth->execute('baracus')
-    or die "lookup failed:  ",$dbh->errstr;
-$sth->bind_columns( \$row );
-$sth->fetch();
-undef $sth;
-if ( $row == 0 ) {
-    &create_db($dbh, $dbname, $dbargs);
-}
-$dbh->disconnect()
-    or warn "disconnect failure: ", $dbh->errstr ;
-
-## Connect to baracus db
+## Connect to baracus db with role baracus
 ##
 $dbh = DBI->connect("DBI:Pg:dbname=baracus", "baracus", "")
     or die "Cannot connect to $dbname: ",$DBI::errstr;

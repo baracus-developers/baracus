@@ -6,7 +6,6 @@ use strict;
 use warnings;
 
 use DBI;
-use DBD::Pg qw(:pg_types);
 
 =head1 NAME
 
@@ -31,12 +30,12 @@ view of the files stored within the database.
 # names by default without a very good reason. Use EXPORT_OK instead.
 # Do not simply export all your public functions/methods/constants.
 
-# This allows declaration	use SqlFS ':all';
+# This allows declaration   use SqlFS ':all';
 # If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
 # will save memory.
 our %EXPORT_TAGS = (
-    'all' => [ ]
-);
+                    'all' => [ ]
+                    );
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
@@ -93,60 +92,69 @@ sub new
     # no BLOB in Pg so we use BYTEA... or uuendoce and TEXT
 
     # sql to check for instance of table
-    my $exists_table = qq|SELECT COUNT(*) 
+    my $exists_table = qq|SELECT COUNT(*)
         FROM pg_catalog.pg_tables WHERE tablename = ?|;
 
-#         id INTEGER NOT NULL PRIMARY KEY is sqlite AUTO_INCREMENT
-#        ( id INTEGER NOT NULL PRIMARY KEY,
+    #         id INTEGER NOT NULL PRIMARY KEY is sqlite AUTO_INCREMENT
+    #        ( id INTEGER NOT NULL PRIMARY KEY,
 
-#         KEY name( name )                this additional info not
-#         UNIQUE KEY idname ( id, name )  supported by sqlite syntax
+    #         KEY name( name )                this additional info not
+    #         UNIQUE KEY idname ( id, name )  supported by sqlite syntax
 
-#         no AUTO_INCREMENT in pg - we have to create a sequence
-#         we'll be explicit as SERIAL has 'warnings'
+    #         no AUTO_INCREMENT in pg - we have to create a sequence
+    #         we'll be explicit as SERIAL has 'warnings'
 
     # sql to create a sequence - for autoincrement of 'id'
-    my $create_sequence = qq|CREATE SEQUENCE $cfg{'TableName'}_id_seq|;
+#    my $create_sequence = qq|CREATE SEQUENCE $cfg{'TableName'}_id_seq|;
 
-#   was  ( id INT DEFAULT NEXTVAL($cfg{'TableName'}_id_seq) PRIMARY KEY,
+    #   was  ( id INT DEFAULT NEXTVAL($cfg{'TableName'}_id_seq) PRIMARY KEY,
 
     # sql to create the table
     my $create_table = qq|CREATE TABLE $cfg{'TableName'}
-        ( id SERIAL PRIMARY KEY,
-          name VARCHAR(64) NOT NULL,
-          description VARCHAR(32),
-          bin VARCHAR,
-          enabled INTEGER,
-          insertion DATE,
-          change DATE
-        )|;
+                          ( id SERIAL PRIMARY KEY,
+                            name VARCHAR(64) NOT NULL,
+                            description VARCHAR(32),
+                            bin VARCHAR,
+                            enabled INTEGER,
+                            insertion TIMESTAMP,
+                            change TIMESTAMP
+                          ) |;
 
     # sql to drop the sequence
-    my $destroy_sequence = qq|DROP SEQUENCE $cfg{'TableName'}_id_seq|;
+#    my $destroy_sequence = qq|DROP SEQUENCE $cfg{'TableName'}_id_seq|;
 
     # sql to drop the table
     my $destroy_table = qq|DROP TABLE $cfg{'TableName'}|;
 
     # sql for file present check
     my $file_find = qq|SELECT COUNT (*)
-                         FROM $cfg{'TableName'}
-                         WHERE name = ?
-                        |;
+                       FROM $cfg{'TableName'}
+                       WHERE name = ?
+                      |;
 
-    # sql for file detail - cannot use sqlite to sum(length(bin)) as 'text'
+    # sql for file detail - cannot use sum(length(bin)) as 'text' its encoded
     my $file_detail = qq|SELECT name, description, enabled, insertion, change, bin
                          FROM $cfg{'TableName'}
                          WHERE name = ?
                         |;
 
+    # sql for file list - had to hack / avg insertion times that vary with id ?
+    my $file_list = qq|SELECT
+                       COUNT( id ) as blobs, name, enabled,
+                       TIMESTAMP 'epoch' + (AVG(EXTRACT(EPOCH FROM insertion)) * interval '1 second') as create
+                       FROM $cfg{'TableName'}
+                       WHERE name LIKE ?
+                       GROUP BY name, enabled
+                      |;
+
     # remove a file
     my $file_delete = qq|DELETE FROM $cfg{'TableName'} where name = ?|;
 
     # insert a file
-#    my $file_store = qq|INSERT INTO $cfg{'TableName'}
-#                        (name, description, bin, enabled, insertion, change)
-#                        VALUES ( ?, ?, ?, ?, DATETIME('now'), NULL)
-#                       |;
+    #    my $file_store = qq|INSERT INTO $cfg{'TableName'}
+    #                        (name, description, bin, enabled, insertion, change)
+    #                        VALUES ( ?, ?, ?, ?, DATETIME('now'), NULL)
+    #                       |;
 
     my $file_store = qq|INSERT INTO $cfg{'TableName'}
                         (name, description, bin, enabled, insertion, change)
@@ -160,38 +168,6 @@ sub new
                         ORDER BY id
                        |;
 
-    # logic to check if we're playing with a postgresql datasource
-    # if we are - then we need to see that the db we want is available
-    if ( $cfg{'DataSource'} =~ m/(DBI:Pg:dbname=)(.*)/ ) {
-	my $pgds = $1 . "postgres";
-	my $pgdb = $2;
-	$dbh = DBI->connect($pgds, "$cfg{'User'}" )
-	    or croak "Error connecting to database $cfg{'DataSource'}: ",
-	    $DBI::errstr, $@;
-	my $row = 0;
-	# sql to check for instance of database
-	my $exists_database = qq|SELECT COUNT(*) 
-            FROM pg_catalog.pg_database WHERE datname = ?|;
-	my $sth = $dbh->prepare( $exists_database )
-	    or croak "Unable to prepare 'db exists' query:  ",$dbh->errstr;
-	$sth->execute( $pgdb )
-	    or croak "Unable to execute 'db exists' statement:  ",$sth->errstr;
-	$sth->bind_columns( \$row );
-	$sth->fetch();
-	if ( $row == 0 ) {
-	    $sth->finish;
-	    # sql to create instance of database - syntax has issues with ?
-	    my $create_database = qq|CREATE DATABASE $pgdb OWNER $cfg{'User'}|;
-	    $sth = $dbh->prepare( $create_database )
-		or croak "Unable to prepare 'db create':  ",$dbh->errstr;
-	    $sth->execute()
-		or croak "Unable to execute 'db create':  ",$sth->errstr;
-	}
-	$sth->finish;
-	undef $sth;
-	$dbh->disconnect()
-	    or warn "disconnect failure: ", $dbh->errstr ;
-    }
 
     # connect to the DBI data source passed
     if (not $dbh = DBI->connect( "$cfg{'DataSource'}",
@@ -211,7 +187,7 @@ sub new
         return undef;
     }
     if ( not $sth->execute( $cfg{'TableName'} ) ) {
-        $LASTERROR = "Unable to execute 'exists' query: ", $sth->errstr;
+        $LASTERROR = "Unable to execute 'exists' query: ", $sth->err;
         return undef;
     }
     $sth->bind_columns( \$row );
@@ -219,44 +195,52 @@ sub new
     $sth->finish;
     undef $sth;
     if ( $row == 0 ) {
-	if (not $dbh->do( $destroy_sequence ) ) {
-	    carp("Error destroying sequence ",$dbh->errstr, $@,"\n");
-	    return undef;
-	}
-	if (not $dbh->do( $create_sequence ) ) {
-	    carp("Error creating sequence ",$dbh->errstr, $@,"\n");
-	    return undef;
-	}
-	if (not $dbh->do( $create_table ) ) {
-	    carp("Error creating table ",$dbh->errstr, $@,"\n");
-	    return undef;
-	}
+#        if (not $dbh->do( $create_sequence ) ) {
+#            carp("Error creating sequence ",$dbh->errstr, $@,"\n");
+#            return undef;
+#        }
+        if (not $dbh->do( $create_table ) ) {
+            carp("Error creating table ",$dbh->errstr, $@,"\n");
+            return undef;
+        }
     }
     # max_allowed_packets a mysql specific construct
     my $maxlen = 1048575;
 
-#    my $max_pkts = qq|SHOW VARIABLES LIKE "max_allowed_packets"|;
-#    my $rows = $dbh->selectall_arrayref( $max_pkts );
-#    for (@$rows) {
-#        # max_allowed_packet minus a safely calculated size
-#        print $_->[1];
-#        $maxlen = $_->[1] - 100000;
-#    }
+    #    my $max_pkts = qq|SHOW VARIABLES LIKE "max_allowed_packets"|;
+    #    my $rows = $dbh->selectall_arrayref( $max_pkts );
+    #    for (@$rows) {
+    #        # max_allowed_packet minus a safely calculated size
+    #        print $_->[1];
+    #        $maxlen = $_->[1] - 100000;
+    #    }
 
     return bless { %cfg,
                    'dbh' => $dbh,
                    '_maxlen_' => $maxlen,
-		   'sql_create_sequence' => $create_sequence,
-		   'sql_destroy_sequence' => $destroy_sequence,
+#                   'sql_create_sequence' => $create_sequence,
+#                   'sql_destroy_sequence' => $destroy_sequence,
                    'sql_create_table' => $create_table,
                    'sql_destroy_table' => $destroy_table,
                    'sql_file_detail' => $file_detail,
+                   'sql_file_list' => $file_list,
                    'sql_file_delete' => $file_delete,
                    'sql_file_store' => $file_store,
                    'sql_file_fetch' => $file_fetch,
                    'sql_file_find' => $file_find
                   }, $class;
 }
+
+sub discard {
+    # disconnect
+    my $self  = shift;
+
+    $self->{'dbh'}->disconnect()
+        || warn "disconnect failure: ", $self->{'dbh'}->errstr ;
+
+    undef $self
+}
+
 
 =item bytea_encode
 
@@ -266,10 +250,10 @@ encode bytestream for VARCHAR storage
 
 sub bytea_encode
 {
-  my ($in, $out);
-  $in = shift;
-  $out = pack( 'u', $in);
-  return $out;
+    my ($in, $out);
+    $in = shift;
+    $out = pack( 'u', $in);
+    return $out;
 }
 
 =item bytea_decode
@@ -280,10 +264,10 @@ decode bytestream for VARCHAR storage
 
 sub bytea_decode
 {
-  my ($in,$out);
-  $in = shift;
-  $out = unpack( 'u', $in );
-  return $out;
+    my ($in,$out);
+    $in = shift;
+    $out = unpack( 'u', $in );
+    return $out;
 }
 
 =item destroy
@@ -295,20 +279,20 @@ return non-zero on error
 
 sub destroy
 {
-	my $self  = shift;
+    my $self  = shift;
 
     if (not $self->{'dbh'}->do( $self->{'sql_destroy_table'} ) ) {
         $LASTERROR = "Error table drop on destroy $self->{'dbh'}->errstr: $@\n";
         return 1;
     }
-    if (not $self->{'dbh'}->do( $self->{'sql_destroy_sequence'} ) ) {
-        $LASTERROR = "Error sequence drop on destroy $self->{'dbh'}->errstr: $@\n";
-        return 1;
-    }
-    if (not $self->{'dbh'}->do( $self->{'sql_create_sequence'} ) ) {
-        $LASTERROR = "Error re-creating sequence $self->{'dbh'}->errstr: $@\n";
-        return 1;
-    }
+#    if (not $self->{'dbh'}->do( $self->{'sql_destroy_sequence'} ) ) {
+#        $LASTERROR = "Error sequence drop on destroy $self->{'dbh'}->errstr: $@\n";
+#        return 1;
+#    }
+#    if (not $self->{'dbh'}->do( $self->{'sql_create_sequence'} ) ) {
+#        $LASTERROR = "Error re-creating sequence $self->{'dbh'}->errstr: $@\n";
+#        return 1;
+#    }
     if (not $self->{'dbh'}->do( $self->{'sql_create_table'} ) ) {
         $LASTERROR = "Error re-creating empty table $self->{'dbh'}->errstr: $@\n";
         return 1;
@@ -337,9 +321,9 @@ sub find
         return undef;
     }
 
-    $name =~ s|.*/||; # only the short name for the lookup
+    $name =~ s|.*/||;           # only the short name for the lookup
     if ( not $sth->execute( $name ) ) {
-        $LASTERROR = "Unable to execute 'find' query: $sth->errstr";
+        $LASTERROR = "Unable to execute 'find' query: $sth->err";
         return undef;
     }
 
@@ -373,18 +357,20 @@ sub detail
         return undef;
     }
 
-    $name =~ s|.*/||; # only the short name for the lookup
-#    print "fetching details for $name\n";
+    $name =~ s|.*/||;       # only the short name for the lookup
+    #    print "fetching details for $name\n";
 
     if ( not $sth->execute( $name ) ) {
-        $LASTERROR = "Unable to execute 'detail' query: $sth->errstr";
+        $LASTERROR = "Unable to execute 'detail' query: $sth->err";
         return undef;
     }
 
     my $array_lol = $sth->fetchall_arrayref( );
 
     if (not scalar @{ $array_lol } ) {
-        if ($debug) { carp "File $name not found in SqlFS db\n"; }
+        if ($debug) {
+            carp "File $name not found in SqlFS db\n";
+        }
         return undef;
     }
 
@@ -411,6 +397,58 @@ sub detail
     return $hash;
 }
 
+=item list_start list_next list_finish
+
+list the files like the name passed, or all if none
+
+list_start takes a string (none, partial, full name), returns a stmt handle
+list_next takes the stmt handle, returns a hash of match details or undef
+list_finish takes the stmt handle, no return
+
+=cut
+
+sub list_start
+{
+    my $self  = shift;
+    my $name  = shift;
+    my $sth;
+
+    if ( not ( $sth = $self->{'dbh'}->prepare( $self->{'sql_file_list'} ) ) ) {
+        $LASTERROR = "Unable to prepare 'list' query: $self->{'dbh'}->errstr";
+        return undef;
+    }
+
+    if (defined $name) {
+        $name =~ s|.*/||;       # only the short name for the lookup
+        $name = "%" . $name . "%";
+    } else {
+        $name = "%";
+    }
+
+    if ( not $sth->execute( $name ) ) {
+        $LASTERROR = "Unable to execute 'detail' query: $sth->err";
+        return undef;
+    }
+
+    return $sth;
+}
+
+sub list_next
+{
+    my $self = shift;
+    my $sth  = shift;
+
+    return $sth->fetchrow_hashref();
+}
+
+sub list_finish
+{
+    my $self = shift;
+    my $sth  = shift;
+    $sth->finish;
+    undef $sth;
+}
+
 =item remove
 
 remove the file matching the name passed from the database.
@@ -424,7 +462,7 @@ return non-zero on failure
 
 sub remove
 {
-	my $self  = shift;
+    my $self  = shift;
     my $name  = shift;
     my $sth;
 
@@ -433,9 +471,9 @@ sub remove
         return 1;
     }
 
-    $name =~ s|.*/||; # only the short name for the lookup
+    $name =~ s|.*/||;           # only the short name for the lookup
     if ( not $sth->execute( $name ) ) {
-        $LASTERROR = "Unable to execute 'remove' statement: $sth->errstr";
+        $LASTERROR = "Unable to execute 'remove' statement: $sth->err";
         return 1;
     }
 
@@ -564,7 +602,7 @@ sub finishStore
     my $name = shift;
     my $desc = shift;
 
-    $name =~ s|.*/||; # again only the short name
+    $name =~ s|.*/||;           # again only the short name
 
     my $byteas;
     my $bytes = 1;
@@ -572,8 +610,8 @@ sub finishStore
 
     while ( $bytes ) {
         read $fh, $bytes, $chunk_size;
-	$byteas = &bytea_encode( $bytes );
-	$sth->execute( $name, $desc, $byteas, 1)
+        $byteas = &bytea_encode( $bytes );
+        $sth->execute( $name, $desc, $byteas, 1)
             if ( $bytes );
     }
 }
@@ -588,7 +626,7 @@ qualified path and filename provided as an argument.
 
 sub fetch
 {
-	my $self  = shift;
+    my $self  = shift;
     my $name  = shift;
 
     my $sth;
@@ -652,7 +690,7 @@ sub readFH
 
     binmode $fh;
 
-#    print "readFH: returning filehandle $fh\n";
+    #    print "readFH: returning filehandle $fh\n";
 
     $sth->finish;
     undef $sth;
@@ -677,9 +715,9 @@ sub setupFetch
         return undef;
     }
 
-    $name =~ s|.*/||; # only the short name for the lookup
+    $name =~ s|.*/||;           # only the short name for the lookup
     if ( not $sth->execute( $name ) ) {
-        $LASTERROR = "Unable to execute 'fetch' statement: $sth->errstr";
+        $LASTERROR = "Unable to execute 'fetch' statement: $sth->err";
         return undef;
     }
 

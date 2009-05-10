@@ -129,11 +129,15 @@ case "$1" in
 	## Start daemon with startproc(8). If this fails
 	## the echo return value is set appropriate.
 	pg_ctl start -s -w -p $H -D $DATADIR -o "\"$OPTIONS\""
+
+    ## Baracus pathing could be in sysconfig
+    ## make sure we have the expected role(s) and database(s) setup
+    /usr/share/baracus/perl/baracusInitDB.pl &> ~baracus/logs/initlog || rc_failed
 	rc_status -v
     ;;
 
     stop)
-	echo -n "Shutting down Baracusdb"
+	echo -ne "Shutting down Baracusdb\n"
 	## Stop daemon with killproc(8) and if this fails
 	## set the echo return value.
 

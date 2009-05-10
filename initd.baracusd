@@ -36,12 +36,14 @@
 # Should-Stop:       $time
 # Default-Start:     3 4 5
 # Default-Stop:      0 1 2 6
-# Short-Description: Monitor apache2 logs for build system url access events
+# Short-Description: Serve TFTP and monitor requests of build system urls
 # Description:       Baracus is a suite of scripts for creation 
 #	of network install server sources for various distros and
 #       for the automation, via autoyast and autoinstall, of physical
-#       and virtual machine installs.  This process monitors the apache2
-#       access_log to catch a completing system build so that further
+#       and virtual machine installs.  
+#
+#       This process serves TFTP requests from build clients and checks 
+#       requests to catch a completing system build so that further
 #       post-install tasks can be scripted.
 ### END INIT INFO
 # 
@@ -100,7 +102,7 @@ case "$1" in
 	echo -n "Starting baracusd "
 	## Start daemon with startproc(8). If this fails
 	## the return value is set appropriately by startproc.
-	/sbin/startproc -l $LOGSDIR/baracusd $BARACUSD_BIN $BARACUSD_OPTIONS
+	/sbin/startproc $BARACUSD_BIN $BARACUSD_OPTIONS
 
 	# Remember status and be verbose
 	rc_status -v

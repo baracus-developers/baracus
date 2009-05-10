@@ -90,7 +90,17 @@ else {
     $user = "baracus";
 }
 
+my $uid = $>;
+print "su_user: \$user $user was \$uid $oldid\n" if $debug;
+unless ( $uid = ( getpwnam( $user ))[2] ) {
+    die "Failed to find passwd entry for $user\n";
+}
+$> = $uid;
+print "su_user: \$user $user now \$uid $oldid\n" if $debug;
+
+$fs = newSqlFS();
 my $status = &main(@ARGV);
+deleteSqlFS();
 
 print $LASTERROR if $status;
 
@@ -161,8 +171,6 @@ sub drop
     if ( scalar @params ) {
         &help();
     }
-
-    my $fs = newSqlFS();
     $fs->destroy();
     return 0;
 }
@@ -177,12 +185,43 @@ sub drop
 
 sub list
 {
+    my $pattern = shift;
+
     my @params = @_;
     if ( scalar @params ) {
         &help();
     }
-    $LASTERROR = "Not yet instrumented in SqlFS\n";
-    return 1;
+
+    $pattern = "" unless( defined $pattern );
+
+    my $sth = $fs->list_start( $pattern );
+
+    unless( defined $sth ) {
+        $LASTERROR = "Unable to create db stmt handle for search: $pattern\n";
+        return 1;
+    }
+
+#2345678901234567890123456789012345678901324567890123456789012345678901234567890
+#        1         2         3         4         5         6         7         8
+print <<HEAD;
+--------------------------------------------------------------------------------
+blk name                                           01 insertion time (approx.)
+--------------------------------------------------------------------------------
+HEAD
+
+    while( my $hash = $fs->list_next( $sth ) ) {
+        # blobs, name, enabled, insertion
+        printf "%3s %-46s %2s %-10s\n",
+            $hash->{'blobs'},
+            $hash->{'name'},
+#            (defined $hash{'description'}) ? $hash{'description'} : "",
+            $hash->{'enabled'},
+            $hash->{'create'}
+#            (defined $hash{'change'}) ? $hash{'change'} : "";
+    }
+    $fs->list_finish( $sth );
+
+    return 0;
 }
 
 =item add [--file sqlfsfile] E<lt>path/filenameE<gt>
@@ -201,15 +240,11 @@ sub list
 sub add
 {
     my $asfile = "";
-
     GetOptionsFromArray( \@_,
                          'file=s' => \$asfile
                         );
-
     my @params = @_;
-
     my $file = $params[0];
-
     if (not defined $file) {
         &help();
     }
@@ -217,9 +252,6 @@ sub add
         $LASTERROR = "File $file not found\n";
         return 1;
     }
-
-    my $fs = newSqlFS();
-
     if ( $asfile ) {
         $fs->store( $file, $asfile );
     }
@@ -250,16 +282,12 @@ sub fetch
 {
     my $alt = 0;
     my $tofile = '';
-
     GetOptionsFromArray( \@_,
                          'alt'    => \$alt,
                          'file=s' => \$tofile
                         );
-
     my @params = @_;
-
     my $file = $params[0];
-
     # make sure the file we're going to overwrite doesn't exist
     if ( defined $tofile and -e $tofile) {
         $LASTERROR = "File $tofile already exists\n";
@@ -272,11 +300,7 @@ sub fetch
         $LASTERROR = "File $file already exists\n";
         return 1;
     }
-
     &fetch_alt( @params, $tofile ) if $alt;
-
-    my $fs = newSqlFS();
-
     if ( $tofile ) {
         $fs->fetch( $file, $tofile );
     }
@@ -289,10 +313,8 @@ sub fetch
 sub fetch_alt
 {
     my @params = @_;
-
     my $file = $params[0];
     my $tofile = $params[1];
-
     # make sure the file we're going to overwrite doesn't exist
     if ( defined $tofile and -e $tofile) {
         $LASTERROR = "File $tofile already exists\n";
@@ -305,11 +327,7 @@ sub fetch_alt
         $LASTERROR = "File $file already exists\n";
         return 1;
     }
-
     $tofile = $file if (not defined $tofile);
-
-    my $fs = newSqlFS();
-
     open( my $outfh, ">", $tofile );
     my $infh = $fs->readFH( $file );
     if (not defined $infh) {
@@ -334,25 +352,19 @@ sub fetch_alt
 sub detail
 {
     my @params = @_;
-
     my $file = $params[0];
-
     if ( not defined $file ) {
         &help();
     }
-
-    my $fs = newSqlFS();
-
     my $hash = $fs->detail( $file );
-
     if (not defined $hash) {
         $LASTERROR = "File $file not found in SqlFS\n";
+        deleteSqlFS();
         return 1;
     }
     while ( my ($key,$value) = each ( %$hash ) ) {
         print "$key => $value\n" if ( defined $value );
     }
-
     return 0;
 }
 
@@ -366,15 +378,10 @@ sub detail
 sub remove
 {
     my @params = @_;
-
     my $file = $params[0];
-
     if ( not defined $file ) {
         &help();
     }
-
-    my $fs = newSqlFS();
-
     $fs->remove( $file );
     return 0;
 }
@@ -394,6 +401,12 @@ sub newSqlFS
     return $fs;
 }
 
+sub deleteSqlFS
+{
+    # disconnect and destroy
+    $fs->discard();
+    undef $fs;
+}
 
 die "ABSOLUTELY DOES NOT EXECUTE";
 
