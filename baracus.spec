@@ -69,6 +69,7 @@ rm -Rf %{buildroot}
 
 %files
 %defattr(-,root,root)
+/var/adm/fillup-templates/*
 #%doc %{_mandir}/man?/*
 %{_sbindir}/*
 %{_sysconfdir}/%{name}.d
@@ -79,12 +80,12 @@ rm -Rf %{buildroot}
 %{_datadir}/%{name}/pxelinux.0
 %{_datadir}/%{name}/templates
 %{_datadir}/%{name}/perl
+%defattr(-,baracus,baracus)
 %{_datadir}/%{name}/.gnupg
 /var/spool/%{name}
 %dir /var/spool/%{name}/isos
 %dir /var/spool/%{name}/logs
 %dir /var/spool/%{name}/modules
-/var/adm/fillup-templates/*
 
 %changelog
 * Mon Apr 27 2009 dbahi@novell

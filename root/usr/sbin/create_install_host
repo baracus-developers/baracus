@@ -818,7 +818,7 @@ my %action = (
 
 if (! defined $action{$command}) {
     print "Invalid command provided.\n";
-    exit(1);
+    &get_usage();
 }
 
 if ( ( $command eq "add" ) or
@@ -953,9 +953,10 @@ $dbname = "baracus";
 $dbargs = {};
 
 # get baracus id information - for dealing with pg database
+my $uid;
 my $user = "baracus";
-unless (my $uid = (getpwnam($user))[2]) {
-    die "Attempt to run server as non-existent or super user\n";
+unless ($uid = (getpwnam($user))[2]) {
+    die "User $user not found in passwd or is super user\n";
 }
 # set the uid to baracus
 $> = $uid;
@@ -965,6 +966,15 @@ $> = $uid;
 $dbh = DBI->connect("DBI:Pg:dbname=baracus", "baracus", "")
     or die "Cannot connect to $dbname: ",$DBI::errstr;
 
+my $row = 0;
+my $check_tbl = qq|SELECT count(*) FROM pg_catalog.pg_tables WHERE tablename = ?|;
+my $sth = $dbh->prepare($check_tbl)
+    or die "lookup  failed:  ",$dbh->errstr;
+$sth->execute('templateid')
+    or die "lookup failed:  ",$dbh->errstr;
+$sth->bind_columns( \$row );
+$sth->fetch();
+undef $sth;
 if ( $row == 0 ) {
     &create_tables($dbh, $dbname, $dbargs);
 }

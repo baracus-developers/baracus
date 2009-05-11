@@ -80,9 +80,7 @@ sub dircp {
         print "Importing Source: $target\n";
     }
 
-    open(RSYNC, "/usr/bin/rsync -avzHl $source/* $target|")
-        or die ("Cannot open pipe\n");
-    close(RSYNC);
+    system( "/usr/bin/rsync -avzHl $source/* $target");
 }
 
 sub list_isos() {
@@ -498,14 +496,12 @@ sub make_paths() {
     mkdir $tdir, 0755 || die ("Cannot create directory\n");
 
     foreach (@isoarray) {
-        open(OISO, "mount -o loop $_ $tdir|") || die ("Cannot mount iso\n");
-        close(OISO);
+        system("mount -o loop $_ $tdir");
         my @fpath = split(/\//, $_);
         my $isofile = $fpath[-1];
         dircp("$troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path}", $tdir);
 
-        open(CISO, "umount $tdir|") || die ("Cannot open pipe\n");;
-        close(CISO);
+        system( "umount $tdir" );
     }
     return 0;
 }
@@ -540,7 +536,7 @@ sub create_sle10_build() {
             my $addonfile = "$baseprod/add_on_products";
             my $addonline = "$type://$ip$troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path}";
             my $skip = 0;
-            if ( -e $addonfile ) {
+            if ( -f $addonfile ) {
                 open(PRODUCTS, "<$addonfile") || die ("Cannot open $addonfile: $!\n");
                 while (<PRODUCTS>) {
                     if (m|$addonline|) {
@@ -559,7 +555,7 @@ sub create_sle10_build() {
         if ($config->{distribution}->{$os}->{file}->{$isofile}->{addon} eq "new") {
             # for right now SLE11 only has SDK addon - so if this file exists we skip
             my $addonfile = "$baseprod/add_on_products.xml";
-            unless( -e $addonfile ) {
+            unless( -f $addonfile ) {
                 my $output = new IO::File(">$addonfile");
                 my $writer = new XML::Writer(OUTPUT => $output, , DATA_MODE => 1, DATA_INDENT => 1);
                 my $description = "$isofile";
@@ -684,15 +680,16 @@ sub service_config() {
     my $skip = 0;
 
     if ($type eq "nfs") {
-        open(FILE, "</etc/exports") || die ("Cannot open file\n");
-        while (<FILE>) {
-            if (m|$troot\/$config->{distribution}->{$os}->{basepath}|) {
-                print "NFS export already exists\n";
-                $skip = 1;
+        if ( -f "/etc/exports" ) {
+            open(FILE, "</etc/exports") || die ("Cannot open file\n");
+            while (<FILE>) {
+                if (m|$troot\/$config->{distribution}->{$os}->{basepath}|) {
+                    print "NFS export already exists\n";
+                    $skip = 1;
+                }
             }
+            close(FILE);
         }
-        close(FILE);
-
         unless($skip) {
             open(FILE, ">>/etc/exports") || die ("Cannot open file\n");
             print FILE "$troot\/$config->{distribution}->{$os}->{basepath}\t*(ro,root_squash,insecure,sync,no_subtree_check)\n";
