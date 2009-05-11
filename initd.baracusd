@@ -30,9 +30,9 @@
 # 
 ### BEGIN INIT INFO
 # Provides:          baracusd
-# Required-Start:    baracusdb $syslog $network
+# Required-Start:    baracusdb $network $remote_fs
 # Should-Start:      $time
-# Required-Stop:     baracusdb $syslog $network
+# Required-Stop:     baracusdb $network $remote_fs
 # Should-Stop:       $time
 # Default-Start:     3 4 5
 # Default-Stop:      0 1 2 6

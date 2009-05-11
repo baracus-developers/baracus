@@ -43,7 +43,7 @@ ln -s ../..%{_initrddir}/%{name}d %{buildroot}/%{_sbindir}/rc%{name}d
 ln -s ../..%{_initrddir}/%{name}db %{buildroot}/%{_sbindir}/rc%{name}db
 chmod 755 %{buildroot}/%{_initrddir}/%{name}d
 chmod 755 %{buildroot}/%{_initrddir}/%{name}db
-chmod 700 %{buildroot}/%{_datadir}/%{name}/.gnupg
+chmod -R 700 %{buildroot}/%{_datadir}/%{name}/.gnupg
 mkdir %{buildroot}/var/spool/%{name}/isos
 mkdir %{buildroot}/var/spool/%{name}/logs
 mkdir %{buildroot}/var/spool/%{name}/modules
@@ -82,7 +82,7 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %{_datadir}/%{name}/pxelinux.0
 %{_datadir}/%{name}/templates
 %{_datadir}/%{name}/perl
-%defattr(-,baracus,baracus)
+%defattr(-,baracus,users)
 %{_datadir}/%{name}/.gnupg
 /var/spool/%{name}
 %dir /var/spool/%{name}/isos
