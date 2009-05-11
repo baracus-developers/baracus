@@ -15,7 +15,7 @@ Source3:   sysconfig.%{name}db
 Source4:   initd.%{name}db
 Requires:  perl, perl-XML-Simple, perl-libwww-perl, perl-Data-UUID
 Requires:  perl-Config-General, perl-Config-Simple, perl-AppConfig
-Requires:  perl-TermReadKey, perl-DBI, perl-DBD-SQLite
+Requires:  perl-TermReadKey, perl-DBI, perl-DBD-Pg
 Requires:  rsync, apache2, nfs-kernel-server, dhcp-server, postgresql-server
 Obsoletes: create_install_source < 1.25
 PreReq:    %insserv_prereq %fillup_prereq pwdutils
