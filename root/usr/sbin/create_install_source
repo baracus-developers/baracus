@@ -80,7 +80,7 @@ sub dircp {
         print "Importing Source: $target\n";
     }
 
-    system( "/usr/bin/rsync -avzHl $source/* $target");
+    system( "/usr/bin/rsync -azHl $source/* $target");
 }
 
 sub list_isos() {
