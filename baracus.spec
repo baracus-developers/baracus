@@ -19,6 +19,7 @@ Requires:  perl-TermReadKey, perl-DBI, perl-DBD-SQLite
 Requires:  rsync, apache2, nfsserver, dhcpd, postgresql-server
 Obsoletes: create_install_source < 1.25
 PreReq:    %insserv_prereq %fillup_prereq
+PreReq:    /usr/sbin/groupadd /usr/sbin/useradd /sbin/chkconfig
 
 %description
 Baracus is part of the larger Novell migration tools aimed at stream-
@@ -49,6 +50,11 @@ mkdir %{buildroot}/var/spool/%{name}/modules
 
 %clean
 rm -Rf %{buildroot}
+
+%pre
+groupadd -g 162 -o -r baracus >/dev/null 2>/dev/null || :  
+useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash \  
+    -c "Baracus Server" -u 162 baracus 2>/dev/null || :  
 
 %post
 %{fillup_only}
@@ -88,6 +94,12 @@ rm -Rf %{buildroot}
 %dir /var/spool/%{name}/modules
 
 %changelog
+* Fri May  8 2009 dbahi@novell
+- moved underlying db from sqlite to postgresql
+- build complete hooks more clearly named
+- support for build verification failure hook
+- major parameter handling cleanup and help rework
+- baracusdb addition for our own instance of postgres
 * Mon Apr 27 2009 dbahi@novell
 - all tftp files served from db directly
 - baracusd no longer depends on apache2
