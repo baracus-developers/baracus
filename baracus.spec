@@ -16,9 +16,9 @@ Source4:   initd.%{name}db
 Requires:  perl, perl-XML-Simple, perl-libwww-perl, perl-Data-UUID
 Requires:  perl-Config-General, perl-Config-Simple, perl-AppConfig
 Requires:  perl-TermReadKey, perl-DBI, perl-DBD-SQLite
-Requires:  rsync, apache2, nfsserver, dhcpd, postgresql-server
+Requires:  rsync, apache2, nfs-kernel-server, dhcp-server, postgresql-server
 Obsoletes: create_install_source < 1.25
-PreReq:    %insserv_prereq %fillup_prereq
+PreReq:    %insserv_prereq %fillup_prereq pwdutils
 PreReq:    /usr/sbin/groupadd /usr/sbin/useradd /sbin/chkconfig
 
 %description
@@ -47,31 +47,27 @@ chmod 700 %{buildroot}/%{_datadir}/%{name}/.gnupg
 mkdir %{buildroot}/var/spool/%{name}/isos
 mkdir %{buildroot}/var/spool/%{name}/logs
 mkdir %{buildroot}/var/spool/%{name}/modules
+mkdir %{buildroot}/var/spool/%{name}/pgsql
 
 %clean
 rm -Rf %{buildroot}
 
 %pre
-groupadd -g 162 -o -r baracus >/dev/null 2>/dev/null || :  
-useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash \  
-    -c "Baracus Server" -u 162 baracus 2>/dev/null || :  
+groupadd -g 162 -o -r baracus >&/dev/null || :  
+useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" -u 162 baracus >&/dev/null || :  
 
 %post
-%{fillup_only}
 %{fillup_only -n baracusdb}
-%{fillup_and_insserv -f -y baracusd}
+%{fillup_only}
 %{fillup_and_insserv -f -y baracusdb}
+%{fillup_and_insserv -f -y baracusd}
 
 %preun
-%stop_on_removal baracusd
-%stop_on_removal baracusdb
+%stop_on_removal baracusd baracusdb
 
 %postun
-%restart_on_update baracusd
-%restart_on_update baracusdb
+%restart_on_update baracusdb baracusd
 %insserv_cleanup
-
-#need addgroup adduser examples
 
 %files
 %defattr(-,root,root)
@@ -92,8 +88,14 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash \
 %dir /var/spool/%{name}/isos
 %dir /var/spool/%{name}/logs
 %dir /var/spool/%{name}/modules
+%dir /var/spool/%{name}/pgsql
 
 %changelog
+* Sun May 10 2009 dbahi@novell
+- added initdb script to initd.baracusdb
+  to initialize the role and required databases
+- added 'list' functionality to sqlfs and directsqlfs
+- corrected DATE to TIMESTAMP for timestamps
 * Fri May  8 2009 dbahi@novell
 - moved underlying db from sqlite to postgresql
 - build complete hooks more clearly named
