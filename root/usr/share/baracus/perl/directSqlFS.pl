@@ -1,10 +1,11 @@
 #!/usr/bin/perl -w
 
-use Getopt::Long qw(GetOptionsFromArray :config pass_through);
+use Getopt::Long qw( :config pass_through );
 use Pod::Usage;
 
 use lib "/usr/share/baracus/perl";
 
+use BaracusDB;
 use SqlFS;
 
 =pod
@@ -90,13 +91,8 @@ else {
     $user = "baracus";
 }
 
-my $uid = $>;
-print "su_user: \$user $user was \$uid $oldid\n" if $debug;
-unless ( $uid = ( getpwnam( $user ))[2] ) {
-    die "Failed to find passwd entry for $user\n";
-}
-$> = $uid;
-print "su_user: \$user $user now \$uid $oldid\n" if $debug;
+$oldid = BaracusDB::su_user( $user );
+die BaracusDB::errstr unless ( defined $oldid );
 
 $fs = newSqlFS();
 my $status = &main(@ARGV);
@@ -233,26 +229,28 @@ HEAD
     Option
 
     -f  store as 'sqlfsfile' in the sqlfs database instead of
-        using just filename as passed with path.
+        using just using filename as passed with path.
 
 =cut
 
 sub add
 {
     my $asfile = "";
-    GetOptionsFromArray( \@_,
-                         'file=s' => \$asfile
-                        );
-    my @params = @_;
+    @ARGV = @_;
+    GetOptions(
+               'file=s' => \$asfile
+               );
+    my @params = @ARGV;
     my $file = $params[0];
     if (not defined $file) {
         &help();
     }
-    elsif (not -e $file) {
-        $LASTERROR = "File $file not found\n";
+    elsif (not (-e $file)) {
+        $LASTERROR = "File $file not found - $!\n";
         return 1;
     }
     if ( $asfile ) {
+        die "underlying API not yet in place. cp $file /tmp/asfile and then add that.\n";
         $fs->store( $file, $asfile );
     }
     else {
@@ -281,28 +279,26 @@ sub add
 sub fetch
 {
     my $alt = 0;
-    my $tofile = '';
-    GetOptionsFromArray( \@_,
-                         'alt'    => \$alt,
-                         'file=s' => \$tofile
-                        );
-    my @params = @_;
+    my $asfile = '';
+    @ARGV=@_;
+    GetOptions(
+               'alt'    => \$alt,
+               'file=s' => \$asfile
+               );
+    my @params = @ARGV;
     my $file = $params[0];
     # make sure the file we're going to overwrite doesn't exist
-    if ( defined $tofile and -e $tofile) {
-        $LASTERROR = "File $tofile already exists\n";
-        return 1;
-    }
-    elsif ( not defined $file ) {
+    if ( not defined $file ) {
         &help();
     }
     elsif ( -e $file ) {
         $LASTERROR = "File $file already exists\n";
         return 1;
     }
-    &fetch_alt( @params, $tofile ) if $alt;
-    if ( $tofile ) {
-        $fs->fetch( $file, $tofile );
+    &fetch_alt( $file, $asfile ) if $alt;
+    if ( $asfile ) {
+        die "underlying API not yet in place. try using --alt.\n";
+        $fs->fetch( $asfile, $file );
     }
     else {
         $fs->fetch( $file );
@@ -312,26 +308,22 @@ sub fetch
 
 sub fetch_alt
 {
-    my @params = @_;
-    my $file = $params[0];
-    my $tofile = $params[1];
+    my $file = shift;
+    my $asfile = shift;
     # make sure the file we're going to overwrite doesn't exist
-    if ( defined $tofile and -e $tofile) {
-        $LASTERROR = "File $tofile already exists\n";
-        return 1;
-    }
-    elsif ( not defined $file ) {
+    if ( not defined $file ) {
         &help();
     }
-    elsif ( -e $file ) {
+    elsif ( -e $file) {
         $LASTERROR = "File $file already exists\n";
         return 1;
     }
-    $tofile = $file if (not defined $tofile);
-    open( my $outfh, ">", $tofile );
-    my $infh = $fs->readFH( $file );
+
+    $asfile = $file if (not defined $asfile);
+    open( my $outfh, ">", $file );
+    my $infh = $fs->readFH( $asfile );
     if (not defined $infh) {
-        $LASTERROR = "File $file not found in db\n";
+        $LASTERROR = "File $asfile not found in db\n";
         return 1;
     }
     while ( <$infh>) {

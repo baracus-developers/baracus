@@ -825,8 +825,10 @@ sub pxe_config() {
             copy("$troot/$config->{distribution}->{$os}->{basepath}/$config->{distribution}->{$os}->{pxepath}/initrd","$tdir/initrd.gz") or die "Copy failed: $!";
             if ( $os =~ /sles11/ ) {
                 system("gunzip", "$tdir/initrd.gz");
+                $>=$oldid;  # annoying permissions on gpghome
                 copy("/usr/share/baracus/gpghome/.gnupg/my-key.gpg", "$tdir/my-key.gpg") or die "Copy failed: $!";
                 my $result = `cd $tdir; find my-key.gpg | cpio --quiet -o -A -F initrd -H newc >> /dev/null`;
+                $> = $uid;  # back to user 'baracus' for last sqlfs operations
                 system("gzip", "$tdir/initrd");
                 unlink( "$tdir/my-key.gpg" );
             }
