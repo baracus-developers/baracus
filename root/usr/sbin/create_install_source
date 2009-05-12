@@ -35,7 +35,6 @@ my $type="";
 my $ip="";
 my $troot="";
 my $datadir="";
-my $dbasedir="";
 my $config={};
 my $baracusdir;
 my $start_services;
@@ -503,6 +502,7 @@ sub make_paths() {
 
         system( "umount $tdir" );
     }
+    rmdir $tdir;
     return 0;
 }
 
@@ -604,8 +604,8 @@ sub create_sle10_build() {
 
                 ## Sign SHA!SUMSS
                 ##
-                system("gpg", "--homedir=/usr/share/baracus/.gnupg", "-b", "--sign", "--default-key=C685894B", "--armor", "$baseprod/SHA1SUMS");
-                copy("/usr/share/baracus/.gnupg/my-key.gpg", "$baseprod/SHA1SUMS.key");
+                system("gpg", "--homedir=/usr/share/baracus/gpghome/.gnupg", "-b", "--sign", "--default-key=C685894B", "--armor", "$baseprod/SHA1SUMS");
+                copy("/usr/share/baracus/gpghome/.gnupg/my-key.gpg", "$baseprod/SHA1SUMS.key");
                 system("ls $baseprod > $baseprod/directory.yast");
             }
         }
@@ -809,33 +809,37 @@ sub pxe_config() {
                                'User' => 'baracus' )
         or die "Unable to create new instance of SqlFS\n";
 
+    my $tdir = tempdir();
+    mkdir $tdir, 0755 || die ("Cannot create directory\n");
+
     unless ($config->{distribution}->{$os}->{requires}) {
 
         unless( $sqlfsOBJ->find( "linux.$os-SP$sp" ) ) {
-            copy("$troot/$config->{distribution}->{$os}->{basepath}/$config->{distribution}->{$os}->{pxepath}/linux","$dbasedir/linux.$os-SP$sp") or die "Copy failed: $!";
-            if ( $sqlfsOBJ->store( "$dbasedir/linux.$os-SP$sp" ) ) {
+            copy("$troot/$config->{distribution}->{$os}->{basepath}/$config->{distribution}->{$os}->{pxepath}/linux","$tdir/linux.$os-SP$sp") or die "Copy failed: $!";
+            if ( $sqlfsOBJ->store( "$tdir/linux.$os-SP$sp" ) ) {
                 warn "failed to store linux.$os-SP$sp in sqlfs\n";
             }
-            unlink ( "$dbasedir/linux.$os-SP$sp" );
+            unlink ( "$tdir/linux.$os-SP$sp" );
         }
         unless( $sqlfsOBJ->find( "initrd.$os-SP$sp" ) ) {
-            copy("$troot/$config->{distribution}->{$os}->{basepath}/$config->{distribution}->{$os}->{pxepath}/initrd","$dbasedir/initrd.gz") or die "Copy failed: $!";
+            copy("$troot/$config->{distribution}->{$os}->{basepath}/$config->{distribution}->{$os}->{pxepath}/initrd","$tdir/initrd.gz") or die "Copy failed: $!";
             if ( $os =~ /sles11/ ) {
-                system("gunzip", "$dbasedir/initrd.gz");
-                copy("/usr/share/baracus/.gnupg/my-key.gpg", "$dbasedir/my-key.gpg") or die "Copy failed: $!";
-                my $result = `cd $dbasedir; find my-key.gpg | cpio --quiet -o -A -F initrd -H newc >> /dev/null`;
-                system("gzip", "$dbasedir/initrd");
-                unlink( "$dbasedir/my-key.gpg" );
+                system("gunzip", "$tdir/initrd.gz");
+                copy("/usr/share/baracus/gpghome/.gnupg/my-key.gpg", "$tdir/my-key.gpg") or die "Copy failed: $!";
+                my $result = `cd $tdir; find my-key.gpg | cpio --quiet -o -A -F initrd -H newc >> /dev/null`;
+                system("gzip", "$tdir/initrd");
+                unlink( "$tdir/my-key.gpg" );
             }
-            copy("$dbasedir/initrd.gz", "$dbasedir/initrd.$os-SP$sp") or die "Copy failed: $!";
-            unlink( "$dbasedir/initrd.gz" );
+            copy("$tdir/initrd.gz", "$tdir/initrd.$os-SP$sp") or die "Copy failed: $!";
+            unlink( "$tdir/initrd.gz" );
 
-            if ( $sqlfsOBJ->store( "$dbasedir/initrd.$os-SP$sp" ) ) {
+            if ( $sqlfsOBJ->store( "$tdir/initrd.$os-SP$sp" ) ) {
                 warn "failed to store initrd.$os-SP$sp in sqlfs\n";
             }
-            unlink( "$dbasedir/initrd.$os-SP$sp" );
+            unlink( "$tdir/initrd.$os-SP$sp" );
         }
     }
+    rmdir $tdir;
 
     ## Create example pxelinux.cfg boot file
     ##
@@ -1022,7 +1026,6 @@ if ($verbose) {
 
 $troot   = $bdir{'builds'};  # just remap for now search/replace cleanup later
 $isoarg  = $bdir{'isos'};
-$dbasedir= $bdir{'hooks'};   #  no dbasedir that matters anymore - tmp files here
 $datadir = $bdir{'data'};
 
 unless ($ip) {

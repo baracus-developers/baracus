@@ -120,7 +120,7 @@ case "$1" in
 		rc_exit
 	   } 
 	fi
-	echo -n "Starting Baracusdb"
+	echo -ne "Starting Baracusdb\n"
         ## remove old socket, if it exists and no daemon is running.
 	checkproc -p $PIDFILE $H || {
 		rm -f /tmp/.s.PGSQL.5432 $PIDFILE
@@ -142,6 +142,7 @@ case "$1" in
 	## set the echo return value.
 
 	pg_ctl stop -s -D $DATADIR -m fast
+	killproc -p $PIDFILE $H 
 	rc_status -v
     ;;
 

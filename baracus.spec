@@ -16,7 +16,12 @@ Source4:   initd.%{name}db
 Requires:  perl, perl-XML-Simple, perl-libwww-perl, perl-Data-UUID
 Requires:  perl-Config-General, perl-Config-Simple, perl-AppConfig
 Requires:  perl-TermReadKey, perl-DBI, perl-DBD-Pg
-Requires:  rsync, apache2, nfs-kernel-server, dhcp-server, postgresql-server
+Requires:  rsync, apache2, dhcp-server, postgresql-server
+%if 0%{?suse_version} < 1030
+Requires:  nfs-utils
+%else
+Requires:  nfs-kernel-server
+%endif
 Obsoletes: create_install_source < 1.25
 PreReq:    %insserv_prereq %fillup_prereq pwdutils
 PreReq:    /usr/sbin/groupadd /usr/sbin/useradd /sbin/chkconfig
