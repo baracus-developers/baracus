@@ -15,7 +15,7 @@ Source3:   sysconfig.%{name}db
 Source4:   initd.%{name}db
 Requires:  perl, perl-XML-Simple, perl-libwww-perl, perl-Data-UUID
 Requires:  perl-Config-General, perl-Config-Simple, perl-AppConfig
-Requires:  perl-TermReadKey, perl-DBI, perl-DBD-Pg
+Requires:  perl-TermReadKey, perl-DBI, perl-DBD-Pg, perl-Tie-IxHash
 Requires:  rsync, apache2, dhcp-server, postgresql-server
 %if 0%{?suse_version} < 1030
 Requires:  nfs-utils
@@ -48,7 +48,7 @@ ln -s ../..%{_initrddir}/%{name}d %{buildroot}/%{_sbindir}/rc%{name}d
 ln -s ../..%{_initrddir}/%{name}db %{buildroot}/%{_sbindir}/rc%{name}db
 chmod 755 %{buildroot}/%{_initrddir}/%{name}d
 chmod 755 %{buildroot}/%{_initrddir}/%{name}db
-chmod -R 700 %{buildroot}/%{_datadir}/%{name}/.gnupg
+chmod -R 700 %{buildroot}/%{_datadir}/%{name}/gpghome
 mkdir %{buildroot}/var/spool/%{name}/isos
 mkdir %{buildroot}/var/spool/%{name}/logs
 mkdir %{buildroot}/var/spool/%{name}/modules
@@ -87,8 +87,8 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %{_datadir}/%{name}/pxelinux.0
 %{_datadir}/%{name}/templates
 %{_datadir}/%{name}/perl
+%{_datadir}/%{name}/gpghome
 %defattr(-,baracus,users)
-%{_datadir}/%{name}/.gnupg
 /var/spool/%{name}
 %dir /var/spool/%{name}/isos
 %dir /var/spool/%{name}/logs
