@@ -1,184 +1,15 @@
-#!/usr/bin/perl -w 
+#!/usr/bin/perl -w
 
 use strict;
 use AppConfig;
 use DBI;
 
+use lib "/usr/share/baracus/perl";
+
+use BaracusDB;
+use BaracusSql;
+
 my $debug = 0;
-
-sub get_hexIP() {
-
-  ## Determine IP in Hex
-  ##
-  my $ip = shift @_;
-
-  my @hexIP = split(/\./, $ip);
-  foreach (@hexIP) {
-    $_ = sprintf("%02X", $_);
-  }
-  my $hexIP = join('',@hexIP,);
-
-  return $hexIP;
-}
-
-sub create_db() {
-
-  my $dbname = shift @_;
-  my $dbargs = shift @_;
-
-  my $dbh = DBI->connect("dbi:SQLite:dbname=$dbname","","", $dbargs)
-    or die "Cannot connect to $dbname: $DBI::errstr";
-
-  my $sql = q|CREATE TABLE templateid ( hostname VARCHAR(32) PRIMARY KEY,
-                                        ip VARCHAR(15),
-                                        iphex VARCHAR(9),
-                                        mac VARCHAR(17),
-                                        uuid VARCHAR(37),
-                                        state INTEGER,
-                                        creation DATE,
-                                        change DATE )|;
-  $dbh->do( $sql )
-    or die "Table creation failed:  $dbh->errstr";
-
-  $dbh->disconnect() || warn "disconnect failure: ", $dbh->errstr ;
-}
-
-sub add_db_host_entry() {
-
-  my $HashRef = shift @_;
-  my %Hash = %$HashRef;
-
-  my $sql = q|INSERT INTO templateid ( hostname,
-				       ip,
-				       iphex,
-				       mac,
-				       uuid,
-				       state,
-				       creation,
-				       change )
-              VALUES ( ?, ?, ?, ?, ?, 1, DATETIME('now'), DATETIME('now') )|;
-
-  my $sth = $main::dbh->prepare( $sql )
-    or die "Cannot prepare sth: $main::dbh->errstr";
-
-  $sth->bind_param( 1,  $Hash{'hostname'}  );
-  $sth->bind_param( 2,  $Hash{'ip'}        );
-  $sth->bind_param( 3,  $Hash{'iphex'}     );
-  $sth->bind_param( 4,  $Hash{'mac'}       );
-  $sth->bind_param( 5,  $Hash{'uuid'}      );
-
-  $sth->execute()
-    or die "Cannot execute sth: $sth->errstr";
-}
-
-sub get_db_host_entry() {
-
-  my $hostname = shift @_;
-
-  my $sql = q|SELECT hostname,
-	   	     ip,
-		     iphex,
-		     mac,
-		     uuid,
-		     state,
-		     creation,
-		     change
-              FROM templateid
-              WHERE hostname = ? |;
-
-  my $sth = $main::dbh->prepare( $sql )
-    or die "Cannot prepare sth: $main::dbh->errstr";
-
-  $sth->execute( $hostname )
-    or die "Cannot execute sth: $sth->errstr";
-
-  return $sth->fetchrow_hashref();
-}
-
-sub update_db_host_entry() {
-
-  my $HashRef = shift @_;
-  my %Hash = %$HashRef;
-
-  my $sql = q|UPDATE templateid SET state=?,
-			            change=DATETIME('now')
-              WHERE hostname=? |;
-
-  my $sth = $main::dbh->prepare( $sql )
-    or die "Cannot prepare sth: $main::dbh->errstr";
-
-  $sth->bind_param( 1,  $Hash{'state'}     );
-  $sth->bind_param( 2,  $Hash{'hostname'}  );
-
-  $sth->execute()
-    or die "Cannot execute sth: $sth->errstr";
-}
-
-sub remove_db_host_entry() {
-
-  my $hostname = shift @_;
-
-  my $sql = q|UPDATE templateid SET state=4,
-		     	            change=DATETIME('now')
-    	      WHERE hostname=? |;
-
-  my $sth = $main::dbh->prepare( $sql )
-    or die "Cannot prepare sth: $main::dbh->errstr";
-
-  $sth->execute( $hostname )
-    or die "Cannot execute sth: $sth->errstr";
-}
-
-## Main
-##
-
-## Are standard variables set in /etc/sysconfig
-##
-my $sysconfig = AppConfig->new( {CREATE => 1} );
-$sysconfig->define(  'dbasedir=s' );
-$sysconfig->file('/etc/sysconfig/baracus');
-my $dbasedir = $sysconfig->get( 'dbasedir' );
-
-my $dbname = "$dbasedir/baracus.db";
-my $dbargs = { PrintError => 1, AutoCommit => 1 };
-
-if (($debug == 1) && (@ARGV == 0 )) {
-print<<TESTS;
-#
-# below are tests of this routine - cut and paste all this text for pass/fail reporting
-#
-# created - so matching will return 0 - spoofing (incorrect ip or uuid) 1
-#
-/usr/sbin/baracus_dbupdate bahi 10.23.0.1 10815dd8-081e-429d-bf60-4624c4bd86b8 
-if [[ "\$?" == "0" ]]; then echo "pass"; else echo "fail"; fi
-rm $dbname
-/usr/sbin/baracus_dbupdate bahi 10.23.0.2 10815dd8-081e-429d-bf60-4624c4bd86b8
-if [[ "\$?" == "1" ]]; then echo "pass"; else echo "fail"; fi
-rm $dbname
-/usr/sbin/baracus_dbupdate bahi 10.23.0.2 10815dd8-081e-429d-bf60-44351k1jk435 
-if [[ "\$?" == "1" ]]; then echo "pass"; else echo "fail"; fi
-rm $dbname
-
-# removed - so all combinations for this hostname will fail (return 1)
-#
-/usr/sbin/baracus_dbupdate david 192.168.0.1 087faad8-b20f-429c-9278-0a7eecf068a9 
-if [[ "\$?" == "1" ]]; then echo "pass"; else echo "fail"; fi
-rm $dbname
-
-# recreated - so again matching will return 0 - else non-matching return 1
-#
-/usr/sbin/baracus_dbupdate westervelt 172.16.0.1 65e86c0a-150a-47c7-aacf-1db2d057b845
-if [[ "\$?" == "0" ]]; then echo "pass"; else echo "fail"; fi
-rm $dbname
-
-TESTS
-
-exit 0;
-}
-
-if ($ENV{'USER'} ne "root") {
-  print "built_updatedb needs to be run as root\n"; exit(1);
-}
 
 if (@ARGV != 3) {
   print "usage built_updatedb <hostname> <ip> <uuid>\n\n";
@@ -189,82 +20,82 @@ my $hostname = shift @ARGV;
 my $ip       = shift @ARGV;
 my $uuid     = shift @ARGV;
 
-if ( $debug == 1 ) {
-  unless (-f $dbname ) { &create_db( $dbname, $dbargs ); }
+my $dbname = "baracus";
+my $dbrole = $dbname;
+
+my $tblname = "templateid";
+
+# only needed when run from command line as root
+if ($> == 0) {
+    my $uid = BaracusDB::su_user( $dbrole );
+    die BaracusDB::errstr unless ( defined $uid );
 }
 
-## Check to see if db exists - we exit with 'err' if it doesn't
-##
-unless (-f $dbname ) { exit 1; }
+my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
+die BaracusDB::errstr unless( $dbh );
 
-our $dbh = DBI->connect("dbi:SQLite:dbname=$dbname","","",$dbargs)
-  or die "Cannot connect to $dbname: $DBI::errstr";
+# get host template entry if any
+my $dbref = &get_db_host_entry( $dbh, $tblname, $hostname );
+unless( defined $dbref ) {
+    print "unable to find template for $hostname ip $ip\n";
+    exit 1;
+}
 
+# check that ip and uuid match or state is 3:spoofed
 my $state = 2;
-
-# here we add some debug entries for play
-if ( $debug == 1 ) {
-
-  my %hash = ();
-
-  %hash = ( 'hostname' => "bahi",
-	    'ip'       => "10.23.0.1",
-	    'mac'      => "00:11:22:33:44:60",
-	    'uuid'     => "10815dd8-081e-429d-bf60-4624c4bd86b8"
-	  );
-  $hash{'iphex'} = &get_hexIP( $hash{'ip'} );
-
-  &add_db_host_entry( \%hash ) if ( ! defined &get_db_host_entry( $hash{'hostname'} ) );
-
-  %hash = ( 'hostname' => "david",
-	    'ip'       => "192.168.0.1",
-	    'mac'      => "00:11:22:33:44:70",
-	    'uuid'     => "087faad8-b20f-429c-9278-0a7eecf068a9"
-	  );
-  $hash{'iphex'} = &get_hexIP( $hash{'ip'} );
-
-  if ( ! defined &get_db_host_entry( $hash{'hostname'} ) ) {
-    &add_db_host_entry( \%hash );
-    # 1/create, 2/built, 3/spoof, ==>> 4/removed <<==, 5/recreate
-    &remove_db_host_entry( "david" );
-  }
-
-  %hash = ( 'hostname' => "westervelt",
-	    'ip'       => "172.16.0.1",
-	    'mac'      => "00:11:22:33:44:80",
-	    'uuid'     => "65e86c0a-150a-47c7-aacf-1db2d057b845"
-	  );
-  $hash{'iphex'} = &get_hexIP( $hash{'ip'} );
-
-  if ( ! defined &get_db_host_entry( $hash{'hostname'} ) ) {
-    &add_db_host_entry( \%hash );
-    # 1/create, 2/built, 3/spoof, 4/removed, ==>> 5/recreate <<==
-    $hash{ 'state' } = 5;
-    &remove_db_host_entry( "westervelt" );
-    &update_db_host_entry( \%hash );
-  }
-}
-
-my $dbref = &get_db_host_entry( $hostname );
-if (! defined $dbref ) {
-  print "unable to find template for $hostname ip $ip\n";
-  exit 1;
-}
-
-my $t_uuid=$dbref->{'uuid'};
-my $t_ip=$dbref->{'ip'}; 
 # check for spoofing of url access
-if (( "$uuid" ne "$t_uuid" ) || ( "$ip" ne "$t_ip")) {
-  $state = 3;
+if (( "$uuid" ne "$dbref->{'uuid'}" ) or
+    ( "$ip"   ne "$dbref->{'ip'}"   )) {
+    $state = 3;
 }
-
 $dbref->{'state'} = $state;
-&update_db_host_entry( $dbref );
 
-$dbh->disconnect() || warn "disconnect failure: ", $dbh->errstr ;
+# update the host template entry
+&update_db_host_entry( $dbh, $tblname, $dbref );
+
+die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
 
 unless ( $state == 2 ) {
   exit 1;
 }
 exit 0;
 
+die "does not execute";
+
+sub get_db_host_entry() {
+    my $dbh = shift;
+    my $tblname = shift;
+    my $hostname = shift;
+
+    my $tablehash = BaracusSql::get_baracus_tables();
+    my $cols = BaracusSql::keys2columns( $tablehash->{ $tblname } );
+
+    my $sql = qq|SELECT $cols FROM $tblname WHERE hostname = ? |;
+
+    my $sth = $dbh->prepare( $sql )
+        or die "Cannot prepare select statement\n" . $dbh->errstr;
+    $sth->execute( $hostname )
+        or die "Cannot execute select statement\n" . $sth->err;
+
+    return $sth->fetchrow_hashref();
+}
+
+sub update_db_host_entry() {
+    my $dbh = shift;
+    my $tblname = shift;
+    my %hash = %{$_[0]};
+
+    my $sql = qq|UPDATE $tblname SET
+                 state=?,
+                 change=CURRENT_TIMESTAMP(2)
+                 WHERE hostname=? |;
+
+    my $sth = $dbh->prepare( $sql )
+        or die "Cannot prepare update statement\n" . $dbh->errstr;
+
+    $sth->bind_param( 1,  $hash{'state'}    );
+    $sth->bind_param( 2,  $hash{'hostname'} );
+
+    $sth->execute()
+        or die "Cannot execute update statement\n" . $sth->err;
+}

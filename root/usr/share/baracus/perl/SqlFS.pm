@@ -7,6 +7,7 @@ use warnings;
 
 use DBI;
 
+
 =head1 NAME
 
 SqlFS - rudimentary filesystem in a DBI fronted database
@@ -78,53 +79,6 @@ sub new
     $cfg{'Password'} or $cfg{'Password'} = "";
     $cfg{'TableName'} or $cfg{'TableName'} = "sqlfstable";
 
-    # BLOB stands for Binary Large Object. It is a field that can
-    # store a large amount of data. Its size depends on the
-    # implementation. MySQL defines 4 types of BLOB.
-    #
-    # type         max size
-    # ------------ -------------
-    # TINYBLOB               255
-    # BLOB                65_535
-    # MEDIUMBLOB      16_777_215
-    # LARGEBLOB    4_294_967_295
-
-    # no BLOB in Pg so we use BYTEA... or uuendoce and TEXT
-
-    # sql to check for instance of table
-    my $exists_table = qq|SELECT COUNT(*)
-        FROM pg_catalog.pg_tables WHERE tablename = ?|;
-
-    #         id INTEGER NOT NULL PRIMARY KEY is sqlite AUTO_INCREMENT
-    #        ( id INTEGER NOT NULL PRIMARY KEY,
-
-    #         KEY name( name )                this additional info not
-    #         UNIQUE KEY idname ( id, name )  supported by sqlite syntax
-
-    #         no AUTO_INCREMENT in pg - we have to create a sequence
-    #         we'll be explicit as SERIAL has 'warnings'
-
-    # sql to create a sequence - for autoincrement of 'id'
-#    my $create_sequence = qq|CREATE SEQUENCE $cfg{'TableName'}_id_seq|;
-
-    #   was  ( id INT DEFAULT NEXTVAL($cfg{'TableName'}_id_seq) PRIMARY KEY,
-
-    # sql to create the table
-    my $create_table = qq|CREATE TABLE $cfg{'TableName'}
-                          ( id SERIAL PRIMARY KEY,
-                            name VARCHAR(64) NOT NULL,
-                            description VARCHAR(32),
-                            bin VARCHAR,
-                            enabled INTEGER,
-                            insertion TIMESTAMP,
-                            change TIMESTAMP
-                          ) |;
-
-    # sql to drop the sequence
-#    my $destroy_sequence = qq|DROP SEQUENCE $cfg{'TableName'}_id_seq|;
-
-    # sql to drop the table
-    my $destroy_table = qq|DROP TABLE $cfg{'TableName'}|;
 
     # sql for file present check
     my $file_find = qq|SELECT COUNT (*)
@@ -150,12 +104,6 @@ sub new
     # remove a file
     my $file_delete = qq|DELETE FROM $cfg{'TableName'} where name = ?|;
 
-    # insert a file
-    #    my $file_store = qq|INSERT INTO $cfg{'TableName'}
-    #                        (name, description, bin, enabled, insertion, change)
-    #                        VALUES ( ?, ?, ?, ?, DATETIME('now'), NULL)
-    #                       |;
-
     my $file_store = qq|INSERT INTO $cfg{'TableName'}
                         (name, description, bin, enabled, insertion, change)
                         VALUES ( ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL)
@@ -179,31 +127,6 @@ sub new
 
     $dbh->{'RaiseError'} = 1;
 
-    # logic to check that the table we want to store files in is avail
-    my $sth;
-    my $row = 0;
-    if ( not ( $sth = $dbh->prepare( $exists_table ) ) ) {
-        $LASTERROR = "Unable to prepare 'exists' query: ", $dbh->errstr;
-        return undef;
-    }
-    if ( not $sth->execute( $cfg{'TableName'} ) ) {
-        $LASTERROR = "Unable to execute 'exists' query: ", $sth->err;
-        return undef;
-    }
-    $sth->bind_columns( \$row );
-    $sth->fetch();
-    $sth->finish;
-    undef $sth;
-    if ( $row == 0 ) {
-#        if (not $dbh->do( $create_sequence ) ) {
-#            carp("Error creating sequence ",$dbh->errstr, $@,"\n");
-#            return undef;
-#        }
-        if (not $dbh->do( $create_table ) ) {
-            carp("Error creating table ",$dbh->errstr, $@,"\n");
-            return undef;
-        }
-    }
     # max_allowed_packets a mysql specific construct
     my $maxlen = 1048575;
 
@@ -218,10 +141,6 @@ sub new
     return bless { %cfg,
                    'dbh' => $dbh,
                    '_maxlen_' => $maxlen,
-#                   'sql_create_sequence' => $create_sequence,
-#                   'sql_destroy_sequence' => $destroy_sequence,
-                   'sql_create_table' => $create_table,
-                   'sql_destroy_table' => $destroy_table,
                    'sql_file_detail' => $file_detail,
                    'sql_file_list' => $file_list,
                    'sql_file_delete' => $file_delete,
@@ -270,35 +189,6 @@ sub bytea_decode
     return $out;
 }
 
-=item destroy
-
-destroy provides a method to remove all files in the database. use with caution.
-return non-zero on error
-
-=cut
-
-sub destroy
-{
-    my $self  = shift;
-
-    if (not $self->{'dbh'}->do( $self->{'sql_destroy_table'} ) ) {
-        $LASTERROR = "Error table drop on destroy $self->{'dbh'}->errstr: $@\n";
-        return 1;
-    }
-#    if (not $self->{'dbh'}->do( $self->{'sql_destroy_sequence'} ) ) {
-#        $LASTERROR = "Error sequence drop on destroy $self->{'dbh'}->errstr: $@\n";
-#        return 1;
-#    }
-#    if (not $self->{'dbh'}->do( $self->{'sql_create_sequence'} ) ) {
-#        $LASTERROR = "Error re-creating sequence $self->{'dbh'}->errstr: $@\n";
-#        return 1;
-#    }
-    if (not $self->{'dbh'}->do( $self->{'sql_create_table'} ) ) {
-        $LASTERROR = "Error re-creating empty table $self->{'dbh'}->errstr: $@\n";
-        return 1;
-    }
-    return 0;
-}
 
 =item find
 

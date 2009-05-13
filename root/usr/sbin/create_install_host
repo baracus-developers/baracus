@@ -14,6 +14,7 @@ use DBD::Pg qw(:pg_types);
 use lib "/usr/share/baracus/perl";
 
 use SqlFS;
+use BaracusDB;
 
 my $command;
 my $subcommand;
@@ -145,138 +146,6 @@ sub get_rundate() {
 
 }
 
-sub create_tables() {
-
-    my ($dbh, $dbname, $dbargs) = @_;
-
-    my $sql = q|CREATE TABLE templateid ( hostname VARCHAR(32) PRIMARY KEY,
-                                              ip VARCHAR(15),
-                                              iphex VARCHAR(9),
-                                              mac VARCHAR(17),
-                                              uuid VARCHAR(37),
-                                              state INTEGER,
-                                              cmdline VARCHAR(255),
-                                              creation TIMESTAMP,
-                                              change TIMESTAMP );|;
-
-    $dbh->do( $sql )
-        or die "Table creation failed:  ",$dbh->errstr;
-
-    my $sqlhist =  q|CREATE TABLE templateidhist (  hostname VARCHAR(32),
-                                                    ip VARCHAR(15),
-                                                    iphex VARCHAR(9),
-                                                    mac VARCHAR(17),
-                                                    uuid VARCHAR(37),
-                                                    state INTEGER,
-                                                    stateOLD INTEGER,
-                                                    cmdline VARCHAR(255),
-                                                    creation TIMESTAMP,
-                                                    change TIMESTAMP );|;
-
-    $dbh->do($sqlhist)
-        or die "Table creation failed:  ",$dbh->errstr;
-
-    my $create_lang = q|CREATE LANGUAGE plpgsql|;
-
-    $dbh->do($create_lang)
-        or die "plpgsql creation failed:  ",$dbh->errstr;
-
-    my $insert_trigger = q|CREATE OR REPLACE FUNCTION template_state_add_delete() RETURNS TRIGGER AS
-                           $template_state_trigger$
-                               DECLARE
-                                   new_hostname VARCHAR;
-                                   new_ip VARCHAR;
-                                   new_iphex VARCHAR;
-                                   new_mac VARCHAR;
-                                   new_uuid VARCHAR;
-                                   new_state INTEGER;
-                                   new_cmdline VARCHAR;
-                                   new_creation TIMESTAMP;
-                               BEGIN
-                               IF (TG_OP='INSERT') THEN
-                               INSERT INTO templateidhist ( hostname,
-                                                            ip,
-                                                            iphex,
-                                                            mac,
-                                                            uuid,
-                                                            state,
-                                                            stateOLD,
-                                                            cmdline,
-                                                            creation,
-                                                            change )
-
-                               VALUES ( NEW.hostname, NEW.ip, NEW.iphex, NEW.mac, NEW.uuid,
-                                        '1', NEW.state, NEW.cmdline, NEW.creation,
-                                        CURRENT_TIMESTAMP(2) );
-                               RETURN NEW;
-
-                               ELSIF (TG_OP='DELETE') THEN
-                               INSERT INTO templateidhist ( hostname,
-                                                            ip,
-                                                            iphex,
-                                                            mac,
-                                                            uuid,
-                                                            state,
-                                                            stateOLD,
-                                                            cmdline,
-                                                            creation,
-                                                            change )
-
-                               VALUES ( OLD.hostname, OLD.ip, OLD.iphex, OLD.mac, OLD.uuid,
-                                        '4', OLD.state, OLD.cmdline, OLD.creation,
-                                        CURRENT_TIMESTAMP(2) );         
-                               RETURN OLD;
-
-                               END IF;
-                               END;
-                           $template_state_trigger$ LANGUAGE 'plpgsql';
-
-                           CREATE TRIGGER template_state_add_delete_trigger
-                           AFTER INSERT OR DELETE ON templateid
-                           FOR EACH ROW EXECUTE PROCEDURE template_state_add_delete()|;
-
-    $dbh->do($insert_trigger)
-        or die "add_delete trigger failed:  ",$dbh->errstr;
-
-    my $update_trigger = q|CREATE OR REPLACE FUNCTION template_state_update() RETURNS TRIGGER AS
-                           $template_state_trigger$
-                               DECLARE
-                                   new_hostname VARCHAR;
-                                   new_ip VARCHAR;
-                                   new_iphex VARCHAR;
-                                   new_mac VARCHAR;
-                                   new_uuid VARCHAR;
-                                   new_state INTEGER;
-                                   new_cmdline VARCHAR;
-                                   new_creation TIMESTAMP;
-                               BEGIN
-                               INSERT INTO templateidhist ( hostname,
-                                                            ip,
-                                                            iphex,
-                                                            mac,
-                                                            uuid,
-                                                            state,
-                                                            stateOLD,
-                                                            cmdline,
-                                                            creation,
-                                                            change )
-
-                               VALUES ( NEW.hostname, NEW.ip, NEW.iphex, NEW.mac, NEW.uuid,
-                                        '2', NEW.state, NEW.cmdline, NEW.creation,
-                                        CURRENT_TIMESTAMP(2) );
-                               RETURN NEW;
-                              END;
-                           $template_state_trigger$ LANGUAGE 'plpgsql';
-
-                           CREATE TRIGGER template_state_update_trigger
-                           AFTER UPDATE ON templateid
-                           FOR EACH ROW EXECUTE PROCEDURE template_state_update()|;
-
-    $dbh->do($update_trigger)
-        or die "update trigger failed:  ",$dbh->errstr;
-
-}
-
 sub list_db_history() {
 
     my $hostname = shift @_;
@@ -284,15 +153,15 @@ sub list_db_history() {
     print "$hostname\n";
 
     my $sql = q|SELECT hostname,
-                       ip,
-                       iphex,
-                       mac,
-                       uuid,
-                       state,
-                       stateOLD,
-                       cmdline,
-                       creation,
-                       change
+                           ip,
+                           iphex,
+                           mac,
+                           uuid,
+                           state,
+                           stateOLD,
+                           cmdline,
+                           creation,
+                           change
                     FROM templateidhist
                     WHERE hostname LIKE ?|;
 
@@ -303,7 +172,6 @@ sub list_db_history() {
         or die "Cannot execute sth: ",$sth->errstr;
 
     return $sth->fetchall_arrayref();
-
 }
 
 sub add_db_host_entry() {
@@ -312,14 +180,14 @@ sub add_db_host_entry() {
     my %Hash = %$HashRef;
 
     my $sql = q|INSERT INTO templateid ( hostname,
-                                         ip,
-                                         iphex,
-                                         mac,
-                                         uuid,
-                                         state,
-                                         cmdline,
-                                         creation,
-                                         change )
+                             ip,
+                             iphex,
+                             mac,
+                             uuid,
+                             state,
+                                             cmdline,
+                             creation,
+                             change )
                 VALUES ( ?, ?, ?, ?, ?, 1, ?, CURRENT_TIMESTAMP(2), CURRENT_TIMESTAMP(2) )|;
 
     my $sth = $dbh->prepare( $sql )
@@ -603,7 +471,7 @@ sub list() {
     }
 
     if ($Hash{'subcommand'} eq "history") {
-        ##
+
         if (! exists($Hash{'hostname'})) {
             $Hash{'hostname'} = "%";
         }
@@ -951,39 +819,16 @@ if ($subcommand) {
 }
 
 $dbname = "baracus";
-#$dbargs = { PrintError => 1, AutoCommit => 1 };
-$dbargs = {};
+my $dbrole = $dbname;
 
-# get baracus id information - for dealing with pg database
-my $uid;
-my $user = "baracus";
-unless ($uid = (getpwnam($user))[2]) {
-    die "User $user not found in passwd or is super user\n";
-}
-# set the uid to baracus
-$> = $uid;
+my $uid = BaracusDB::su_user( $dbrole );
+die BaracusDB::errstr unless ( defined $uid );
 
-## Connect to baracus db with role baracus
-##
-$dbh = DBI->connect("DBI:Pg:dbname=baracus", "baracus", "")
-    or die "Cannot connect to $dbname: ",$DBI::errstr;
-
-my $row = 0;
-my $check_tbl = qq|SELECT count(*) FROM pg_catalog.pg_tables WHERE tablename = ?|;
-my $sth = $dbh->prepare($check_tbl)
-    or die "lookup  failed:  ",$dbh->errstr;
-$sth->execute('templateid')
-    or die "lookup failed:  ",$dbh->errstr;
-$sth->bind_columns( \$row );
-$sth->fetch();
-undef $sth;
-if ( $row == 0 ) {
-    &create_tables($dbh, $dbname, $dbargs);
-}
+$dbh = BaracusDB::connect_db( $dbname, $dbrole );
+die BaracusDB::errstr unless( $dbh );
 
 ## execute command
 ##
 $action{$command}(\%profileHash);
 
-$dbh->disconnect() || warn "disconnect failure: ", $dbh->errstr ;
-
+die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );

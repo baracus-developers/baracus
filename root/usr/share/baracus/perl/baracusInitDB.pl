@@ -7,6 +7,10 @@ use warnings;
 use lib "/usr/share/baracus/perl";
 
 use BaracusDB;
+use BaracusSql;
+
+# creates ROLES, DATABASES, TABLES, LANGUAGES for baracus
+# to be called on database startup - by baracusdb service
 
 my $reverse_flag = $ARGV[0];
 
@@ -18,6 +22,8 @@ my @args = qw( LOGIN SUPERUSER );
 
 my $db_baracus = "baracus";
 my $db_sqltftp = "sqltftp";
+
+my $plpg = "plpgsql";
 
 if ( defined $reverse_flag ) {
     &niam();
@@ -32,11 +38,17 @@ die "does not execute";
 sub main {
 
     my $status;
-    my $oldid;
+    my $uid;
     my $dbh;
 
-    $oldid = BaracusDB::su_user( $pg_user );
-    die BaracusDB::errstr unless ( defined $oldid );
+    # save current uid
+
+    my $suid = $>;
+
+    # switch to user postgres and connect
+
+    $uid = BaracusDB::su_user( $pg_user );
+    die BaracusDB::errstr unless ( defined $uid );
 
     $dbh = BaracusDB::connect_db( $pg_db, $pg_user );
     die BaracusDB::errstr unless( $dbh );
@@ -63,16 +75,98 @@ sub main {
     }
 
     die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+
+    # finished working as user postgres
+
+    $> = $suid;
+
+    # switch to user baracus
+
+    # connect to sqltftp database
+
+    $uid = BaracusDB::su_user( $role );
+    die BaracusDB::errstr unless ( defined $uid );
+
+    $dbh = BaracusDB::connect_db( $db_sqltftp, $role );
+    die BaracusDB::errstr unless( $dbh );
+
+    my $hashoftbls;
+
+    $hashoftbls = BaracusSql::get_sqltftp_tables();
+
+    while( my ($tbl, $col) = each %{ $hashoftbls } ) {
+        $status = BaracusDB::exists_table( $dbh, $tbl );
+        die BaracusDB::errstr unless( defined $status );
+        unless( $status ) {
+            die BaracusDB::errstr
+                unless( BaracusDB::create_table( $dbh, $tbl,
+                BaracusSql::hash2columns( $col )));
+        }
+    }
+
+    die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+
+    # connect to baracus database
+
+    $dbh = BaracusDB::connect_db( $db_baracus, $role );
+    die BaracusDB::errstr unless( $dbh );
+
+    $hashoftbls = BaracusSql::get_baracus_tables();
+
+    while( my ($tbl, $col) = each %{ $hashoftbls } ) {
+        $status = BaracusDB::exists_table( $dbh, $tbl );
+        die BaracusDB::errstr unless( defined $status );
+        unless( $status ) {
+            die BaracusDB::errstr
+                unless( BaracusDB::create_table( $dbh, $tbl,
+                BaracusSql::hash2columns( $col )));
+        }
+    }
+
+
+    # make sure the language we define functions in is loaded
+
+    $status = BaracusDB::exists_language( $dbh, $plpg );
+    die BaracusDB::errstr unless( defined $status );
+    unless( $status ) {
+        die BaracusDB::errstr
+            unless( BaracusDB::create_language( $dbh, $plpg ));
+    }
+
+    # create/replace the functions for use by our triggers
+
+    my $hashoffuncs = BaracusSql::get_baracus_functions();
+    while( my ($name, $def) = each %{ $hashoffuncs } ) {
+        die BaracusDB::errstr
+            unless( BaracusDB::create_or_replace_function( $dbh, $name, $def ));
+    }
+
+    # add the triggers
+
+    my $hashoftgs = BaracusSql::get_baracus_triggers();
+
+    while( my ($tg, $sql) = each %{ $hashoftgs } ) {
+        $status = BaracusDB::exists_trigger( $dbh, $tg );
+        die BaracusDB::errstr unless( defined $status );
+        unless( $status ) {
+            die BaracusDB::errstr
+                unless( BaracusDB::create_trigger( $dbh, $tg, $sql ));
+        }
+    }
+
+    die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
 }
 
 sub niam {
 
     my $status;
-    my $oldid;
+    my $uid;
     my $dbh;
 
-    $oldid = BaracusDB::su_user( $pg_user );
-    die BaracusDB::errstr unless ( defined $oldid );
+    # switch to user postgres and connect
+
+    $uid = BaracusDB::su_user( $pg_user );
+    die BaracusDB::errstr unless ( defined $uid );
 
     $dbh = BaracusDB::connect_db( $pg_db, $pg_user );
     die BaracusDB::errstr unless( $dbh );
@@ -105,3 +199,4 @@ sub niam {
 die "absolutely does not execute";
 
 __END__
+
