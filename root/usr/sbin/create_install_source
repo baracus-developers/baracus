@@ -49,24 +49,23 @@ Usage:
 
 Where command is one of
 
-    menu                            : run full menu mode 
-    add     --distro <x>            : add a new build source for distribution <x>
-    delete  --distro <x>            : delete a build source for distribution <x>
-    disable --distro <x>            : diable a build source for distribution <x>
-    list    --distro <x>            : list required isos for distribution <x>
-    verify  --distro <x>            : verify build source for distribution <x>
-    service --start                 : start default services
-    service --stop                  : stop default services
-    service --start y [--start y]   : start specified service(s) (nfs,http,dhcpd)
-    service --stop  y [--stop  y]   : stop specified service(s) (nfs,http,dhcpd)
+    menu                          : run full menu mode 
+    add     --distro <x>          : add a new build source for distribution <x>
+    remove  --distro <x>          : remove <x> as a build source
+    disable --distro <x>          : diable a build source for distribution <x>
+    enable  --distro <x>          : enable a build source for distribution <x>
+    list    --distro <x>          : list required isos for distribution <x>
+    verify  --distro <x>          : verify build source for distribution <x>
+    service < --start | --stop >  : start or stop the default services
+    service --start y [--start y] : start specified service(s) (nfs,http,dhcpd)
+    service --stop  y [--stop  y] : stop specified service(s) (nfs,http,dhcpd)
 
 Options are
 
-    -i|--isos                       : 'add' option - download iso to directory 
-    -p|--proxy                      : 'add' option - use proxy for iso downloads 
-    -v|--verbose                    : verbose output 
-    -h|--help                       : this (help) message
-
+    -i|--isos                     : 'add' option - download iso to directory 
+    -p|--proxy                    : 'add' option - use proxy for iso downloads 
+    -v|--verbose                  : verbose output 
+    -h|--help                     : this (help) message
 MARKER
 
     exit;
@@ -828,9 +827,9 @@ sub pxe_config() {
                 $>=$oldid;  # annoying permissions on gpghome
                 copy("/usr/share/baracus/gpghome/.gnupg/my-key.gpg", "$tdir/my-key.gpg") or die "Copy failed: $!";
                 my $result = `cd $tdir; find my-key.gpg | cpio --quiet -o -A -F initrd -H newc >> /dev/null`;
+                unlink( "$tdir/my-key.gpg" );
                 $> = $uid;  # back to user 'baracus' for last sqlfs operations
                 system("gzip", "$tdir/initrd");
-                unlink( "$tdir/my-key.gpg" );
             }
             copy("$tdir/initrd.gz", "$tdir/initrd.$os-SP$sp") or die "Copy failed: $!";
             unlink( "$tdir/initrd.gz" );
