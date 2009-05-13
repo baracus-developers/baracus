@@ -157,112 +157,123 @@ sub create_tables() {
                                               state INTEGER,
                                               cmdline VARCHAR(255),
                                               creation TIMESTAMP,
-                                              change TIMESTAMP)|;
+                                              change TIMESTAMP );|;
 
     $dbh->do( $sql )
         or die "Table creation failed:  ",$dbh->errstr;
 
     my $sqlhist =  q|CREATE TABLE templateidhist (  hostname VARCHAR(32),
-                                                        hostnameOLD VARCHAR(32),
-                                                        ip VARCHAR(15),
-                                                        ipOLD VARCHAR(15),
-                                                        iphex VARCHAR(9),
-                                                        iphexOLD VARCHAR(9),
-                                                        mac VARCHAR(17),
-                                                        macOLD VARCHAR(17),
-                                                        uuid VARCHAR(37),
-                                                        uuidOLD VARCHAR(37),
-                                                        state INTEGER,
-                                                        stateOLD INTEGER,
-                                                        cmdline VARCHAR(255),
-                                                        creation TIMESTAMP,
-                                                        creationOLD TIMESTAMP,
-                                                        change TIMESTAMP,
-                                                        changeOLD TIMESTAMP )|;
+                                                    ip VARCHAR(15),
+                                                    iphex VARCHAR(9),
+                                                    mac VARCHAR(17),
+                                                    uuid VARCHAR(37),
+                                                    state INTEGER,
+                                                    stateOLD INTEGER,
+                                                    cmdline VARCHAR(255),
+                                                    creation TIMESTAMP,
+                                                    change TIMESTAMP );|;
 
     $dbh->do($sqlhist)
         or die "Table creation failed:  ",$dbh->errstr;
 
-    my $update_trigger = q|CREATE TRIGGER update_templateid AFTER UPDATE OF state ON templateid
+    my $create_lang = q|CREATE LANGUAGE plpgsql|;
+
+    $dbh->do($create_lang)
+        or die "plpgsql creation failed:  ",$dbh->errstr;
+
+    my $insert_trigger = q|CREATE OR REPLACE FUNCTION template_state_add_delete() RETURNS TRIGGER AS
+                           $template_state_trigger$
+                               DECLARE
+                                   new_hostname VARCHAR;
+                                   new_ip VARCHAR;
+                                   new_iphex VARCHAR;
+                                   new_mac VARCHAR;
+                                   new_uuid VARCHAR;
+                                   new_state INTEGER;
+                                   new_cmdline VARCHAR;
+                                   new_creation TIMESTAMP;
                                BEGIN
+                               IF (TG_OP='INSERT') THEN
                                INSERT INTO templateidhist ( hostname,
-                                                            hostnameOLD,
                                                             ip,
-                                                            ipOLD,
                                                             iphex,
-                                                            iphexOLD,
                                                             mac,
-                                                            macOLD,
                                                             uuid,
-                                                            uuidOLD,
                                                             state,
                                                             stateOLD,
                                                             cmdline,
                                                             creation,
-                                                            creationOLD,
-                                                            change,
-                                                            changeOLD )
-                               values ( new.hostname, old.hostname, new.ip, old.ip, new.iphex, old.iphex,
-                                        new.mac, old.mac, new.uuid, old.uuid, '2', old.state, old.cmdline,
-                                        CURRENT_TIMESTAMP(2), old.creation, CURRENT_TIMESTAMP(2), old.change );
-                               END;|;
+                                                            change )
 
-    #   $dbh->do($update_trigger)
-    #       or die "Table creation failed:  ",$dbh->errstr;
+                               VALUES ( NEW.hostname, NEW.ip, NEW.iphex, NEW.mac, NEW.uuid,
+                                        '1', NEW.state, NEW.cmdline, NEW.creation,
+                                        CURRENT_TIMESTAMP(2) );
+                               RETURN NEW;
 
-    my $insert_trigger = q|CREATE TRIGGER insert_templateid AFTER INSERT ON templateid
-                               BEGIN
+                               ELSIF (TG_OP='DELETE') THEN
                                INSERT INTO templateidhist ( hostname,
-                                                            hostnameOLD,
                                                             ip,
-                                                            ipOLD,
                                                             iphex,
-                                                            iphexOLD,
                                                             mac,
-                                                            macOLD,
                                                             uuid,
-                                                            uuidOLD,
                                                             state,
                                                             stateOLD,
                                                             cmdline,
                                                             creation,
-                                                            creationOLD,
-                                                            change,
-                                                            changeOLD )
-                               values ( new.hostname, 'null', new.ip, 'null', new.iphex, 'null', new.mac,
-                                        'null', new.uuid, 'null', new.state, 'null', new.cmdline,
-                                        CURRENT_TIMESTAMP(2), 'null', 'null', 'null' );
-                               END;|;
+                                                            change )
 
-    #   $dbh->do($insert_trigger)
-    #       or die "Table creation failed:  ",$dbh->errstr;
+                               VALUES ( OLD.hostname, OLD.ip, OLD.iphex, OLD.mac, OLD.uuid,
+                                        '4', OLD.state, OLD.cmdline, OLD.creation,
+                                        CURRENT_TIMESTAMP(2) );         
+                               RETURN OLD;
 
-    my $delete_trigger = q|CREATE TRIGGER delete_templateid AFTER DELETE ON templateid
+                               END IF;
+                               END;
+                           $template_state_trigger$ LANGUAGE 'plpgsql';
+
+                           CREATE TRIGGER template_state_add_delete_trigger
+                           AFTER INSERT OR DELETE ON templateid
+                           FOR EACH ROW EXECUTE PROCEDURE template_state_add_delete()|;
+
+    $dbh->do($insert_trigger)
+        or die "add_delete trigger failed:  ",$dbh->errstr;
+
+    my $update_trigger = q|CREATE OR REPLACE FUNCTION template_state_update() RETURNS TRIGGER AS
+                           $template_state_trigger$
+                               DECLARE
+                                   new_hostname VARCHAR;
+                                   new_ip VARCHAR;
+                                   new_iphex VARCHAR;
+                                   new_mac VARCHAR;
+                                   new_uuid VARCHAR;
+                                   new_state INTEGER;
+                                   new_cmdline VARCHAR;
+                                   new_creation TIMESTAMP;
                                BEGIN
                                INSERT INTO templateidhist ( hostname,
-                                                            hostnameOLD,
                                                             ip,
-                                                            ipOLD,
                                                             iphex,
-                                                            iphexOLD,
                                                             mac,
-                                                            macOLD,
                                                             uuid,
-                                                            uuidOLD,
                                                             state,
                                                             stateOLD,
                                                             cmdline,
                                                             creation,
-                                                            creationOLD,
-                                                            change,
-                                                            changeOLD )
-                               values ( old.hostname, 'null', old.ip, 'null', old.iphex, 'null', old.mac,
-                                        'null', old.uuid, 'null', '4', old.state, old.cmdline,
-                                        CURRENT_TIMESTAMP(2), old.creation, 'null', 'null' );
-                               END;|;
+                                                            change )
 
-    #   $dbh->do($delete_trigger)
-    #       or die "Table creation failed:  ",$dbh->errstr;
+                               VALUES ( NEW.hostname, NEW.ip, NEW.iphex, NEW.mac, NEW.uuid,
+                                        '2', NEW.state, NEW.cmdline, NEW.creation,
+                                        CURRENT_TIMESTAMP(2) );
+                               RETURN NEW;
+                              END;
+                           $template_state_trigger$ LANGUAGE 'plpgsql';
+
+                           CREATE TRIGGER template_state_update_trigger
+                           AFTER UPDATE ON templateid
+                           FOR EACH ROW EXECUTE PROCEDURE template_state_update()|;
+
+    $dbh->do($update_trigger)
+        or die "update trigger failed:  ",$dbh->errstr;
 
 }
 
@@ -273,22 +284,15 @@ sub list_db_history() {
     print "$hostname\n";
 
     my $sql = q|SELECT hostname,
-                           hostnameOLD,
-                           ip,
-                           ipOLD,
-                           iphex,
-                           iphexOLD,
-                           mac,
-                           macOLD,
-                           uuid,
-                           uuidOLD,
-                           state,
-                           stateOLD,
-                           cmdline,
-                           creation,
-                           creationOLD,
-                           change,
-                           changeOLD
+                       ip,
+                       iphex,
+                       mac,
+                       uuid,
+                       state,
+                       stateOLD,
+                       cmdline,
+                       creation,
+                       change
                     FROM templateidhist
                     WHERE hostname LIKE ?|;
 
@@ -299,7 +303,6 @@ sub list_db_history() {
         or die "Cannot execute sth: ",$sth->errstr;
 
     return $sth->fetchall_arrayref();
-    #   return $sth->fetchrow_hashref();
 
 }
 
@@ -309,14 +312,14 @@ sub add_db_host_entry() {
     my %Hash = %$HashRef;
 
     my $sql = q|INSERT INTO templateid ( hostname,
-                             ip,
-                             iphex,
-                             mac,
-                             uuid,
-                             state,
-                                             cmdline,
-                             creation,
-                             change )
+                                         ip,
+                                         iphex,
+                                         mac,
+                                         uuid,
+                                         state,
+                                         cmdline,
+                                         creation,
+                                         change )
                 VALUES ( ?, ?, ?, ?, ?, 1, ?, CURRENT_TIMESTAMP(2), CURRENT_TIMESTAMP(2) )|;
 
     my $sth = $dbh->prepare( $sql )
@@ -600,14 +603,13 @@ sub list() {
     }
 
     if ($Hash{'subcommand'} eq "history") {
-        ## hostname, hostnameOLD, ip, ipOLD, iphex, iphexOLD, mac, macOLD, uuid, uuidOLD, state, stateOLD, cmdline, creation, creationOLD, change, changeOLD
         ##
         if (! exists($Hash{'hostname'})) {
             $Hash{'hostname'} = "%";
         }
         my $dbref = &list_db_history($Hash{'hostname'});
         foreach ( @$dbref ) {
-            print "$_->[0] $_->[2] $_->[4] $_->[6] $_->[8] $_->[10] $_->[11] $_->[13] $_->[15]\n";
+            print "$_->[0] $_->[1] $_->[3] $_->[4] $_->[5] $_->[6] $_->[8] $_->[9] \n";
         }
     }
 
