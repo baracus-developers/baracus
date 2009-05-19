@@ -1,0 +1,30 @@
+.\" Process this file with
+.\" groff -man -Tascii baracus.1
+.\"
+.TH BARACUS 1 "MAY 2009" Linux "User Manuals"
+.SH NAME
+Baracus \- Network Install Server Generator
+.SH DESCRIPTION
+.B Baracus
+Baracus is part of the larger Novell migration tools aimed at stream-
+lining the migration from other Linux distributions to SLES. The tool
+automates the creation of NFS and/or HTTP remote build trees. This includes
+configuring tftp, pxe, dhcpd, nfs and/or httpd as well as building the
+necessary distribution tree. 
+.SH FILES
+.I /etc/sysconfig/baracus
+.RS
+The system wide configuration file. See
+.BR baracus (5)
+for further details.
+.SH DIAGNOSTICS
+The following diagnostics may be issued on stderr:
+BUILDIP expects an argument at /etc/sysconfig/baracus line 18.
+.RS
+The input file requires an ip address for BUILDIP.
+.RE
+.SH AUTHOR
+Daniel Westervelt 
+.SH "SEE ALSO"
+.BR Baracus (5)
+

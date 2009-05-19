@@ -1,0 +1,28 @@
+.\" Process this file with
+.\" groff -man -Tascii create_install_host.5
+.\"
+.TH CREATE_INSTALL_HOST 5 "MAY 2009" Linux "User Manuals"
+.SH NAME
+create_install_host \- command line tool for generating new build templates for a given host
+.SH SYNOPSIS
+.B create_install_host command [subcommand] [options]
+.SH COMMANDS
+.IP 
+    add     <arg1 arg2 arg3> [etc.] : add a new build source
+                                      for details use: 'add --help'
+    remove  --hostname <x>          : delete a build template for host <x>
+    verify  --hostname <x>          : verify build template for host <x> (TBD)
+    list    <hardware>              : list hardware profiles
+    list    <templates>             : list host templates
+    list    <history>               : list build client template history
+
+.SH OPTIONS
+.IP 
+    -v|--verbose                    : verbose output
+    -h|--help                       : this (help) message
+.SH AUTHOR
+Dan Westervelt
+.SH "SEE ALSO"
+.BR Baracus (1),
+.BR Baracus (5),
+.BR create_install_source (5)

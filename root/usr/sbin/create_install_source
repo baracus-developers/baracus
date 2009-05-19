@@ -266,40 +266,18 @@ sub addon_product() {
 
     my ($os, $troot) = @_;
     my $baseprod;
+    my $baseos = $config->{distribution}->{$os}->{requires};
 
-    ## Check if add-on, ie. SLERT
-    ##
-    if ($config->{distribution}->{$os}->{requires}) {
-	my $baseos = $config->{distribution}->{$os}->{requires};
-	unless ($troot) {
-            print "Install base, $baseos, not found.\n";
+    print "Verifying base SLES product\n";
+    foreach my $isofile (keys (%{$config->{distribution}->{$baseos}->{file}})) {
+        if ( ! -d "$troot/$config->{distribution}->{$baseos}->{file}->{$isofile}->{path}" ) {
+            print "Cannot verify required SLES base installation at $troot\n";
             exit(1);
         }
-
-        ## Verify SLE base product if addon
-        ##
-        print "Verifying base SLES product\n";
-        foreach my $isofile (keys (%{$config->{distribution}->{$baseos}->{file}})) {
-            if ( ! -d "$troot/$config->{distribution}->{$baseos}->{file}->{$isofile}->{path}" ) {
-                print "Cannot verify required SLES base installation at $troot\n";
-                exit(1);
-            }
-            if ($config->{distribution}->{$baseos}->{file}->{$isofile}->{addon} eq "base") {
-                $baseprod = "$troot/$config->{distribution}->{$baseos}->{file}->{$isofile}->{path}";
-            }
+        if ($config->{distribution}->{$baseos}->{file}->{$isofile}->{addon} eq "base") {
+            $baseprod = "$troot/$config->{distribution}->{$baseos}->{file}->{$isofile}->{path}";
         }
-
-        open(FILE, "<$baseprod/add_on_products");
-        while (<FILE>) {
-            $type = (split /\//, $_)[0];
-            $type =~ s/://;
-            $ip = (split /\//, $_)[2];
-        }
-        close(FILE);
     }
-
-    my @args = ($troot,$type,$ip);
-    return(@args);
 }
 
 sub add_build() {
@@ -322,7 +300,7 @@ sub add_build() {
     ## Check if add-on, ie. SLERT, OES
     ##
     if ($config->{distribution}->{$os}->{requires}) {
-        ($troot, $type, $ip) = &addon_product($os, $troot);
+	&addon_product($os, $troot);
     }
 
     &download_iso() if ($iarg);
@@ -552,62 +530,55 @@ sub create_sle10_build() {
             }
         }
         if ($config->{distribution}->{$os}->{file}->{$isofile}->{addon} eq "new") {
-            # for right now SLE11 only has SDK addon - so if this file exists we skip
             my $addonfile = "$baseprod/add_on_products.xml";
-            unless( -f $addonfile ) {
-                my $output = new IO::File(">$addonfile");
-                my $writer = new XML::Writer(OUTPUT => $output, , DATA_MODE => 1, DATA_INDENT => 1);
-                my $description = "$isofile";
-                $description = (split /\./, $description)[0];
-
-                $writer->xmlDecl();
-                $writer->startTag("add_on_products",
-                                  "xmlns" => "http://www.suse.com/1.0/yast2ns",
-                                  "xmlns:config" => "http://www.suse.com/1.0/configns" );
-                $writer->startTag("product_items",
-                                  "config:type" => "list");
-                $writer->startTag("product_item");
-                $writer->startTag("name");
-                $writer->characters($description);
-                $writer->endTag("name");
-                $writer->startTag("url");
-                $writer->characters("$type://$ip$troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path}");
-                $writer->endTag("url");
-                $writer->startTag("path");
-                $writer->characters("/");
-                $writer->endTag("path");
-                $writer->startTag("ask_user",
-                                  "config:type" => "boolean");
-                $writer->characters("false");
-                $writer->endTag("ask_user");
-                $writer->startTag("selected",
-                                  "config:type" => "boolean");
-                $writer->characters("true");
-                $writer->endTag("selected");
-                $writer->endTag("product_item");
-                $writer->endTag("product_items");
-                $writer->endTag("add_on_products");
-                $writer->end();
-                $output->close();
-
-                ## Create SHA1SUMS file
-                ##
-                use Digest::SHA1 qw(sha1 sha1_hex sha1_base64);
-                open(FILE, ">$baseprod/SHA1SUMS");
-                my $io = IO::File->new( "$addonfile", 'r' );
-                my $sha1 = Digest::SHA1->new;
-                $sha1->addfile($io);
-                $io->close;
-                print FILE $sha1->hexdigest, "  add_on_products.xml\n";
-                close(FILE);
-
-                ## Sign SHA!SUMSS
-                ##
-                system("gpg", "--homedir=/usr/share/baracus/gpghome/.gnupg", "-b", "--sign", "--default-key=C685894B", "--armor", "$baseprod/SHA1SUMS");
-                copy("/usr/share/baracus/gpghome/.gnupg/my-key.gpg", "$baseprod/SHA1SUMS.key");
-                system("ls $baseprod > $baseprod/directory.yast");
+            my $description = "$isofile";
+            $description = (split /\./, $description)[0];
+            if ( -f $addonfile ) {
+                unlink("$baseprod/SHA1SUMS", "$baseprod/SHA1SUMS.asc");
+                open(IN, "<$addonfile") || die ("Cannot open $addonfile: $!\n");
+                my @xml = <IN>;
+                close(IN);
+                @xml = grep { !/product_items>/i } @xml;
+                @xml = grep { !/add_on_products>/i } @xml;
+                unlink($addonfile);
+                open(OUT, ">>$addonfile") || die ("Cannot open $addonfile: $!\n");
+                print OUT @xml;
             }
+           else {
+                open(OUT, ">$addonfile");
+                print OUT  "<?xml version=\"1.0\"?>\n";
+                print OUT  "<add_on_products xmlns=\"http://www.suse.com/1.0/yast2ns\" xmlns:config=\"http://www.suse.com/1.0/configns\">\n";
+                print OUT  "    <product_items config:type=\"list\">\n";
+            }
+            print OUT  "        <product_item>\n";
+            print OUT  "            <name>$description</name>\n";
+            print OUT  "            <url>$type://$ip$troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path}</url>\n";
+            print OUT  "            <path>/</path>\n";
+            print OUT  "            <ask_user config:type=\"boolean\">false</ask_user>\n";
+            print OUT  "            <selected config:type=\"boolean\">true</selected>\n";
+            print OUT  "        </product_item>\n";
+            print OUT "    </product_items>\n";
+            print OUT  "</add_on_products>\n";
+            close(OUT);
+                
+            ## Create SHA1SUMS file
+            ##
+            use Digest::SHA1 qw(sha1 sha1_hex sha1_base64);
+            open(FILE, ">$baseprod/SHA1SUMS") || die ("Cannot open $baseprod/SHA1SUMS");
+            my $io = IO::File->new( "$addonfile", 'r' );
+            my $sha1 = Digest::SHA1->new;
+            $sha1->addfile($io);
+            $io->close;
+            print FILE $sha1->hexdigest, "  add_on_products.xml\n";
+            close(FILE);
+
+            ## Sign SHA!SUMSS
+            ##
+            system("gpg", "--homedir=/usr/share/baracus/gpghome/.gnupg", "-b", "--sign", "--default-key=C685894B", "--armor", "$baseprod/SHA1SUMS");
+            copy("/usr/share/baracus/gpghome/.gnupg/my-key.gpg", "$baseprod/SHA1SUMS.key");
+            system("ls $baseprod > $baseprod/directory.yast");
         }
+       # }
     }
 
     ## Need to make sure license acceptance does not interfere
