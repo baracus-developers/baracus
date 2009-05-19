@@ -150,7 +150,7 @@
 	<distribution>
 		<os>sles9-x86_64</os>
 		<sp>4</sp>
-		<basepath>sles9/x86_64/</basepath>
+		<basepath>sles9/x86_64</basepath>
 		<pxepath>SUSE-SLES-9-Service-Pack-Version-4/CD1/boot/loader</pxepath>
 		<file iso="SLES-9-x86-64-RC5-CD1.iso">
 			<md5>1fb270a7123895abc846a377c3d1dfdd</md5>

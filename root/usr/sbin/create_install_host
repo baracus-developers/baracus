@@ -34,7 +34,6 @@ my $verify;
 my $help;
 my $verbose;
 my $debug;
-my $dbasedir="";
 my $moduledir="";
 my $templatedir="";
 my $confdir="";
@@ -298,15 +297,15 @@ sub add_host_entry() {
     ##
     unless ($Hash{'hostname'}) {
         print "Missing  --hostname\n";
-        exit 1;
+        &get_usage_add;
     }
     unless ($Hash{'ip'}) {
         print "Missing  --ip\n";
-        exit 1;
+        &get_usage_add;
     }
     unless ($Hash{'mac'}) {
         print "Missing  --mac\n";
-        exit 1;
+        &get_usage_add;
     }
 
     my $autoYastTemplate = join "/", $templatedir, $Hash{'os'}, $Hash{'arch'}, $Hash{'yastTemplate'};
@@ -356,6 +355,7 @@ sub add_host_entry() {
 
     # add files to sqlfstable for sqltftpd server
 
+    my $tdir = tempdir();
     my $dbname = "sqltftp";
     my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbname",
                                'User' => "baracus")
@@ -369,17 +369,17 @@ sub add_host_entry() {
             $key = "__$key\__";
             $yastfile =~ s/$key/$value/g;
         }
-        open(FILE, ">$dbasedir/$Hash{'hexip'}") || die "Cannot open file $Hash{'hexip'}: $!\n";
+        open(FILE, ">$tdir/$Hash{'hexip'}") || die "Cannot open file $Hash{'hexip'}: $!\n";
         print FILE $yastfile;
         print FILE "<!-- baracus.Hostname: $Hash{'hostname'} -->\n";
         print FILE "<!-- baracus.MAC: $Hash{'mac'}; -->\n";
         print FILE "<!-- baracus.Generated: $date -->\n";
         close(FILE);
 
-        if ( $sqlfsOBJ->store( "$dbasedir/$Hash{'hexip'}" ) ) {
-            warn "failed to store $dbasedir/$Hash{'hexip'} in sqlfs\n";
+        if ( $sqlfsOBJ->store( "$tdir/$Hash{'hexip'}" ) ) {
+            warn "failed to store $tdir/$Hash{'hexip'} in sqlfs\n";
         }
-        unlink "$dbasedir/$Hash{'hexip'}";
+        unlink "$tdir/$Hash{'hexip'}";
 
         if ($verbose) {
             print "Successfully stored $Hash{'hexip'} \n";
@@ -394,14 +394,14 @@ sub add_host_entry() {
             $key = "__$key\__";
             $pxefile =~ s/$key/$value/g;
         }
-        open(FILE, ">$dbasedir/$bootmac") || die "Cannot open file $bootmac: $!\n";;
+        open(FILE, ">$tdir/$bootmac") || die "Cannot open file $bootmac: $!\n";;
         print FILE $pxefile;
         close(FILE);
 
-        if ( $sqlfsOBJ->store( "$dbasedir/$bootmac" ) ) {
-            warn "failed to store $dbasedir/$bootmac in sqlfs\n";
+        if ( $sqlfsOBJ->store( "$tdir/$bootmac" ) ) {
+            warn "failed to store $tdir/$bootmac in sqlfs\n";
         }
-        unlink "$dbasedir/$bootmac";
+        unlink "$tdir/$bootmac";
 
         if ($verbose) {
             print "Successfully stored $Hash{'hexip'} \n";
@@ -409,6 +409,7 @@ sub add_host_entry() {
     }
     # disconnect and destroy
     $sqlfsOBJ->discard();
+    rmdir $tdir;
 
     print "Added $Hash{'hostname'} template \n";
 }
@@ -643,14 +644,8 @@ if ($verbose) {
 $confdir     = $bdir{ 'conf' };
 $moduledir   = $bdir{ 'modules' };
 $templatedir = $bdir{ 'templates' };
-$dbasedir    = $bdir{ 'hooks' }; #strictly a temp dir now - no dbasedir w/pgsql
 $datadir     = $bdir{ 'data' };
 $buildroot   = $bdir{ 'builds' };
-
-unless ($buildip) {
-    print "Please edit /etc/sysconfig/baracus and set BUILDIP=<server>\n";
-    exit 1;
-}
 
 GetOptions(
            'verbose|v!' => \$verbose,
@@ -689,6 +684,11 @@ my %action = (
 if (! defined $action{$command}) {
     print "Invalid command provided.\n";
     &get_usage();
+}
+
+unless ($buildip) {
+    print "Please edit /etc/sysconfig/baracus and set BUILDIP=<server>\n";
+    exit 1;
 }
 
 if ( ( $command eq "add" ) or
@@ -826,6 +826,13 @@ die BaracusDB::errstr unless ( defined $uid );
 
 $dbh = BaracusDB::connect_db( $dbname, $dbrole );
 die BaracusDB::errstr unless( $dbh );
+
+if ($debug) {
+    print "profileHash:\n";
+    foreach my $key ( sort ( keys %profileHash )) {
+        print "\t$key => $profileHash{$key}\n";
+    }
+}
 
 ## execute command
 ##

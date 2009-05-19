@@ -223,34 +223,37 @@ sub get_build_info() {
 
 sub verify_build() {
 
-    my ($os,$troot) = @_;
-    my $status="";;
+    my ($os,$troot,$type) = @_;
+    my $status="disabled";
     my $service="";
 
+    my $useos = $os;
     unless ( -d "$troot/$config->{distribution}->{$os}->{basepath}" ) {
         print "Build tree does not appear to exist \n";
         exit(1);
     }
-
-    ## Determine Service and Status
-    ##
-    open(FILE, "</etc/exports");
-    while (<FILE>) {
-        if (/$config->{distribution}->{$os}->{basepath}/) {
-            $status="enabled"; $service="nfs";
-        }
-        if ((/^#/) && (/$config->{distribution}->{$os}->{basepath}/)) {
-            $status="disabled"; $service="nfs";
+    my $baseos = $config->{distribution}->{$os}->{requires};
+    if ($baseos) {
+        $useos = $baseos;
+        foreach my $isofile (keys %{$config->{distribution}->{$baseos}->{file}}) {
+            unless( -d "$troot/$config->{distribution}->{$baseos}->{file}->{$isofile}->{path}" ) {
+                print "Cannot verify required $baseos installation at $troot\n";
+                exit(1);
+            }
         }
     }
-    close(FILE);
-
-    unless($service) {
-        if ( -f "/etc/apache2/conf.d/$os\_server.conf") {
-            $status="enabled"; $service="http";
+    if ($type eq "nfs") {
+        open(FILE, "</etc/exports");
+        while (<FILE>) {
+            if (m|$troot\/$config->{distribution}->{$useos}->{basepath}|) {
+                $status = "enabled";
+            }
         }
-        if ( -f "/etc/apache2/conf.d/$os\_server.disabled") {
-            $status="disabled"; $service="http";
+        close(FILE);
+    }
+    if ($type eq "http") {
+        if ( -f "/etc/apache2/conf.d/$useos\_server.conf") {
+            $status = "enabled";
         }
     }
 
@@ -258,7 +261,7 @@ sub verify_build() {
     ##
     print "Target:\t\t$os \n";
     print "Path:\t\t$troot\/$config->{distribution}->{$os}->{basepath} \n";
-    print "Service:\t$service \n";
+    print "Service:\t$type \n";
     print "Status:\t\t$status\n";
 }
 
@@ -319,7 +322,7 @@ sub add_build() {
 
     unless ($config->{distribution}->{$os}->{requires}) {
         print "Calling routine to configure $type\n" if ($verbose);
-        &service_config($type,$troot,$datadir,$os);
+        &add_build_service($type,$troot,$datadir,$os);
         print "Calling routine to configure PXE\n" if ($verbose);
         &pxe_config($troot,$datadir,$os,$type,$ip);
     }
@@ -327,7 +330,7 @@ sub add_build() {
 
 sub remove_build() {
 
-    my ($os,$troot) = @_;
+    my ($os,$troot,$type,$datadir) = @_;
 
     print "Removing $os \n";
 
@@ -335,70 +338,30 @@ sub remove_build() {
         my $dir = (split /-/, $os)[0];
         rmtree("$troot\/$config->{distribution}->{$os}->{basepath}/$dir");
     } else {
-        print "Should actually remove service entry (nfs,http,etc..) \n";
         rmtree("$troot\/$config->{distribution}->{$os}->{basepath}");
+        &remove_build_service($type,$troot,$datadir,$os);
     }
 
 }
 
 sub disable_build() {
 
-    my ($os,$troot,$type) = @_;
+    my ($os,$troot,$type,$datadir) = @_;
 
     print "Disabling $os \n";
 
-    if ($type eq "nfs") {
-        open(FILE, "</etc/exports");
-        my $nfsfile = join '', <FILE>;
-        close(FILE);
-
-        $nfsfile =~ s/$troot\/$config->{distribution}->{$os}->{basepath}/#$troot\/$config->{distribution}->{$os}->{basepath}/g;
-
-        open(FILE, ">/etc/exports");
-        print FILE $nfsfile;
-        close(FILE);
-
-        system("/usr/sbin/exportfs -r");
-    }
-
-    if ($type eq "http") {
-        if ( -f "/etc/apache2/conf.d/$os\_server.conf") {
-            move("/etc/apache2/conf.d/$os\_server.conf","/etc/apache2/conf.d/$os\_server.disabled");
-        } else {
-            print "$os service not found \n";
-        }
-    }
-
+    # do the remove_build_service - less code
+    &remove_build_service($type,$troot,$datadir,$os);
 }
 
 sub enable_build() {
 
-    my ($os,$troot,$type) = @_;
+    my ($os,$troot,$type,$datadir) = @_;
 
     print "Enabling $os \n";
 
-    if ($type eq "nfs") {
-        open(FILE, "</etc/exports");
-        my $nfsfile = join '', <FILE>;
-        close(FILE);
-
-        $nfsfile =~ s/#$troot\/$config->{distribution}->{$os}->{basepath}/$troot\/$config->{distribution}->{$os}->{basepath}/g;
-
-        open(FILE, ">/etc/exports");
-        print FILE $nfsfile;
-        close(FILE);
-
-        system("/usr/sbin/exportfs -r");
-    }
-
-    if ($type eq "http") {
-        if (-f "/etc/apache2/conf.d/$os\_server.disabled") {
-            move("/etc/apache2/conf.d/$os\_server.disabled","/etc/apache2/conf.d/$os\_server.conf");
-            system("/etc/init.d/apache2 reload");
-        } else {
-            print "$os service not found \n";
-        }
-    }
+    # do the add_build_service - less code
+    &add_build_service($type,$troot,$datadir,$os);
 }
 
 sub verify_iso() {
@@ -627,7 +590,7 @@ sub create_sle9_build() {
     close(INSTORDER);
     close(ORDER);
 
-    ## Create necessary links (this is sles9 crap logic)
+    ## Create necessary links (this is sles9 logic)
     ##
     chdir("/$troot/$config->{distribution}->{$os}->{basepath}");
     symlink("SUSE-SLES-Version-9/CD1/boot","boot");
@@ -644,12 +607,13 @@ sub create_sle9_build() {
 
 }
 
-sub service_config() {
-
+# add line or config file for build and restart service (only if neeeded)
+sub add_build_service
+{
     my ($type,$troot,$datadir,$os) = @_;
-    my $skip = 0;
 
     if ($type eq "nfs") {
+        my $skip = 0;
         if ( -f "/etc/exports" ) {
             open(FILE, "</etc/exports") || die ("Cannot open file\n");
             while (<FILE>) {
@@ -664,13 +628,31 @@ sub service_config() {
             open(FILE, ">>/etc/exports") || die ("Cannot open file\n");
             print FILE "$troot\/$config->{distribution}->{$os}->{basepath}\t*(ro,root_squash,insecure,sync,no_subtree_check)\n";
             close(FILE);
+            system("/usr/sbin/exportfs -r");
         }
     }
 
     if ($type eq "http") {
 
         if (! -f "/etc/apache2/conf.d/$os\_server.conf") {
+            # check everytime for the main baracus conf
+            if (! -f "/etc/apache2/conf.d/baracus.conf") {
+                open( BA, ">/etc/apache2/conf.d/baracus.conf" ) or
+                    die "Unable to open file: $!";
+                print BA <<BAFILE;
+# httpd configuration for Baracus share
+Alias $bdir{'root'} $bdir{'root'}
+<Directory "$bdir{'root'}">
 
+    Options -Indexes +FollowSymLinks
+
+    Order allow,deny
+    Allow from all
+
+</Directory>
+BAFILE
+                close BA;
+            }
             ## Create /etc/apache2/conf.d/inst_server_conf
             ##
             open(FILE, "<$datadir/templates/inst_server.conf.in") || die ("Cannot open file\n");
@@ -681,33 +663,66 @@ sub service_config() {
                 mkpath "/etc/apache2/conf.d/" || die ("Cannot create directory\n");
             }
             open(FILE, ">/etc/apache2/conf.d/$os\_server.conf") || die ("Cannot open file\n");
+            my $inst_uniq = $config->{distribution}->{$os}->{basepath};
+            $inst_uniq =~ s|/\s*$||;  # strip trailing slash
+            $inst_uniq =~ s|/|-|g;    # replace slash with dash
             $httpdconf =~ s/%OS%/$os/g;
-            $httpdconf =~ s|%ALIAS%|/install/|g;
-            $httpdconf =~ s|%SERVERDIR%|$troot/$config->{distribution}->{$os}->{basepath}|g;
+            $httpdconf =~ s|%ALIAS%|/install/$inst_uniq/|g;
+            $httpdconf =~ s|%SERVERDIR%|$troot/$config->{distribution}->{$os}->{basepath}/|g;
             print FILE $httpdconf;
             close(FILE);
 
+            system("/etc/init.d/apache2 reload");
 
-            ## Update APACHE_SERVER_FLAGS in /etc/sysconfig/apache
-            ##
-            my $httpdsys;
-            my @httpdsys;
-            open(FILE, "</etc/sysconfig/apache2") || die ("Cannot open file\n");
+        } else {
+            print "HTTP ${os}_server.config already exists\n";
+        }
+    }
+}
+
+# add line or config file for build and restart service (only if neeeded)
+sub remove_build_service
+{
+    my ($type,$troot,$datadir,$os) = @_;
+
+    if ($type eq "nfs") {
+
+        my $skip = 0;
+        if ( -f "/etc/exports" ) {
+            open(FILE, "</etc/exports") || die ("Cannot open file\n");
             while (<FILE>) {
-                if (($_ =~ /APACHE_SERVER_FLAGS/) && !($_ =~ /$os\_server/)) {
-                    $_ =~ s/.$/ $os\_server\"/g;
+                unless (m|$troot\/$config->{distribution}->{$os}->{basepath}|) {
+                    print "NFS export already removed\n";
+                    $skip = 1;
                 }
-                push(@httpdsys, $_);
             }
             close(FILE);
-            $httpdsys = join '' , @httpdsys;
+        }
+        unless($skip) {
+            copy("/etc/exports", "/etc/exports.bak");
+            open(OUTFILE, ">/etc/exports") || die ("Cannot open file\n");
+            open(INFILE, "</etc/exports.bak") || die ("Cannot open file\n");
+            while (<INFILE>) {
+                unless (m|$troot\/$config->{distribution}->{$os}->{basepath}|) {
+                    print OUTFILE $_;
+                }
+            }
+            close(INFILE);
+            close(OUTFILE);
+            unlink("/etc/exports.bak");
 
-            copy("/etc/sysconfig/apache2","/etc/sysconfig/apache2.bak.build");
-            open(FILE, ">/etc/sysconfig/apache2") || die ("Cannot open file\n");
-            print FILE $httpdsys;
-            close(FILE);
+            system("/usr/sbin/exportfs -r");
+        }
+    }
+
+    if ($type eq "http") {
+
+        if ( -f "/etc/apache2/conf.d/$os\_server.conf") {
+            unlink("/etc/apache2/conf.d/$os\_server.conf");
+            system("/etc/init.d/apache2 reload");
+
         } else {
-            print "HTTP ${os}_server.config already exists \n";
+            print "HTTP ${os}_server.config already removed\n";
         }
     }
 }
@@ -824,9 +839,9 @@ sub pxe_config() {
     $pxe =~ s/%TYPE%/$type/g;
     $pxe =~ s/%IP%/$ip/g;
     if ( $os =~ /sles9/ ) {
-        $pxe =~ s/%PATH%/$troot\/$config->{distribution}->{$os}->{basepath}/g;
+        $pxe =~ s|%PATH%|$troot/$config->{distribution}->{$os}->{basepath}/|g;
     } else {
-        $pxe =~ s/%PATH%/$troot\/$config->{distribution}->{$os}->{basepath}\/dvd1/g;
+        $pxe =~ s|%PATH%|$troot/$config->{distribution}->{$os}->{basepath}/dvd1/|g;
     }
 
     # store won't overwrite ( $name, \$contentref, [ description ] )
@@ -1000,11 +1015,6 @@ $troot   = $bdir{'builds'};  # just remap for now search/replace cleanup later
 $isoarg  = $bdir{'isos'};
 $datadir = $bdir{'data'};
 
-unless ($ip) {
-    print "Please edit /etc/sysconfig/baracus and set BUILDIP=<server>\n";
-    exit 1;
-}
-
 GetOptions(
            'verbose|v!' => \$verbose,
            'help|h!'    => \$help,
@@ -1042,6 +1052,11 @@ my %action = (
               'service' => \&do_service,
               );
 
+unless ($ip) {
+    print "Please edit /etc/sysconfig/baracus and set BUILDIP=<server>\n";
+    exit 1;
+}
+
 if (not defined $action{ $command }) {
     print "Unknown command: $command\n";
     &get_usage();
@@ -1078,11 +1093,11 @@ if ( "$command" ne "menu" ) {
 
 my %arguments = (
                  'add'     => [$os,$troot,$datadir,$type,$ip,$isoarg],
-                 'remove'  => [$os,$troot],
-                 'disable' => [$os,$troot,$type],
+                 'remove'  => [$os,$troot,$type,$datadir],
+                 'disable' => [$os,$troot,$type,$datadir],
+                 'enable'  => [$os,$troot,$type,$datadir],
                  'list'    => [$os],
-                 'verify'  => [$os,$troot],
-                 'enable'  => [$os,$troot,$type],
+                 'verify'  => [$os,$troot,$type],
                  'menu'    => [],
                  'service' => [$start_services,$stop_services],
                  );
