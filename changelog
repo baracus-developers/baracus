@@ -1,0 +1,64 @@
+%changelog
+* Tue May 19 2009 dbahi@novell
+- shift BUILDIP check to be after help checks
+- source add / remove / enable / disable modifies service
+- source restarts service if related config modified
+- fix for verify of add-ons and for rename of slert to slert10
+- pxetemplate cleanup for sqltftp service
+* Mon May 18 2009 dwestervelt@novell
+- support for multiple sles11 addons via add_on_product.xml
+- adds targets for SLES11 HAE and SLES11 Mono addons
+- rough outline of man pages atortola@novell
+* Wed May 13 2009 dwestervelt@novell  
+- conversion to postgresql completed with conversion  
+  of add/update/remove triggers to maintain history  
+* Sun May 10 2009 dbahi@novell
+- added initdb script to initd.baracusdb
+  to initialize the role and required databases
+- added 'list' functionality to sqlfs and directsqlfs
+- corrected DATE to TIMESTAMP for timestamps
+* Fri May  8 2009 dbahi@novell
+- moved underlying db from sqlite to postgresql
+- build complete hooks more clearly named
+- support for build verification failure hook
+- major parameter handling cleanup and help rework
+- baracusdb addition for our own instance of postgres
+* Mon Apr 27 2009 dbahi@novell
+- all tftp files served from db directly
+- baracusd no longer depends on apache2
+- symlink example templates for slert, sle10, sle11 x86_64
+- key added to initrd for sle11 add_on_product handling
+- modify perms for gnupg directory
+* Fri Apr 10 2009 dbahi@novell
+- add golden image templates for pxe and autoyast
+- change -i handling and avoid clobbering files we have
+* Wed Apr 08 2009 dbahi@novell
+- simplify spec file and set sysconfig file suse style
+- baracus obsoletes create_install_source package
+* Wed Jan 28 2009 Daniel Westervelt <dwestervelt@novell.com> 1.13.0
+- fixed processing of addon products like slert and OES
+- added more error checking
+* Fri Jan 16 2009 Daniel Westervelt <dwestervelt@novell.com> 1.12-0
+- added missing /srv/tftpboot/pxelinux.0
+- added atftpd as a rpm dependency
+* Tue Jan 13 2009 Daniel Westervelt <dwestervelt@novell.com> 1.10-0
+- corrected spec file for 11.1
+* Mon Jan 12 2009 Daniel Westervelt <dwestervelt@novell.com> 1.9-0
+- removed iso md5 for non-download unless "-c" is specified
+- moved config files and templates to /usr/share/create_install_source
+- corrected path typo for http configuration
+* Fri Jan 9 2009 Daniel Westervelt <dwestervelt@novell.com> 1.8-0
+- added check for root uid
+- added support for case insensitivity in responses
+- added check on distribution selection
+- added GPL statement
+* Mon Jan 5 2009 Daniel Westervelt <dwestervelt@novell.com> 1.7-0
+- added verbose run mode
+* Fri Jan 2 2009 Daniel Westervelt <dwestervelt@novell.com> 1.5-0
+- added pxe support
+- added remote download of iso files
+- fixed writing zero length iso files
+- cleaned up menu interface
+- added proxy support
+* Tue Oct 7 2008 Daniel Westervelt <dwestervelt@novell.com> 1.0-0
+- initial build
