@@ -1,0 +1,812 @@
+#!/usr/bin/perl -w
+
+use Getopt::Long qw( :config pass_through );
+use Pod::Usage;
+
+use lib "/usr/share/baracus/perl";
+
+use BaracusDB;
+use BaracusSql;
+
+=pod
+
+=head1 NAME
+
+B<create_install_config> - baracus tool to manage distro, hardware, module entries.
+
+=head1 SYNOPSIS
+
+B<create_install_config> E<lt>commandE<gt> E<lt>typeE<gt> [options and arguments]
+
+Where E<lt>commandE<gt> is
+
+    help           Usage summary message.
+    man            Detailed man page.
+    list   <type> List entries in database
+    add    <type> Copy to database from file in specified location.
+    detail <type> Display file entry in the database table.
+    remove <type> Delete file specified from database table.
+
+And, where E<lt>typeE<gt> is
+
+    distro    values related to the distribution
+    hardware  values related to the hardware of the build client
+    module    postinstall scripts to run on build completion
+
+=head1 DESCRIPTION
+
+This tool allows files related to distro, hardware, or modules to be added to,
+removed from, detailed, fetched from database tables.  Additionally, all the
+database entries can be listed.
+
+=cut
+
+# what DBI schema and database are we using
+my $dbname = "baracus";
+my $dbrole = $dbname;
+
+our $LASTERROR="";
+
+my $man   = 0;
+my $help  = 0;
+my $debug = 0;
+
+my %tbl = (
+           'distro'   => 'distro_cfg',
+           'hardware' => 'hardware_cfg',
+           'module'   => 'module_cfg',
+           'oscert'   => 'hardwareid',
+           );
+
+my %cmds = (
+            'list'   => \&list,
+            'add'    => \&add,
+            'fetch'  => \&fetch,
+            'detail' => \&detail,
+            'remove' => \&remove,
+            'help'   => \&help,
+            'man'    => \&man,
+            );
+
+GetOptions(
+           'help|?'         => \$help,
+           'man'            => \$man,
+           'debug|verbose+' => \$debug,
+           );
+
+&man() if $man;
+
+&help() if (( $help ) or ( not scalar @ARGV ));
+
+my $uid = BaracusDB::su_user( $dbrole );
+die BaracusDB::errstr unless ( defined $uid );
+
+my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
+die BaracusDB::errstr unless( $dbh );
+
+my $status = &main(@ARGV);
+
+die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+
+print $LASTERROR if $status;
+
+exit $status;
+
+die "DOES NOT EXECUTE";
+
+###########################################################################
+
+sub main
+{
+    my $command = shift;
+
+    $command = lc $command;
+
+    if ( not defined $cmds{ $command } ) {
+        &help();
+    }
+
+    printf "Executing $command with \"@_\".\n" if $debug;
+
+    $cmds{ $command }( @_ );
+}
+
+sub help
+{
+    pod2usage( -verboase => 0,
+               -exitstatus => 0 );
+}
+
+sub man
+{
+    pod2usage( -verbose    => 99,
+               -sections   => "NAME|SYNOPSIS|DESCRIPTION|OPTIONS AND ARGUMENTS",
+               -exitstatus => 0 );
+}
+
+=item list
+
+    Takes <type> as an argument, (distro, hardware, modules).
+    Also takes an optional string to do use for partial matching.
+    Lists all entries of this type in the filesystem.
+
+=cut
+
+sub list
+{
+    my $type = shift;
+    my $pattern = shift;
+
+    if ( scalar @_ ) {
+        &help();
+    }
+
+    &check_type( $type );
+    $type = lc $type;
+
+    $pattern = "" unless( defined $pattern );
+
+    $sth = &list_start( $type, $pattern );
+
+    unless( defined $sth ) {
+        $LASTERROR .= "Unable to create db stmt handle for search: $pattern\n";
+        return 1;
+    }
+
+#2345678901234567890123456789012345678901324567890123456789012345678901234567890
+#        1         2         3         4         5         6         7         8
+print <<HEAD;
+--------------------------------------------------------------------------------
+name                             description
+--------------------------------------------------------------------------------
+HEAD
+
+    while( my $href = &list_next( $sth ) ) {
+        # name, description
+        printf "%-32s %s\n",
+            $href->{'name'},
+            (defined $href->{'description'}) ? $href->{'description'} : "";
+    }
+    &list_finish( $sth );
+
+    return 0;
+}
+
+sub add
+{
+    my $type = shift;
+
+    &check_type( $type );
+    $type = lc $type;
+
+    if ( $type eq "distro" ) {
+        &add_distro( @_ );
+    } elsif ( $type eq "hardware" ) {
+        &add_hardware( @_ );
+    } elsif ( $type eq "module" ) {
+        &add_module( @_ );
+    }
+
+    return 0;
+}
+
+=item add distro <options and args>
+
+Where <options and args> are
+
+    --name id           sles10-x86_64 [default <os>-<arch>]
+    --os product        sles10
+    --arch              x86_64 [default x86_64]
+    --sp release        sp2
+    --description note  describe the distribution
+
+The pxe arguments describe the kernel and initrd a bootp client should load.
+They must be changed to the installed base kernel and initrd for add-ons.
+
+    --kernelpxe linux   linux.sles10-x86_64-sp2
+                        [default linux.<os>-<arch>-<sp>]
+    --initrdpxe initrd  initrd.sles10-x86_64-sp2
+                        [default initrd.<os>-<arch>-<sp>]
+
+These arguments are for describing HAE, MONO, OES, SLERT add-on products
+
+    --addon             if specified this product is an add-on
+    --baseos base       distro this add-on requires [ default null ]
+
+=cut
+
+sub add_distro
+{
+    my %entry = (
+                 'distroid'    => "",
+                 'os'          => "",
+                 'arch'        => "x86_64",
+                 'sp'          => "",
+                 'pxekernel'   => "",
+                 'pxeinitrd'   => "",
+                 'description' => "",
+                 'addon'       => 0,
+                 'base'        => '',
+                 );
+
+    @ARGV = @_;
+    GetOptions(
+               'name=s'        => \$entry{'distroid'},
+               'os=s'          => \$entry{'os'},
+               'arch=s'        => \$entry{'arch'},
+               'sp=s'          => \$entry{'sp'},
+               'pxekernel=s'   => \$entry{'pxekernel'},
+               'pxeinitrd=s'   => \$entry{'pxeinitrd'},
+               'description=s' => \$entry{'description'},
+               'addon'         => \$entry{'addon'},
+               'baseos=s'      => \$entry{'baseos'},
+               );
+
+    &help() if ( scalar @ARGV );
+
+    &help() unless ( $entry{'os'} );
+    $entry{'distroid'} = "$entry{'os'}-$entry{'arch'}"
+        unless ( $entry{'distroid'} );
+
+
+    if ( $entry{'addon'} ) {
+        $entry{'addon'} = 't';
+        # have to define these if it is an add-on
+        &help() unless ( $entry{'pxekernel'} );
+        &help() unless ( $entry{'pxeinitrd'} );
+        # if we have base we could look up its pxe values
+        &help() unless ( defined $entry{'baseos'} );
+    }
+    else {
+        $entry{'addon'} = 'f';
+    }
+    unless ( $entry{'pxekernel'} ) {
+        $entry{'pxekernel'} = "linux.$entry{'os'}-$entry{'arch'}";
+        $entry{'pxekernel'} .= "-$entry{'sp'}" if ( $entry{'sp'} );
+    }
+    unless ( $entry{'pxeinitrd'} ) {
+        $entry{'pxeinitrd'} = "initrd.$entry{'os'}-$entry{'arch'}";
+        $entry{'pxeinitrd'} .= "-$entry{'sp'}" if ( $entry{'sp'} );
+    }
+
+    my $sql_cols = lc get_cols( 'distro' );
+    $sql_cols =~ s/[ \t]*//g;
+    my @cols = split( /,/, $sql_cols );
+    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+    my $sql = qq|INSERT INTO $tbl{ 'distro' }
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+
+    print $sql . "\n" if $debug;
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'add' distro statement\n" . $dbh->errstr;
+        return 1;
+    }
+
+    $paramidx = 0;
+    foreach $col (@cols) {
+        $paramidx += 1;
+        $sth->bind_param( $paramidx, $entry{ $col } );
+    }
+
+    # finished with last entry
+    unless( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'add' distro statement\n" .
+            $sth->err;
+        return 1;
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+=item add hardware <options and args>
+
+Where <options and args> are
+
+    --name id            required unique id, suggest make-model
+    --bootArgs string    quoted line of kernel boot arguments
+    --diskroot disk      disk device to install [default '/dev/sda']
+    --partroot part      root partition [default <diskroot>]
+    --description note  describe this hardware entry
+
+The following templates are filename only and are expected to be
+located in the directories ~baracus/templates/<os>/<arch>,
+and ~baracus/templates/<os>/<arch>/pxetemplates, where <os> and <arch>
+relate to the distro being used when creating the host entry.
+
+    --pxeTemplate boot   bootp grub-like template [default pxetemplate-auto]
+    --yastTemplate file  autoinstall template to use [default template.xml]
+
+    --hwdriver          additional pkgs to install for specific hardware
+    --oscert            colon seperated list of distros which support this hw
+
+=cut
+
+sub add_hardware  # TODO - add oscert support
+{
+    my %entry = (
+                 'hardwareid'   => "",
+                 'bootargs'     => "",
+                 'rootdisk'     => "/dev/sda",
+                 'rootpart'     => "",
+                 'pxetemplate'  => "pxetemplate-auto",
+                 'yasttemplate' => "template.xml",
+                 'description'  => "",
+                 'hwdriver'     => "",
+                 'oscert'       => "",
+                 );
+
+    @ARGV = @_;
+    GetOptions(
+               'name=s'         => \$entry{'hardwareid'},
+               'bootargs=s'     => \$entry{'bootargs'},
+               'diskroot=s'     => \$entry{'rootdisk'},
+               'partroot=s'     => \$entry{'rootpart'},
+               'pxetemplate=s'  => \$entry{'pxetemplate'},
+               'yasttemplate=s' => \$entry{'yasttemplate'},
+               'description=s'  => \$entry{'description'},
+               'hwdriver=s'     => \$entry{'hwdriver'},
+               'oscert=s'       => \$entry{'oscert'},
+               );
+
+    &help() if ( scalar @ARGV );
+
+    &help() unless ( $entry{'hardwareid'} );
+
+    $entry{'rootpart'} = $entry{'rootdisk'} unless ( $entry{'rootpart'} );
+
+    my $sql_cols = lc get_cols( 'hardware' );
+    $sql_cols =~ s/[ \t]*//g;
+    my @cols = split( /,/, $sql_cols );
+    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+    my $sql = qq|INSERT INTO $tbl{ 'hardware' }
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+
+    print $sql . "\n" if $debug;
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'add' hardware statement\n" .
+            $dbh->errstr;
+        return 1;
+    }
+
+    $paramidx = 0;
+    foreach $col (@cols) {
+        $paramidx += 1;
+        $sth->bind_param( $paramidx, $entry{ $col } );
+    }
+
+    # finished with last entry
+    unless( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'add' hardware statement\n" .
+            $sth->err;
+        return 1;
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+=item add module <options and args>
+
+Where <options and args> are
+
+    --name id            required unique id, suggest script name
+    --file <path/script> script to use for this module
+    --enabled            wolrd of hurt with this *and* version... TODO
+    --description note   quoted note describing this script
+
+=cut
+
+sub add_module
+{
+    my $file = "";
+    my %entry = (
+                 'moduleid'    => "",
+                 'description' => "",
+                 'data'        => "",
+                 'status'      => "",
+                 'version'     => 1,
+                 );
+
+    @ARGV = @_;
+    GetOptions(
+               'name=s'         => \$entry{'moduleid'},
+               'description=s'  => \$entry{'description'},
+               'file=s'         => \$file,
+               'enabled!'       => \$entry{'status'},
+               );
+
+    &help() if ( scalar @ARGV );
+
+    &help() unless ( $entry{'moduleid'} );
+
+    if ( $entry{'status'} ) {
+        $entry{'status'} = 't';
+    } else {
+        $entry{'status'} = 'f';
+    }
+
+    unless ( -f $file ) {
+        $LASTERROR = "need the --file <script> to add\n";
+        return 1;
+    }
+
+    open (FILE, "<$file") || die "unable to open $file: $!\n";
+    undef $/;
+    $entry{'data'}=<FILE>;  # slurp mode
+    $/ = "\n";
+    close FILE;
+
+    my $sql_cols = lc get_cols( 'module' );
+    $sql_cols =~ s/[ \t]*//g;
+    my @cols = split( /,/, $sql_cols );
+    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+    my $sql = qq|INSERT INTO $tbl{ 'module' }
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+
+    print $sql . "\n" if $debug;
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'add' module statement\n" .
+            $dbh->errstr;
+        return 1;
+    }
+
+    $paramidx = 0;
+    foreach $col (@cols) {
+        $paramidx += 1;
+        $sth->bind_param( $paramidx, $entry{ $col } );
+    }
+
+    # finished with last entry
+    unless( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'add' module statement\n" .
+            $sth->err;
+        return 1;
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+=item detail E<lt>typeE<gt> E<lt>nameE<gt>
+
+    Takes type and name as argument.
+    Fetch and display the details about the entry in the type database.
+
+=cut
+
+sub detail
+{
+    my $type = shift;
+    my $name = shift;
+    my $sql_cols;
+    my $href;
+
+    if ( scalar @_ ) {
+        &help();
+    }
+
+    &check_type( $type );
+    $type = lc $type;
+
+    unless ( defined $name) {
+        &help();
+    }
+    $name =~ s|.*/||;           # only the short name for the lookup
+
+    $sql_cols = get_cols( $type );
+    $sql = qq| SELECT $sql_cols FROM $tbl{ $type } |;
+
+    if ( $type eq "distro" ) {
+        $sql .= "WHERE distroid = ?";
+    } elsif ( $type eq "hardware" ) {
+        $sql .= "WHERE hardwareid = ?";
+
+        $sql_cols = get_cols( 'oscert' );
+        $sql_cert = qq|SELECT $sql_cols
+                       FROM $tbl{ 'oscert' }
+                       WHERE hardwareid = '| . $name . qq|'|;
+
+    } elsif ( $type eq "module" ) {
+        $sql .= "WHERE moduleid = ?";
+    }
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'detail' statement\n" . $dbh->errstr;
+        return 1;
+    }
+
+    unless( $sth->execute( $name ) ) {
+        $LASTERROR = "Unable to execute 'detail' statement\n" . $sth->err;
+        return 1;
+    }
+
+    my $rowcount = 0;
+
+    while( $href = $sth->fetchrow_hashref( ) ) {
+        $rowcount += 1;
+        if ( $type eq "module" ) {
+            if ( $href->{'status'} ) {
+                print  $href->{'data'};
+                printf "#\n# module: %s\n",   $href->{'moduleid'};
+                printf "# description: %s\n", $href->{'description'};
+                printf "# version: %s\n",     $href->{'version'};
+            }
+        }
+        if ( $type eq "distro" ) {
+            printf "[%s]\n",           $href->{'distroid'};
+            printf "os=%s\n",          $href->{'os'};
+            printf "sp=%s\n",          $href->{'sp'};
+            printf "description=%s\n", $href->{'description'};
+            printf "arch=%s\n",        $href->{'arch'};
+            printf "pxeKernel=%s\n",   $href->{'pxekernel'};
+            printf "pxeInitrd=%s\n",   $href->{'pxeinitrd'};
+            printf "addon=%s\n",       $href->{'addon'};
+            printf "baseos=%s\n",      $href->{'baseos'}
+                if ( $href->{'baseos'} );
+        }
+        if ( $type eq "hardware" ) {
+            printf "[%s]\n",            $href->{'hardwareid'};
+            printf "description=%s\n",  $href->{'description'};
+            printf "bootArgs=%s\n",     $href->{'bootargs'};
+            printf "rootDisk=%s\n",     $href->{'rootdisk'};
+            printf "rootPart=%s\n",     $href->{'rootpart'};
+            printf "pxeTemplate=%s\n",  $href->{'pxetemplate'};
+            printf "yastTemplate=%s\n", $href->{'yasttemplate'};
+            printf "hwdriver=%s\n",     $href->{'hwdriver'};
+
+            my $oscert = "";
+            my $certs = $dbh->selectall_arrayref( $sql_cert, { slice => {} } );
+            if ( defined $certs ) {
+                foreach $cert ( @$certs ) {
+                    $oscert .= ":" if ( $oscert ne "" );
+                    $oscert .= $cert->{'oscert'};
+                }
+            }
+            printf "oscert=%s\n", $oscert if ( defined $oscert );
+        }
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    if ( $rowcount == 0 ) {
+        $LASTERROR = "$type $name not found in db\n";
+        return 1;
+    }
+
+    return 0;
+}
+
+=item remove E<lt>typeE<gt> E<lt>nameE<gt>
+
+    Takes type and name as argument.
+    Removes the name specified from the database of type specified.
+
+=cut
+
+sub remove
+{
+    my $type = shift;
+    my $name = shift;
+    my $sql;
+    my $sth;
+
+    if ( scalar @_ ) {
+        &help();
+    }
+
+    &check_type( $type );
+    $type = lc $type;
+
+    unless ( defined $name) {
+        &help();
+    }
+    $name =~ s|.*/||;           # only the short name for the lookup
+
+    if ( $type eq "distro" ) {
+        $sql = qq|DELETE FROM $tbl{ $type } WHERE distroid = ?|;
+    } elsif ( $type eq "hardware" ) {
+        $sql = qq|DELETE FROM $tbl{ $type } WHERE hardwareid = ?|;
+    } elsif ( $type eq "module" ) {
+        $sql = qq|DELETE FROM $tbl{ $type } WHERE moduleid = ?|;
+    }
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'remove' statement\n" . $dbh->errstr;
+        return 1;
+    }
+
+    unless ( $sth->execute( $name ) ) {
+        $LASTERROR = "Unable to execute 'remove' statement\n" . $sth->err;
+        return 1;
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+###########################################################################
+
+sub check_type
+{
+    my $type = shift;
+    unless ( defined $type ) {
+        print "requires <type> argument (e.g. distro, hardware, module)\n";
+        exit 1;
+    }
+    $type = lc $type;
+    unless ( defined $tbl{ $type } ) {
+        print "invalid <type> please use:  distro, hardware, or module\n";
+        exit 1;
+    }
+}
+
+sub list_start
+{
+    my $type  = shift;
+    my $name  = shift;
+
+    my $sql;
+    my $sth;
+
+    if ( $type eq "distro" ) {
+        $sql = qq|SELECT distroid as name, description
+                  FROM $tbl{ $type }
+                  WHERE distroid LIKE ?
+                 |;
+    } elsif ( $type eq "hardware" ) {
+        $sql = qq|SELECT hardwareid as name, description
+                  FROM $tbl{ $type }
+                  WHERE hardwareid LIKE ?
+                 |;
+    } elsif ( $type eq "module" ) {
+        $sql = qq|SELECT moduleid as name, description
+                  FROM $tbl{ $type }
+                  WHERE moduleid LIKE ?
+                 |;
+    }
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'list' query" . $dbh->errstr;
+        return undef;
+    }
+
+    if (defined $name) {
+        $name =~ s|.*/||;       # only the short name for the lookup
+        $name = "%" . $name . "%";
+    } else {
+        $name = "%";
+    }
+
+    unless( $sth->execute( $name ) ) {
+        $LASTERROR = "Unable to execute 'list' query" . $sth->err;
+        return undef;
+    }
+
+    return $sth;
+}
+
+sub list_next
+{
+    my $sth = shift;
+
+    return $sth->fetchrow_hashref();
+}
+
+sub list_finish
+{
+    my $sth = shift;
+    $sth->finish;
+    undef $sth;
+}
+
+sub get_cols
+{
+    my $tbl = shift;
+    my $hashoftbls = BaracusSql::get_baracus_tables();
+    return BaracusSql::keys2columns( $hashoftbls->{ $tbl{ $tbl } } );
+}
+
+die "ABSOLUTELY DOES NOT EXECUTE";
+
+__END__
+
+#sub add_distro
+#{
+#    my ( $file, $name, $desc ) = @_;
+#
+#    my $sql_cols = get_cols( 'distro' );
+#    $sql_cols =~ s/[ \t]*//g;
+#    my @cols = split( /,/, $sql_cols );
+#    my $sql_vals = "?," x scalar @cols;
+#    chop $sql_vals;
+#
+#    print $sql_cols . "\n";
+#    print $sql_vals . "\n";
+#
+#    my %entry = ();
+#    my ( $key, $val, $col );
+#
+#    my $sql = qq|INSERT INTO $tbl{ 'distro' }
+#                ( $sql_cols )
+#                VALUES ( $sql_vals )
+#                |;
+#
+#    print $sql . "\n";
+#
+#    unless ( $sth = $dbh->prepare( $sql ) ) {
+#        $LASTERROR = "Unable to prepare 'add' distro statement\n" . $dbh->errstr;
+#        return 1;
+#    }
+#
+#    my $distroidx = 0;
+#    my $paramidx = 0;
+#    foreach $col (@cols) {
+#        $paramidx += 1;
+#        $entry{ $col } = "";
+#        $sth->bind_param( $paramidx, $entry{ $col } );
+#        $distroidx = $paramidx if ( $col eq 'distroid' );
+#    }
+#
+#    open (FILE, "<$file") || die "unable to open $file: $!\n";
+#    while (<FILE>) {
+#        s/#.*//; # strip EOL comments
+#        if ( m/^\s*\[(.*)\]/ ) {
+#            if ( $entry{ 'distroid' } ) {
+#                # finished with the previous entry
+#                print "storing  $entry{ 'distroid' } \n";
+#                unless( $sth->execute( ) ) {
+#                    $LASTERROR = "Unable to execute 'add' distro statement\n" .
+#                        $sth->err;
+#                    return 1;
+#                }
+#                $paramidx = 0;
+#                foreach $col (@cols) {
+#                    $paramidx += 1;
+#                    $entry{ $col } = "";
+#                    $sth->bind_param( $paramidx, $entry{ $col } );
+#                }
+#            }
+#            $entry{ 'distroid' } = $1;
+#            $sth->bind_param( $distroidx, $1 );
+#        }
+#        $paramidx = 0;
+#        foreach $col (@cols) {
+#            $paramidx += 1;
+#            if (m/^\s*${col}\s*=\s*(.*)\s*$/i) {
+#                $entry{ $col } = $1;
+#                $sth->bind_param( $paramidx, $entry{ $col } );
+#                print "$col = $1\n";
+#            }
+#        }
+#    }
+#    # finished with last entry
+#    unless( $sth->execute( ) ) {
+#        $LASTERROR = "Unable to execute 'add' distro statement\n" .
+#            $sth->err;
+#        return 1;
+#    }
+#
+#    close FILE;
+#}

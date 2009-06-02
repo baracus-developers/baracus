@@ -98,6 +98,7 @@ sub main {
         $status = BaracusDB::exists_table( $dbh, $tbl );
         die BaracusDB::errstr unless( defined $status );
         unless( $status ) {
+            print STDOUT "user $role creating $tbl in db $db_sqltftp\n";
             die BaracusDB::errstr
                 unless( BaracusDB::create_table( $dbh, $tbl,
                 BaracusSql::hash2columns( $col )));
@@ -117,6 +118,7 @@ sub main {
         $status = BaracusDB::exists_table( $dbh, $tbl );
         die BaracusDB::errstr unless( defined $status );
         unless( $status ) {
+            print STDOUT "user $role creating $tbl in db $db_baracus\n";
             die BaracusDB::errstr
                 unless( BaracusDB::create_table( $dbh, $tbl,
                 BaracusSql::hash2columns( $col )));

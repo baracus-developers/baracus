@@ -3,7 +3,6 @@
 use strict;
 use POSIX qw/strftime/;
 use Term::ReadKey;
-use Tie::IxHash;
 use Config::General;
 use Config::Simple;
 use File::Temp qw/ tempdir /;
@@ -15,6 +14,7 @@ use lib "/usr/share/baracus/perl";
 
 use SqlFS;
 use BaracusDB;
+use BaracusSql;
 
 my $command;
 my $subcommand;
@@ -308,8 +308,8 @@ sub add_host_entry() {
         &get_usage_add;
     }
 
-    my $autoYastTemplate = join "/", $templatedir, $Hash{'os'}, $Hash{'arch'}, $Hash{'yastTemplate'};
-    my $pxeTemplate      = join "/", $templatedir, $Hash{'os'}, $Hash{'arch'}, "pxetemplates", $Hash{'pxeTemplate'};
+    my $autoYastTemplate = join "/", $templatedir, $Hash{'os'}, $Hash{'arch'}, $Hash{'yasttemplate'};
+    my $pxeTemplate      = join "/", $templatedir, $Hash{'os'}, $Hash{'arch'}, "pxetemplates", $Hash{'pxetemplate'};
 
     if ($debug) {
         print "autoYastTemplate = $autoYastTemplate\n";
@@ -727,11 +727,20 @@ if (($profile) && (-f "$confdir/profiles/$profile")) {
     exit(1);
 }
 
-
 $profileHash{'uuid'} = &get_uuid;
 if ($hostname) {
     $profileHash{'hostname'} = $hostname;
 }
+
+$dbname = "baracus";
+my $dbrole = $dbname;
+
+my $uid = BaracusDB::su_user( $dbrole );
+die BaracusDB::errstr unless ( defined $uid );
+
+$dbh = BaracusDB::connect_db( $dbname, $dbrole );
+die BaracusDB::errstr unless( $dbh );
+
 if ($command eq "add") {
     ## Commandline options
     ## Mandatory: hostname ip mac
@@ -776,28 +785,46 @@ if ($command eq "add") {
         }
     }
 
-    ## Get Vars from hardware.conf and os.conf
-    ##
-    my $osConfig = new Config::Simple("$confdir/os.config");
-    my $hardwareConfig = new Config::Simple("$confdir/hardware.config");
-    my $moduleConfig = new Config::Simple("$confdir/module.config");
+    my $hashoftbls = BaracusSql::get_baracus_tables();
 
     die "Need --distro via commandline or profile.\n"
         unless ($profileHash{'os'});
 
+    # incorporate the related distro entry information into profileHash
+    my $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ 'distro_cfg' } );
+    $sql_cols =~ s/[ \t]*//g;
+    print "\$sql_cols: " . $sql_cols . "\n";
+    my @cols = split(/,/, $sql_cols);
+    print "join of \@cols:" . (join( " ", @cols)) . "\n";
+    my $sql = qq|SELECT $sql_cols FROM distro_cfg
+                 WHERE distroid = '| . $profileHash{'os'} . qq|'|;;
+    my $sel = $dbh->selectrow_hashref( $sql );
+    die "Unable to find distroid entry for $profileHash{'os'}\n"
+        unless ( defined $sel );
+    print $sel . "\n" if $debug;
+    while ( my ($key, $value) = each( %$sel ) ) {
+        if (defined $value) {
+            print "distro: $key => $value\n" if $debug;
+            $profileHash{$key} = $value;
+        } else {
+            print "distro: $key => ''\n" if $debug;
+            $profileHash{$key} = "";
+        }
+    }
+
     die "Need --hwtype via commandline or profile.\n"
         unless ($profileHash{'hardware'});
 
-    my $osRef = $osConfig->param(-block=>"$profileHash{'os'}");
-    my $hardwareRef = $hardwareConfig->param(-block=>"$profileHash{'hardware'}");
-    my %moduleHash = $moduleConfig->vars() if ( defined $moduleConfig );
-
-    my %osHash = %$osRef;
-    my %hardwareHash = %$hardwareRef;
-    while ( my ($key, $value) = each(%osHash) ) {
-        $profileHash{$key} = $value;
-    }
-    while ( my ($key, $value) = each(%hardwareHash) ) {
+    # incorporate the related hardware entry information into profileHash
+    $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ 'hardware_cfg' } );
+    $sql = qq|SELECT $sql_cols FROM hardware_cfg
+                 WHERE hardwareid = '| . $profileHash{'hardware'} . qq|'|;
+    $sel = $dbh->selectrow_hashref( $sql );
+    die "Unable to find hardwareid entry for $profileHash{'hardware'}\n"
+        unless ( defined $sel );
+    print $sel . "\n" if $debug;
+    while ( my ($key, $value) = each( %$sel ) ) {
+        print "hware: $key => $value\n" if $debug;
         $profileHash{$key} = $value;
     }
 
@@ -817,15 +844,6 @@ if ($subcommand) {
 } else {
     $profileHash{'subcommand'} = "";
 }
-
-$dbname = "baracus";
-my $dbrole = $dbname;
-
-my $uid = BaracusDB::su_user( $dbrole );
-die BaracusDB::errstr unless ( defined $uid );
-
-$dbh = BaracusDB::connect_db( $dbname, $dbrole );
-die BaracusDB::errstr unless( $dbh );
 
 if ($debug) {
     print "profileHash:\n";

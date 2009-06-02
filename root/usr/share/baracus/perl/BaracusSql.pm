@@ -5,6 +5,33 @@ use Carp;
 use strict;
 use warnings;
 
+use Tie::IxHash;
+
+=item baState
+
+here we define some state constants and a hash to make easy use of them
+
+=cut
+
+use constant BA_ADDED   => 1;
+use constant BA_BUILT   => 2;
+use constant BA_SPOOFED => 3;
+use constant BA_DELETED => 4;
+use constant BA_UPDATED => 5;
+
+my %baState = (
+	1         => 'added',
+	2         => 'built',
+	3         => 'spoofed',
+	4         => 'deleted',
+	5         => 'updated',
+	'added'   => BA_ADDED,
+	'built'   => BA_BUILT,
+	'spoofed' => BA_SPOOFED,
+	'deleted' => BA_DELETED,
+	'updated' => BA_UPDATED,
+);
+
 
 =item keys2columns
 
@@ -18,6 +45,7 @@ sub keys2columns
     my $hash = shift;
     my $str = '';
     foreach my $key ( keys %{ $hash } ) {
+        next if ( $key =~ m|constraint|i );
         $str .= ',' if $str;
         $str .= " $key";
     }
@@ -58,14 +86,14 @@ sub get_sqltftp_tables
                              'change'      => 'TIMESTAMP',
                              );
 
-    my $tbl_source_reg = "sqlfstable";
+    my $tbl_source_reg = "sqlfstable_reg";
     my %tbl_source_reg_columns = (
                                   'distro'   => 'VARCHAR(16)',
                                   'buildip'  => 'VARCHAR(15)',
-                                  'basepath' => 'VARCHAR(64)'
+                                  'basepath' => 'VARCHAR(64)',
                                   'type'     => 'VARCHAR(8)',
                                   'status'   => 'INTEGER',
-                                  };
+                                  );
 
     my %sqltftp_tbls = (
                         $tbl_sqlfs      => \%tbl_sqlfs_columns,
@@ -107,41 +135,41 @@ sub get_baracus_tables
                                        'change'   => 'TIMESTAMP',
                                        );
 
-    my $tbl_hardwareid = "hardwareid";
-    my %tbl_hardwareid_comlumns = (
-                                   'hardwareid'   => 'VARCHAR(32)',
-                                   'oscert'       => 'VARCHAR(32)',
-                                   'CONSTRAINT'   => 'hardwareid_pk PRIMARY KEY (hardwareid, oscert)',
-                                  );
-
     my $tbl_hardware_cfg = "hardware_cfg";
     my %tbl_hardware_cfg_comlumns = (
-                                     'hardwareid'   => 'VARCHAR(32) references hardwareid(id)',
+                                     'hardwareid'   => 'VARCHAR(32) PRIMARY KEY',
                                      'description'  => 'VARCHAR(64)',
                                      'bootArgs'     => 'VARCHAR(64)',
                                      'rootDisk'     => 'VARCHAR(32)',
                                      'rootPart'     => 'VARCHAR(32)',
-                                     'pxeTemplate'  => 'VARCHAR(32)', 
+                                     'pxeTemplate'  => 'VARCHAR(32)',
                                      'yastTemplate' => 'VARCHAR(32)',
                                      'hwdriver'     => 'VARCHAR(32)',
                                      );
 
+    my $tbl_hardwareid = "hardwareid";
+    my %tbl_hardwareid_columns = (
+                                  'hardwareid'   => 'VARCHAR(32) REFERENCES hardware_cfg',
+                                  'oscert'       => 'VARCHAR(32)',
+                                  'CONSTRAINT'   => 'hardwareid_pk PRIMARY KEY (hardwareid, oscert)',
+                                  );
+
     my $tbl_distro_cfg = "distro_cfg";
     my %tbl_distro_cfg_comlumns = (
-                                   'distroid'    => 'VARCHAR(16)',
+                                   'distroid'    => 'VARCHAR(16) PRIMARY KEY',
                                    'os'          => 'VARCHAR(16)',
                                    'sp'          => 'VARCHAR(4)',
                                    'description' => 'VARCHAR(64)',
                                    'arch'        => 'VARCHAR(8)',
                                    'pxeKernel'   => 'VARCHAR(32)',
                                    'pxeInitrd'   => 'VARCHAR(32)',
-                                   'addon'       => 'INTEGER',
+                                   'addon'       => 'BOOLEAN',
                                    'baseos'      => 'VARCHAR(16)',
                                    );
 
     my $tbl_module_cfg = "module_cfg";
     my %tbl_module_cfg_comlumns = (
-                                   'moduleid'    => 'VARCHAR(32)',
+                                   'moduleid'    => 'VARCHAR(32) NOT NULL',
                                    'version'     => 'INTEGER',
                                    'description' => 'VARCHAR(64)',
                                    'data'        => 'VARCHAR',
@@ -149,14 +177,14 @@ sub get_baracus_tables
                                    'CONSTRAINT'  => 'module_cfg_pk PRIMARY KEY (moduleid, version)',
                                   );
 
-    my %baracus_tbls = (
-                        $tbl_templateid     => \%tbl_templateid_columns,
-                        $tbl_templateidhist => \%tbl_templateidhist_comlumns,
-                        $tbl_hardwareid     => \%tbl_hardwareid_columns,
-                        $tbl_hardware_cfg   => \%tbl_hardware_cfg_comlumns,
-                        $tbl_distro_cfg     => \%tbl_distro_cfg_comlumns,
-                        $tbl_module_cfg     => \%tbl_module_cfg_comlumns,
-                        );
+    tie( my %baracus_tbls, 'Tie::IxHash',
+         $tbl_templateid     => \%tbl_templateid_columns,
+         $tbl_templateidhist => \%tbl_templateidhist_comlumns,
+         $tbl_hardware_cfg   => \%tbl_hardware_cfg_comlumns,
+         $tbl_hardwareid     => \%tbl_hardwareid_columns,
+         $tbl_distro_cfg     => \%tbl_distro_cfg_comlumns,
+         $tbl_module_cfg     => \%tbl_module_cfg_comlumns,
+        );
     return \%baracus_tbls;
 }
 
@@ -272,15 +300,15 @@ RETURNS TRIGGER AS $module_increment_trigger$
     INSERT INTO module_cfg ( moduleid,
                              version,
                              description,
-                             data.
-                             status,
+                             data,
+                             status
                            )
     VALUES ( NEW.moduleid,
              (NEW.version+1),
              NEW.description,
              NEW.data,
-             NEW.status,
-           )
+             NEW.status
+           );
     RETURN NEW;
     END;
 $module_increment_trigger$  LANGUAGE 'plpgsql';
