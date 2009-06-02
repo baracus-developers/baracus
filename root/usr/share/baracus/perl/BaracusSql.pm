@@ -88,11 +88,13 @@ sub get_sqltftp_tables
 
     my $tbl_source_reg = "sqlfstable_reg";
     my %tbl_source_reg_columns = (
-                                  'distro'   => 'VARCHAR(16)',
-                                  'buildip'  => 'VARCHAR(15)',
-                                  'basepath' => 'VARCHAR(64)',
-                                  'type'     => 'VARCHAR(8)',
-                                  'status'   => 'INTEGER',
+                                  'distro'      => 'VARCHAR(16)',
+                                  'buildip'     => 'VARCHAR(15)',
+                                  'basepath'    => 'VARCHAR(128)',
+                                  'type'        => 'VARCHAR(8)',
+                                  'status'      => 'INTEGER',
+                                  'create_date' => 'TIMESTAMP',
+                                  'modify_date' => 'TIMESTAMP',
                                   );
 
     my %sqltftp_tbls = (

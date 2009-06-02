@@ -13,6 +13,7 @@ use File::Find;
 use lib "/usr/share/baracus/perl";
 
 use SqlFS;
+use BaracusDB;
 
 my $command;
 my $arg="";
@@ -39,6 +40,7 @@ my $config={};
 my $baracusdir;
 my $start_services;
 my $stop_services;
+my $dbh;
 our %bdir = ();
 
 sub get_usage() {
@@ -221,49 +223,99 @@ sub get_build_info() {
     &add_build($os, $troot, $type, $ip, $iso);
 }
 
+sub add_db_source_entry() {
+    my @args = @_;
+    if ($verbose) { print "Registering source: $args[0], $args[4], $args[1], $args[3] \n"; }
+    my $dbname = "sqltftp";
+    my $dbrole = "baracus";
+    my $uid = BaracusDB::su_user( $dbrole );
+        die BaracusDB::errstr unless ( defined $uid );
+    $dbh = BaracusDB::connect_db( $dbname, $dbrole );
+        die BaracusDB::errstr unless( $dbh );
+    my $sql = q|INSERT INTO sqlfstable_reg ( distro,
+                                             buildip,
+                                             basepath,
+                                             type,
+                                             status,
+                                             create_date,
+                                             modify_date
+                                           )
+                VALUES (?, ?, ?, ?, 1,  CURRENT_TIMESTAMP(2), null )|;
+
+    my $sth = $dbh->prepare( $sql )
+        or die "Cannot prepare sth: ",$dbh->errstr;
+
+     $sth->bind_param( 1, $args[0] );
+     $sth->bind_param( 2, $args[4] );
+     $sth->bind_param( 3, $args[1] );
+     $sth->bind_param( 4, $args[3] );
+
+    $sth->execute()
+        or die "Cannot execute sth: ", $sth->errstr;
+
+    die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+
+}
+
+sub get_db_source_entry() {
+
+    my $os = shift @_;
+    $os =~ s/\*/\%/g;
+
+    my $dbname = "sqltftp";
+    my $dbrole = "baracus";
+    my $uid = BaracusDB::su_user( $dbrole );
+        die BaracusDB::errstr unless ( defined $uid );
+
+    $dbh = BaracusDB::connect_db( $dbname, $dbrole );
+        die BaracusDB::errstr unless( $dbh );
+
+    my $sql = q|SELECT distro,
+                       buildip,
+                       basepath,
+                       type,
+                       status,
+                       create_date,
+                       modify_date
+                FROM sqlfstable_reg
+                WHERE distro LIKE ?|;
+
+    my $sth = $dbh->prepare( $sql )
+        or die "Cannot prepare sth: ",$dbh->errstr;
+
+    $sth->execute($os)
+        or die "Cannot execute sth: ",$sth->errstr;
+
+    my $fetchall = $sth->fetchall_arrayref();
+
+    die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+
+    return $fetchall;
+
+}
+
 sub verify_build() {
 
-    my ($os,$troot,$type) = @_;
-    my $status="disabled";
-    my $service="";
+    my $os = shift @_;
+    my $dbref = &get_db_source_entry($os);
+    foreach(@$dbref) {
+        if (! defined $_->[6]) { $_->[6] = "na" }
+        my $distro = (split /-/, $_->[0])[0];
 
-    my $useos = $os;
-    unless ( -d "$troot/$config->{distribution}->{$os}->{basepath}" ) {
-        print "Build tree does not appear to exist \n";
-        exit(1);
-    }
-    my $baseos = $config->{distribution}->{$os}->{requires};
-    if ($baseos) {
-        $useos = $baseos;
-        foreach my $isofile (keys %{$config->{distribution}->{$baseos}->{file}}) {
-            unless( -d "$troot/$config->{distribution}->{$baseos}->{file}->{$isofile}->{path}" ) {
-                print "Cannot verify required $baseos installation at $troot\n";
-                exit(1);
-            }
+        unless ( -d "$_->[2]\/$distro" ) {
+            print "Build tree does not appear to exist\n";
+            print "$_->[2]\/$_->[0] \n";
+           exit(1);
         }
-    }
-    if ($type eq "nfs") {
-        open(FILE, "</etc/exports");
-        while (<FILE>) {
-            if (m|$troot\/$config->{distribution}->{$useos}->{basepath}|) {
-                $status = "enabled";
-            }
-        }
-        close(FILE);
-    }
-    if ($type eq "http") {
-        if ( -f "/etc/apache2/conf.d/$useos\_server.conf") {
-            $status = "enabled";
-        }
-    }
-
-    ## Find build path
-    ##
-    print "Target:\t\t$os \n";
-    print "Path:\t\t$troot\/$config->{distribution}->{$os}->{basepath} \n";
-    print "Service:\t$type \n";
-    print "Status:\t\t$status\n";
-}
+        print "Target:\t\t$_->[0] \n";
+        print "Path:\t\t$_->[2]\/$distro\n";
+        print "Service:\t$_->[3] \n";
+        print "Status:\t\t$_->[4]\n";
+        print "Created:\t$_->[5]\n";
+        print "Modified:\t$_->[6]\n";
+        print "\n";
+     }
+ }
 
 sub addon_product() {
 
@@ -281,6 +333,85 @@ sub addon_product() {
             $baseprod = "$troot/$config->{distribution}->{$baseos}->{file}->{$isofile}->{path}";
         }
     }
+}
+
+sub source_register() {
+
+    my ($command, @args) = @_;
+
+    my $dbname = "sqltftp";
+    my $dbrole = "baracus";
+    my $uid = BaracusDB::su_user( $dbrole );
+        die BaracusDB::errstr unless ( defined $uid );
+
+    $dbh = BaracusDB::connect_db( $dbname, $dbrole );
+        die BaracusDB::errstr unless( $dbh );
+
+    if ($command eq "add") {
+
+        my $dbref = &get_db_source_entry( $args[0] );
+        foreach (@$dbref) {
+            if ( $_->[0] eq $args[0] ) {
+                print "\ndistro already registered - exiting \n";
+                exit(1);
+            }
+        }
+
+        &add_db_source_entry(@args);
+    }
+
+    elsif ($command eq "remove") {
+
+        my $sql = q|DELETE FROM sqlfstable_reg
+                    WHERE distro=?|;
+
+        my $sth = $dbh->prepare( $sql )
+            or die "Cannot prepare sth: ",$dbh->errstr;
+
+        $sth->execute( $args[0] )
+            or die "Cannot execute sth: ", $sth->errstr;
+
+    }
+
+    elsif ($command eq "disable") {
+
+        if ($verbose)  { print "Updating registration: $args[0] -> disabled \n"; }
+        my $sql = q|UPDATE sqlfstable_reg
+                    SET modify_date=CURRENT_TIMESTAMP(2),
+                        status=2
+                    WHERE distro=?|;
+
+        my $sth = $dbh->prepare( $sql )
+            or die "Cannot prepare sth: ",$dbh->errstr;
+
+        $sth->execute( $args[0] )
+            or die "Cannot execute sth: ", $sth->errstr;
+
+    }
+
+    elsif ($command eq "enable") {
+
+        if ($verbose)  { print "Updating registration: $args[0] -> enabled \n"; }
+        my $sql = q|UPDATE sqlfstable_reg
+                    SET modify_date=CURRENT_TIMESTAMP(2),
+                        status=1
+                    WHERE distro=?|;
+
+        my $sth = $dbh->prepare( $sql )
+            or die "Cannot prepare sth: ",$dbh->errstr;
+
+        $sth->execute( $args[0] )
+            or die "Cannot execute sth: ", $sth->errstr;
+
+    }
+
+    else {
+        print "Incorrect subcommand\n";
+        exit(1);
+    }
+
+    die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+
 }
 
 sub add_build() {
@@ -1080,7 +1211,7 @@ if ( "$command" ne "menu" ) {
         print "  service --start http --stop nfs\n\n";
         exit(1);
     }
-    elsif ( "$command" ne "service" &&
+    elsif ( (("$command" ne "service") && ("$command" ne "verify") )  &&
             (! defined $config->{distribution}->{$os} )) {
         print "\nPlease provide the \"--distro <arg>\":\n";
         print "------------------------------------\n";
@@ -1097,7 +1228,7 @@ my %arguments = (
                  'disable' => [$os,$troot,$type,$datadir],
                  'enable'  => [$os,$troot,$type,$datadir],
                  'list'    => [$os],
-                 'verify'  => [$os,$troot,$type],
+                 'verify'  => [$os],
                  'menu'    => [],
                  'service' => [$start_services,$stop_services],
                  );
@@ -1106,6 +1237,13 @@ if (defined $action{$command}) {
     print "\$action{ $command }( @{$arguments{$command}} )\n"
         if $verbose;
     $action{$command}(@{$arguments{$command}});
+    if ( ($command eq "add")     ||
+         ($command eq "remove")  ||
+         ($command eq "enable")  ||
+         ($command eq "disable")
+        ) {
+        &source_register($command,@{$arguments{$command}});
+    }
 } else {
     print "not a valid option\n";
     exit(1);
