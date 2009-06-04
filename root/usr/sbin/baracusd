@@ -127,23 +127,23 @@ unless ( $sqlfsOBJ->find( $pxefile ) )
 while (1) {
     # wait for any request (RRQ or WRQ)
     if (my $request = $listener->waitRQ()) {
-        # received request
-        printf "Received a %s from peer %s for file '%s'\n",
-            $OPCODES{$request->{'_REQUEST_'}{'OPCODE'}},
-                     $request->{'_REQUEST_'}{'PeerAddr'},
-                     $request->{'_REQUEST_'}{'FileName'};
+        # process request and be done if validateURL
+        unless ( $dovalidate && &validateURL( $request ) ) {
 
-        if ( $dovalidate && &validateURL( $request ) ) {
-            print STDOUT "Finished processing build validation URL\n";
-        }
-        # process the request
-        elsif ($request->processRQ()) {
-            printf STDOUT "Successful delivery to peer %s of file '%s'\n",
-                $request->{'_REQUEST_'}{'PeerAddr'},
-                $request->{'_REQUEST_'}{'FileName'};
+            printf "Received a %s from peer %s for file '%s'\n",
+                $OPCODES{$request->{'_REQUEST_'}{'OPCODE'}},
+                    $request->{'_REQUEST_'}{'PeerAddr'},
+                        $request->{'_REQUEST_'}{'FileName'};
 
-        } else {
-            print STDOUT SqlTFTPd->error;
+            # process the request
+            if ($request->processRQ()) {
+                printf STDOUT "Successful delivery to peer %s of file '%s'\n",
+                    $request->{'_REQUEST_'}{'PeerAddr'},
+                        $request->{'_REQUEST_'}{'FileName'};
+
+            } else {
+                print STDOUT SqlTFTPd->error;
+            }
         }
     }
 }
@@ -158,9 +158,9 @@ sub validateURL
     if ( $name =~ m|.*/baracus/uuid/([-0-9a-zA-Z]{36})\?(\S+).*$| ) {
         my $uuid=$1;
         my $hostname=$2;
-        print STDOUT "VERIFYING hostname $hostname ip $ip uuid $uuid\n";
+#        print STDOUT "VERIFYING hostname $hostname ip $ip uuid $uuid\n";
         my $status = system("$validatefile $hostname $ip $uuid");
-        if ( $status != 0 ) {
+        if ( $status == 1 ) {
             print STDOUT "VERIFYING FAILED $hostname $ip $uuid\n";
             if (-x $failedfile) {
                 print STDOUT "INVOKING $failedfile\n";
@@ -168,7 +168,7 @@ sub validateURL
             } else {
                 print STDOUT "no executable failed script found: $failedfile\n";
             }
-        } else {
+        } elsif ( $status == 0 ) {
             print STDOUT "VERIFYING PASSED $hostname $ip $uuid\n";
             if ( -x $passedfile ) {
                 print STDOUT "INVOKING $passedfile\n";

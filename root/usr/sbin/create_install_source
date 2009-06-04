@@ -748,16 +748,18 @@ sub add_build_service
         if ( -f "/etc/exports" ) {
             open(FILE, "</etc/exports") || die ("Cannot open file\n");
             while (<FILE>) {
-                if (m|$troot\/$config->{distribution}->{$os}->{basepath}|) {
-                    print "NFS export already exists\n";
+                if (m|$troot/$config->{distribution}->{$os}->{basepath}|) {
                     $skip = 1;
                 }
             }
             close(FILE);
         }
-        unless($skip) {
+        if ( $skip ) {
+            print "NFS export already exists\n";
+        }
+        else {
             open(FILE, ">>/etc/exports") || die ("Cannot open file\n");
-            print FILE "$troot\/$config->{distribution}->{$os}->{basepath}\t*(ro,root_squash,insecure,sync,no_subtree_check)\n";
+            print FILE "$troot/$config->{distribution}->{$os}->{basepath}\t*(ro,root_squash,insecure,sync,no_subtree_check)\n";
             close(FILE);
             system("/usr/sbin/exportfs -r");
         }
@@ -818,23 +820,25 @@ sub remove_build_service
 
     if ($type eq "nfs") {
 
-        my $skip = 0;
+        my $found = 0;
         if ( -f "/etc/exports" ) {
             open(FILE, "</etc/exports") || die ("Cannot open file\n");
             while (<FILE>) {
-                unless (m|$troot\/$config->{distribution}->{$os}->{basepath}|) {
-                    print "NFS export already removed\n";
-                    $skip = 1;
+                if (m|$troot/$config->{distribution}->{$os}->{basepath}|) {
+                    $found = 1;
                 }
             }
             close(FILE);
         }
-        unless($skip) {
+        if ( not $found ) {
+            print "NFS export already removed\n";
+        }
+        else {
             copy("/etc/exports", "/etc/exports.bak");
             open(OUTFILE, ">/etc/exports") || die ("Cannot open file\n");
             open(INFILE, "</etc/exports.bak") || die ("Cannot open file\n");
             while (<INFILE>) {
-                unless (m|$troot\/$config->{distribution}->{$os}->{basepath}|) {
+                unless (m|$troot/$config->{distribution}->{$os}->{basepath}|) {
                     print OUTFILE $_;
                 }
             }

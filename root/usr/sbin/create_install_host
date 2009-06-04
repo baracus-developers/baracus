@@ -90,7 +90,7 @@ Usage:
 
     --distro <base-arch>    : OS to install on build client - made ready with
                               'create_install_source add --distro <base-arch>'
-    --hwtype <hwteplate>    : hardware template that describes the build client
+    --hardware <hwteplate>  : hardware template that describes the build client
 
     And further parameters include
 
@@ -230,10 +230,11 @@ sub get_db_host_entry() {
 sub get_db_list_entry() {
 
     my $sql = q|SELECT hostname,
-                           iphex,
-                           mac
-                    FROM templateid
-            WHERE state <> '4'|;
+                       iphex,
+                       mac
+                FROM templateid
+                WHERE state <> '4'
+                ORDER BY hostname|;
 
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare sth: ",$dbh->errstr;
@@ -655,7 +656,7 @@ GetOptions(
            'ip=s'       => \$ip,
            'mac=s'      => \$mac,
            'distro=s'   => \$os,
-           'hwtype=s'   => \$hardware,
+           'hardware=s' => \$hardware,
            'profile=s'  => \$profile,
            'module=s'   => \&multiarg_handler,
            'vars=s'     => \&multiarg_handler,
@@ -744,7 +745,7 @@ die BaracusDB::errstr unless( $dbh );
 if ($command eq "add") {
     ## Commandline options
     ## Mandatory: hostname ip mac
-    ## Optional: hwtype distro profile module
+    ## Optional: hardware distro profile module
     ##
     $profileHash{'cmdline'} = $cmdline;
     if ($type) {
@@ -812,7 +813,7 @@ if ($command eq "add") {
         }
     }
 
-    die "Need --hwtype via commandline or profile.\n"
+    die "Need --hardware via commandline or profile.\n"
         unless ($profileHash{'hardware'});
 
     # incorporate the related hardware entry information into profileHash

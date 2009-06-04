@@ -52,7 +52,7 @@ my $minutes = 8;
 my $delta = 60 * $minutes;
 if ( ( &less_than_delta( $dbref->{'change'}, $delta ) ) and
      ( $dbref->{'state'} == $state ) ) {
-    exit 1;
+    exit 2;
 }
 
 $dbref->{'state'} = $state;
