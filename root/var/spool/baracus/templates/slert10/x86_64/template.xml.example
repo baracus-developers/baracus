@@ -8,7 +8,7 @@
     <device_map config:type="list">
       <device_map_entry>
         <firmware>hd0</firmware>
-        <linux>/dev/hda</linux>
+        <linux>__ROOTDISK__</linux>
       </device_map_entry>
     </device_map>
     <global>
@@ -52,7 +52,7 @@
          <lines_cache_id>0</lines_cache_id>
          <name>SUSE Linux Enterprise Real Time 10 SP2</name>
          <original_name>SLERT</original_name>
-         <root>/dev/hda1</root>
+         <root>__ROOTPART__1</root>
          <type>image</type>
       </section>
       <section>
@@ -63,7 +63,7 @@
         <lines_cache_id>1</lines_cache_id>
         <name>SUSE Linux Enterprise Server 10 SP2</name>
         <original_name>linux</original_name>
-        <root>/dev/hda1</root>
+        <root>__ROOTPART__1</root>
         <type>image</type>
       </section>
       <section>
@@ -74,7 +74,7 @@
         <lines_cache_id>2</lines_cache_id>
         <name>Failsafe -- SUSE Linux Enterprise Server 10 SP2</name>
         <original_name>failsafe</original_name>
-        <root>/dev/hda1</root>
+        <root>__ROOTPART__1</root>
         <type>image</type>
       </section>
     </sections>
@@ -419,104 +419,85 @@ nameserver __DNS1__]]></file_contents>
     <tlsSettings/>
   </ldap-server>
   <networking>
-    <dhcp_options>
-      <dhclient_additional_options></dhclient_additional_options>
-      <dhclient_client_id></dhclient_client_id>
-      <dhclient_hostname_option>AUTO</dhclient_hostname_option>
-    </dhcp_options>
     <dns>
       <dhcp_hostname config:type="boolean">false</dhcp_hostname>
-      <dhcp_resolv config:type="boolean">true</dhcp_resolv>
-      <domain>site</domain>
+      <dhcp_resolv config:type="boolean">false</dhcp_resolv>
+      <domain>__DNSDOMAIN__</domain>
       <hostname>__HOSTNAME__</hostname>
     </dns>
     <interfaces config:type="list">
       <interface>
-        <bootproto>dhcp</bootproto>
+        <bootproto>STATIC</bootproto>
         <device>eth-id-__MAC__</device>
-        <name>Realtek RTL-8139/8139C/8139C+</name>
+        <ipaddr>__IP__</ipaddr>
         <netmask>__NETMASK__</netmask>
-        <startmode>auto</startmode>
+        <lladdr>__MAC__</lladdr>
+        <startmode>onboot</startmode>
         <usercontrol>no</usercontrol>
       </interface>
     </interfaces>
     <managed config:type="boolean">false</managed>
-    <modules config:type="list">
-      <module_entry>
-        <device>bus-pci-0000:00:03.0</device>
-        <module>8139cp</module>
-        <options></options>
-      </module_entry>
-      <module_entry>
-        <device>static-printer</device>
-        <module>lp</module>
-        <options></options>
-      </module_entry>
-    </modules>
+    <net-udev config:type="list">
+      <rule>
+        <name>eth0</name>
+        <rule>ATTR{address}</rule>
+        <value>__MAC__</value>
+      </rule>
+    </net-udev>
     <routing>
       <ip_forward config:type="boolean">false</ip_forward>
+      <routes config:type="list">
+        <route>
+          <destination>default</destination>
+          <device>-</device>
+          <gateway>__GATEWAY__</gateway>
+          <netmask>-</netmask>
+        </route>
+      </routes>
     </routing>
   </networking>
-  <nis>
-    <nis_broadcast config:type="boolean">false</nis_broadcast>
-    <nis_broken_server config:type="boolean">false</nis_broken_server>
-    <nis_by_dhcp config:type="boolean">false</nis_by_dhcp>
-    <nis_domain></nis_domain>
-    <nis_local_only config:type="boolean">false</nis_local_only>
-    <nis_options></nis_options>
-    <nis_other_domains config:type="list">
-      <nis_other_domain>
-        <nis_broadcast config:type="boolean">true</nis_broadcast>
-        <nis_domain>localdomain</nis_domain>
-        <nis_servers config:type="list"/>
-      </nis_other_domain>
-    </nis_other_domains>
-    <nis_servers config:type="list"/>
-    <start_autofs config:type="boolean">false</start_autofs>
-    <start_nis config:type="boolean">false</start_nis>
-  </nis>
   <scripts>
-  <post-scripts config:type="list">
-__MODULE__
-  </post-scripts>
+    <post-scripts config:type="list">
+      <script>
+        <filename>build_notify</filename>
+        <interpreter>shell</interpreter>
+        <source><![CDATA[tftp -m binary __BUILDIP__ -c get /baracus/uuid/__UUID__?__HOSTNAME__]]></source>
+      </script>
+    </post-scripts>
+    <init-scripts config:type="list">
+      __MODULE__
+    </init-scripts>
   </scripts>
   <partitioning config:type="list">
     <drive>
       <device>__ROOTDISK__</device>
       <partitions config:type="list">
         <partition>
-          <create config:type="boolean">true</create>
           <filesystem config:type="symbol">ext3</filesystem>
+          <create config:type="boolean">true</create>
           <format config:type="boolean">true</format>
           <mount>/</mount>
           <mountby config:type="symbol">id</mountby>
           <partition_id config:type="integer">131</partition_id>
           <partition_nr config:type="integer">1</partition_nr>
           <partition_type>primary</partition_type>
-          <size>10733957632</size>
+          <size>max</size>
         </partition>
         <partition>
-          <create config:type="boolean">true</create>
           <filesystem config:type="symbol">swap</filesystem>
+          <create config:type="boolean">true</create>
           <format config:type="boolean">true</format>
           <mount>swap</mount>
           <mountby config:type="symbol">id</mountby>
           <partition_id config:type="integer">130</partition_id>
           <partition_nr config:type="integer">2</partition_nr>
           <partition_type>primary</partition_type>
-          <size>1069285888</size>
+          <size>auto</size>
         </partition>
       </partitions>
       <use>all</use>
     </drive>
   </partitioning>
-  <printer>
-    <cups_installation config:type="symbol">server</cups_installation>
-    <default></default>
-    <printcap config:type="list"/>
-    <server_hostname></server_hostname>
-    <spooler>cups</spooler>
-  </printer>
   <report>
     <errors>
       <log config:type="boolean">true</log>
@@ -544,6 +525,7 @@ __MODULE__
   </runlevel>
   <software>
     <patterns config:type="list">
+      <pattern>Minimal</pattern>
       <pattern>base</pattern>
       <pattern>ccb</pattern>
       <pattern>slert-base</pattern>
@@ -552,7 +534,6 @@ __MODULE__
     <packages config:type="list">
       <package>tftp</package>
     </packages>
-    <remove-packages config:type="list" />
   </software>
   <timezone>
     <hwclock>UTC</hwclock>
@@ -961,21 +942,4 @@ __MODULE__
       <username>sshd</username>
     </user>
   </users>
-  <x11>
-    <color_depth>16</color_depth>
-    <display_manager>gdm</display_manager>
-    <enable_3d config:type="boolean">false</enable_3d>
-    <monitor>
-      <display>
-        <max_hsync config:type="integer">40</max_hsync>
-        <max_vsync config:type="integer">75</max_vsync>
-        <min_hsync config:type="integer">30</min_hsync>
-        <min_vsync config:type="integer">43</min_vsync>
-      </display>
-      <monitor_device>Unknown</monitor_device>
-      <monitor_vendor>Unknown</monitor_vendor>
-    </monitor>
-    <resolution>800x600 (SVGA)</resolution>
-    <window_manager>gnome</window_manager>
-  </x11>
 </profile>

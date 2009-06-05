@@ -3,5 +3,5 @@ PROMPT 0
 TIMEOUT 0
 
 LABEL install
-        kernel /kernels/__PXEKERNEL__
-        append brokenmodules=qla2xxx __BOOTARGS__ initrd=/initrds/__PXEINITRD__ install=__TYPE__://__BUILDIP__/__BUILDROOT__/__BASEOS__/__SP__/__ARCH__/dvd1 autoyast=tftp://__BUILDIP__/srv/tftpboot/templates/__HEXIP__ textmode=1
+        kernel __PXEKERNEL__
+        append __BOOTARGS__ initrd=__PXEINITRD__ install=__TYPE__://__BUILDIP__/__BUILDROOT__/__BASEOS__/__SP__/__ARCH__/dvd1 autoyast=tftp://__BUILDIP__/__HEXIP__ textmode=1

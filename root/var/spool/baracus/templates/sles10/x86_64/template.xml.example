@@ -54,7 +54,7 @@
         <lines_cache_id>0</lines_cache_id>
         <name>SUSE Linux Enterprise Server 10 SP2</name>
         <original_name>linux</original_name>
-        <root>__ROOTDISK__1</root>
+        <root>__ROOTPART__1</root>
         <type>image</type>
       </section>
       <section>
@@ -65,7 +65,7 @@
         <lines_cache_id>1</lines_cache_id>
         <name>Failsafe -- SUSE Linux Enterprise Server 10 SP2</name>
         <original_name>failsafe</original_name>
-        <root>__ROOTDISK__1</root>
+        <root>__ROOTPART__1</root>
         <type>image</type>
       </section>
     </sections>
@@ -448,24 +448,24 @@ nameserver __DNS1__]]></file_contents>
     </routing>
   </networking>
   <scripts>
-  <post-scripts config:type="list">
-    <script>
-      <filename>build_notify</filename>
-      <interpreter>shell</interpreter>
-      <source><![CDATA[tftp -m binary __BUILDIP__ -c get /baracus/uuid/__UUID__?__HOSTNAME__]]></source>
-    </script>
-  </post-scripts>
-  <init-scripts config:type="list">
-__MODULE__
-  </init-scripts>
+    <post-scripts config:type="list">
+      <script>
+        <filename>build_notify</filename>
+        <interpreter>shell</interpreter>
+        <source><![CDATA[tftp -m binary __BUILDIP__ -c get /baracus/uuid/__UUID__?__HOSTNAME__]]></source>
+      </script>
+    </post-scripts>
+    <init-scripts config:type="list">
+      __MODULE__
+    </init-scripts>
   </scripts>
   <partitioning config:type="list">
     <drive>
       <device>__ROOTDISK__</device>
       <partitions config:type="list">
         <partition>
-          <create config:type="boolean">true</create>
           <filesystem config:type="symbol">ext3</filesystem>
+          <create config:type="boolean">true</create>
           <format config:type="boolean">true</format>
           <mount>/</mount>
           <mountby config:type="symbol">id</mountby>
@@ -475,8 +475,8 @@ __MODULE__
           <size>max</size>
         </partition>
         <partition>
-          <create config:type="boolean">true</create>
           <filesystem config:type="symbol">swap</filesystem>
+          <create config:type="boolean">true</create>
           <format config:type="boolean">true</format>
           <mount>swap</mount>
           <mountby config:type="symbol">id</mountby>
@@ -489,13 +489,6 @@ __MODULE__
       <use>all</use>
     </drive>
   </partitioning>
-  <printer>
-    <cups_installation config:type="symbol">server</cups_installation>
-    <default></default>
-    <printcap config:type="list"/>
-    <server_hostname></server_hostname>
-    <spooler>cups</spooler>
-  </printer>
   <report>
     <errors>
       <log config:type="boolean">true</log>
@@ -525,11 +518,11 @@ __MODULE__
     <patterns config:type="list">
       <pattern>Minimal</pattern>
       <pattern>base</pattern>
+      <pattern>ccb</pattern>
     </patterns>
     <packages config:type="list">
       <package>tftp</package>
     </packages>
-    <remove-packages config:type="list"/>
   </software>
   <timezone>
     <hwclock>UTC</hwclock>
@@ -938,21 +931,4 @@ __MODULE__
       <username>sshd</username>
     </user>
   </users>
-  <x11>
-    <color_depth>16</color_depth>
-    <display_manager>gdm</display_manager>
-    <enable_3d config:type="boolean">false</enable_3d>
-    <monitor>
-      <display>
-        <max_hsync config:type="integer">40</max_hsync>
-        <max_vsync config:type="integer">75</max_vsync>
-        <min_hsync config:type="integer">30</min_hsync>
-        <min_vsync config:type="integer">43</min_vsync>
-      </display>
-      <monitor_device>Unknown</monitor_device>
-      <monitor_vendor>Unknown</monitor_vendor>
-    </monitor>
-    <resolution>800x600 (SVGA)</resolution>
-    <window_manager>gnome</window_manager>
-  </x11>
 </profile>
