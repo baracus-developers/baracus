@@ -1,0 +1,205 @@
+/********************************************************************/
+/* Forms															*/
+/********************************************************************/
+
+#f-labels h1
+{
+	color:black;
+    font-size: 11pt;
+    font-weight:bold;
+    display:inline;
+    margin-left:10;
+}
+#f-labels h3
+{
+	color:#6A737B;
+    font-size: 10pt;
+    font-weight:bold;
+    display:inline;
+    margin-left:20;
+}
+#f-labels select
+{
+	width:200px;
+	color:#6DB33F;
+	margin-left:20;
+	margin-top:5;
+}
+#f-labels input.text
+{
+	width:200px;
+	margin-left:20;
+	margin-top:5;
+}
+#f-labels input.button
+{
+	width:100px;
+	position:absolute;
+	left: 130px;
+	top: 115px;
+}
+#radio
+{
+	width:200px;
+	position:absolute;
+	left:20px;
+	top:165px;
+	padding-top:5px;
+	padding-bottom:5px;
+	font-size:10pt;
+}
+
+#block1
+{
+	width:260;
+	height:150;
+	position:absolute;
+	top:0px;
+	left:0px;
+	border-top:1px dashed gray;
+	background-color: #B2D68C;
+	padding-top:10;
+}
+
+
+#block2
+{
+	width:260;
+	height:450;
+	position:absolute;
+	top:150px;
+	left:0px;
+	border-bottom:1px dashed gray;
+	border-top:1px dashed gray;
+	background-color: #B2D68C;
+	padding-top:10;
+}
+#block2 input.button
+{
+	width:100px;
+	position:absolute;
+	left: 130px;
+	top: 415px;
+}
+
+#block3
+{
+	width:260;
+	height:150;
+	position:absolute;
+	top:0px;
+	left:300px;
+	border-top:1px dashed gray;
+	background-color: #B2D68C;
+	padding-top:10;
+}
+#block3 input.button
+{
+	width:100px;
+	position:absolute;
+	left: 130px;
+	top: 115px;
+}
+
+#block4
+{
+	width:260;
+	height:85;
+	position:absolute;
+	top:150px;
+	left:300px;
+	text-align:bottom;
+	border-bottom:1px dashed gray;
+	border-top:1px dashed gray;
+	background-color: #B2D68C;
+	padding-top:10;
+}
+#block4 input
+{
+	width:100;
+	position:absolute;
+	left:120;
+	top:55%;
+}
+
+#blockb
+{
+	width:260;
+	height:150;
+	position:absolute;
+	top:150px;
+	left:0px;
+	border-top:1px dashed gray;
+	background-color: #B2D68C;
+	padding-top:10;
+}
+#blockb input.button
+{
+	width:100px;
+	position:absolute;
+	left: 130px;
+	top: 115px;
+}
+
+#blockc
+{
+	width:260;
+	height:150;
+	position:absolute;
+	top:300px;
+	left:0px;
+	border-top:1px dashed gray;
+	background-color: #B2D68C;
+	padding-top:10;
+}
+#blockc input.button
+{
+	width:100px;
+	position:absolute;
+	left: 130px;
+	top: 115px;
+}
+#blockd
+{
+	width:260;
+	height:150;
+	position:absolute;
+	top:450px;
+	left:0px;
+	border-top:1px dashed gray;
+	background-color: #B2D68C;
+	padding-top:10;
+}
+
+#blockf
+{
+	width:260;
+	height:150;
+	position:absolute;
+	top:150px;
+	left:300px;
+	border-top:1px dashed gray;
+	background-color: #B2D68C;
+	padding-top:10;
+}
+
+#result
+{
+	position:absolute;
+	left:0;
+	top:0;
+	width:600;
+	height:600;
+	color:green;
+}
+
+#reslut i
+{
+	color:red;
+}
+#cmd
+{
+	color:6A737B;
+	font-size:20pt;
+}
+

@@ -1,0 +1,250 @@
+#!/usr/bin/perl
+
+use lib '/srv/www/modules';
+use BATools qw(:standard);
+use CGI qw(:standard);
+
+my $r = shift;
+if( !$r)
+{
+	exit(0);
+}
+print "Content-type: text/html\n\n";
+
+$fid = param('fid') || "";
+$ref = param('ref') || "no";
+$rel = "";
+$distro = param('distro');
+$verbose = "-v";
+$redir = ' 2>&1';
+
+my $testcmd = "ps -eaf";
+my $refresh = "";
+my $content = "\n\n\n\n";
+my $header = "";
+my $headError = "Error";
+my $sub = param('sub');
+my $proc = "";
+
+if( $sub eq "list")
+{
+	$content = $content.listContent();
+	$header = listHeader();
+}
+elsif( $sub eq "add")
+{
+	$content = $content.addContent();
+	$header = addHeader();
+}
+elsif( $sub eq "del")
+{
+	$content = $content.delContent();
+	$header = delHeader();
+}
+elsif( $sub eq "ena")
+{
+	$content = $content.enaContent();
+	$header = enaHeader();
+}
+elsif( $sub eq "dis")
+{
+	$content = $content.disContent();
+	$header = disHeader();
+}
+elsif( $sub eq "ver")
+{
+	$content = $content.verContent();
+	$header = verHeader();
+}
+else
+{
+	$content = $content."Invalid Subfunction: $sub";
+	$header = $headError;
+}
+
+$content = $content."\n\n\n";
+
+if( $ref eq "yes" && $header ne $headError)
+{
+	$refresh = "onLoad=\"doLoad( '$rel')\"";
+	$proc = "Processing";
+}
+
+
+print <<HTML0
+
+<html>
+	<head>
+		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<link rel='stylesheet' href='/css/common.css' type='text/css' >
+		<script type="text/javascript" src="/script/common.js"></script>
+	</head>
+	<body $refresh>
+	<div id='output'>
+	<textarea>$content</textarea>
+	<h1>$header</h1>
+	<h3>$proc</h3>
+	<form action="/perl/source"><input type="submit" name="back" value="<< Back"></form> 
+	</div>
+
+	<body>
+</html>
+
+HTML0
+
+;
+
+########################################################################################################
+#  Subfunction = list
+########################################################################################################
+
+sub listHeader()
+{
+	return "List Install Sources";
+}
+
+sub listContent()
+{
+	my $listcmd = "sudo /usr/share/baracus/perl/directSqlFS.pl list linux.sle".$redir;
+	my $retString = execute( $listcmd);
+	return $retString;
+}
+
+########################################################################################################
+#  Subfunction = add
+########################################################################################################
+
+sub addHeader()
+{
+	return "Add Install Source";
+}
+
+sub addContent()
+{
+		my $cmd = "perl /srv/www/cgi-bin/execute add $distro $verbose";
+		return background( $cmd);
+}
+
+########################################################################################################
+#  Subfunction = del (Delete Install Source)
+########################################################################################################
+
+sub delHeader()
+{
+	return "Delete Install Source";
+}
+
+sub delContent()
+{
+	my $cmd = "perl /srv/www/cgi-bin/execute remove $distro $verbose $redir";
+	return background( $cmd);;
+}
+
+########################################################################################################
+#  Subfunction = ena (Enable Install Source)
+########################################################################################################
+
+sub enaHeader()
+{
+	return "Enable Install Source";
+}
+
+sub enaContent()
+{
+	my $enacmd = "sudo create_install_source enable --distro=$distro $verbose".$redir;
+	my $retString = execute( $enacmd);
+
+	norefresh();
+	return $retString;
+}
+
+########################################################################################################
+#  Subfunction = dis (Disable Install Source)
+########################################################################################################
+
+sub disHeader()
+{
+	return "Disable Install Source";
+}
+
+sub disContent()
+{
+	my $enacmd = "sudo create_install_source disable --distro=$distro $verbose".$redir;
+	my $retString = execute( $enacmd);
+
+	norefresh();
+	return $retString;
+}
+
+########################################################################################################
+#  Subfunction = ver (Verify Install Source)
+########################################################################################################
+
+sub verHeader()
+{
+	return "Verify Install Source";
+}
+
+sub verContent()
+{
+	my $enacmd = "sudo create_install_source verify --distro=$distro $verbose".$redir;
+	my $retString = execute( $enacmd);
+
+	norefresh();
+	return $retString;
+}
+
+########################################################################################################
+#  Control Functions
+########################################################################################################
+
+sub norefresh()
+{
+	$ref = "no";
+}
+sub refresh()
+{
+	$ref = "yes";
+}
+sub execute
+{
+	my $cmd = $_[0];	
+	my $retString = "$cmd\n\n";
+	$retString = `$cmd`;
+	return $retString;
+}
+sub background
+{
+	my $cmd = $_[0];
+	my $rfile = BATools::generate_random_string();
+	$cmd = "/srv/www/cgi-bin/pfork.bin ".$cmd." $rfile";
+	my $poolPath = "/srv/www/htdocs/pool/";
+	my $myFile;
+	my $retString = "";
+	
+	if( $fid eq "")
+	{	
+		my $output = `$cmd`;
+		$retString = $retString."Please Wait...\n".$output;
+		$rel = "&fid=".$rfile;
+	}
+	else
+	{
+		$myFile = $poolPath.$fid;		
+		open (MYFILE, $myFile) || return "Error Opening File:\n$!";
+		while(<MYFILE>)
+		{
+			if( $_ =~ m/POOLFILEDONE/)
+			{
+				$ref = "no";
+			}
+			else
+			{
+				$retString = $retString.$_;
+			}
+		}
+		close (MYFILE);
+		
+	}	
+	return $retString;	
+}

@@ -1,0 +1,41 @@
+#!/usr/bin/perl
+
+my $filePath = "/srv/www/htdocs/pool/";
+my $op = $ARGV[0];
+my $distro = $ARGV[1];
+my $verbose = $ARGV[2];
+my $fileName = $filePath.$ARGV[3];
+
+my $cmd = "sudo create_install_source $op --distro=$distro  $verbose 2>&1"; 
+
+open (NEWFILE, ">$fileName") || die "Error: $!";
+print NEWFILE "\n\n";
+close (NEWFILE);
+
+
+open(PS, "$cmd |") || die "Failed: $!\n";
+
+while ( <PS> )
+{
+	open (NEWFILE, ">>$fileName") || die "Error: $!";
+	print NEWFILE $_;
+	close (NEWFILE);
+}
+
+#my $count = 0;
+#while( $count < 10)
+#{
+#	++ $count;
+#	open (NEWFILE, ">>$fileName") || die "Error: $!";
+#	print NEWFILE $count."\n";
+#	close (NEWFILE);
+#	sleep 1;
+#}
+
+open (NEWFILE, ">>$fileName") || die "Error: $!";
+print NEWFILE "\n\nPOOLFILEDONE\n\n";
+close (NEWFILE);
+
+sleep 30;
+unlink($fileName);
+

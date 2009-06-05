@@ -1,0 +1,186 @@
+#!/usr/bin/perl
+
+use lib '/srv/www/modules';
+use BATools qw(:standard);
+use CGI qw(:standard);
+
+print "Content-type: text/html\n\n";
+
+@profileOptions = (	"hostname",
+			  		"ip",
+				  	"netmask",
+				  	"gateway", 
+				  	"dnsdomain", 
+				  	"dns1",
+				  	"mac", 
+				  	"distro", 
+				  	"hardware");
+				  		
+$profilePath = "/etc/baracus.d/profiles/";
+$prof = param('prof') || 'default';
+
+########################################################################################################
+#  Setup Data
+########################################################################################################
+
+my $profiles = generateProfiles();
+my $debugWindow = readFile($profilePath.$prof);
+
+chomp($distro);
+my $distroList = BATools::get_distro_selection_list( $distro, 1);
+my $hardwareList = BATools::get_hardware_selection_list( $hardware, 1);
+
+initProfileOptions();
+createProfileVars();
+
+########################################################################################################
+#  Print HTML 
+########################################################################################################
+
+print <<HTML0;
+
+<html>
+	<head>
+		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<link rel='stylesheet' href='/css/common.css' type='text/css' >
+		<link rel='stylesheet' href='/css/forms.css' type='text/css' >
+		<script type="text/javascript" src="/script/common.js"></script>
+	</head>
+	<body>
+
+	<div id='f-labels'>
+	<form method="post" name="createAdd" action="/perl/createHandler">
+	<div id='block1'>
+	<h1>Profile:</h1><br>
+	
+	<select name='profile' onChange='location.href=(this.options[this.selectedIndex].value)'>
+	$profiles;
+	</select><br><br>
+	<h1>Hostname:</h1><br><input class="text" type="text" size="25" maxlength="15" name="hostname" value="$hostname" $dhost> <br>
+	</div>
+
+
+	<div id='debug'>
+	<textarea name='comments' class='tbox' disabled>$debugWindow</textarea>
+	</div>
+
+	<div id='block2'>
+
+	<h1>IP Address:</h1><br><input class="text" type="text" size="25" name="ip" value="$ip" $ipD>
+	<br><br>
+	<h1>Subnet Mask:</h1><br><input class="text" type="text" size="25" name="netmask" value="$netmask" $netmaskD>
+	<br><br>
+	<h1>Gateway:</h1><br><input class="text" type="text" size="25" name="gateway" value="$gateway" $gatewayD>
+	<br><br>
+	<h1>DNS Domain:</h1><br><input class="text" type="text" size="25" name="dnsdomain" value="$dnsdomain" $dnsdomainD>
+	<br><br>
+	<h1>DNS Server Address:</h1><br><input class="text" type="text" size="25" name="dns1" value="$dns1" $dns1D>
+	<br><br>
+	<h1>MAC Address:</h1><br><input class="text" type="text" size="25" name="mac" value="$mac" $macD onkeypress="return mac_only(event)">
+	<br><br>
+
+	</div>
+	
+	<div id='block3'>
+
+	<h1>Distribution:</h1><br>
+	$distroList
+	<br><h1>Hardware Type:</h1><br>
+	$hardwareList
+
+	</div>
+	
+	<div id='block4'>
+	<input type="submit" value="Create" width="300">
+	</div>
+	
+	</form>
+	</div>
+</body>
+</html>
+HTML0
+
+########################################################################################################
+#  Profile - Distribution - Hardware list generation functions
+########################################################################################################
+
+sub initProfileOptions()
+{
+	foreach( @profileOptions)
+	{
+		$$_ = "";
+		$tmp = $_."D";
+		$$tmp = "";
+	}
+}
+
+sub createProfileVars
+{
+  	open (PROFILE, $profilePath.$prof) || die "couldn't open the file!";
+
+   	while ($record = <PROFILE>)
+   	{
+    	foreach (@profileOptions)
+		{
+	    	if( $record =~ m/^$_/)
+    		{
+    			@pair = split( "=", $record, 2);
+    			
+    			$$_ = @pair[1];
+				
+				$slen = length @pair[1];
+				
+				if ($slen > 1)
+				{
+					$tmp = $_."D";
+					$$tmp = "disabled";
+				}
+	    	}
+	    }
+   	}
+	close(PROFILE);
+}
+
+sub generateProfiles
+{
+	my $retString = "";
+	my $isSelected;
+	
+	opendir(DIR, $profilePath) || die "can't opendir $profilePath: $!";
+	 
+	@dots = readdir(DIR);
+	 
+	foreach (@dots)
+	{
+	
+		# If file is not ., .., and does not end with ~
+		if( $_ ne "." && $_ ne ".." && $_ !~ m/~\Z/)
+		{
+			if( $_ eq $prof)
+			{
+				$isSelected = "selected";
+			}
+			else
+			{
+				$isSelected = "";
+			}	
+			$retString = $retString."<option " . $isSelected . " value='/perl/create?prof=" . $_ . "' valuex='" . $_ . "' >" . $_ . "</option>\n";
+		}
+	}	
+	
+	closedir DIR;
+	return $retString;
+}
+
+sub readFile
+{
+	$fileName = $_[0];
+	my $retString = "\n\n";
+  	open (PROFILE, $fileName) || die "couldn't open the file!";
+	while (<PROFILE>)
+	{
+		$retString = $retString.$_;
+	}
+	close(PROFILE);
+	return $retString;
+}

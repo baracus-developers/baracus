@@ -1,0 +1,20 @@
+#!/usr/bin/perl
+
+$command = "sudo create_install_host list templates";
+
+print "Content-type: text/html\n\n";
+print "<h3>l s g</h3><br><hr><br>\n";
+
+$result = `$command`;
+
+$exp = `whoami`;
+
+print "<b>$command:</b><br>";
+print $result;
+
+print "<br><hr><br>";
+
+print "<b>whoami:</b><br>";
+print $exp;
+
+print "<br><hr><br>";

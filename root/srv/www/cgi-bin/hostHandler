@@ -1,0 +1,110 @@
+#!/usr/bin/perl
+
+use lib '/srv/www/modules';
+use BATools qw(:standard);
+use CGI qw(:standard);
+
+my $r = shift;
+if( !$r)
+{
+	exit(0);
+}
+
+print "Content-type: text/html\n\n";
+
+$ref = param('ref') || "no";
+$rel = "";
+$verbose = "-v";
+$redir = ' 2>&1';
+
+my $refresh = "";
+my $content = "\n\n\n\n";
+my $sub = param('sub');
+my $back = "<form action='/home.html'><input type='submit' name='back' value='<< Back'></form>";
+
+if( $sub eq "temp")
+{
+	$content = $content.tempContent();
+	$header = tempHeader();
+}
+elsif( $sub eq "hw")
+{
+	$content = $content.hwContent();
+	$header = hwHeader();
+}
+else
+{
+	$content = $content."Invalid Subfunction: $sub";
+	$header = "Error";
+}
+
+if( $ref eq "yes")
+{
+	$refresh = "onLoad=\"doLoad( '$rel')\"";
+	$proc = "Processing";
+}
+
+
+print <<HTML0
+
+<html>
+	<head>
+		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<link rel='stylesheet' href='/css/common.css' type='text/css' >
+		<script type="text/javascript" src="/script/common.js"></script>
+	</head>
+	<body $refresh>
+	<div id='output'>
+	<textarea>$content</textarea>
+	<h1>$header</h1>
+	<h3>$proc</h3>
+	$back 
+	</div>
+	<body>
+</html>
+
+HTML0
+
+;
+
+########################################################################################################
+#  Subfunction = temp
+########################################################################################################
+
+sub tempHeader()
+{
+	return "List Templates";
+}
+
+sub tempContent()
+{
+	my $hostCmd = "sudo create_install_host list templates $verbose $redir";
+	return execute( $hostCmd);
+}
+
+########################################################################################################
+#  Subfunction = hw
+########################################################################################################
+
+sub hwHeader()
+{
+	return "List Hardware";
+}
+
+sub hwContent()
+{
+	my $hostCmd = "sudo create_install_host list hardware $verbose $redir";
+	return execute( $hostCmd);
+}
+
+########################################################################################################
+#  Control Functions
+########################################################################################################
+sub execute
+{
+	my $cmd = $_[0];	
+	my $retString = "$cmd\n\n";
+	$retString = `$cmd`;
+	return $retString;
+}
+
