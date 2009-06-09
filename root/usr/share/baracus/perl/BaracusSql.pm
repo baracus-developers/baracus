@@ -88,7 +88,7 @@ sub get_sqltftp_tables
 
     my $tbl_source_reg = "sqlfstable_reg";
     my %tbl_source_reg_columns = (
-                                  'distro'      => 'VARCHAR(16)',
+                                  'distro'      => 'VARCHAR(32)',
                                   'buildip'     => 'VARCHAR(15)',
                                   'basepath'    => 'VARCHAR(128)',
                                   'type'        => 'VARCHAR(8)',
@@ -158,7 +158,7 @@ sub get_baracus_tables
 
     my $tbl_distro_cfg = "distro_cfg";
     my %tbl_distro_cfg_comlumns = (
-                                   'distroid'    => 'VARCHAR(16) PRIMARY KEY',
+                                   'distroid'    => 'VARCHAR(32) PRIMARY KEY',
                                    'os'          => 'VARCHAR(16)',
                                    'sp'          => 'VARCHAR(4)',
                                    'description' => 'VARCHAR(64)',

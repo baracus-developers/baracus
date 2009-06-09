@@ -1,0 +1,77 @@
+#!/bin/bash
+
+baconfig add distro --name sles9-i586 \
+--os=sles9 \
+--sp=sp4 \
+--description="SUSE Linux Enterprise 9 32bit" \
+--arch=i586 \
+--pxekernel=linux.sles9-SP4 \
+--pxeinitrd=initrd.sles9-SP4
+
+baconfig add distro --name sles9-x86_64 \
+--os=sles9 \
+--sp=sp4 \
+--description="SUSE Linux Enterprise 9 64bit" \
+--arch=x86_64 \
+--pxekernel=linux.sles9-x86_64-SP4 \
+--pxeinitrd=initrd.sles9-x86_64-SP4
+
+baconfig add distro --name sles10-i586 \
+--os=sles10 \
+--sp=sp2 \
+--description="SUSE Linux Enterprise 10 32bit" \
+--arch=i586 \
+--pxekernel=linux.sles10 \
+--pxeinitrd=initrd.sles10
+
+baconfig add distro --name sles10-x86_64 \
+--os=sles10 \
+--sp=sp2 \
+--description="SUSE Linux Enterprise 10 64bit" \
+--arch=x86_64 \
+--pxekernel=linux.sles10-x86_64-SP2 \
+--pxeinitrd=initrd.sles10-x86_64-SP2
+
+baconfig add distro --name slert10-x86_64 \
+--os=slert10 \
+--sp=sp2 \
+--description="SUSE Linux Enterprise Real Time 10 SP2 64bit" \
+--arch=x86_64 \
+--pxekernel=linux.sles10-x86_64-SP2 \
+--pxeinitrd=initrd.sles10-x86_64-SP2 \
+--addon --baseos=sles10
+
+baconfig add distro --name sles10-MONO-x86_64 \
+--os=sles10-MONO \
+--sp=sp2 \
+--description="SUSE Linux Enterprise 10 SP2 with MONO 64bit" \
+--arch=x86_64 \
+--pxekernel=linux.sles10-x86_64-SP2 \
+--pxeinitrd=initrd.sles10-x86_64-SP2 \
+--addon --baseos=sles10
+
+baconfig add distro --name sles11-x86_64 \
+--os=sles11 \
+--sp=ga \
+--description="SUSE Linux Enterprise 11 GA 64bit" \
+--arch=x86_64 \
+--pxekernel=linux.sles11-x86_64-SPga \
+--pxeinitrd=initrd.sles11-x86_64-SPga
+
+baconfig add distro --name sles11-HAE-x86_64 \
+--os=sles11-HAE \
+--sp=ga \
+--description="SUSE Linux Enterprise High Availability 11 GA 64bit" \
+--arch=x86_64 \
+--pxekernel=linux.sles11-x86_64-SPga \
+--pxeinitrd=initrd.sles11-x86_64-SPga \
+--addon --baseos=sles11
+
+baconfig add distro --name sles11-MONO-x86_64 \
+--os=sles11-MONO \
+--sp=ga \
+--description="SUSE Linux Enterprise 11 GA with MONO 64bit" \
+--arch=x86_64 \
+--pxekernel=linux.sles11-x86_64-SPga \
+--pxeinitrd=initrd.sles11-x86_64-SPga \
+--addon --baseos=sles11

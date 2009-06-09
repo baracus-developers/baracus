@@ -29,6 +29,8 @@ if ( defined $reverse_flag ) {
     &niam();
 } else {
     &main();
+    system ( "/usr/share/baracus/perl/baconfig_load_distro" );
+    system ( "/usr/share/baracus/perl/baconfig_load_hardware" );
 }
 
 exit 0;

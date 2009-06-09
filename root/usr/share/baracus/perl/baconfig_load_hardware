@@ -1,0 +1,35 @@
+#!/bin/bash
+
+baconfig add hardware --name default \
+--description="default" \
+--bootargs="acpi=off selinux=0 apm=off" \
+--rootdisk=/dev/sda \
+--rootpart=/dev/sda \
+--pxetemplate=pxetemplate-auto \
+--yasttemplate=template.xml 
+#--oscert=SLES9:SLES10
+#--addon="<!--no addon -->"
+#--hwdriver="<!--no hwdrivers -->"
+
+baconfig add hardware --name kvm-sda \
+--description="KVM (sda)" \
+--bootargs="acpi=on selinux=0 apm=off" \
+--rootdisk=/dev/sda \
+--rootpart=/dev/sda \
+--pxetemplate=pxetemplate-auto \
+--yasttemplate=template.xml 
+#--oscert=SLES9-64:SLES10-64:SLES11-64 \
+#--addon="<!--no addon -->"
+#--hwdriver="<!--no hwdrivers -->"
+
+baconfig add hardware --name kvm-hda \
+--description="KVM (hda)" \
+--bootargs="acpi=on selinux=0 apm=off" \
+--rootdisk=/dev/hda \
+--rootpart=/dev/hda \
+--pxetemplate=pxetemplate-auto \
+--yasttemplate=template.xml
+#--oscert=SLES9-64:SLES10-64:SLES11-64
+#--addon="<!--no addon -->"
+#--hwdriver="<!--no hwdrivers -->"
+
