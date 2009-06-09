@@ -600,10 +600,26 @@ sub create_sle10_build() {
     foreach my $isofile (keys (%{$config->{distribution}->{$baseos}->{file}})) {
         if ($config->{distribution}->{$baseos}->{file}->{$isofile}->{addon} eq "base") {
             $baseprod = "$troot/$config->{distribution}->{$baseos}->{file}->{$isofile}->{path}";
+
         }
     }
+    unless ( $baseprod ) {
+        print "qs.xml entry for $os is malformed: missing <addon>base</addon>";
+        exit 1;
+    }
+
+    # fix for the aytoyast tftp last ACK - update good
+    # for sle10sp2 thru sle11ga - both x86 x86_64 archs
+
+    my $driverupdate_in = "$datadir/driverupdate";
+    my $driverupdate_out = "$baseprod/driverupdate";
+
     foreach my $isofile (keys (%{$config->{distribution}->{$os}->{file}})) {
-        if ($config->{distribution}->{$os}->{file}->{$isofile}->{addon} eq "yes") {
+        my $addonstyle = $config->{distribution}->{$os}->{file}->{$isofile}->{addon};
+        if ($addonstyle eq "yes") {
+
+            copy( $driverupdate_in, $driverupdate_out );
+
             my $addonfile = "$baseprod/add_on_products";
             my $addonline = "$type://$ip$troot/$config->{distribution}->{$os}->{file}->{$isofile}->{path}";
             my $skip = 0;
@@ -623,7 +639,11 @@ sub create_sle10_build() {
                 close(PRODUCTS);
             }
         }
-        if ($config->{distribution}->{$os}->{file}->{$isofile}->{addon} eq "new") {
+        if ($addonstyle eq "new") {
+
+            # copy, sign, add to directory.yast list
+#            copy( $driverupdate_in, $driverupdate_out );
+
             my $addonfile = "$baseprod/add_on_products.xml";
             my $description = "$isofile";
             $description = (split /\./, $description)[0];
@@ -654,7 +674,7 @@ sub create_sle10_build() {
             print OUT "    </product_items>\n";
             print OUT  "</add_on_products>\n";
             close(OUT);
-                
+
             ## Create SHA1SUMS file
             ##
             use Digest::SHA1 qw(sha1 sha1_hex sha1_base64);
@@ -664,6 +684,12 @@ sub create_sle10_build() {
             $sha1->addfile($io);
             $io->close;
             print FILE $sha1->hexdigest, "  add_on_products.xml\n";
+
+#            $io = IO::File->new( "$driverupdate_out", 'r' );
+#            $sha1->addfile($io);
+#            $io->close;
+#            print FILE $sha1->hexdigest, "  driverupdate\n";
+
             close(FILE);
 
             ## Sign SHA!SUMSS

@@ -794,9 +794,7 @@ if ($command eq "add") {
     # incorporate the related distro entry information into profileHash
     my $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ 'distro_cfg' } );
     $sql_cols =~ s/[ \t]*//g;
-    print "\$sql_cols: " . $sql_cols . "\n";
     my @cols = split(/,/, $sql_cols);
-    print "join of \@cols:" . (join( " ", @cols)) . "\n";
     my $sql = qq|SELECT $sql_cols FROM distro_cfg
                  WHERE distroid = '| . $profileHash{'os'} . qq|'|;;
     my $sel = $dbh->selectrow_hashref( $sql );

@@ -22,10 +22,10 @@ Where E<lt>commandE<gt> is
 
     help           Usage summary message.
     man            Detailed man page.
-    list   <type> List entries in database
-    add    <type> Copy to database from file in specified location.
-    detail <type> Display file entry in the database table.
-    remove <type> Delete file specified from database table.
+    list   <type>  List entries in database
+    add    <type>  Copy to database from file in specified location.
+    detail <type>  Display file entry in the database table.
+    remove <type>  Delete file specified from database table.
 
 And, where E<lt>typeE<gt> is
 
@@ -74,9 +74,15 @@ GetOptions(
            'debug|verbose+' => \$debug,
            );
 
-&man() if $man;
-
-&help() if (( $help ) or ( not scalar @ARGV ));
+&man()  if $man;
+&help() if $help;
+if ( scalar @ARGV ) {
+    &man()  if ($ARGV[0] eq "man"  );
+    &help() if ($ARGV[0] eq "help" );
+}
+else {
+    &help();
+}
 
 my $uid = BaracusDB::su_user( $dbrole );
 die BaracusDB::errstr unless ( defined $uid );
@@ -138,6 +144,7 @@ sub list
     my $pattern = shift;
 
     if ( scalar @_ ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @_);
         &help();
     }
 
@@ -203,9 +210,9 @@ Where <options and args> are
 The pxe arguments describe the kernel and initrd a bootp client should load.
 They must be changed to the installed base kernel and initrd for add-ons.
 
-    --kernelpxe linux   linux.sles10-x86_64-sp2
+    --pxekernel linux   linux.sles10-x86_64-sp2
                         [default linux.<os>-<arch>-<sp>]
-    --initrdpxe initrd  initrd.sles10-x86_64-sp2
+    --pxeinitrd initrd  initrd.sles10-x86_64-sp2
                         [default initrd.<os>-<arch>-<sp>]
 
 These arguments are for describing HAE, MONO, OES, SLERT add-on products
@@ -242,7 +249,10 @@ sub add_distro
                'baseos=s'      => \$entry{'baseos'},
                );
 
-    &help() if ( scalar @ARGV );
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help() ;
+    }
 
     &help() unless ( $entry{'os'} );
     $entry{'distroid'} = "$entry{'os'}-$entry{'arch'}"
@@ -311,8 +321,8 @@ Where <options and args> are
 
     --name id            required unique id, suggest make-model
     --bootArgs string    quoted line of kernel boot arguments
-    --diskroot disk      disk device to install [default '/dev/sda']
-    --partroot part      root partition [default <diskroot>]
+    --rootdisk disk      disk device to install [default '/dev/sda']
+    --rootpart part      root partition [default <diskroot>]
     --description note  describe this hardware entry
 
 The following templates are filename only and are expected to be
@@ -346,8 +356,8 @@ sub add_hardware  # TODO - add oscert support
     GetOptions(
                'name=s'         => \$entry{'hardwareid'},
                'bootargs=s'     => \$entry{'bootargs'},
-               'diskroot=s'     => \$entry{'rootdisk'},
-               'partroot=s'     => \$entry{'rootpart'},
+               'rootdisk=s'     => \$entry{'rootdisk'},
+               'rootpart=s'     => \$entry{'rootpart'},
                'pxetemplate=s'  => \$entry{'pxetemplate'},
                'yasttemplate=s' => \$entry{'yasttemplate'},
                'description=s'  => \$entry{'description'},
@@ -355,7 +365,10 @@ sub add_hardware  # TODO - add oscert support
                'oscert=s'       => \$entry{'oscert'},
                );
 
-    &help() if ( scalar @ARGV );
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help();
+    }
 
     &help() unless ( $entry{'hardwareid'} );
 
@@ -428,7 +441,10 @@ sub add_module
                'enabled!'       => \$entry{'status'},
                );
 
-    &help() if ( scalar @ARGV );
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help();
+    }
 
     &help() unless ( $entry{'moduleid'} );
 
@@ -501,6 +517,7 @@ sub detail
     my $href;
 
     if ( scalar @_ ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @_);
         &help();
     }
 
@@ -611,6 +628,7 @@ sub remove
     my $sth;
 
     if ( scalar @_ ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @_);
         &help();
     }
 
