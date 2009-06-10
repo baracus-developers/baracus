@@ -1,4 +1,33 @@
 %changelog
+* Tue Jun 10 2009 dbahi@novell - 0.19
+- westervelt - added schema for distro, hardware, modules vs files
+- added code create_install_config to work distro, hardware, modules
+- added code to refer to distro and hardware tables in bahost
+- first pass at enum/constant for state representation
+- created symlinks basource bahost and baconfig
+- westervelt - added create/modified schema to source registration
+- westervelt - modified basource to work maintain source registration
+- modified baracusd and verify_client hooks to better handle mult tftp req
+- massively reduced demo templates and entirely rid of packages-remove list
+- bahost hwtype changed to hardware to paramater agrees with variable
+- fix nfs basource enable/disable entry handling
+- add hae and mono entries to os.config (even though it'll soon disappear)
+- add sda and hda to kvm descript in hardware.config for better web experience
+- westervelt - creation of HAE and MONO templates
+- mtaylor - initial population of the BA webserver pages and scripts
+- added sles9 template.xml.example
+- modified os.config for sles9 and addition of sle10 MONO add-on
+- modify autoinstall templates cleanup
+- added hardware and distro loading scripts
+- modify baracusInitDB to call hardware and distro loading scripts
+- remove obsolete hardware.config and os.config
+- added driverupdate sle10SP2-sle11GA x86/x86_64 autoyast tftp last ACK fix
+- modify basource to install driverupdate for sle10 (commented out for sle11)
+- mtaylor - mods to www for new baconfig distro and hardware
+- mtaylor - moved web server pages to baracus home
+- added baracus.conf apache config for baracus web server
+- added source control utilities find_dos_files and list_svn_at_root
+- removed executable bits on sles9 templates
 * Tue May 19 2009 dbahi@novell
 - shift BUILDIP check to be after help checks
 - source add / remove / enable / disable modifies service
