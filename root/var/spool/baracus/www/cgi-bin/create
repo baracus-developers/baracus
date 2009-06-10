@@ -1,0 +1,291 @@
+#!/usr/bin/perl
+
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+use CGI qw(:standard);
+
+print "Content-type: text/html\n\n";
+
+our $netmask = "netmask";
+our $netmaskD;
+
+our $gateway = "gateway";
+our $gatewayD;
+
+our $dnsdomain = "dnsdomain";
+our $dnsdomainD;
+
+our $dns1 = "dns1";
+our $dns1D;
+
+our $distro = "distro";
+our $distroD;
+
+our $hardware = "hardware";
+our $hardwareD;
+
+our $module = "module";
+our $moduleD;
+
+our $gateway;
+our $gatewayD;
+
+our @profileOptions = (	$netmask,
+					$gateway,
+					$dnsdomain,
+					$dns1,
+					$distro,
+					$hardware,
+					$module);
+				  		
+our $profilePath = "/etc/baracus.d/profiles/";
+our $prof = param('prof') || 'default';
+our $debugWindow;
+our $debug = "debug";
+our $moduleList;
+our $distroList;
+our $hardwareList;
+our $found;
+our @profModules = ();
+our @errors = ();
+
+########################################################################################################
+#  Setup Data
+########################################################################################################
+
+our $profiles = generateProfiles();
+
+chomp($distro);
+
+initProfileOptions();
+createProfileVars();
+
+$distroList = BATools::getDistroSelectionList( $distro, $distroD, "onChange='distUpdate()'");
+$hardwareList = BATools::getHardwareSelectionList( $hardware, $hardwareD, "onChange='hwUpdate()'");
+
+getAndCheckModules();
+infoWindow();
+
+########################################################################################################
+#  Print HTML 
+########################################################################################################
+
+print <<HTML0;
+
+<html>
+	<head>
+		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
+		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
+		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
+	</head>
+	<body>
+
+	<div id='f-labels'>
+	<form method="post" name="createAdd" action="/$BATools::baCGI/createHandler">
+	<div id='block1'>
+	<h1>Hostname:</h1><br><input class="text" type="text" size="25" maxlength="15" name="hostname" value="$hostname" $dhost>
+	<br><br>
+	<h1>MAC Address:</h1><br><input class="text" type="text" size="25" name="mac" value="$mac" $macD onkeypress="return mac_only(event)">
+	</div>
+
+	<div id='$debug'>
+	<textarea name='comments' class='tbox' disabled>$debugWindow</textarea>
+	</div>
+
+	<div id='blockb'>
+	<h1>IP Address:</h1><br><input class="text" type="text" size="25" name="ip" value="$ip" $ipD>
+	<br><br>
+	<h1>Profile:</h1><br>
+	<select name='profile' onChange='location.href=(this.options[this.selectedIndex].value)'>
+	$profiles
+	</select><br><br>
+	</div>
+
+	<div id='blockc'>
+	<h1 class="$netmaskD">Subnet Mask:</h1><br><input class="text" type="text" size="25" name="netmask" value="$netmask" $netmaskD>
+	<br><br>
+	<h1 class="$gatewayD">Gateway:</h1><br><input class="text" type="text" size="25" name="gateway" value="$gateway" $gatewayD>
+	<br><br>
+	</div>
+
+	<div id='blockd'>
+	<h1 class="$dnsdomainD">DNS Domain:</h1><br><input class="text" type="text" size="25" name="dnsdomain" value="$dnsdomain" $dnsdomainD>
+	<br><br>
+	<h1 class="$dns1D">DNS Server Address:</h1><br><input class="text" type="text" size="25" name="dns1" value="$dns1" $dns1D>
+	<br><br>
+	</div>
+	
+	<div id='block3'>
+	<h1 class="$distroD">Distribution:</h1><br>
+	$distroList
+	<br><h1 class="$hardwareD">Hardware Type:</h1><br>
+	$hardwareList
+	<br>
+	<h1 class="$moduleD">Modules:</h1><h4>(hold ctrl for multiple)</h4>
+	<br>
+	<select name='module' multiple size='4' $moduleD>$moduleList</select>
+	</div>
+	
+	<div id='block4'>
+	<input type="submit" value="Create" width="300">
+	</div>
+	
+	</form>
+	</div>
+</body>
+</html>
+HTML0
+
+########################################################################################################
+#  Profile - Distribution - Hardware list generation functions
+########################################################################################################
+
+sub initProfileOptions()
+{
+	foreach( @profileOptions)
+	{
+		#$$_ = "";
+		$tmp = $_."D";
+		$$tmp = "";
+	}
+}
+
+sub createProfileVars
+{
+	my $name;
+	my $val;
+	
+  	open (PROFILE, $profilePath.$prof) || die "couldn't open the file!: $!\n $profilePath$prof";
+   	while ($record = <PROFILE>)
+   	{
+    	foreach (@profileOptions)
+		{
+	    	if( $record =~ m/^$_/)
+    		{
+    			@pair = split( "=", $record, 2);
+    			
+    			$name = @pair[0];
+    			$val = @pair[1];
+    			
+    			$$_ = $val;
+				
+				push(@errors, "$_=$val");		
+
+				$slen = length $val;
+				
+				if ($slen > 1)
+				{
+					$tmp = $_."D";
+					$$tmp = "disabled";
+					
+					push(@errors, "$tmp $$tmp");		
+					
+					if( $_ eq "module")
+					{
+						push( @profModules, $val);
+					}
+				}
+	    	}
+	    }
+   	}
+	close(PROFILE);
+}
+
+sub generateProfiles
+{
+	my $retString = "";
+	my $isSelected;
+	
+	opendir(DIR, $profilePath) || die "can't opendir $profilePath: $!";
+	 
+	@dots = readdir(DIR);
+	 
+	foreach (@dots)
+	{
+	
+		# If file is not ., .., and does not end with ~
+		if( $_ ne "." && $_ ne ".." && $_ !~ m/~\Z/)
+		{
+			if( $_ eq $prof)
+			{
+				$isSelected = "selected";
+			}
+			else
+			{
+				$isSelected = "";
+			}	
+			$retString = $retString."\t<option " . $isSelected . " value='/$BATools::baCGI/create?prof=" . $_ . "' valuex='" . $_ . "' >" . $_ . "</option>\n";
+		}
+	}	
+	
+	closedir DIR;
+	return $retString;
+}
+
+sub getAndCheckModules
+{
+	if( $moduleD eq "disabled")
+	{
+		if( scalar(@profModules))
+		{
+			foreach $pMod( @profModules)
+			{
+				$found = 0;
+				foreach $fMod( BATools::getModuleList())
+				{
+						chomp($fMod);
+						chomp( $pMod);
+						if( $pMod eq $fMod)
+						{
+							$moduleList = $moduleList."<option>$pMod</option>\n";
+							$found = 1;
+						}
+				}
+				if( !$found)
+				{
+					# $moduleList = $moduleList."<option class='bad'>ERROR: $pMod</option>\n";
+					push( @errors, "Module \"$pMod\" in \"$prof\" NOT found\n(non critical).\n");
+				}
+			}
+		}
+		else
+		{
+			$moduleList = "<option>See Profile: $prof</option>";
+		}
+	}
+	else
+	{
+		$moduleList = BATools::getModuleSelectionList();
+	}
+}
+
+sub infoWindow
+{
+	if( !scalar( @errors))
+	{
+		$debugWindow = readFile($profilePath.$prof);
+	}
+	else
+	{
+		$debug = "error";
+		$debugWindow = "\n\nErrors:\n\n";
+		foreach( @errors)
+		{
+			$debugWindow = $debugWindow."$_\n";
+		}
+	}
+}
+
+sub readFile
+{
+	$fileName = $_[0];
+	my $retString = "\n\n";
+  	open (PROFILE, $fileName) || die "couldn't open the file!";
+	while (<PROFILE>)
+	{
+		$retString = $retString.$_;
+	}
+	close(PROFILE);
+	return $retString;
+}

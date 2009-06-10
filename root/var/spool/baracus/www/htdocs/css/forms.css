@@ -10,6 +10,15 @@
     display:inline;
     margin-left:10;
 }
+
+#f-labels h1.disabled
+{
+	color:grey;
+    font-size: 11pt;
+    font-weight:bold;
+    display:inline;
+    margin-left:10;
+}
 #f-labels h3
 {
 	color:#6A737B;
@@ -17,6 +26,14 @@
     font-weight:bold;
     display:inline;
     margin-left:20;
+}
+#f-labels h4
+{
+	color:white;
+    font-size: 8pt;
+    font-weight:bold;
+    display:inline;
+    margin-left:5;
 }
 #f-labels select
 {
@@ -38,6 +55,13 @@
 	left: 130px;
 	top: 115px;
 }
+
+#f-labels option.bad
+{
+	color:red;
+	font-size:8pt;
+}
+
 #radio
 {
 	width:200px;
@@ -47,6 +71,10 @@
 	padding-top:5px;
 	padding-bottom:5px;
 	font-size:10pt;
+}
+#subnote
+{
+	color:red;
 }
 
 #block1
@@ -85,7 +113,7 @@
 #block3
 {
 	width:260;
-	height:150;
+	height:250;
 	position:absolute;
 	top:0px;
 	left:300px;
@@ -104,9 +132,9 @@
 #block4
 {
 	width:260;
-	height:85;
+	height:45;
 	position:absolute;
-	top:150px;
+	top:250px;
 	left:300px;
 	text-align:bottom;
 	border-bottom:1px dashed gray;
@@ -119,7 +147,7 @@
 	width:100;
 	position:absolute;
 	left:120;
-	top:55%;
+	top:45%;
 }
 
 #blockb

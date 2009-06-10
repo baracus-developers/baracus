@@ -1,0 +1,9 @@
+#!/usr/bin/perl
+
+print "Content-type: text/html\n\n";
+
+print <<HTML
+<h1>hi!!</h1>
+<br>
+HTML
+;

@@ -1,14 +1,9 @@
 #!/usr/bin/perl
 
-use lib '/srv/www/modules';
+use lib '/var/spool/baracus/www/modules';
 use BATools qw(:standard);
 use CGI qw(:standard);
 
-my $r = shift;
-if( !$r)
-{
-	exit(0);
-}
 print "Content-type: text/html\n\n";
 
 $fid = param('fid') || "";
@@ -76,15 +71,15 @@ print <<HTML0
 <html>
 	<head>
 		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
-		<link rel='stylesheet' href='/css/common.css' type='text/css' >
-		<script type="text/javascript" src="/script/common.js"></script>
+		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
+		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
 	<body $refresh>
 	<div id='output'>
 	<textarea>$content</textarea>
 	<h1>$header</h1>
 	<h3>$proc</h3>
-	<form action="/perl/source"><input type="submit" name="back" value="<< Back"></form> 
+	<form action="/$BATools::baCGI/source"><input type="submit" name="back" value="<< Back"></form> 
 	</div>
 
 	<body>
@@ -121,7 +116,7 @@ sub addHeader()
 
 sub addContent()
 {
-		my $cmd = "perl /srv/www/cgi-bin/execute add $distro $verbose";
+		my $cmd = "perl /$BATools::baPath/modules/execute add $distro $verbose";
 		return background( $cmd);
 }
 
@@ -136,8 +131,15 @@ sub delHeader()
 
 sub delContent()
 {
-	my $cmd = "perl /srv/www/cgi-bin/execute remove $distro $verbose $redir";
-	return background( $cmd);;
+	my $cmd = "perl /$BATools::baPath/modules/execute remove $distro $verbose $redir";
+	
+	my $ret = background( $cmd);
+	if( $ret =~ m/^Error/)
+	{
+		norefresh();
+	}
+
+	return $ret;
 }
 
 ########################################################################################################
@@ -169,8 +171,8 @@ sub disHeader()
 
 sub disContent()
 {
-	my $enacmd = "sudo create_install_source disable --distro=$distro $verbose".$redir;
-	my $retString = execute( $enacmd);
+	my $discmd = "sudo create_install_source disable --distro=$distro $verbose".$redir;
+	my $retString = execute( $discmd);
 
 	norefresh();
 	return $retString;
@@ -217,8 +219,8 @@ sub background
 {
 	my $cmd = $_[0];
 	my $rfile = BATools::generate_random_string();
-	$cmd = "/srv/www/cgi-bin/pfork.bin ".$cmd." $rfile";
-	my $poolPath = "/srv/www/htdocs/pool/";
+	$cmd = "$BATools::baPath/modules/pfork.bin ".$cmd." $rfile";
+	my $poolPath = "$BATools::baPath/htdocs/pool/";
 	my $myFile;
 	my $retString = "";
 	
@@ -231,7 +233,7 @@ sub background
 	else
 	{
 		$myFile = $poolPath.$fid;		
-		open (MYFILE, $myFile) || return "Error Opening File:\n$!";
+		open (MYFILE, $myFile) || return "Error Opening File: $myFile\n$!";
 		while(<MYFILE>)
 		{
 			if( $_ =~ m/POOLFILEDONE/)

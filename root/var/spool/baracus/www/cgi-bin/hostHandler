@@ -1,14 +1,8 @@
 #!/usr/bin/perl
 
-use lib '/srv/www/modules';
+use lib '/var/spool/baracus/www/modules';
 use BATools qw(:standard);
 use CGI qw(:standard);
-
-my $r = shift;
-if( !$r)
-{
-	exit(0);
-}
 
 print "Content-type: text/html\n\n";
 
@@ -50,8 +44,8 @@ print <<HTML0
 <html>
 	<head>
 		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
-		<link rel='stylesheet' href='/css/common.css' type='text/css' >
-		<script type="text/javascript" src="/script/common.js"></script>
+		<link rel='stylesheet' href='/baracus/css/common.css' type='text/css' >
+		<script type="text/javascript" src="/baracus/script/common.js"></script>
 	</head>
 	<body $refresh>
 	<div id='output'>
@@ -93,7 +87,7 @@ sub hwHeader()
 
 sub hwContent()
 {
-	my $hostCmd = "sudo create_install_host list hardware $verbose $redir";
+	my $hostCmd = "sudo baconfig list hardware $verbose $redir";
 	return execute( $hostCmd);
 }
 

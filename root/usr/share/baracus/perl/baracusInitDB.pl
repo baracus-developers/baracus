@@ -159,6 +159,10 @@ sub main {
     }
 
     die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+
+    # finished working as user baracus
+
+    $> = $suid;
 }
 
 sub niam {

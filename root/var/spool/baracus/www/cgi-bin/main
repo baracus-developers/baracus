@@ -1,6 +1,8 @@
 #!/usr/bin/perl
 
 use strict;
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
 use vars qw( %hash @array);
 use CGI qw(:standard);
 
@@ -31,10 +33,10 @@ $data = param('data');
 			  "About");
 
 @menucmd = ("home.html", 
-		"/perl/hostHandler?sub=temp.iframe", 
-		"/perl/hostHandler?sub=hw.iframe",
-		"/perl/create.iframe", 
-		"/perl/source.iframe",
+		"/$BATools::baCGI/hostHandler?sub=temp.iframe", 
+		"/$BATools::baCGI/hostHandler?sub=hw.iframe",
+		"/$BATools::baCGI/create.iframe", 
+		"/$BATools::baCGI/source.iframe",
 		"uc.html");
 
 $menuHTML = createMenu( $op);
@@ -50,17 +52,17 @@ print <<HTML1;
 <html>
 	<head>
 		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
-		<link rel='stylesheet' href='/css/common.css' type='text/css' >
-		<link rel='stylesheet' href='/css/forms.css' type='text/css' >
-		<script type="text/javascript" src="/script/common.js"></script>
+		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
+		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
+		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
 	
 	<body bgcolor="white" onClick="parent_disable();">
 	<div id="title">&nbsp;&nbsp;[ baracus ]</div> 
 	<div id="subtitle">&nbsp;&nbsp;Linux Solutions Group</div> 
 	<div id="line">	<hr size="10" align="left"></div>
-	<div id="logo"><img src="/images/Geeko_icon3.jpg"\></div>
-	<div id="nvlogo"><a href="http://www.novell.com"><img src="/images/nov_blk.gif"></a></div>
+	<div id="logo"><img src="/$BATools::baRoot/images/Geeko_icon3.jpg"\></div>
+	<div id="nvlogo"><a href="http://www.novell.com"><img src="/$BATools::baRoot/images/nov_blk.gif"></a></div>
 
 	<div id='mmenu'>
 	<ul><br><br><br>
@@ -98,7 +100,7 @@ sub createMenu
 			$menuindex = $iter;
 		}
 		
-		$retString = $retString."\t<li><a href='/perl/main?op=$_'><div id='$divid'>$_</div></a></li>\n";
+		$retString = $retString."\t<li><a href='/$BATools::baCGI/main?op=$_'><div id='$divid'>$_</div></a></li>\n";
 		
 		$divid = "";
 		++ $iter;
@@ -132,7 +134,7 @@ sub processCommand
 	}
 	elsif ($cmd =~ m/html\Z/)
 	{
-		$data_file="/srv/www/htdocs/" . $cmd;
+		$data_file="$BATools::baPath/htdocs/" . $cmd;
 		open(DAT, $data_file) || print "Could not open file: " . $data_file;
 		while(<DAT>)
 		{
@@ -181,5 +183,5 @@ sub getRandomImage()
 
 	  	my $index = rand(6);
 	  		
-		return "\t<div id='geeko'><img src='/images/".@imgarray[$index]."'/></div>\n";
+		return "\t<div id='geeko'><img src='/$BATools::baRoot/images/".@imgarray[$index]."'/></div>\n";
 }

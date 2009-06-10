@@ -50,6 +50,7 @@ our $LASTERROR="";
 my $man   = 0;
 my $help  = 0;
 my $debug = 0;
+my $quiet = 0;
 
 my %tbl = (
            'distro'   => 'distro_cfg',
@@ -72,6 +73,7 @@ GetOptions(
            'help|?'         => \$help,
            'man'            => \$man,
            'debug|verbose+' => \$debug,
+           'quiet'          => \$quiet,
            );
 
 &man()  if $man;
@@ -160,6 +162,8 @@ sub list
         return 1;
     }
 
+    unless ( $quiet ) {
+
 #2345678901234567890123456789012345678901324567890123456789012345678901234567890
 #        1         2         3         4         5         6         7         8
 print <<HEAD;
@@ -168,11 +172,15 @@ name                             description
 --------------------------------------------------------------------------------
 HEAD
 
+    }
     while( my $href = &list_next( $sth ) ) {
         # name, description
-        printf "%-32s %s\n",
-            $href->{'name'},
+        printf "%-32s ", $href->{'name'};
+        unless ( $quiet ) {
+            printf "%s",
             (defined $href->{'description'}) ? $href->{'description'} : "";
+        }
+        print "\n";
     }
     &list_finish( $sth );
 

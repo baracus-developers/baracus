@@ -1,12 +1,12 @@
 #!/usr/bin/perl
 
-use lib '/srv/www/modules';
+use lib '/var/spool/baracus/www/modules';
 use BATools qw(:standard);
 use CGI qw(:standard);
 
-my $source_help = '/srv/www/htdocs/help/source.hlp';
+my $source_help = "$BATools::baPath/htdocs/help/source.hlp";
 
-my $dselect = BATools::get_distro_selection_list();
+my $dselect = BATools::getDistroSelectionList();
 my $help = print_help();
 
 ########################################################################################################
@@ -20,16 +20,16 @@ print <<HTML0;
 <html>
 	<head>
 		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
-		<link rel='stylesheet' href='/css/common.css' type='text/css' >
-		<link rel='stylesheet' href='/css/forms.css' type='text/css' >
-		<script type="text/javascript" src="/script/common.js"></script>
+		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
+		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
+		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
 	<body>
 		<div id='f-labels'>
 		<div id='block1'>
 		<h1>List</h1><br><br>
 		<h3>All Installation Sources</h3>
-		<form action="/perl/sourceHandler">
+		<form action="/$BATools::baCGI/sourceHandler">
 			<input type="hidden" name="sub" value="list">
 			<input class="button" type="submit" value="List">
 		</form>
@@ -38,7 +38,7 @@ print <<HTML0;
 
 	<div id='block2'>
 		<h1>Source Options</h1><br><br>
-		<form name="add" action="/perl/sourceHandler">
+		<form name="add" action="/$BATools::baCGI/sourceHandler">
 			<br>
 			<!--
 			<select name="subx">

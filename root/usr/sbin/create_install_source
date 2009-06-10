@@ -991,7 +991,8 @@ sub pxe_config() {
 
     ## Create example pxelinux.cfg boot file
     ##
-    open(PXEFILE, "<$datadir/templates/pxelinux.template");
+    open(PXEFILE, "<$datadir/templates/pxelinux.template")
+        or die "unable to open file: $!\n";
     my $pxe = join '', <PXEFILE>;
     close(PXEFILE);
 

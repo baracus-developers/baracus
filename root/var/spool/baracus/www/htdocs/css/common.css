@@ -21,6 +21,7 @@
     color:gray;
     font-variant:small-caps;
     font-weight:normal;
+    font-family: serif;
 }
 #mmenu a:link
 {
@@ -200,13 +201,10 @@
 {
 	width:280;
 	height:290;
-	background-color: E4E5E6;
-	color:6DB33F;
 	position:absolute;
 	top:320px;
 	left:300px;
 	border:2px dotted #B2D68C;
-	font-size:9pt;
 }
 #debug textarea
 {
@@ -219,5 +217,29 @@
 	width:280;
 	height:290;
 	color:black;
+	padding-left:10px;
+}
+
+/* ERROR */
+#error
+{
+	width:280;
+	height:290;
+	position:absolute;
+	top:320px;
+	left:300px;
+	border:2px dotted #B2D68C;
+}
+#error textarea
+{
+	background-color: E4E5E6;
+	position:absolute;
+	left:0;
+	top:0;
+	font-family:arial;
+	font-size:9pt;
+	width:280;
+	height:290;
+	color:red;
 	padding-left:10px;
 }

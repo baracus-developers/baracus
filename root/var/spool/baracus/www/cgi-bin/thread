@@ -1,0 +1,56 @@
+#!/usr/bin/perl
+
+use Config; 
+use Thread;
+
+print "Content-type: text/html\n\n";
+
+print "Start\n";
+
+
+if ($Config{usethreads})
+{ 
+    print "We have threads\n"; 
+} else
+{ 
+	print "We do NOT have threads\n";
+}
+
+$thr = new Thread \&sub1;
+
+print "Waiting For Thread\n";
+
+#$x = 0;
+#while ($thr->is_running())
+#{
+#	++ $x;
+#	@list = threads->list(threads::running);
+#	print "..\n";
+#	sleep 1;
+#}
+
+
+$thr->join;
+
+print "All Done\n";
+
+
+sub sub1
+{
+	
+	open (MYFILE, '> data.txt') || die "Cannot open file: $!";
+	print MYFILE "Data File Created\n\n";
+	close (MYFILE); 
+
+	$count = 0;
+	while ($count < 6)
+	{
+		++ $count;
+		open (MYFILE, '>> data.txt') || die "Cannot open file: $!";
+		print MYFILE "In Thread: $count\n";
+		close (MYFILE); 
+		sleep 1;
+	}
+}
+    
+  
