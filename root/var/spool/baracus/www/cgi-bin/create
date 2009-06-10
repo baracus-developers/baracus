@@ -1,3 +1,4 @@
+
 #!/usr/bin/perl
 
 use lib '/var/spool/baracus/www/modules';
@@ -47,7 +48,6 @@ our $distroList;
 our $hardwareList;
 our $found;
 our @profModules = ();
-our @errors = ();
 
 ########################################################################################################
 #  Setup Data
@@ -170,7 +170,7 @@ sub createProfileVars
     			
     			$$_ = $val;
 				
-				push(@errors, "$_=$val");		
+				BATools::debugPrint("$_=$val");		
 
 				$slen = length $val;
 				
@@ -179,7 +179,7 @@ sub createProfileVars
 					$tmp = $_."D";
 					$$tmp = "disabled";
 					
-					push(@errors, "$tmp $$tmp");		
+					BATools::debugPrint("$tmp $$tmp");		
 					
 					if( $_ eq "module")
 					{
@@ -245,7 +245,7 @@ sub getAndCheckModules
 				if( !$found)
 				{
 					# $moduleList = $moduleList."<option class='bad'>ERROR: $pMod</option>\n";
-					push( @errors, "Module \"$pMod\" in \"$prof\" NOT found\n(non critical).\n");
+					BATools::debugPrint( "Module \"$pMod\" in \"$prof\" NOT found\n(non critical).\n");
 				}
 			}
 		}
@@ -262,7 +262,7 @@ sub getAndCheckModules
 
 sub infoWindow
 {
-	if( !scalar( @errors))
+	if( !scalar( @BATools::errors))
 	{
 		$debugWindow = readFile($profilePath.$prof);
 	}
@@ -270,7 +270,7 @@ sub infoWindow
 	{
 		$debug = "error";
 		$debugWindow = "\n\nErrors:\n\n";
-		foreach( @errors)
+		foreach( @BATools::errors)
 		{
 			$debugWindow = $debugWindow."$_\n";
 		}

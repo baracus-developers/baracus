@@ -1,3 +1,4 @@
+
 package BATools;
 
 use XML::Simple;
@@ -5,6 +6,8 @@ use XML::Simple;
 our $baPath = "/var/spool/baracus/www";
 our $baCGI = "baracus/ba";
 our $baRoot = "baracus";
+our	$debug = 1;
+our @errors = ();
 
 my $qsPath = "/usr/share/baracus/qs.xml";
 
@@ -107,7 +110,6 @@ sub getHardwareSelectionList
 
 	foreach $val (@hwarray)
 	{
-		chop($val);
 		if( length($val) > 1)
 		{
 			# If parameter was passed in make that hwtype selected and disable, otherwise select kvm
@@ -154,6 +156,11 @@ sub getHardware
 	
 	my $hwstring = `$hwcmd`; 
 	my @hwarray = split("\n", $hwstring, -1);
+	foreach( @hwarray)
+	{
+		$_ = trim($_);
+	}
+	
 	return @hwarray;
 }
 
@@ -228,5 +235,22 @@ sub isInArray
 
 	return 0;
 }
+# trim function to remove whitespace from the start and end of the string
+sub trim($)
+{
+	my $string = shift;
+	$string =~ s/^\s+//;
+	$string =~ s/\s+$//;
+	return $string;
+}
+
+sub debugPrint
+{
+	if( debug)
+	{
+		push( errors, $_[0]);
+	}
+}
+
 
 1;
