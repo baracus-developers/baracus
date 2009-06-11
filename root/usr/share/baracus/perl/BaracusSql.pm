@@ -174,6 +174,7 @@ sub get_baracus_tables
                                    'moduleid'    => 'VARCHAR(32) NOT NULL',
                                    'version'     => 'INTEGER',
                                    'description' => 'VARCHAR(64)',
+                                   'interpreter' => 'VARCHAR(8)',
                                    'data'        => 'VARCHAR',
                                    'status'      => 'BOOLEAN',
                                    'CONSTRAINT'  => 'module_cfg_pk PRIMARY KEY (moduleid, version)',

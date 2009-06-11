@@ -425,8 +425,9 @@ Where <options and args> are
 
     --name id            required unique id, suggest script name
     --file <path/script> script to use for this module
-    --enabled            wolrd of hurt with this *and* version... TODO
-    --description note   quoted note describing this script
+    --enabled             enable module so it is available for use
+    --description "note"  quoted note describing this script
+    --interpreter value   where value is shell, perl, python  [default shell]
 
 =cut
 
@@ -436,6 +437,7 @@ sub add_module
     my %entry = (
                  'moduleid'    => "",
                  'description' => "",
+                 'interpreter' => "shell",
                  'data'        => "",
                  'status'      => "",
                  'version'     => 1,
@@ -445,6 +447,7 @@ sub add_module
     GetOptions(
                'name=s'         => \$entry{'moduleid'},
                'description=s'  => \$entry{'description'},
+               'interpreter=s'  => \$entry{'interpreter'},
                'file=s'         => \$file,
                'enabled!'       => \$entry{'status'},
                );
@@ -455,6 +458,16 @@ sub add_module
     }
 
     &help() unless ( $entry{'moduleid'} );
+
+    $entry{'interpreter'} = lc $entry{'interpreter'};
+    $entry{'interpreter'} =~ s/[ \t]*//g;
+
+    if ( ($entry{'interpreter'} ne "shell")   &&
+         ($entry{'interpreter'} ne "perl")    &&
+         ($entry{'interpreter'} ne "python" ) ){
+        print "invalid interpreter specified \'$entry{'interpreter'}\' - should be 'shell' 'perl' or 'python'\n";
+        &help();
+    }
 
     if ( $entry{'status'} ) {
         $entry{'status'} = 't';
@@ -573,6 +586,7 @@ sub detail
                 print  $href->{'data'};
                 printf "#\n# module: %s\n",   $href->{'moduleid'};
                 printf "# description: %s\n", $href->{'description'};
+                printf "# interpreter: %s\n", $href->{'interpreter'};
                 printf "# version: %s\n",     $href->{'version'};
             }
         }
