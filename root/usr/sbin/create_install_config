@@ -26,6 +26,7 @@ Where E<lt>commandE<gt> is
     add    <type>  Copy to database from file in specified location.
     detail <type>  Display file entry in the database table.
     remove <type>  Delete file specified from database table.
+    update module  Add a new version or modify attributes of an existing module
 
 And, where E<lt>typeE<gt> is
 
@@ -190,19 +191,20 @@ HEAD
 sub add
 {
     my $type = shift;
+    my $status;
 
     &check_type( $type );
     $type = lc $type;
 
     if ( $type eq "distro" ) {
-        &add_distro( @_ );
+        $status = &add_distro( @_ );
     } elsif ( $type eq "hardware" ) {
-        &add_hardware( @_ );
+        $status = &add_hardware( @_ );
     } elsif ( $type eq "module" ) {
-        &add_module( @_ );
+        $status = &add_module( @_ );
     }
 
-    return 0;
+    return $status;
 }
 
 =item add distro <options and args>
@@ -425,11 +427,14 @@ Where <options and args> are
 
     --name id            required unique id, suggest script name
     --file <path/script> script to use for this module
-    --enabled             enable module so it is available for use
+    --enabled             enable module so it is available for use [default true]
     --description "note"  quoted note describing this script
-    --interpreter value   where value is shell, perl, python  [default shell]
 
 =cut
+
+# thought this was supported from old autoinit documentation
+#
+#  --interpreter value   where value is shell, perl, python  [default shell]
 
 sub add_module
 {
@@ -439,7 +444,7 @@ sub add_module
                  'description' => "",
                  'interpreter' => "shell",
                  'data'        => "",
-                 'status'      => "",
+                 'status'      => "t",
                  'version'     => 1,
                  );
 
@@ -447,14 +452,14 @@ sub add_module
     GetOptions(
                'name=s'         => \$entry{'moduleid'},
                'description=s'  => \$entry{'description'},
-               'interpreter=s'  => \$entry{'interpreter'},
+#               'interpreter=s'  => \$entry{'interpreter'},
                'file=s'         => \$file,
                'enabled!'       => \$entry{'status'},
                );
 
     if ( scalar @ARGV ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &help();
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
     }
 
     &help() unless ( $entry{'moduleid'} );
@@ -465,8 +470,8 @@ sub add_module
     if ( ($entry{'interpreter'} ne "shell")   &&
          ($entry{'interpreter'} ne "perl")    &&
          ($entry{'interpreter'} ne "python" ) ){
-        print "invalid interpreter specified \'$entry{'interpreter'}\' - should be 'shell' 'perl' or 'python'\n";
-        &help();
+        $LASTERROR = "invalid interpreter specified \'$entry{'interpreter'}\' - should be 'shell' 'perl' or 'python'\n";
+        return 1;
     }
 
     if ( $entry{'status'} ) {
@@ -476,7 +481,7 @@ sub add_module
     }
 
     unless ( -f $file ) {
-        $LASTERROR = "need the --file <script> to add\n";
+        $LASTERROR = "Need --file <script> to add. Unable to find file: $file.\n";
         return 1;
     }
 
@@ -523,9 +528,159 @@ sub add_module
     return 0;
 }
 
-=item detail E<lt>typeE<gt> E<lt>nameE<gt>
+=item update module <options and args>
 
-    Takes type and name as argument.
+Where <options and args> are
+
+    --name id             required unique id, suggest script name
+
+    --enabled             enable module so it is available for use
+    --description "note"  quoted note describing this script
+
+    --file <path/script>  script to use to update this modules content
+    --version ver         if --file not given we must be modifing parameters of
+                          an existing ver - use integer to specify which ver
+
+=cut
+
+# thought init-scripts would support this but they don't anymore:
+#
+#   --interpreter value   where value is shell, perl, python  [default shell]
+
+sub update  # module
+{
+    my $type = shift;
+    my $file = "";
+
+    &check_type( $type );
+    $type = lc $type;
+
+    if ( $type ne "module" ) {
+        $LASTERROR = "Only 'module' updates supported at this time\n";
+        return 1;
+    }
+
+    my %entry = (
+                 'moduleid'    => "",
+                 'description' => "",
+                 'interpreter' => "shell",
+                 'data'        => "",
+                 'status'      => "",
+                 'version'     => 0,
+                 );
+
+    @ARGV = @_;
+    GetOptions(
+               'name=s'         => \$entry{'moduleid'},
+               'description=s'  => \$entry{'description'},
+#              'interpreter=s'  => \$entry{'interpreter'},
+               'file=s'         => \$file,
+               'enabled!'       => \$entry{'status'},
+               'version=i'      => \$entry{'version'},
+               );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    &help() unless ( $entry{'moduleid'} );
+
+    $entry{'interpreter'} = lc $entry{'interpreter'};
+    $entry{'interpreter'} =~ s/[ \t]*//g;
+
+    if ( ($entry{'interpreter'} ne "shell")   &&
+         ($entry{'interpreter'} ne "perl")    &&
+         ($entry{'interpreter'} ne "python" ) ){
+        $LASTERROR = "invalid interpreter specified \'$entry{'interpreter'}\' - should be 'shell' 'perl' or 'python'\n";
+        return 1;
+    }
+
+    if ( $entry{'status'} ) {
+        $entry{'status'} = 't';
+    } else {
+        $entry{'status'} = 'f';
+    }
+
+    # in update if file is not specified we want to change parameters
+    # related to an existing entry - status, description, interpreter...
+
+    my $sql_cols = lc get_cols( 'module' );
+    $sql_cols =~ s/[ \t]*//g;
+    my @cols = split( /,/, $sql_cols );
+    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+    my $sql = qq|UPDATE $tbl{ 'module' } SET
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+    print $sql . "\n" if $debug;
+
+    my $version_href;
+    my $enabled_href;
+
+    $sql .= " WHERE moduleid=?";
+    my $ver_sql = $sql . ", version=?";  # to alter a specific version (status)
+
+    if ( $entry{'version'} != 0 ) {
+        if ( $file ne "" ) {
+            $LASTERROR = "You cannot change the --file content of a version\n";
+            return 1;
+        }
+        $version_href = &get_version( $type, $name, $entry{'version'} );
+    }
+    elsif ( $file eq "" ) {
+        $LASTERROR = "Neither --file nor --version specified for update.\n"
+    }
+    elsif ( ! $file ) {
+        $LASTERROR = "Need --file <script> to add. Unable to find file: $file.\n";
+        return 1;
+    }
+    else {
+        open (FILE, "<$file") || die "unable to open $file: $!\n";
+        undef $/;
+        $entry{'data'}=<FILE>;  # slurp mode
+        $/ = "\n";
+        close FILE;
+    }
+
+    # find enabled entry
+
+    $enabled_href = &get_enabled( $type, $name );
+    unless ( defined $enabled_href ) {
+        $LASTERROR = "Attempt to update non-existent entry for $type $name\n";
+        return 1;
+    }
+
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'update' module statement\n" .
+            $dbh->errstr;
+        return 1;
+    }
+
+    $paramidx = 0;
+    foreach $col (@cols) {
+        $paramidx += 1;
+        $sth->bind_param( $paramidx, $entry{ $col } );
+    }
+
+    # finished with last entry
+    unless( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'update' module statement\n" .
+            $sth->err;
+        return 1;
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+=item detail E<lt>typeE<gt> E<lt>nameE<gt> [ --all ]
+
+    Takes type and name as argument. Option --all can be used to display
+    all module versions, otherwise only the 'active' version is shown.
     Fetch and display the details about the entry in the type database.
 
 =cut
@@ -536,10 +691,13 @@ sub detail
     my $name = shift;
     my $sql_cols;
     my $href;
+    my $all = 0;
 
-    if ( scalar @_ ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @_);
-        &help();
+    @ARGV = @_;
+    GetOptions( 'all' => \$all );
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
     }
 
     &check_type( $type );
@@ -582,11 +740,12 @@ sub detail
     while( $href = $sth->fetchrow_hashref( ) ) {
         $rowcount += 1;
         if ( $type eq "module" ) {
-            if ( $href->{'status'} ) {
+            if ( $all || $href->{'status'} ) {
                 print  $href->{'data'};
                 printf "#\n# module: %s\n",   $href->{'moduleid'};
                 printf "# description: %s\n", $href->{'description'};
-                printf "# interpreter: %s\n", $href->{'interpreter'};
+#               printf "# interpreter: %s\n", $href->{'interpreter'};
+                printf "# enabled: %s\n",     $href->{'status'} if $all;
                 printf "# version: %s\n",     $href->{'version'};
             }
         }
@@ -766,6 +925,81 @@ sub get_cols
     my $tbl = shift;
     my $hashoftbls = BaracusSql::get_baracus_tables();
     return BaracusSql::keys2columns( $hashoftbls->{ $tbl{ $tbl } } );
+}
+
+# get_version
+#
+# args: type (module, distro, hardware), $name, $version
+# ret:  hash to entry found or undef on error
+
+sub get_version
+{
+    my ($type, $name, $version) = @_;
+    return &get_entry($type, $name, $version);
+}
+
+# get_enabled
+#
+# args: type (module, distro, hardware), $name, $high (true: get highest version)
+# ret:  hash to entry found or undef on error
+
+sub get_enabled
+{
+    my ($type, $name, $high) = @_;
+    return &get_entry($type, $name, 0, $high);
+}
+
+# will get enabled entry if vers and high not passed
+
+sub get_entry
+{
+    my $type = shift;
+    my $name = shift;
+    my $vers = shift;  # version - if non-zero we want this name,ver key'd entry
+    my $high = shift;  # else, if this bool false then find enabled, true high ver
+    my $sql;
+    my $sql_cols;
+    my $sth;
+    my $href;
+    my $version = 0;
+
+    $high = 0 unless ( defined $high );
+
+    $sql_cols = get_cols( $type );
+    $sql = qq| SELECT $sql_cols FROM $tbl{ $type } ORDER BY version |;
+
+    if ( $type eq "distro" ) {
+        $sql .= "WHERE distroid = ?";
+    }
+    else {
+        die "Only module versions supported at this time\n";
+    }
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'get_enabled' statement\n" . $dbh->errstr;
+        return undef;
+    }
+
+    unless( $sth->execute( $name ) ) {
+        $LASTERROR = "Unable to execute 'get_enabled' statement\n" . $sth->err;
+        return undef;
+    }
+
+    my $rowcount = 0;
+
+    while( $href = $sth->fetchrow_hashref( ) ) {
+        $rowcount += 1;
+        next if $high;
+        if ( $href->{'status'} ) {
+            # not looking for highest - found enabled
+            last;
+        }
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return $href;
 }
 
 die "ABSOLUTELY DOES NOT EXECUTE";

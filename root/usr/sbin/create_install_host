@@ -782,7 +782,7 @@ if ($command eq "add") {
             $modulefile="<script>
         <filename>$sel->{'moduleid'}</filename>
         <interpreter>$sel->{'interpreter'}</interpreter>
-        <source><![CDATA[\n";
+        <source><![CDATA[";
             $modulefile .= $sel->{'data'};
             $modulefile .="        ]]>\n        </source>\n      </script>";
             $profileHash{'module'} .= $modulefile;
