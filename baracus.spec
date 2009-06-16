@@ -17,7 +17,7 @@ Source5:   apache.baracus.conf
 Requires:  perl, perl-XML-Simple, perl-libwww-perl, perl-Data-UUID
 Requires:  perl-Config-General, perl-Config-Simple, perl-AppConfig
 Requires:  perl-TermReadKey, perl-DBI, perl-DBD-Pg, perl-Tie-IxHash
-Requires:  rsync, apache2, dhcp-server, postgresql-server
+Requires:  rsync, apache2, apache2-mod_perl, dhcp-server, postgresql-server
 %if 0%{?suse_version} < 1030
 Requires:  nfs-utils
 %else

@@ -3,6 +3,7 @@ use 5.006;
 use Carp;
 use strict;
 use warnings;
+use File::Copy;
 
 use lib "/usr/share/baracus/perl";
 
@@ -31,6 +32,9 @@ if ( defined $reverse_flag ) {
     &main();
     system ( "/usr/share/baracus/perl/baconfig_load_distro" );
     system ( "/usr/share/baracus/perl/baconfig_load_hardware" );
+    my $need_restart = &add_apache2_perl();
+    system ( "service apache2 restart" ) if $need_restart;
+    &add_www_sudoers();
 }
 
 exit 0;
@@ -203,6 +207,56 @@ sub niam {
     die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
 }
 
+sub add_apache2_perl
+{
+    my $sysconf_in  = "/etc/sysconfig/apache2.bk";
+    my $sysconf_out = "/etc/sysconfig/apache2";
+    my $mods;
+    my $restart = 0;
+
+    copy ($sysconf_out, $sysconf_in);
+    open (SYSCONF_IN, "<$sysconf_in")
+        or die "Unable to open $sysconf_in: $!\n";
+    open (SYSCONF_OUT, ">$sysconf_out")
+        or die "Unable to open $sysconf_out: $!\n";
+    while (<SYSCONF_IN>) {
+        if (m/^(\s*APACHE_MODULES\s*=\s*"\s*)([^"]*)(\s*"\s*)$/) {
+            my $pre = $1;
+            $mods = $2;
+            my $post = $3;
+            if ( ! ( $mods =~ m/\s*perl\s*/ ) ) {
+                $mods .= " perl";
+                $_ = $pre . $mods . $post ;
+                $restart = 1;
+            }
+        }
+        print SYSCONF_OUT $_;
+    }
+    close SYSCONF_IN;
+    close SYSCONF_OUT;
+    unlink $sysconf_in;
+    return $restart;
+}
+
+sub add_www_sudoers
+{
+    my $www_search = qr|^\s*%www\s*ALL\s*=\s*\(\s*ALL\s*\)\s*NOPASSWD\s*:\s*ALL|;
+    my $www_line = qq|\n%www	ALL=(ALL) NOPASSWD: ALL\n|;
+    my $sudoers  = "/etc/sudoers";
+    my $found = 0;
+
+    open (SUDOERS, "+<$sudoers")
+        or die "Unable to open $sudoers: $!\n";
+    while (<SUDOERS>) {
+        if (m/$www_search/) {
+            $found = 1;
+        }
+    }
+    if (not $found) {
+        print SUDOERS $www_line;
+    }
+    close SUDOERS;
+}
 
 die "absolutely does not execute";
 
