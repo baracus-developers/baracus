@@ -1,0 +1,70 @@
+#!/usr/bin/perl
+
+
+use strict;
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+use vars qw( %hash @array);
+use CGI qw(:standard);
+
+my $caller = param('caller');
+my $attr = param('attr');
+my @val = param('val');
+
+my $content = getContent($attr, @val);
+
+print "Content-type: text/html\n\n";
+
+print <<HTML0;
+
+<html>
+	<head>
+		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
+		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
+	</head>
+	<body>
+	<div id='inStatus'>
+	<textarea name="comments" readonly="yes">$content</textarea>
+	</div>
+	</body>
+</html>
+
+HTML0
+;
+
+sub getContent
+{
+	my($a, @v) = @_;
+	my $v = @v[0];
+	my $r = "";
+	my $cmd = "";
+	
+	if( $a eq "prof")
+	{
+		$r = "Profile: $v\n\n";
+		$r = $r.BATools::readFile( $BATools::profilePath.$v);
+	}
+	elsif( $a eq "hardware")
+	{
+		$cmd = "sudo baconfig detail hardware $v";
+		$r = "Hardware Detail\n\n";
+		$r = $r.`$cmd`;
+	}
+	elsif( $a eq "distro")
+	{
+		$cmd = "sudo baconfig detail distro $v";
+		$r = "Distribution Detail\n\n";
+		$r = $r.`$cmd`;
+	}
+	else
+	{
+		foreach (@v)
+		{
+			$cmd = "sudo baconfig detail module $_";
+			$r = $r."Module Detail: $_\n";
+			$r = $r.`$cmd`."\n\n";
+		}
+	}
+	return $r;
+}

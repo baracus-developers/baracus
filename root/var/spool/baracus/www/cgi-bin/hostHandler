@@ -58,7 +58,6 @@ print <<HTML0
 </html>
 
 HTML0
-
 ;
 
 ########################################################################################################
@@ -73,7 +72,7 @@ sub tempHeader()
 sub tempContent()
 {
 	my $hostCmd = "sudo create_install_host list templates $verbose $redir";
-	return execute( $hostCmd);
+	return BATools::execute( $hostCmd);
 }
 
 ########################################################################################################
@@ -88,17 +87,6 @@ sub hwHeader()
 sub hwContent()
 {
 	my $hostCmd = "sudo baconfig list hardware $verbose $redir";
-	return execute( $hostCmd);
-}
-
-########################################################################################################
-#  Control Functions
-########################################################################################################
-sub execute
-{
-	my $cmd = $_[0];	
-	my $retString = "$cmd\n\n";
-	$retString = `$cmd`;
-	return $retString;
+	return BATools::execute( $hostCmd);
 }
 

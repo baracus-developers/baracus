@@ -30,13 +30,15 @@ $data = param('data');
 			  "List Hardware",
 			  "Host Entries", 
 			  "Source Entries",
+			  "Processing",
 			  "About");
 
 @menucmd = ("home.html", 
 		"/$BATools::baCGI/hostHandler?sub=temp.iframe", 
-		"/$BATools::baCGI/hostHandler?sub=hw.iframe",
+		"/$BATools::baCGI/hwHandler.iframe",
 		"/$BATools::baCGI/create.iframe", 
 		"/$BATools::baCGI/source.iframe",
+		"/$BATools::baCGI/procHandler.iframe",
 		"uc.html");
 
 $menuHTML = createMenu( $op);

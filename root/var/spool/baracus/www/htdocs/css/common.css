@@ -80,8 +80,6 @@
 	list-style-type: none;
   	list-style-image: none;
 	margin: 0 0 0 0;
-	
-	
 }
 
 
@@ -197,7 +195,7 @@
 }
 
 /* DEBUG */
-#debug
+#status
 {
 	width:280;
 	height:290;
@@ -206,7 +204,7 @@
 	left:300px;
 	border:2px dotted #B2D68C;
 }
-#debug textarea
+#status textarea
 {
 	background-color: E4E5E6;
 	position:absolute;
@@ -220,6 +218,49 @@
 	padding-left:10px;
 }
 
+/* DEBUG */
+#statusW
+{
+	width:580;
+	height:280;
+	position:absolute;
+	top:320px;
+	left:0px;
+	border:2px dotted black;
+}
+#statusW textarea
+{
+	background-color: E4E5E6;
+	position:absolute;
+	left:0;
+	top:0;
+	font-family:arial;
+	font-size:9pt;
+	width:580;
+	height:280;
+	color:black;
+	padding-left:10px;
+}
+
+#inStatus
+{
+	color:blue;
+}
+#inStatus textarea
+{
+	background-color: E4E5E6;
+	position:absolute;
+	left:0;
+	top:0;
+	font-family:arial;
+	font-size:9pt;
+	width:280;
+	height:290;
+	color:black;
+	padding-left:10px;
+}
+
+
 /* ERROR */
 #error
 {
@@ -229,6 +270,7 @@
 	top:320px;
 	left:300px;
 	border:2px dotted #B2D68C;
+	color:red;
 }
 #error textarea
 {

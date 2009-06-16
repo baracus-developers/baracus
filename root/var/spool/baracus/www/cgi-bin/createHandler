@@ -10,7 +10,7 @@ my $result = "\n\n\n\n";
 my $command;
 
 my @names = $query->param;
-my @params = ("mac", "ip", "hostname", "distro", "hardware", "module");
+my @params = ("mac", "ip", "hostname", "distro", "hardware", "module", "profile");
 my @vars = ( "netmask", "gateway", "dnsdomain", "dns1");
 my $varlist;
 
@@ -20,13 +20,13 @@ foreach $myname ( @names)
 {
 	@myvals = param($myname);
 	
-	if( $myname eq "profile")
-	{
-		@split = split( "=", "@myvals[0]", 2);
-		$p = " --".$myname."=".@split[1];	
-		$command = $command.$p;
-	}
-	elsif( BATools::isInArray( $myname, @params))
+#	if( $myname eq "profile")
+#	{
+#		@split = split( "=", "@myvals[0]", 2);
+#		$p = " --".$myname."=".@split[1];	
+#		$command = $command.$p;
+#	}
+	if( BATools::isInArray( $myname, @params))
 	{
 		foreach $val( @myvals)
 		{

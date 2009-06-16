@@ -3,11 +3,12 @@ package BATools;
 
 use XML::Simple;
 
+our $profilePath = "/etc/baracus.d/profiles/";
+our $poolPath = "/var/spool/baracus/www/htdocs/pool/";
 our $baPath = "/var/spool/baracus/www";
 our $baCGI = "baracus/ba";
 our $baRoot = "baracus";
-our	$debug = 1;
-our @errors = ();
+our	$debug = 0;
 
 my $qsPath = "/usr/share/baracus/qs.xml";
 
@@ -19,7 +20,7 @@ sub hello_message
 ###########################################################################################
 # return an array of distributions
 ###########################################################################################
-sub getDistros
+sub getDistrosXML
 {
 	my @distros;
 	
@@ -34,6 +35,19 @@ sub getDistros
 		push( @distros, $_->{os});
 	}
 	return @distros;
+}
+sub getDistros
+{
+	my $dcmd = "sudo baconfig list distro --quiet";
+	
+	my $dstring = `$dcmd`; 
+	my @darray = split("\n", $dstring);
+	foreach( @darray)
+	{
+		$_ = trim($_);
+	}
+
+	return @darray;
 }
 
 ###########################################################################################
@@ -117,8 +131,8 @@ sub getHardwareSelectionList
 			{
 				# FIX: This could potentially result in multiple selected items if they start with the same prefix 
 				#		(example: kvm1, and kvm2 are in hardware list and kvm is passed)
-				#if( $hardware =~ m/^$val/)
-				if( $hardware eq $val)
+				if( $hardware =~ m/^$val/)
+				#if( $hardware eq $val)
 				{
 					$isSelected = "selected";
 					$retString =~ s/enabled/$disabled/;	
@@ -130,7 +144,7 @@ sub getHardwareSelectionList
 			}
 			else
 			{
-				if( $val eq "kvm-hda")
+				if( $val eq "default")
 				{
 					$isSelected = "selected";
 				}
@@ -155,7 +169,7 @@ sub getHardware
 	my $hwcmd = "sudo baconfig list hardware --quiet";
 	
 	my $hwstring = `$hwcmd`; 
-	my @hwarray = split("\n", $hwstring, -1);
+	my @hwarray = split("\n", $hwstring);
 	foreach( @hwarray)
 	{
 		$_ = trim($_);
@@ -200,7 +214,7 @@ sub getModuleSelectionList
 	return $retString;
 }
 
-sub getModuleList
+sub getModuleListFromDir
 {
 	my @dots;
 	my @filtered;
@@ -221,6 +235,66 @@ sub getModuleList
 	return @filtered;
 }
 
+sub getModuleList
+{
+	my $mcmd = "sudo baconfig list module --quiet";
+	
+	my $mstring = `$mcmd`; 
+	my @marray = split("\n", $mstring);
+	foreach( @marray)
+	{
+		$_ = trim($_);
+	}
+	
+	return @marray;	
+}
+
+###########################################################################################
+#  Get Currently Processing List              
+###########################################################################################
+sub getCurrentProcSelectionList
+{
+	my $r = "";
+	my $firstLine = "";
+	my $fName;
+	
+	$r = $r."<select size='14'>\n";
+	
+	foreach( getCurrentProcList())
+	{
+	  	$fName = $poolPath.$_;
+	  	open (FILE, $fName) || die "couldn't open the file!";
+		$firstLine = <FILE>;
+		close(FILE);
+		$r = $r."<option name='$_'>".$firstLine."</option>\n";
+	}
+	$r = $r."</select>\n";
+	return $r;
+}
+
+sub getCurrentProcList
+{
+	my @dots;
+	my @filtered;
+
+	opendir(DIR, $poolPath) || die "can't opendir $poolPath: $!";
+	@dots = readdir(DIR);
+	foreach (@dots)
+	{
+		# If file is not ., .., and does not end with ~
+		if( $_ ne "." && $_ ne ".." && $_ !~ m/~\Z/)
+		{
+			push(@filtered, $_);
+		}
+	}	
+			
+	closedir DIR;
+	return @filtered;
+}
+
+###########################################################################################
+#  Is string (parm1) in array (parm2) return 0 or 1              
+###########################################################################################
 sub isInArray
 {
 	my($myString, @myArray) = @_;
@@ -235,7 +309,10 @@ sub isInArray
 
 	return 0;
 }
+
+###########################################################################################
 # trim function to remove whitespace from the start and end of the string
+###########################################################################################
 sub trim($)
 {
 	my $string = shift;
@@ -244,12 +321,31 @@ sub trim($)
 	return $string;
 }
 
-sub debugPrint
+###########################################################################################
+#  Return File As String              
+###########################################################################################
+sub readFile
 {
-	if( debug)
+	$fileName = $_[0];
+	my $retString = "";
+  	open (PROFILE, $fileName) || die "couldn't open the file!";
+	while (<PROFILE>)
 	{
-		push( errors, $_[0]);
+		$retString = $retString.$_;
 	}
+	close(PROFILE);
+	return $retString;
+}
+
+########################################################################################################
+#  Execute Command and return output
+########################################################################################################
+sub execute
+{
+	my $cmd = $_[0];	
+	my $retString = "$cmd\n\n";
+	$retString = `$cmd`;
+	return $retString;
 }
 
 

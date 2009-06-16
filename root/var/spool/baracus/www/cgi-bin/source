@@ -25,8 +25,8 @@ print <<HTML0;
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
 	<body>
-		<div id='f-labels'>
-		<div id='block1'>
+	<div id='f-labels'>
+	<div id='block1'>
 		<h1>List</h1><br><br>
 		<h3>All Installation Sources</h3>
 		<form action="/$BATools::baCGI/sourceHandler">
@@ -65,7 +65,7 @@ print <<HTML0;
 		</form>
 	</div>
 
-	<div id='debug'>
+	<div id='status'>
 	<textarea name="comments" class="tbox" readonly="yes">$help</textarea>
 	</div>
 	</div>

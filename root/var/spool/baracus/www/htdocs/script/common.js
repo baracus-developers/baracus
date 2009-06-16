@@ -5,15 +5,45 @@ function jsTest()
  	alert("LSG common.js is working!");	
 }
 
-function distUpdate()
+function profileChange()
 {
-	document.createAdd.comments.value="\nSelection Made: " + document.createAdd.distro.value + "\n";
-}
-function hwUpdate()
-{
-	document.createAdd.comments.value="\nSelection Made: " + document.createAdd.hardware.value + "\n";
+	
+ 	var sURL = "/baracus/ba/create?prof=" + document.createAdd.profile.value + 
+ 		"&hostname=" + document.createAdd.hostname.value +
+ 		"&mac=" + document.createAdd.mac.value +
+ 		"&ip=" + document.createAdd.ip.value;
+ 	window.location.href = sURL;
 }
 
+function distUpdate()
+{
+	var selection = document.createAdd.distro.value;
+	var url = "/baracus/ba/createContent?caller=create&attr=distro&val=" + selection;
+	document.getElementById("infoBox").src=url;
+}
+
+function modUpdate()
+{
+	
+	var url = "/baracus/ba/createContent?caller=create&attr=module";
+	var selection = document.createAdd.module;
+	var i;
+	for(i = 0; i < selection.options.length; i++)
+	{
+		if( selection.options[i].selected)
+		{
+			url = url + "&val=" + selection.options[i].value;
+		}
+	}
+	document.getElementById("infoBox").src=url;
+}
+
+function hwUpdate()
+{
+	var selection = document.createAdd.hardware.value;
+	var url = "/baracus/ba/createContent?caller=create&attr=hardware&val=" + selection;
+	document.getElementById("infoBox").src=url;
+}
 function doLoad( qString)
 {
     rfunc = "refresh( '" + qString + "')";

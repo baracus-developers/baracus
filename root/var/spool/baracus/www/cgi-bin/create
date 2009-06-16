@@ -7,47 +7,46 @@ use CGI qw(:standard);
 
 print "Content-type: text/html\n\n";
 
-our $netmask = "netmask";
+
+our $hostname = param('hostname');
+our $mac = param('mac');
+our $ip = param('ip');
+
+our $netmask = param('netmask') || "netmask";
 our $netmaskD;
-
-our $gateway = "gateway";
+our $gateway = param('gateway') || "gateway";
 our $gatewayD;
-
-our $dnsdomain = "dnsdomain";
+our $dnsdomain = param('dnsdomain') || "dnsdomain";
 our $dnsdomainD;
-
-our $dns1 = "dns1";
+our $dns1 = param('dns1') || "dns1";
 our $dns1D;
-
-our $distro = "distro";
+our $distro = param('distro') || "distro";
 our $distroD;
-
-our $hardware = "hardware";
+our $hardware = param('hardware') || "hardware";
 our $hardwareD;
-
-our $module = "module";
+our $module = param('module') || "module";
 our $moduleD;
-
 our $gateway;
 our $gatewayD;
-
-our @profileOptions = (	$netmask,
-					$gateway,
-					$dnsdomain,
-					$dns1,
-					$distro,
-					$hardware,
-					$module);
-				  		
-our $profilePath = "/etc/baracus.d/profiles/";
+our @errors = ();
+our $profilePath = $BATools::profilePath;
 our $prof = param('prof') || 'default';
-our $debugWindow;
-our $debug = "debug";
-our $moduleList;
-our $distroList;
-our $hardwareList;
+our $createContent;
+our $status = "status";
+our $moduleList = "";
+our $distroList = "";
+our $hardwareList = "";
 our $found;
 our @profModules = ();
+
+our @profileOptions = (	$netmask,
+						$gateway,
+						$dnsdomain,
+						$dns1,
+						$distro,
+						$hardware,
+						$module);
+				  		
 
 ########################################################################################################
 #  Setup Data
@@ -60,11 +59,11 @@ chomp($distro);
 initProfileOptions();
 createProfileVars();
 
-$distroList = BATools::getDistroSelectionList( $distro, $distroD, "onChange='distUpdate()'");
-$hardwareList = BATools::getHardwareSelectionList( $hardware, $hardwareD, "onChange='hwUpdate()'");
+$distroList = BATools::getDistroSelectionList( $distro, $distroD, "onClick='distUpdate()'");
+$hardwareList = BATools::getHardwareSelectionList( $hardware, $hardwareD, "onClick='hwUpdate()'");
 
 getAndCheckModules();
-infoWindow();
+$createContent = infoWindow();
 
 ########################################################################################################
 #  Print HTML 
@@ -89,15 +88,20 @@ print <<HTML0;
 	<h1>MAC Address:</h1><br><input class="text" type="text" size="25" name="mac" value="$mac" $macD onkeypress="return mac_only(event)">
 	</div>
 
-	<div id='$debug'>
-	<textarea name='comments' class='tbox' disabled>$debugWindow</textarea>
+	<div id='$status'>
+	$createContent
 	</div>
 
 	<div id='blockb'>
 	<h1>IP Address:</h1><br><input class="text" type="text" size="25" name="ip" value="$ip" $ipD>
 	<br><br>
 	<h1>Profile:</h1><br>
+	
+	<!--
 	<select name='profile' onChange='location.href=(this.options[this.selectedIndex].value)'>
+	-->
+	<select name='profile' onChange='profileChange()'>
+	
 	$profiles
 	</select><br><br>
 	</div>
@@ -124,11 +128,12 @@ print <<HTML0;
 	<br>
 	<h1 class="$moduleD">Modules:</h1><h4>(hold ctrl for multiple)</h4>
 	<br>
-	<select name='module' multiple size='4' $moduleD>$moduleList</select>
+	<select name='module' multiple size='4' $moduleD onClick='modUpdate()'>$moduleList</select>
 	</div>
 	
 	<div id='block4'>
 	<input type="submit" value="Create" width="300">
+	<input class="clear" type="button" value="Clear" onClick="location.href='/baracus/ba/create'">
 	</div>
 	
 	</form>
@@ -170,7 +175,7 @@ sub createProfileVars
     			
     			$$_ = $val;
 				
-				BATools::debugPrint("$_=$val");		
+				debugPrint("$_=$val");		
 
 				$slen = length $val;
 				
@@ -179,7 +184,7 @@ sub createProfileVars
 					$tmp = $_."D";
 					$$tmp = "disabled";
 					
-					BATools::debugPrint("$tmp $$tmp");		
+					debugPrint("$tmp $$tmp");		
 					
 					if( $_ eq "module")
 					{
@@ -215,7 +220,7 @@ sub generateProfiles
 			{
 				$isSelected = "";
 			}	
-			$retString = $retString."\t<option " . $isSelected . " value='/$BATools::baCGI/create?prof=" . $_ . "' valuex='" . $_ . "' >" . $_ . "</option>\n";
+			$retString = $retString."\t<option " . $isSelected . " value='" . $_ . "' >" . $_ . "</option>\n";
 		}
 	}	
 	
@@ -245,8 +250,13 @@ sub getAndCheckModules
 				if( !$found)
 				{
 					# $moduleList = $moduleList."<option class='bad'>ERROR: $pMod</option>\n";
-					BATools::debugPrint( "Module \"$pMod\" in \"$prof\" NOT found\n(non critical).\n");
+					debugPrint( "Module \"$pMod\" in \"$prof\" NOT found\n(non critical).\n");
 				}
+			}
+			if( !$found)
+			{
+				$moduleD = "enabled";
+				getAndCheckModules();
 			}
 		}
 		else
@@ -262,30 +272,30 @@ sub getAndCheckModules
 
 sub infoWindow
 {
-	if( !scalar( @BATools::errors))
+	my $cc = "";
+	my $ccurl = "/$BATools::baCGI/createContent?caller=create&attr=prof&val=$prof";
+	
+	if( !scalar( @errors))
 	{
-		$debugWindow = readFile($profilePath.$prof);
+		$cc = "<iframe src=\"$ccurl\" scrolling='no' height='100%' width='100%' frameborder='0' id='infoBox' ></iframe>";
 	}
 	else
 	{
-		$debug = "error";
-		$debugWindow = "\n\nErrors:\n\n";
-		foreach( @BATools::errors)
+		$status = "error";
+		$cc = "<textarea name='comments' class='tbox' readonly='yes'>\n";
+		foreach $err( @errors)
 		{
-			$debugWindow = $debugWindow."$_\n";
+			$cc = $cc.$err."\n";
 		}
+		$cc = $cc."</textarea>";
 	}
+	return $cc;
 }
 
-sub readFile
+sub debugPrint
 {
-	$fileName = $_[0];
-	my $retString = "\n\n";
-  	open (PROFILE, $fileName) || die "couldn't open the file!";
-	while (<PROFILE>)
+	if( $BATools::debug)
 	{
-		$retString = $retString.$_;
+		push( @errors, $_[0]);
 	}
-	close(PROFILE);
-	return $retString;
 }

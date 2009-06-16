@@ -1,0 +1,51 @@
+#!/usr/bin/perl
+
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+use CGI qw(:standard);
+
+my $redir = ' 2>&1';
+my $title = "Currently Processing";
+my $current = getContent();
+
+my $ccurl = "/baracus/uc.html";
+
+print "Content-type: text/html\n\n";
+
+print <<HTML0
+
+<html>
+	<head>
+		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
+		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
+		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
+	</head>
+	<body>
+		<div id='f-labels'>
+			<h1 class='label'>$title</h1>		
+
+			<div id='blockW'>
+			$current
+			</div>
+
+			<div id='statusW'>
+			<iframe src=\"$ccurl\" scrolling='no' height='100%' width='100%' frameborder='0' id='infoBox' ></iframe>
+			</div>
+
+		</div>
+	</body>
+</html>
+
+HTML0
+;
+
+sub getContent
+{
+	my $r = "";
+	#$r = $r."<form name='createAdd'>\n";
+	$r = $r.BATools::getCurrentProcSelectionList();
+	#$r = $r."</form>\n";
+	
+	return $r;
+}

@@ -19,6 +19,15 @@
     display:inline;
     margin-left:10;
 }
+
+#f-labels h1.label
+{
+	color:B2D68C;
+    font-size: 13pt;
+    font-weight:bold;
+    display:inline;
+}
+
 #f-labels h3
 {
 	color:#6A737B;
@@ -89,7 +98,6 @@
 	padding-top:10;
 }
 
-
 #block2
 {
 	width:260;
@@ -144,9 +152,18 @@
 }
 #block4 input
 {
+	color:green;
 	width:100;
 	position:absolute;
-	left:120;
+	left:140;
+	top:45%;
+}
+#block4 input.clear
+{
+	color:red;
+	width:100;
+	position:absolute;
+	left:20;
 	top:45%;
 }
 
@@ -210,6 +227,22 @@
 	background-color: #B2D68C;
 	padding-top:10;
 }
+#blockW
+{
+	width:580;
+	height:250;
+	position:absolute;
+	top:50px;
+	left:0px;
+	border-bottom:1px dashed gray;
+	border-top:1px dashed gray;
+	background-color: #B2D68C;
+	padding-top:10;
+}
+#blockW select
+{
+	width:540;
+}
 
 #result
 {
@@ -219,6 +252,16 @@
 	width:600;
 	height:600;
 	color:green;
+}
+
+#reslut i
+{
+	color:red;
+}
+#cmd
+{
+	color:6A737B;
+	font-size:20pt;
 }
 
 #reslut i

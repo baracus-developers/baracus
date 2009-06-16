@@ -8,11 +8,12 @@ my $op = $ARGV[0];
 my $distro = $ARGV[1];
 my $verbose = $ARGV[2];
 my $fileName = $filePath.$ARGV[3];
-
+my $date = `date`;
 my $cmd = "sudo create_install_source $op --distro=$distro  $verbose 2>&1"; 
 
+chomp($date);
 open (NEWFILE, ">$fileName") || die "Error: $!";
-print NEWFILE "\n\n";
+print NEWFILE "$op $distro ----- $date\n\n";
 close (NEWFILE);
 
 
