@@ -8,7 +8,7 @@ my $redir = ' 2>&1';
 my $title = "Currently Processing";
 my $current = getContent();
 
-my $ccurl = "/baracus/uc.html";
+my $ccurl = "/baracus/blank.html";
 
 print "Content-type: text/html\n\n";
 
@@ -24,13 +24,14 @@ print <<HTML0
 	<body>
 		<div id='f-labels'>
 			<h1 class='label'>$title</h1>		
-
 			<div id='blockW'>
+			<form name='form1'>
 			$current
+			</form>
 			</div>
 
 			<div id='statusW'>
-			<iframe src=\"$ccurl\" scrolling='no' height='100%' width='100%' frameborder='0' id='infoBox' ></iframe>
+			<iframe src=\"$ccurl\" scrolling='no' height='100%' width='100%' frameborder='0' id='infoBox' name='infoBox'></iframe>
 			</div>
 
 		</div>
@@ -44,7 +45,7 @@ sub getContent
 {
 	my $r = "";
 	#$r = $r."<form name='createAdd'>\n";
-	$r = $r.BATools::getCurrentProcSelectionList();
+	$r = $r.BATools::getCurrentProcSelectionList("", "enabled", "size=12 onClick='procChange()';");
 	#$r = $r."</form>\n";
 	
 	return $r;

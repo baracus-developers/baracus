@@ -254,11 +254,17 @@ sub getModuleList
 ###########################################################################################
 sub getCurrentProcSelectionList
 {
+	my $disabled;
+
+	my $current = $_[0];
+	my $disable = $_[1];
+	my $script = $_[2];
+	
 	my $r = "";
 	my $firstLine = "";
 	my $fName;
 	
-	$r = $r."<select size='14'>\n";
+	$r = $r."<select name='current' $disable $script>\n";
 	
 	foreach( getCurrentProcList())
 	{
@@ -266,7 +272,7 @@ sub getCurrentProcSelectionList
 	  	open (FILE, $fName) || die "couldn't open the file!";
 		$firstLine = <FILE>;
 		close(FILE);
-		$r = $r."<option name='$_'>".$firstLine."</option>\n";
+		$r = $r."<option value='$_'>".$firstLine."</option>\n";
 	}
 	$r = $r."</select>\n";
 	return $r;
@@ -327,8 +333,9 @@ sub trim($)
 sub readFile
 {
 	$fileName = $_[0];
+	$message = $_[1] || "couldn't open file: $fileName";
 	my $retString = "";
-  	open (PROFILE, $fileName) || die "couldn't open the file!";
+  	open (PROFILE, $fileName) || return $message;
 	while (<PROFILE>)
 	{
 		$retString = $retString.$_;

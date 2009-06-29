@@ -9,11 +9,17 @@ my $distro = $ARGV[1];
 my $verbose = $ARGV[2];
 my $fileName = $filePath.$ARGV[3];
 my $date = `date`;
-my $cmd = "sudo create_install_source $op --distro=$distro  $verbose 2>&1"; 
+
+if( $verbose ne "-v")
+{
+	$verbose = "";
+}
+
+my $cmd = "sudo create_install_source $op --distro $distro 2>&1"; 
 
 chomp($date);
 open (NEWFILE, ">$fileName") || die "Error: $!";
-print NEWFILE "$op $distro ----- $date\n\n";
+print NEWFILE "$op $distro ----- $date\n$cmd\n\n";
 close (NEWFILE);
 
 
@@ -27,9 +33,9 @@ while ( <PS> )
 }
 
 open (NEWFILE, ">>$fileName") || die "Error: $!";
-print NEWFILE "\n\nPOOLFILEDONE\n\n";
+print NEWFILE "\n\nFINISHED\n\n";
 close (NEWFILE);
 
-sleep 30;
+sleep 600;
 unlink($fileName);
 

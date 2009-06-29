@@ -259,7 +259,33 @@
 	color:black;
 	padding-left:10px;
 }
-
+#inStatusW
+{
+	color:blue;
+}
+#inStatusW textarea
+{
+	background-color: E4E5E6;
+	position:absolute;
+	left:0;
+	top:0;
+	font-family:arial;
+	font-size:9pt;
+	width:580;
+	height:290;
+	color:black;
+	padding-left:10px;
+}
+#inStatusW input.refresh
+{
+	margin-top:10;
+	margin-right:30;
+	position:relative;
+	float:right;
+	cursor:hand;
+	color:blue;
+	size:12pt;
+}
 
 /* ERROR */
 #error

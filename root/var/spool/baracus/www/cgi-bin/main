@@ -64,7 +64,7 @@ print <<HTML1;
 	<div id="subtitle">&nbsp;&nbsp;Linux Solutions Group</div> 
 	<div id="line">	<hr size="10" align="left"></div>
 	<div id="logo"><img src="/$BATools::baRoot/images/Geeko_icon3.jpg"\></div>
-	<div id="nvlogo"><a href="http://www.novell.com"><img src="/$BATools::baRoot/images/nov_blk.gif"></a></div>
+	<div id="nvlogo"><a href="http://www.novell.com"><img src="/$BATools::baRoot/images/nov_blk.gif"\></a></div>
 
 	<div id='mmenu'>
 	<ul><br><br><br>

@@ -100,8 +100,10 @@ sub listHeader()
 
 sub listContent()
 {
-	my $listcmd = "sudo /usr/share/baracus/perl/directSqlFS.pl list linux.sle".$redir;
-	my $retString = execute( $listcmd);
+	#my $listcmd = "sudo /usr/share/baracus/perl/directSqlFS.pl list linux.sle".$redir;
+	my $listcmd = "sudo create_install_source verify --distro=*";
+	my $retString = $listcmd."\n";
+	my $retString = $retString.execute( $listcmd);
 	return $retString;
 }
 
@@ -117,7 +119,7 @@ sub addHeader()
 sub addContent()
 {
 		my $cmd = "perl /$BATools::baPath/modules/execute add $distro $verbose";
-		return background( $cmd);
+		return "Command: $cmd\n\n".background( $cmd);
 }
 
 ########################################################################################################
@@ -131,7 +133,7 @@ sub delHeader()
 
 sub delContent()
 {
-	my $cmd = "perl /$BATools::baPath/modules/execute remove $distro $verbose $redir";
+	my $cmd = "perl /$BATools::baPath/modules/execute remove $distro no $redir";
 	
 	my $ret = background( $cmd);
 	if( $ret =~ m/^Error/)
@@ -215,6 +217,7 @@ sub execute
 	$retString = `$cmd`;
 	return $retString;
 }
+
 sub background
 {
 	my $cmd = $_[0];
@@ -236,7 +239,7 @@ sub background
 		open (MYFILE, $myFile) || return "Error Opening File: $myFile\n$!";
 		while(<MYFILE>)
 		{
-			if( $_ =~ m/POOLFILEDONE/)
+			if( $_ =~ m/FINISHED/)
 			{
 				$ref = "no";
 			}

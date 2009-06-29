@@ -5,6 +5,13 @@ function jsTest()
  	alert("LSG common.js is working!");	
 }
 
+function procChange()
+{
+	var selection = document.form1.current.value;
+	var url = "/baracus/ba/currentContent?cur=" + selection;
+	document.getElementById("infoBox").src=url;
+}
+
 function profileChange()
 {
 	
