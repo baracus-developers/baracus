@@ -1,0 +1,84 @@
+/********************************************************************/
+/* Tab Pages 														*/
+/********************************************************************/
+
+ul#menu
+{ 
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	width: 600; 
+	height: 43px; 
+	background: #FFF url("/baracus/images/menu-bg.gif") top left repeat-x;
+	font-size: 0.8em; font-family: "Lucida Grande", Verdana, sans-serif;
+	font-weight: bold;
+	list-style-type: none;
+	margin: 0;
+	padding: 0;
+}
+
+ul#menu li
+{
+	display: block;
+	float: left;
+	margin: 0 0 0 5px;
+}
+
+ul#menu li a
+{ 
+	height: 43px;
+	color: #777;
+	text-decoration: none;
+	display: block;
+	float: left;
+	line-height: 200%;
+	padding: 8px 15px 0;
+}
+
+ul#menu li a:hover
+{ 
+	color: #333;
+}
+
+ul#menu li a.current
+{ 
+	color: #FFF;
+	background: #FFF url("/baracus/images/current-bg.gif") top left repeat-x;
+	padding: 5px 15px 0;
+}
+
+iframe#tabContent
+{
+	position: absolute;
+	top: 40px;
+	left: 0px;
+	width:600;
+	height:615px;
+	margin:0;
+	border:0px;
+	background:#E4E5E6;
+}
+
+textarea.content
+{
+	position: absolute;
+	top:0px;
+	left: 0px;
+	width:600;
+	height:575;
+	border:0;
+	color:green;
+	font-weight: bold;
+	font-size:8pt;
+	padding:5px 0 0 5px;	
+}
+
+pre.content
+{
+	font-size: 0.7em;
+	font-family: Courier New, Verdana, sans-serif;
+	position: absolute;
+	top:0px;
+	left: 0px;
+	padding:5px 5px 5px 5px;	
+}

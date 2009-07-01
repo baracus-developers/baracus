@@ -76,10 +76,9 @@ print <<HTML0
 	</head>
 	<body $refresh>
 	<div id='output'>
-	<textarea>$content</textarea>
+	<pre>$content</pre>
 	<h1>$header</h1>
 	<h3>$proc</h3>
-	<form action="/$BATools::baCGI/source"><input type="submit" name="back" value="<< Back"></form> 
 	</div>
 
 	<body>

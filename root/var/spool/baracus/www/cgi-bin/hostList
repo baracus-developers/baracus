@@ -1,0 +1,34 @@
+#!/usr/bin/perl
+
+use strict;
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+	
+my $content = getContent();
+my $verbose = "-v";
+my $redir = ' 2>&1';
+		 
+print "Content-type: text/html\n\n";
+
+print <<HTML;
+
+<html>
+
+<head>
+	<link rel='stylesheet' href='/$BATools::baRoot/css/tabs.css' type='text/css' >
+</head>
+
+<body>
+<br><br><pre class="content">$content</pre>
+</body>
+</html>
+
+HTML
+;
+
+sub getContent
+{
+	
+	my $hostCmd = "sudo create_install_host list templates $verbose $redir";
+	return BATools::execute( $hostCmd);
+}

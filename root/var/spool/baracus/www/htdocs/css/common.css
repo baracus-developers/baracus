@@ -17,11 +17,11 @@
     padding-top:11px;
     padding-bottom:11px;
     text-decoration:none;
-    font-size:11pt;
+    font-size:12pt;
     color:gray;
     font-variant:small-caps;
     font-weight:normal;
-    font-family: serif;
+    font-family: Ariel;
 }
 #mmenu a:link
 {
@@ -61,7 +61,7 @@
 {
 	width:600;
 	position:absolute;
-	top:150px;
+	top:140px;
 	left:300px;
 	height:80%;
 	color:6A737B;
@@ -131,14 +131,14 @@
 	width:150;
 	position:absolute;
 	left:800;
-	top:630;
+	top:650;
 }
 
 /* OUTPUT */
-#output
+#outputx
 {
-	width:600;
-	height:600;
+	width:500;
+	height:500;
 	background-color: white;
 	color:6DB33F;
 	position:absolute;
@@ -147,18 +147,14 @@
 	border:5px solid #B2D68C;
 	font-size:9pt;
 }
-#output textarea
+#output pre
 {
-	background-color: white;
-	position:absolute;
-	left:0;
-	top:0;
-	font-size:8pt;
-	width:590;
-	height:590;
-	color:black;
-	padding-left:10px;
-	border:0;
+	font-size: 0.7em;
+	font-family: Courier New, Verdana, sans-serif;
+	position: absolute;
+	top:0px;
+	left: 0px;
+	padding:5px 5px 5px 5px;	
 }
 #output h1
 {
@@ -184,14 +180,6 @@
 	text-decoration:blink;
     font-variant:small-caps;
     font-weight:normal;
-}
-#output input
-{
-	position:absolute;
-	left:10;
-	top:565;
-	width:100;
-	color:#6DB33F;
 }
 
 /* DEBUG */

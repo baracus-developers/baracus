@@ -133,7 +133,7 @@ print <<HTML0;
 	
 	<div id='block4'>
 	<input type="submit" value="Create" width="300">
-	<input class="clear" type="button" value="Clear" onClick="location.href='/baracus/ba/create'">
+	<input class="clear" type="button" value="Clear" onClick="location.href='/baracus/ba/hostCreate'">
 	</div>
 	
 	</form>

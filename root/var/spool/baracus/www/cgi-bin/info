@@ -6,13 +6,13 @@ use BATools qw(:standard);
 use vars qw( %hash @array);
 use CGI qw(:standard);
 
-my $op = param('op') || "List";
+my $op = param('op') || "Hardware";
 my $current = "";
 
-my @tmenu = ( "List", "Operations");
-my @tlink = ( "sourceHandler?sub=list", "sourceOps");		
+my @tmenu = ( "Hardware");
+my @tlink = ( "infoHW");		
 
-my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, "source");
+my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, "info");
 		 
 print "Content-type: text/html\n\n";
 

@@ -15,7 +15,7 @@ function procChange()
 function profileChange()
 {
 	
- 	var sURL = "/baracus/ba/create?prof=" + document.createAdd.profile.value + 
+ 	var sURL = "/baracus/ba/hostCreate?prof=" + document.createAdd.profile.value + 
  		"&hostname=" + document.createAdd.hostname.value +
  		"&mac=" + document.createAdd.mac.value +
  		"&ip=" + document.createAdd.ip.value;

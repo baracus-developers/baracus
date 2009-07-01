@@ -355,5 +355,51 @@ sub execute
 	return $retString;
 }
 
+########################################################################################################
+#  Get Tabs
+########################################################################################################
+sub getTabs(@@$$)
+{
+	my ($menu, $link, $cur, $reload) = @_;
+				
+	my $r = "";
+	my $class = "";
+	my $count = 0;
+	my $found = 0;
+	my $ifSrc = "";
+	
+	$r = $r."<ul id='menu'>\n";
+	
+	foreach( @ {$menu})
+	{
+		if( $_ eq $cur)
+		{
+			$class = "current";
+			$found = 1;
+			$ifSrc = (@ {$link})[$count];
+		}
+		else
+		{
+			$class = "";
+		}
+			
+		$r = $r."<li><a href='$reload?op=$_' title='' class='$class'>$_</a></li>\n";
+		++ $count;
+	}
+	$r = $r."</ul>\n";
+	
+	if( $found > -1)
+	{
+		$ifSrc = "/$BATools::baCGI/$ifSrc";
+	}
+	else
+	{
+		$ifSrc = "/$BATools::baRoot/uc.html";
+	}
+
+	$r = $r."<iframe src=$ifSrc id='tabContent' frameborder='0' scrolling='auto'>\n</iframe>\n";
+
+	return $r;
+}
 
 1;

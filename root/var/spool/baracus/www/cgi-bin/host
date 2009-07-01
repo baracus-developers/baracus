@@ -9,10 +9,10 @@ use CGI qw(:standard);
 my $op = param('op') || "List";
 my $current = "";
 
-my @tmenu = ( "List", "Operations");
-my @tlink = ( "sourceHandler?sub=list", "sourceOps");		
+my @tmenu = ( "List", "Create");
+my @tlink = ( "hostList", "hostCreate");		
 
-my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, "source");
+my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, "host");
 		 
 print "Content-type: text/html\n\n";
 
@@ -31,3 +31,5 @@ $tabs
 
 HTML
 ;
+
+

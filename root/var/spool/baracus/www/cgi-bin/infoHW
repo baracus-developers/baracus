@@ -6,7 +6,6 @@ use CGI qw(:standard);
 
 my $redir = ' 2>&1';
 my $command = "sudo baconfig list hardware --quiet $redir";
-my $title = "Hardware List";
 my $hardware = getContent( $command);
 
 my $ccurl = "/$BATools::baCGI/createContent?caller=create&attr=hardware&val=default";
@@ -25,7 +24,7 @@ print <<HTML0
 	<body>
 		<div id='f-labels'>
 		<div id='block1'>
-		<h1>$title</h1>
+		<br><br><h3>&nbsp;Please select for more information.</h3>
 		</div>
 		<div id='block2'>
 		$hardware
