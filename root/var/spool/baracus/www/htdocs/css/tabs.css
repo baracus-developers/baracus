@@ -76,7 +76,7 @@ textarea.content
 pre.content
 {
 	font-size: 0.7em;
-	font-family: Courier New, Verdana, sans-serif;
+	font-family: Courier New, Courier, Verdana, sans-serif;
 	position: absolute;
 	top:0px;
 	left: 0px;

@@ -5,9 +5,8 @@ use BATools qw(:standard);
 use CGI qw(:standard);
 
 my $redir = ' 2>&1';
-my $hardware = getContent();
+my $dist = getContent();
 
-#my $ccurl = "/$BATools::baCGI/createContent?caller=create&attr=hardware";
 my $ccurl = "";
 
 print "Content-type: text/html\n\n";
@@ -27,7 +26,7 @@ print <<HTML0
 		<br><br><h3>&nbsp;Please select for more information.</h3>
 		</div>
 		<div id='block2'>
-		$hardware
+		$dist
 		</div>
 		<div id='status'>
 		<iframe src=\"$ccurl\" scrolling='no' height='100%' width='100%' frameborder='0' id='infoBox' ></iframe>
@@ -43,7 +42,7 @@ sub getContent
 {
 	my $r = "";
 	$r = $r."<form name='createAdd'>\n";
-	$r = $r.BATools::getHardwareSelectionList( "", "", "size='25' onClick='hwUpdate()'");
+	$r = $r.BATools::getDistroSelectionList( "0", "", "size='25' onClick='distUpdate()'");
 	$r = $r."</form>\n";
 	
 	return $r;

@@ -71,9 +71,8 @@ print <<HTML0
 	</head>
 	<body>
 	<div id='output'>
-	<textarea>$result</textarea>
+	<pre>$result</pre>
 	<h1>Create Install Host</h1>
-	<form action="/$BATools::baCGI/create"><input type="submit" name="back" value="<< Back"></form> 
 	</div>
 
 	<body>

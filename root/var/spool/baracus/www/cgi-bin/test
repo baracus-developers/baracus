@@ -1,9 +1,18 @@
 #!/usr/bin/perl
 
+
+#my $cmd = "/var/spool/baracus/www/modules/pfork.bin perl //var/spool/baracus/www/modules/execute add sles9-i586 -v AAAABBBBCCCC";
+my $cmd = `whoami`;
+my $r = `$cmd`;
+
+
+
 print "Content-type: text/html\n\n";
 
 print <<HTML
 <h1>lsg test script - working!</h1>
 <br>
+$cmd
+$r
 HTML
 ;

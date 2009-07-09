@@ -6,7 +6,7 @@ use CGI qw(:standard);
 
 my $source_help = "$BATools::baPath/htdocs/help/source.hlp";
 
-my $dselect = BATools::getDistroSelectionList();
+my $dselect = BATools::getDistroSelectionList("", "", "size='10'");
 my $help = print_help();
 
 ########################################################################################################
@@ -27,41 +27,20 @@ print <<HTML0;
 	<body>
 	<div id='f-labels'>
 	<div id='block1'>
-		<h1>List</h1><br><br>
-		<h3>All Installation Sources</h3>
-		<form action="/$BATools::baCGI/sourceHandler">
-			<input type="hidden" name="sub" value="list">
-			<input class="button" type="submit" value="List">
-		</form>
-
+	<h1>Add Source Entries</h1>
 	</div>
 
 	<div id='block2'>
-		<h1>Source Options</h1><br><br>
+		<br><br>
 		<form name="add" action="/$BATools::baCGI/sourceHandler">
 			<br>
-			<!--
-			<select name="subx">
-			<option value="NONE" selected></option>
-			<option value="add">Add</option>
-			<option value="del">Delete</option>
-			<option value="ena">Enable</option>
-			<option value="dis">Disable</option>
-			</select>
-			-->
 			<br>
 			<h3>Distributions</h3>
 			$dselect
-			<br><h3>Operation</h3>
-			<div id="radio">
-			<input type="radio" name="sub" value="add"> Add<br>
-			<input type="radio" name="sub" value="del"> Delete<br>
-			<input type="radio" name="sub" value="ena"> Enable<br>
-			<input type="radio" name="sub" value="dis"> Disable<br>
-			<input type="radio" name="sub" value="ver"> Verify<br>
-			</div>
+			<br>
+			<input type="hidden" name="sub" value="add">
 			<input type="hidden" name="ref" value="yes">
-			<input class="button" type="submit" value="Submit">
+			<input class="button" type="submit" value="Add">
 		</form>
 	</div>
 
@@ -90,20 +69,3 @@ sub print_help()
 	return $retString; 
 }	
 
-########################################################################################################
-#  Print Source List for debug window
-########################################################################################################
-
-sub print_list()
-{
-	my $listcmd = "sudo /usr/share/baracus/perl/directSqlFS.pl list linux.sle";
-	my $retString = "";
-	
-	open(CMD, "$listcmd 2>&1 |") || die "Failed: $!\n";
-	
-	while ( <CMD> )
-	{
-		$retString = $retString.$_;
-	}
-	return $retString;
-}

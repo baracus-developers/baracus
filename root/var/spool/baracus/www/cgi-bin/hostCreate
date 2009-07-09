@@ -88,10 +88,6 @@ print <<HTML0;
 	<h1>MAC Address:</h1><br><input class="text" type="text" size="25" name="mac" value="$mac" $macD onkeypress="return mac_only(event)">
 	</div>
 
-	<div id='$status'>
-	$createContent
-	</div>
-
 	<div id='blockb'>
 	<h1>IP Address:</h1><br><input class="text" type="text" size="25" name="ip" value="$ip" $ipD>
 	<br><br>
@@ -134,6 +130,10 @@ print <<HTML0;
 	<div id='block4'>
 	<input type="submit" value="Create" width="300">
 	<input class="clear" type="button" value="Clear" onClick="location.href='/baracus/ba/hostCreate'">
+	</div>
+
+	<div id='$status'>
+	$createContent
 	</div>
 	
 	</form>

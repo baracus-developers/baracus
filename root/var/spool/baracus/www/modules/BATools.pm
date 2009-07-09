@@ -144,14 +144,14 @@ sub getHardwareSelectionList
 			}
 			else
 			{
-				if( $val eq "default")
-				{
-					$isSelected = "selected";
-				}
-				else
-				{
+#				if( $val eq "default")
+#				{
+#					$isSelected = "selected";
+#				}
+#				else
+#				{
 					$isSelected = "no2";
-				}
+#				}
 			}
 			
 			$option = "<option value='$val' $isSelected>$val</option>\n";	

@@ -4,10 +4,8 @@ use lib '/var/spool/baracus/www/modules';
 use BATools qw(:standard);
 use CGI qw(:standard);
 
-my $redir = ' 2>&1';
-my $hardware = getContent();
+my $mods = getContent();
 
-#my $ccurl = "/$BATools::baCGI/createContent?caller=create&attr=hardware";
 my $ccurl = "";
 
 print "Content-type: text/html\n\n";
@@ -24,10 +22,10 @@ print <<HTML0
 	<body>
 		<div id='f-labels'>
 		<div id='block1'>
-		<br><br><h3>&nbsp;Please select for more information.</h3>
+		<br><br><h3>&nbsp;Please select for more information</h3>
 		</div>
 		<div id='block2'>
-		$hardware
+		$mods
 		</div>
 		<div id='status'>
 		<iframe src=\"$ccurl\" scrolling='no' height='100%' width='100%' frameborder='0' id='infoBox' ></iframe>
@@ -43,7 +41,9 @@ sub getContent
 {
 	my $r = "";
 	$r = $r."<form name='createAdd'>\n";
-	$r = $r.BATools::getHardwareSelectionList( "", "", "size='25' onClick='hwUpdate()'");
+	$r = $r."<select name='module' size='25' onClick='modUpdate()'>";
+	$r = $r.BATools::getModuleSelectionList();
+	$r = $r."</select>";
 	$r = $r."</form>\n";
 	
 	return $r;

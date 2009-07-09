@@ -62,7 +62,7 @@ sub getContent
 		foreach (@v)
 		{
 			$cmd = "sudo baconfig detail module $_";
-			$r = $r."Module Detail: $_\n";
+			$r = $r."Module Detail: $_\n\n";
 			$r = $r.`$cmd`."\n\n";
 		}
 	}

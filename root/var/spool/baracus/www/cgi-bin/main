@@ -26,7 +26,7 @@ $op = param('op') || '<i>(No input)</i>';
 $data = param('data');
 
 @menunames = ("Home",
-			  "System Information",
+			  "Information",
 			  "Host Entries",
 			  "Source Entries",
 			  "Processing",

@@ -9,8 +9,8 @@ use CGI qw(:standard);
 my $op = param('op') || "Hardware";
 my $current = "";
 
-my @tmenu = ( "Hardware");
-my @tlink = ( "infoHW");		
+my @tmenu = ( "Hardware", "Distributions", "Modules");
+my @tlink = ( "infoHW", "infoDist", "infoMods");		
 
 my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, "info");
 		 
