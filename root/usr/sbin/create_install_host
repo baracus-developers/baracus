@@ -26,6 +26,7 @@ my $hardware="";
 my $os="";
 my $module="";
 my $profile="";
+my $yasttemplate="";
 my $vars;
 my $add;
 my $remove;
@@ -641,6 +642,7 @@ GetOptions(
            'mac=s'      => \$mac,
            'distro=s'   => \$os,
            'hardware=s' => \$hardware,
+           'yasttemplate=s' => \$yasttemplate,
            'profile=s'  => \$profile,
            'module=s'   => \&multiarg_handler,
            'vars=s'     => \&multiarg_handler,
@@ -757,6 +759,9 @@ if ($command eq "add") {
     if ($profile) {
         $profileHash{'profile'} = $profile;
     }
+    if ($yasttemplate) {
+        $profileHash{'yasttemplate'} = $yasttemplate;
+    }
 
     my $hashoftbls = BaracusSql::get_baracus_tables();
     my $sql_cols;
@@ -802,6 +807,7 @@ if ($command eq "add") {
         unless ( defined $sel );
     print $sel . "\n" if $debug;
     while ( my ($key, $value) = each( %$sel ) ) {
+        next if (($key eq "yasttemplate") && ($yasttemplate ne ""));
         if (defined $value) {
             print "distro: $key => $value\n" if $debug;
             $profileHash{$key} = $value;

@@ -315,4 +315,29 @@
 		</file>
 	</distribution>
 
+	<distribution>
+		<os>opensuse11.1-x86_64</os>
+		<basepath>opensuse11.1/ga/x86_64</basepath>
+		<pxepath>dvd1/boot/x86_64/loader</pxepath>
+		<sp>ga</sp>
+		<file iso="openSUSE-11.1-DVD-x86_64.iso">
+			<md5>2afee1b8a87175e6dee2b8dbbd1ad8e8</md5>
+			<path>opensuse11.1/ga/x86_64/dvd1</path>
+			<addon>base</addon>
+			<url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-DVD-x86_64.iso]]></url>
+		</file>
+		<file iso="openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso">
+			<md5>8d89efb626b510c2adb3ccd8e407dcc4</md5>
+			<path>opensuse11.1/ga/x86_64/Addon-NonOss-BiArch</path>
+			<addon>new</addon>
+			<url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso]]></url>
+		</file>
+		<file iso="openSUSE-11.1-Addon-Lang-x86_64.iso">
+			<md5>dc53defad6bd08ea120376cc9e412f1c</md5>
+			<path>opensuse11.1/ga/x86_64/Addon-Lang</path>
+			<addon>new</addon>
+			<url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-Lang-x86_64.iso]]></url>
+		</file>
+	</distribution>
+
 </config>

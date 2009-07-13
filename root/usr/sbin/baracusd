@@ -124,6 +124,30 @@ unless ( $sqlfsOBJ->find( $pxefile ) )
     $sqlfsOBJ->store( $pxefile );
 }
 
+# if first time we've launched load the bdan file
+my $dbanfile = "$bdir{'data'}/dban.bzi";
+unless ( $sqlfsOBJ->find( $dbanfile ) )
+{
+    if (not -f $dbanfile) {
+        print STDOUT "required file not found: $dbanfile";
+        exit 2;
+    }
+    print STDOUT "Initial launch of baracusd - adding $dbanfile to db\n";
+    $sqlfsOBJ->store( $dbanfile );
+}
+
+# if first time we've launched load the bdan file
+my $dbantemplate = "$bdir{'data'}/templates/pxetemplate-auto.dban";
+unless ( $sqlfsOBJ->find( $dbantemplate ) )
+{
+    if (not -f $dbantemplate) {
+        print STDOUT "required file not found: $dbantemplate";
+        exit 2;
+    }
+    print STDOUT "Initial launch of baracusd - adding $dbantemplate to db\n";
+    $sqlfsOBJ->store( $dbantemplate );
+}
+
 while (1) {
     # wait for any request (RRQ or WRQ)
     if (my $request = $listener->waitRQ()) {
