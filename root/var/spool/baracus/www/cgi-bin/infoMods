@@ -19,7 +19,7 @@ print <<HTML0
 		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body>
+	<body background="/baracus/images/bg06.jpg">
 		<div id='f-labels'>
 		<div id='block1'>
 		<br><br><h3>&nbsp;Please select for more information</h3>

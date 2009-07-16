@@ -8,6 +8,11 @@ print "Content-type: text/html\n\n";
 
 $fid = param('fid') || "";
 $ref = param('ref') || "no";
+$iso = param('iso') || "";
+$proxy = param('proxy') || "";
+$user = param('user') || "";
+$pass = param('pass') || "";
+
 $rel = "";
 $distro = param('distro');
 $verbose = "-v";
@@ -15,7 +20,7 @@ $redir = ' 2>&1';
 
 my $testcmd = "ps -eaf";
 my $refresh = "";
-my $content = "\n\n\n\n";
+my $content = "";
 my $header = "";
 my $headError = "Error";
 my $sub = param('sub');
@@ -74,14 +79,13 @@ print <<HTML0
 		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body $refresh>
 	<div id='output'>
+	<body background="/baracus/images/bg-grad.jpg" $refresh>
 	<pre>$content</pre>
 	<h1>$header</h1>
 	<h3>$proc</h3>
-	</div>
-
 	<body>
+	</div>
 </html>
 
 HTML0
@@ -117,8 +121,16 @@ sub addHeader()
 
 sub addContent()
 {
-		my $cmd = "perl /$BATools::baPath/modules/execute add $distro $verbose";
-		return "Command: $cmd\n\n".background( $cmd);
+	my $cmd;
+	if( $iso eq "iso")
+	{
+		$cmd = "perl /$BATools::baPath/modules/expect add $distro $user $pass";
+	}
+	else
+	{
+		$cmd = "perl /$BATools::baPath/modules/execute add $distro $verbose";
+	}
+	return "Command: $cmd\n\n".background( $cmd);
 }
 
 ########################################################################################################
@@ -192,6 +204,7 @@ sub verContent()
 {
 	my $enacmd = "sudo create_install_source verify --distro=$distro $verbose".$redir;
 	my $retString = execute( $enacmd);
+	chomp($retString);
 
 	norefresh();
 	return $retString;

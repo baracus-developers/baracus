@@ -56,7 +56,7 @@ if( $varlist)
 }
 
 $result = $result.`$command 2>&1`;
-$result = $result."\n\nCommand: $command\n\n\n\n";
+#$result = $result."\n\nCommand: $command\n\n\n\n";
 chomp $result;
 
 print "Content-type: text/html\n\n";
@@ -69,7 +69,7 @@ print <<HTML0
 		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
 		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
 	</head>
-	<body>
+	<body background="/baracus/images/bg-grad.jpg">
 	<div id='output'>
 	<pre>$result</pre>
 	<h1>Create Install Host</h1>

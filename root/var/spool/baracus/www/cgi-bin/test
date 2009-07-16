@@ -1,18 +1,42 @@
 #!/usr/bin/perl
 
+use strict;
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+use vars qw( %hash @array);
+use CGI qw(:standard);
 
-#my $cmd = "/var/spool/baracus/www/modules/pfork.bin perl //var/spool/baracus/www/modules/execute add sles9-i586 -v AAAABBBBCCCC";
-my $cmd = `whoami`;
-my $r = `$cmd`;
-
-
+#my $content = getData();
+my $content = `perl /data/baracus/trunk/root/var/spool/baracus/www/modules/expect --distro=sles10-x86_64`;
 
 print "Content-type: text/html\n\n";
 
-print <<HTML
-<h1>lsg test script - working!</h1>
+
+
+
+
+print <<HTML;
+
+<html>
+<head>
+	<link rel='stylesheet' href='/baracus/css/tabs.css' type='text/css' >
+</head>
+<body> 
 <br>
-$cmd
-$r
+<br>
+t e s t i n g
+<br>
+<br>
+<hr>
+$content
+</body>
+</html>
+
 HTML
 ;
+
+
+sub getData()
+{
+	BATools::execute("perl /data/baracus/trunk/root/var/spool/baracus/www/modules/expect/ba1 --distro=sles10-x86_64");
+}

@@ -20,7 +20,10 @@
 }
 #f-labels h1.label
 {
-	color:B2D68C;
+	position:absolute;
+	top:0px;
+	left:-10px;
+	color:455560;
     font-size: 13pt;
     font-weight:bold;
     display:inline;
@@ -68,6 +71,16 @@
 {
 	color:red;
 	font-size:8pt;
+}
+
+#f-labels font.sadd
+{
+	margin-left:2px;
+	font-size:10pt;
+}
+#f-labels input.sadd
+{
+	margin-left:20pt;
 }
 
 #radio
@@ -235,12 +248,18 @@
 	left:0px;
 	border-bottom:1px dashed gray;
 	border-top:1px dashed gray;
-	background-color: #B2D68C;
+	background-color: 455560;
 	padding-top:10;
 }
 #blockW select
 {
 	width:540;
+}
+#blockW font.select
+{
+	color:white;
+	font-size:9pt;
+	margin-left:25;
 }
 
 #result

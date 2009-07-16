@@ -28,6 +28,7 @@ print <<HTML0
 			<form name='form1'>
 			$current
 			</form>
+			<font class="select">Select from list for more info:</font>
 			</div>
 
 			<div id='statusW'>

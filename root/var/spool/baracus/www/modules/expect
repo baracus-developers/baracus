@@ -1,0 +1,140 @@
+#!/usr/bin/perl
+
+use Expect;
+use File::Copy;
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+
+$Expect::Log_Stdout=0;
+
+my $filePath = "/$BATools::baPath/htdocs/pool/";
+my $logPath = "/$BATools::baPath/tmp/";
+
+my $op = shift @ARGV;
+my $distro = shift @ARGV; 
+my $user = shift @ARGV; 
+my $pass = shift @ARGV;
+my $fileName = shift @ARGV; 
+my $log = $fileName."-log";
+my $cmd = "sudo /usr/sbin/basource $op --distro=$distro -i";
+
+my $date = `date`;
+$fileName = $filePath.$fileName;
+$log = $logPath.$log;
+
+chomp($date);
+open (NEWFILE, ">$fileName") || die "Error: $!";
+print NEWFILE "basource $op $distro --iso ----- $date\n$cmd\n\n";
+
+#print NEWFILE "Logfile $log\n";
+
+close (NEWFILE);
+
+(my $ba = Expect->spawn( $cmd)) || die "Couldn't spawn basource, $!";
+
+unless ($ba->expect(5, "userid:"))
+{
+	#no login required - wait for process to end.
+	$ba->log_file($fileName);
+	$ba->expect(undef);
+}
+else
+{
+	$ba->log_file($log, "w");
+
+    print $ba "$user\r";
+   
+    unless ($ba->expect(30, "password:"))
+    {
+      die "Never got password prompt:, ".$ba->exp_error()."\n";
+    }
+   
+    print $ba "$pass\r";
+    
+    $ba->expect(5);
+   
+    if( $ba->exitstatus())
+    {
+		    appendFiles( $fileName, $log);
+    }
+    else
+    {
+      	open(FILE, "$log") or die;
+
+	    while( !$ba->exitstatus())
+	    {
+	
+			$pos = -2;  # Use this to get past EOF and last newline
+			my $char = "";
+			while($char ne "\r")
+			{
+				seek FILE, $pos, 2;
+				read FILE, $char, 1;
+				$pos--;
+			}
+		
+			$final = <FILE> ;
+			print "$final\n";
+			if( $final ne $finalOld)
+			{
+				open (NEWFILE, ">>$fileName") || die "Error: $!";
+				print NEWFILE "$final\n";
+				close (NEWFILE);
+			}
+			   
+			$finalOld = $final;
+			$ba->expect(2);
+	   }
+		#close(FILE);
+	   	# ok, we're done
+
+		$pos = -2;  # Use this to get past EOF and last newline
+		$char = "";
+		while($char ne "]")
+		{
+			seek FILE, $pos, 2;
+			read FILE, $char, 1;
+			$pos--;
+		}
+		open (NEWFILE, ">>$fileName") || die "Error: $!";
+		while(<FILE>)
+		{
+			$final = <FILE> ;
+			print NEWFILE "$final\n";
+		}
+		close (NEWFILE);
+		close(FILE);
+	}
+}
+$ba->log_file(undef);
+
+open (NEWFILE, ">>$fileName") || die "Error: $!";
+print NEWFILE "\n\nFINISHED\n\n";
+close (NEWFILE);
+
+sleep 60;
+unlink($log);
+unlink($fileName);
+
+sub appendFiles
+{
+
+	my $file1 = $_[0]; 
+	my $file2 = $_[1];
+	my $line = "";
+	
+	open(FILE1, ">>", $file1 ) 
+	    or die "Could not open file $file1: $!";
+	
+	open(FILE2, "<", $file2 ) 
+	    or die "Could not open file $file2: $!";
+	
+	while( $line = <FILE2>)
+	{
+	  print FILE1 $line;
+	}
+	close(FILE1);
+	close(FILE2);
+}
+
+

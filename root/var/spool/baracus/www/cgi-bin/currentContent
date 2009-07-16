@@ -21,10 +21,10 @@ print <<HTML0;
 		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body>
+	<body onload='scrollDown()'>
 	<div id='inStatusW'>
-	<textarea name="comments" readonly="yes">$content</textarea>
-	<input type='submit' class='refresh' value="Refresh" onClick='refresh(\"\")'> 
+	<textarea id="tscroll" name="comments" readonly="yes">$content</textarea>
+	<input type='submit' class='refresh' value="Refresh Now" onClick='refresh(\"\")'> 
 	</div>
 	</body>
 </html>

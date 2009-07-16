@@ -24,7 +24,7 @@ print <<HTML0;
 		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body>
+	<body background="/baracus/images/bg06b.jpg">
 	<div id='f-labels'>
 	<div id='block1'>
 	<h1>Add Source Entries</h1>
@@ -38,8 +38,14 @@ print <<HTML0;
 			<h3>Distributions</h3>
 			$dselect
 			<br>
+			<input class="sadd" type="checkbox"  name="iso" value="iso" disabled />
+			<font class="sadd" color="grey">Download ISO</font><br>
+			<input class="sadd" type="checkbox" name="proxy" value="proxy" disabled />
+			<font class="sadd" color="grey">Use Proxy</font><br>
 			<input type="hidden" name="sub" value="add">
 			<input type="hidden" name="ref" value="yes">
+			<input type="hidden" name="user" value="azforme">
+			<input type="hidden" name="pass" value="novell123">
 			<input class="button" type="submit" value="Add">
 		</form>
 	</div>

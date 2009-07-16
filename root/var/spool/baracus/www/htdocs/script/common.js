@@ -1,5 +1,12 @@
 var sURL = unescape(window.location.pathname+window.location.search);
 
+function scrollDown()
+{
+	e = document.getElementById("tscroll");
+	e.scrollTop = e.scrollHeight;
+	doLoad("");
+}
+	
 function jsTest()
 {
  	alert("LSG common.js is working!");	

@@ -16,7 +16,7 @@ print <<HTML;
 	<link rel='stylesheet' href='/$BATools::baRoot/css/tabs.css' type='text/css' >
 </head>
 
-<body>
+<body background="/baracus/images/bg-grad.jpg">
 <pre class="content">$content</pre>
 </body>
 </html>

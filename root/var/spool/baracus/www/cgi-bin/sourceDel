@@ -24,7 +24,7 @@ print <<HTML0;
 		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body>
+	<body background="/baracus/images/bg06b.jpg">
 	<div id='f-labels'>
 	<div id='block1'>
 	<h1>Delete Source Entries</h1>

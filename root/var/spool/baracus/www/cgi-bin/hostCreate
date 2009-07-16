@@ -78,7 +78,7 @@ print <<HTML0;
 		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body>
+	<body background="/baracus/images/bg06.jpg">
 
 	<div id='f-labels'>
 	<form method="post" name="createAdd" action="/$BATools::baCGI/createHandler">
