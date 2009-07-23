@@ -4,63 +4,84 @@ use Expect;
 use File::Copy;
 use lib '/var/spool/baracus/www/modules';
 use BATools qw(:standard);
+use MIME::Base64;
 
-$Expect::Log_Stdout=0;
+$Expect::Log_Stdout=1;
 
 my $filePath = "/$BATools::baPath/htdocs/pool/";
 my $logPath = "/$BATools::baPath/tmp/";
 
-my $op = shift @ARGV;
-my $distro = shift @ARGV; 
-my $user = shift @ARGV; 
-my $pass = shift @ARGV;
-my $fileName = shift @ARGV; 
+my $op = @ARGV[0];
+my $distro = @ARGV[1]; 
+my $user = @ARGV[2]; 
+my $ePass = @ARGV[3];
+my $fileName = @ARGV[4]; 
 my $log = $fileName."-log";
 my $cmd = "sudo /usr/sbin/basource $op --distro=$distro -i";
+
+my $pass = decode_base64( $ePass);
+
+#Debug Code
+#open (TF, ">/tmp/baexpect.log") || die "Error: $!";
+#my $argc = @ARGV;
+#print TF "Are We Here\n";
+#print TF "fn: $fileName\n";
+#print TF "path: $filePath\n";
+#print TF "ePass: $ePass\n";
+#print TF "pass: $pass\n";
+#print TF "op: $op\n";
+#print TF "distro: $distro\n";
+#print TF "user: $user\n";
+#print TF "log: $log\n";
+#print TF "cmd: $cmd\n";
+#print TF "call: $0\n";
+#print TF "argc: $argc\n";
+#close(TF);
 
 my $date = `date`;
 $fileName = $filePath.$fileName;
 $log = $logPath.$log;
 
 chomp($date);
+my $header = "basource $op $distro --iso ----- $date\n$cmd\n\n";
+
 open (NEWFILE, ">$fileName") || die "Error: $!";
-print NEWFILE "basource $op $distro --iso ----- $date\n$cmd\n\n";
-
-#print NEWFILE "Logfile $log\n";
-
+print NEWFILE "$header";
 close (NEWFILE);
 
+open (LOGFILE, ">$log") || die "Error: $!";
+print LOGFILE "$header";
+close (LOGFILE);
+
 (my $ba = Expect->spawn( $cmd)) || die "Couldn't spawn basource, $!";
+$ba->log_file($log);
 
 unless ($ba->expect(5, "userid:"))
 {
 	#no login required - wait for process to end.
-	$ba->log_file($fileName);
-	$ba->expect(undef);
+	copy( $log, $fileName);
+	#$ba->expect(undef);
 }
 else
 {
-	$ba->log_file($log, "w");
-
     print $ba "$user\r";
    
-    unless ($ba->expect(30, "password:"))
+    unless ($ba->expect(10, "password:"))
     {
-      die "Never got password prompt:, ".$ba->exp_error()."\n";
+	    die "Never got password prompt:, ".$ba->exp_error()."\n";
     }
    
     print $ba "$pass\r";
     
-    $ba->expect(5);
-   
-    if( $ba->exitstatus())
+    unless ($ba->expect(10, "[ 0% ]"))
     {
-		    appendFiles( $fileName, $log);
+		copy( $log, $fileName);
     }
     else
     {
       	open(FILE, "$log") or die;
 
+		my $iter = 0;
 	    while( !$ba->exitstatus())
 	    {
 	
@@ -84,15 +105,18 @@ else
 			   
 			$finalOld = $final;
 			$ba->expect(2);
-	   }
+		}
 		#close(FILE);
-	   	# ok, we're done
+	    #ok, we're done
 
 		$pos = -2;  # Use this to get past EOF and last newline
 		$char = "";
 		while($char ne "]")
 		{
-			seek FILE, $pos, 2;
+			if( !(seek FILE, $pos, 2))
+			{
+				last;
+			}
 			read FILE, $char, 1;
 			$pos--;
 		}
@@ -104,37 +128,16 @@ else
 		}
 		close (NEWFILE);
 		close(FILE);
+
+		$ba->log_file(undef);
 	}
 }
-$ba->log_file(undef);
 
 open (NEWFILE, ">>$fileName") || die "Error: $!";
 print NEWFILE "\n\nFINISHED\n\n";
 close (NEWFILE);
 
-sleep 60;
+sleep 10;
 unlink($log);
-unlink($fileName);
-
-sub appendFiles
-{
-
-	my $file1 = $_[0]; 
-	my $file2 = $_[1];
-	my $line = "";
-	
-	open(FILE1, ">>", $file1 ) 
-	    or die "Could not open file $file1: $!";
-	
-	open(FILE2, "<", $file2 ) 
-	    or die "Could not open file $file2: $!";
-	
-	while( $line = <FILE2>)
-	{
-	  print FILE1 $line;
-	}
-	close(FILE1);
-	close(FILE2);
-}
-
+#unlink($fileName);
 

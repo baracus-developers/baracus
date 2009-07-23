@@ -21,7 +21,7 @@
     color:gray;
     font-variant:small-caps;
     font-weight:normal;
-    font-family: Ariel;
+    font-family: serif;
 }
 #mmenu a:link
 {
@@ -176,6 +176,10 @@
 	text-decoration:blink;
     font-variant:small-caps;
     font-weight:normal;
+}
+#output font.error
+{
+	color:red;
 }
 
 /* DEBUG */

@@ -33,22 +33,29 @@ print <<HTML0;
 	<div id='block2'>
 		<br><br>
 		<form name="add" action="/$BATools::baCGI/sourceHandler">
-			<br>
-			<br>
-			<h3>Distributions</h3>
-			$dselect
-			<br>
-			<input class="sadd" type="checkbox"  name="iso" value="iso" disabled />
-			<font class="sadd" color="grey">Download ISO</font><br>
-			<input class="sadd" type="checkbox" name="proxy" value="proxy" disabled />
-			<font class="sadd" color="grey">Use Proxy</font><br>
-			<input type="hidden" name="sub" value="add">
-			<input type="hidden" name="ref" value="yes">
-			<input type="hidden" name="user" value="azforme">
-			<input type="hidden" name="pass" value="novell123">
-			<input class="button" type="submit" value="Add">
-		</form>
+		<br>
+		<br>
+		<h3>Distributions</h3>
+		$dselect
+		<br>
+		<input class="button" type="submit" value="Add">
 	</div>
+	<div id='block3'>
+		<br>
+		<input class="sadd" type="checkbox"  name="iso" value="iso" onClick="enableISO(this)">
+		<font class="sadd">Download ISO</font><br>
+		<input class="sadd" type="text" name="user" value="username" disabled onFocus="clearText(this)">
+		<input class="sadd" type="password" name="pass" value="password" disabled onFocus="clearText(this)">
+		<br><br><br>
+		<input class="sadd" type="checkbox" name="proxy" value="proxy" onClick="enableProxy(this)">
+		<font class="sadd">Use Proxy</font><br>
+		<input class="sadd" type="text" name="paddr" value="hostname" disabled onFocus="clearText(this)">
+		<input class="sadd" type="text" name="puser" value="username" disabled onFocus="clearText(this)">
+		<input class="sadd" type="password" name="ppass" value="password" disabled onFocus="clearText(this)">
+	</div>
+		<input type="hidden" name="sub" value="add">
+		<input type="hidden" name="ref" value="yes">
+		</form>
 
 	<div id='status'>
 	<textarea name="comments" class="tbox" readonly="yes">$help</textarea>

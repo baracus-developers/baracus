@@ -7,9 +7,14 @@ use BATools qw(:standard);
 use vars qw( %hash @array);
 use CGI qw(:standard);
 
-my $cur = param('cur');
+my $cur = param( 'cur');
+my $ref = param('ref') || "off";
+
+chomp($cur);
 
 my $content = getContent($cur);
+my $refresh = getRefresh( $ref);
+my $buttonName = getButtonName( $ref);
 
 print "Content-type: text/html\n\n";
 
@@ -21,10 +26,10 @@ print <<HTML0;
 		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body onload='scrollDown()'>
+	<body $refresh>
 	<div id='inStatusW'>
 	<textarea id="tscroll" name="comments" readonly="yes">$content</textarea>
-	<input type='submit' class='refresh' value="Refresh Now" onClick='refresh(\"\")'> 
+	<input type="button" name="refresh" class="refresh" value="$buttonName" onClick='toggleRefresh()'> 
 	</div>
 	</body>
 </html>
@@ -36,6 +41,33 @@ sub getContent
 {
 	my $cFile = $_[0];
 	my $r = "";
-	$r = $r.BATools::readFile( $BATools::poolPath.$cFile, "Finished Processing");
+	$r = $r.BATools::readFile( $BATools::poolPath.$cFile, "Finished Processing: \n$BATools::poolPath\n$cFile");
+	return $r;
+}
+
+sub getRefresh
+{
+	my $ref = $_[0];
+	my $r = "";
+	
+	if( $ref eq "on")
+	{
+		$r = "onload='scrollDown()'";
+	}
+	return $r;
+}
+
+sub getButtonName
+{
+	my $ref = $_[0];
+	my $r = "";
+	if( $ref eq "on")
+	{
+		$r = "Turn Refresh Off";
+	}
+	else
+	{
+		$r = "Turn Refresh On";
+	}
 	return $r;
 }

@@ -1,21 +1,83 @@
 var sURL = unescape(window.location.pathname+window.location.search);
 
-function scrollDown()
+function enableISO( box)
 {
-	e = document.getElementById("tscroll");
-	e.scrollTop = e.scrollHeight;
-	doLoad("");
+	if( box.checked)
+	{
+		box.form.user.disabled = 0;
+		box.form.pass.disabled = 0;
+	}
+	else
+	{
+		if( box.form.proxy.checked == 0)
+		{
+			box.form.user.value = "username";
+			box.form.pass.value = "password";
+			box.form.user.disabled = 1;
+			box.form.pass.disabled = 1;
+		}
+		else
+		{
+			box.form.iso.checked = 1;
+			alert( "'Download ISO' must be enabled if 'Use Proxy' is enabled.");
+		}
+	}
 }
-	
+
+function enableProxy( box)
+{
+	if( box.checked)
+	{
+		box.form.puser.disabled = 0;
+		box.form.ppass.disabled = 0;
+		box.form.paddr.disabled = 0;
+		box.form.iso.checked = 1;
+		enableISO( box.form.iso);
+	}
+	else
+	{
+		box.form.puser.value = "username";
+		box.form.ppass.value = "password";
+		box.form.paddr.value = "hostname";
+		box.form.puser.disabled = 1;
+		box.form.ppass.disabled = 1;
+		box.form.paddr.disabled = 1;
+	}
+}
+
+function clearText( text)
+{
+	text.value = "";
+}
+
 function jsTest()
 {
  	alert("LSG common.js is working!");	
 }
 
+function scrollDown()
+{
+	e = document.getElementById("tscroll");
+	e.scrollTop = e.scrollHeight;
+	doLoad("", "");
+}
+
+function toggleRefresh()
+{
+	var rURL;
+
+	rURL = sURL.replace( "ref=off", "ref=on");
+	if( rURL == sURL)
+	{
+		rURL = sURL.replace( "ref=on", "ref=off");
+	}
+	refresh( rURL);
+}
+
 function procChange()
 {
 	var selection = document.form1.current.value;
-	var url = "/baracus/ba/currentContent?cur=" + selection;
+	var url = "/baracus/ba/procCurrent?cur=" + selection + "&ref=off";
 	document.getElementById("infoBox").src=url;
 }
 
@@ -58,16 +120,30 @@ function hwUpdate()
 	var url = "/baracus/ba/createContent?caller=create&attr=hardware&val=" + selection;
 	document.getElementById("infoBox").src=url;
 }
-function doLoad( qString)
+function doLoad( rURL, qString)
 {
-    rfunc = "refresh( '" + qString + "')";
+	var myURL;
+	
+	if( rURL == '')
+	{
+		myURL = sURL;
+	}
+	else
+	{
+		myURL = rURL;
+	} 
+    myURL = myURL + qString;
+    rfunc = "refresh( '" + myURL + "')";
     setTimeout( rfunc, 5*1000 );
 }
 
-function refresh( qString)
+function refresh( newURL)
 {
-    sURL = sURL + qString;
-    window.location.href = sURL;
+    if( newURL == '')
+    {
+    	newURL = sURL;
+    }
+    window.location.href = newURL;
 }
 
 function mac_only( event) 

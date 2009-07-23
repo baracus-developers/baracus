@@ -3,18 +3,29 @@
 use lib '/var/spool/baracus/www/modules';
 use BATools qw(:standard);
 use CGI qw(:standard);
+use MIME::Base64;
 
 print "Content-type: text/html\n\n";
 
 $fid = param('fid') || "";
 $ref = param('ref') || "no";
+
 $iso = param('iso') || "";
-$proxy = param('proxy') || "";
 $user = param('user') || "";
 $pass = param('pass') || "";
+$ePass = encode_base64($pass);
+chomp($ePass);
 
-$rel = "";
-$distro = param('distro');
+$proxy = param('proxy') || "";
+$paddr = param('paddr') || "";
+$puser = param('puser') || "";
+$ppass = param('ppass') || "";
+$pePass = encode_base64($ppass);
+chomp($pePass);
+
+$rURL = "";
+$qStr = "";
+$distro = param('distro') || "NODISTRO";
 $verbose = "-v";
 $redir = ' 2>&1';
 
@@ -22,7 +33,7 @@ my $testcmd = "ps -eaf";
 my $refresh = "";
 my $content = "";
 my $header = "";
-my $headError = "Error";
+my $headError = "<font class='error'>Error</font>";
 my $sub = param('sub');
 my $proc = "";
 
@@ -30,6 +41,11 @@ if( $sub eq "list")
 {
 	$content = $content.listContent();
 	$header = listHeader();
+}
+elsif( $distro eq "NODISTRO")
+{
+	$content = $content.noDistroContent( $sub);
+	$header = $headError;
 }
 elsif( $sub eq "add")
 {
@@ -64,9 +80,9 @@ else
 
 $content = $content."\n\n\n";
 
-if( $ref eq "yes" && $header ne $headError)
+if( $ref eq "yes")
 {
-	$refresh = "onLoad=\"doLoad( '$rel')\"";
+	$refresh = "onLoad=\"doLoad( '$rURL', '$qStr')\"";
 	$proc = "Processing";
 }
 
@@ -111,6 +127,20 @@ sub listContent()
 }
 
 ########################################################################################################
+#  No Distro
+########################################################################################################
+
+sub noDistroContent
+{
+	my $curSub = $_[0];
+	my $r = "\n\nPlease select a distribution\n";
+	refresh();
+	$rURL = "/baracus/ba/source".ucfirst($curSub);
+	$qStr = "";
+	return $r;
+}
+
+########################################################################################################
 #  Subfunction = add
 ########################################################################################################
 
@@ -122,15 +152,32 @@ sub addHeader()
 sub addContent()
 {
 	my $cmd;
+	my $pCmd;
+	my $r = "";
+	
 	if( $iso eq "iso")
 	{
-		$cmd = "perl /$BATools::baPath/modules/expect add $distro $user $pass";
+		if( $proxy eq "proxy")
+		{
+			$cmd = "perl /$BATools::baPath/modules/expectIP add $distro $user $ePass $paddr $puser $pePass";
+			$pCmd = "perl /$BATools::baPath/modules/expectIP add $distro $user $******** $paddr $puser ********";
+			$r = "Command: $pCmd\n\n".background( $cmd);
+		}
+		else
+		{
+			$cmd = "perl /$BATools::baPath/modules/expectI add $distro $user $ePass";
+			$pCmd = "perl /$BATools::baPath/modules/expectI add $distro $user ********";
+			$r = "Command: $pCmd\n\n".background( $cmd);
+		}
 	}
 	else
 	{
 		$cmd = "perl /$BATools::baPath/modules/execute add $distro $verbose";
+		$pCmd = $cmd;
+		$r = "Command: $pCmd\n\n".background( $cmd);
 	}
-	return "Command: $cmd\n\n".background( $cmd);
+	
+	return $r;	
 }
 
 ########################################################################################################
@@ -145,14 +192,15 @@ sub delHeader()
 sub delContent()
 {
 	my $cmd = "perl /$BATools::baPath/modules/execute remove $distro no $redir";
+	my $r = "";
 	
-	my $ret = background( $cmd);
-	if( $ret =~ m/^Error/)
+	$r = background( $cmd);
+	if( $r =~ m/^Error/)
 	{
 		norefresh();
 	}
 
-	return $ret;
+	return $r;
 }
 
 ########################################################################################################
@@ -204,7 +252,7 @@ sub verContent()
 {
 	my $enacmd = "sudo create_install_source verify --distro=$distro $verbose".$redir;
 	my $retString = execute( $enacmd);
-	chomp($retString);
+	chomp( $retString);
 
 	norefresh();
 	return $retString;
@@ -229,7 +277,6 @@ sub execute
 	$retString = `$cmd`;
 	return $retString;
 }
-
 sub background
 {
 	my $cmd = $_[0];
@@ -243,22 +290,24 @@ sub background
 	{	
 		my $output = `$cmd`;
 		$retString = $retString."Please Wait...\n".$output;
-		$rel = "&fid=".$rfile;
+		$qStr = "&fid=".$rfile;
 	}
 	else
 	{
 		$myFile = $poolPath.$fid;		
-		open (MYFILE, $myFile) || return "Error Opening File: $myFile\n$!";
-		while(<MYFILE>)
+		if( !(open (MYFILE, $myFile)))
+		{ 
+			norefresh();
+			return "Error Opening File: $myFile\n$!\n\nFINISHED";
+		}
+		while( <MYFILE>)
 		{
 			if( $_ =~ m/FINISHED/)
 			{
-				$ref = "no";
+				norefresh();
 			}
-			else
-			{
-				$retString = $retString.$_;
-			}
+			$retString = $retString.$_;
+			
 		}
 		close (MYFILE);
 		

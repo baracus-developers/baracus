@@ -46,7 +46,7 @@ sub getContent
 {
 	my $r = "";
 	#$r = $r."<form name='createAdd'>\n";
-	$r = $r.BATools::getCurrentProcSelectionList("", "enabled", "size=12 onClick='procChange()';");
+	$r = $r.BATools::getCurrentProcSelectionList("", "enabled", "size=12 onChange='procChange()';");
 	#$r = $r."</form>\n";
 	
 	return $r;
