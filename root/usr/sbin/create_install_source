@@ -1039,6 +1039,7 @@ sub get_iso() {
     } else {
         $ua = LWP::UserAgent->new(keep_alive => 1 ) || die "$!";
     }
+    $uar->cookie_jar({});
     $ua->credentials('cdn.novell.com:80', 'iChain', "$username",  "$password" );
 
     $| = 1;
