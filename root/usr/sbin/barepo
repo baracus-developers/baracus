@@ -1,0 +1,133 @@
+#!/usr/bin/perl -w
+
+use strict;
+use Getopt::Long qw( :config pass_through );
+
+use lib "/usr/share/baracus/perl";
+use BaracusREPO;
+
+my $man     = 0;
+my $help    = 0;
+my $debug   = 0;
+my $verbose = 0;
+my $repopath = "/var/spool/baracus/byum/";
+
+my %cmds = (
+            'create'   => \&create,
+            'update'   => \&update,
+            'add'      => \&add,
+            'remove'   => \&remove,
+            'help'     => \&help,
+            'man'      => \&man,
+            );
+
+GetOptions(
+           'help|?'         => \$help,
+           'debug'          => \$debug,
+           'verbose'        => \$verbose,
+           );
+
+&man()  if $man;
+&help() if $help;
+if ( scalar @ARGV ) {
+    &help() if ($ARGV[0] eq "help" );
+}
+else {
+    &help();
+}
+
+my $status = &main(@ARGV);
+
+exit $status;
+
+###############################################################################
+
+sub main
+{
+    my $command = shift;
+
+    $command = lc $command;
+
+    if ( not defined $cmds{ $command } ) {
+        &help();
+    }
+
+    printf "Executing $command with \"@_\".\n" if $debug;
+
+    $cmds{ $command }( @_ );
+
+    &restart_service();
+}
+
+sub help() {
+
+print <<MARKER1;
+Usage:
+    barepo command [options]
+
+Where command is one of
+
+    create  <repo name> <rpm1 rpm2 rpm3> [etc.]    : create a new repo
+    remove  <repo name>                            : remove a repo
+    add     <repo name> <rpm1 rpm2 rpm3> [etc.]    : add additional packages to a repo
+    update  <repo name>                            : regenerate repo metafiles after adding packages
+
+Options are
+
+    -v|--verbose                    : verbose output
+    -h|--help                       : this (help) message
+
+MARKER1
+
+    exit 1;
+
+}
+
+sub add() {
+    my $repo = shift;
+    my @packages = @_;
+
+    $repo = "$repopath/$repo";
+    my $status = BaracusREPO::add_packages($repo, @packages);
+    if ($verbose) { print "Adding packages to $repo \n"; }
+
+    return $status;
+}
+
+sub create() {
+    my $repo = shift;
+    my @packages = @_;
+
+    $repo = "$repopath/$repo";
+    my $status = BaracusREPO::create_repo($repo, @packages);
+    if ($verbose) { print "Creating $repo \n"; }
+
+    return $status;
+}
+
+sub update() {
+    my $repo = shift;
+    
+    $repo = "$repopath/$repo";
+    my $status = BaracusREPO::update_repo($repo);
+    if ($verbose) { print "Updating $repo \n"; }
+
+    return $status;
+}
+
+sub remove() {
+    my $repo = shift;
+
+    $repo="$repopath/$repo";
+    my $status = BaracusREPO::remove_repo($repo);
+    if ($verbose) { print "Removing $repo \n"; }
+
+    return $status;
+}
+
+sub restart_service() {
+      
+    my $status = system("/etc/init.d/apache2 reload 2>&1 >/dev/null");
+
+    return $status;
+}
