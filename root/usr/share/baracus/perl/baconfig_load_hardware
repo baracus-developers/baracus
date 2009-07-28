@@ -1,5 +1,6 @@
 #!/bin/bash
 
+baconfig detail hardware default &> /dev/null || \
 baconfig add hardware --name default \
 --description="default" \
 --bootargs="acpi=on selinux=0 apm=off" \
@@ -11,6 +12,7 @@ baconfig add hardware --name default \
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
 
+baconfig detail hardware default-HP &> /dev/null || \
 baconfig add hardware --name default-HP \
 --description="default-HP" \
 --bootargs="acpi=on selinux=0 apm=off" \
@@ -22,6 +24,7 @@ baconfig add hardware --name default-HP \
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
 
+baconfig detail hardware kvm-sda &> /dev/null || \
 baconfig add hardware --name kvm-sda \
 --description="KVM (sda)" \
 --bootargs="acpi=on selinux=0 apm=off" \
@@ -33,6 +36,7 @@ baconfig add hardware --name kvm-sda \
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
 
+baconfig detail hardware kvm-hda &> /dev/null || \
 baconfig add hardware --name kvm-hda \
 --description="KVM (hda)" \
 --bootargs="acpi=on selinux=0 apm=off" \

@@ -23,7 +23,7 @@ my $hostname="";
 my $ip="";
 my $mac;
 my $hardware="";
-my $os="";
+my $distro="";
 my $module="";
 my $profile="";
 my $yasttemplate="";
@@ -95,8 +95,8 @@ Usage:
     And further parameters include
 
     --profile <pfile>       : file with networking and other template parameters
-                              there is a 'default' profile of that name here
-                              /etc/baracus.d/profiles/default
+                              there is a 'default' profile of that name visible
+                              with the command: 'baconfig detail profile default'
     --module <mfile>        : yast autoinstall scripts to run on build complete
                               you can specify this option multipls times
     --vars <variable=value> : a method to specify a command line parameter
@@ -640,7 +640,7 @@ GetOptions(
            'hostname=s' => \$hostname,
            'ip=s'       => \$ip,
            'mac=s'      => \$mac,
-           'distro=s'   => \$os,
+           'distro=s'   => \$distro,
            'hardware=s' => \$hardware,
            'yasttemplate=s' => \$yasttemplate,
            'profile=s'  => \$profile,
@@ -687,34 +687,10 @@ if ( ( $command eq "add" ) or
     }
 }
 
-unless ($profile) {
-    $profile = "default";
-}
-
 ## Get variables set in a profile
 ##
 my %profileHash;
 
-if (($profile) && (-f "$confdir/profiles/$profile")) {
-    my $conf = new Config::General("$confdir/profiles/$profile");
-    %profileHash = $conf->getall;
-    while ((my $key) = each(%profileHash)) {
-        if (ref($profileHash{$key}) eq "ARRAY") {
-            print "$key is an ARRAY\n";
-            print "ARRAYs not yet supported\n";
-            exit(1);
-            #           foreach my $avalue (@{$profileHash{$key}}){
-            #               print "$avalue\n";
-            #           }
-            next;
-        }
-    }
-} else {
-    print "valid profile required \n";
-    exit(1);
-}
-
-$profileHash{'uuid'} = &get_uuid;
 if ($hostname) {
     $profileHash{'hostname'} = $hostname;
 }
@@ -729,11 +705,155 @@ $dbh = BaracusDB::connect_db( $dbname, $dbrole );
 die BaracusDB::errstr unless( $dbh );
 
 if ($command eq "add") {
+
+    my $hashoftbls = BaracusSql::get_baracus_tables();
+    my $sql_cols;
+    my @cols;
+    my $sql;
+    my $sel;
+
+    $profile = "default"
+        unless ($profile);
+
+    $profileHash{'profile'} = $profile;
+
+    # incorporate the related profile entry information into profileHash
+    $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ 'profile_cfg' } );
+    $sql_cols =~ s/[ \t]*//g;
+    @cols = split(/,/, $sql_cols);
+    $sql = qq|SELECT $sql_cols FROM profile_cfg
+                 WHERE profileid = '| . $profile . qq|'|;
+    $sel = $dbh->selectrow_hashref( $sql );
+    die "Unable to find profile entry for $profile.\n"
+        unless ( defined $sel );
+    print $sel . "\n" if $debug;
+
+    # getall is a destructive assignment - so use tmp
+    my $conf = new Config::General( -String => $sel->{'data'} );
+    my %tmpHash = $conf->getall;
+
+    while ( my ($key, $value) = each ( %tmpHash ) ) {
+        if (ref($value) eq "ARRAY") {
+            print "$key is an ARRAY\n";
+            print "ARRAYs not yet supported\n";
+            exit(1);
+            #           foreach my $avalue (@{$profileHash{$key}}){
+            #               print "$avalue\n";
+            #           }
+            next;
+        }
+        if (defined $value) {
+            print "profile: $key => $value\n" if $debug;
+            $profileHash{$key} = $value;
+        } else {
+            print "profile: $key => ''\n" if $debug;
+            $profileHash{$key} = "";
+        }
+    }
+
+    # distro file may be in profile *and* on command line
+
+    # command line wins over profile entry
+    $profileHash{'distro'} = $distro if ($distro);
+
+    die "Need --distro via commandline or distro= in profile.\n"
+        unless ($profileHash{'distro'});
+
+    # incorporate the related distro entry information into profileHash
+    $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ 'distro_cfg' } );
+    $sql_cols =~ s/[ \t]*//g;
+    @cols = split(/,/, $sql_cols);
+    $sql = qq|SELECT $sql_cols FROM distro_cfg
+                 WHERE distroid = '| . $profileHash{'distro'} . qq|'|;;
+    $sel = $dbh->selectrow_hashref( $sql );
+    die "Unable to find distro entry for $profileHash{'distro'}.\n"
+        unless ( defined $sel );
+    print $sel . "\n" if $debug;
+    while ( my ($key, $value) = each( %$sel ) ) {
+        if (defined $value) {
+            print "distro: $key => $value\n" if $debug;
+            $profileHash{$key} = $value;
+        } else {
+            print "distro: $key => ''\n" if $debug;
+            $profileHash{$key} = "";
+        }
+    }
+
+    # hardware file may be in profile *and* on command line
+
+    # command line wins over profile entry
+    $profileHash{'hardware'}= $hardware if ($hardware);
+
+    die "Need --hardware via commandline or hardware= in profile.\n"
+        unless ($profileHash{'hardware'});
+
+    # incorporate the related hardware entry information into profileHash
+    $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ 'hardware_cfg' } );
+    $sql = qq|SELECT $sql_cols FROM hardware_cfg
+                 WHERE hardwareid = '| . $profileHash{'hardware'} . qq|'|;
+    $sel = $dbh->selectrow_hashref( $sql );
+    die "Unable to find hardware entry for $profileHash{'hardware'}.\n"
+        unless ( defined $sel );
+    print $sel . "\n" if $debug;
+    while ( my ($key, $value) = each( %$sel ) ) {
+        if (defined $value) {
+            print "hware: $key => $value\n" if $debug;
+            $profileHash{$key} = $value;
+        } else {
+            print "hware: $key => ''\n" if $debug;
+            $profileHash{$key} = "";
+        }
+    }
+
+    # module file may be in profile *and* on command line
+
+    # command line wins over profile entry
+    $tmpHash{'module'}= $module if ($module);
+
+    # if profileHash{'module'} was set by reading a profile module= line
+    # we need to clear it from %profileHash as that is for the yast xml
+    # the module value should still be in %tmpHash from 'getall' invocation
+
+    $profileHash{'module'}='';
+
+    # incorporate any modules passed into autoinstall formated xml
+    if (defined $tmpHash{'module'} && $tmpHash{'module'}) {
+        my $modulefile;
+#        $profileHash{'module'} = "    <init-scripts config:type="list">\n";
+        foreach my $item (split(/ /, $tmpHash{'module'})) {
+
+            $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ 'module_cfg' } );
+            $sql_cols =~ s/[ \t]*//g;
+            @cols = split(/,/, $sql_cols);
+            $sql = qq|SELECT $sql_cols FROM module_cfg
+                 WHERE moduleid = '| . $item . qq|'|;;
+            $sel = $dbh->selectrow_hashref( $sql );
+            die "Unable to find module entry for $item.\n"
+                unless ( defined $sel );
+            print $sel . "\n" if $debug;
+
+            $modulefile="<script>
+        <filename>$sel->{'moduleid'}</filename>
+        <source><![CDATA[";
+            $modulefile .= $sel->{'data'};
+            $modulefile .="]]>\n        </source>\n      </script>";
+            $profileHash{'module'} .= $modulefile;
+        }
+#        $profileHash{'module'} .= "\n    </init-scripts>"
+    }
+
     ## Commandline options
+    ##   - comes after reading profile
+    ##   - harware, distro override profile values
+    ##   - cmdline values override any file values
+    ##   - --vars overrides everything else
     ## Mandatory: hostname ip mac
-    ## Optional: hardware distro profile module
     ##
+
+    $profileHash{'uuid'} = &get_uuid;
+
     $profileHash{'cmdline'} = $cmdline;
+
     if ($type) {
         $profileHash{'type'} = $type;
     }
@@ -748,89 +868,10 @@ if ($command eq "add") {
         $profileHash{'hexip'} = &get_hexIP($profileHash{'ip'});
     }
     if ($mac) {
-        $profileHash{'mac'} = $mac;
-    }
-    if ($hardware) {
-        $profileHash{'hardware'} = $hardware;
-    }
-    if ($os) {
-        $profileHash{'os'} = $os;
-    }
-    if ($profile) {
-        $profileHash{'profile'} = $profile;
+        $profileHash{'mac'} = uc $mac;
     }
     if ($yasttemplate) {
         $profileHash{'yasttemplate'} = $yasttemplate;
-    }
-
-    my $hashoftbls = BaracusSql::get_baracus_tables();
-    my $sql_cols;
-    my @cols;
-    my $sql;
-    my $sel;
-    my $modulefile;
-
-    # incorporate the modules passed into autoinstall formated xml
-    if ($module) {
-        foreach my $item (split(/ /, $module)) {
-
-            $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ 'module_cfg' } );
-            $sql_cols =~ s/[ \t]*//g;
-            @cols = split(/,/, $sql_cols);
-            $sql = qq|SELECT $sql_cols FROM module_cfg
-                 WHERE moduleid = '| . $item . qq|'|;;
-            $sel = $dbh->selectrow_hashref( $sql );
-            die "Unable to find module entry for $item\n"
-                unless ( defined $sel );
-            print $sel . "\n" if $debug;
-
-            $modulefile="<script>
-        <filename>$sel->{'moduleid'}</filename>
-        <source><![CDATA[";
-            $modulefile .= $sel->{'data'};
-            $modulefile .="]]>\n        </source>\n      </script>";
-            $profileHash{'module'} .= $modulefile;
-        }
-    }
-
-    die "Need --distro via commandline or profile.\n"
-        unless ($profileHash{'os'});
-
-    # incorporate the related distro entry information into profileHash
-    $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ 'distro_cfg' } );
-    $sql_cols =~ s/[ \t]*//g;
-    @cols = split(/,/, $sql_cols);
-    $sql = qq|SELECT $sql_cols FROM distro_cfg
-                 WHERE distroid = '| . $profileHash{'os'} . qq|'|;;
-    $sel = $dbh->selectrow_hashref( $sql );
-    die "Unable to find distroid entry for $profileHash{'os'}\n"
-        unless ( defined $sel );
-    print $sel . "\n" if $debug;
-    while ( my ($key, $value) = each( %$sel ) ) {
-        next if (($key eq "yasttemplate") && ($yasttemplate ne ""));
-        if (defined $value) {
-            print "distro: $key => $value\n" if $debug;
-            $profileHash{$key} = $value;
-        } else {
-            print "distro: $key => ''\n" if $debug;
-            $profileHash{$key} = "";
-        }
-    }
-
-    die "Need --hardware via commandline or profile.\n"
-        unless ($profileHash{'hardware'});
-
-    # incorporate the related hardware entry information into profileHash
-    $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ 'hardware_cfg' } );
-    $sql = qq|SELECT $sql_cols FROM hardware_cfg
-                 WHERE hardwareid = '| . $profileHash{'hardware'} . qq|'|;
-    $sel = $dbh->selectrow_hashref( $sql );
-    die "Unable to find hardwareid entry for $profileHash{'hardware'}\n"
-        unless ( defined $sel );
-    print $sel . "\n" if $debug;
-    while ( my ($key, $value) = each( %$sel ) ) {
-        print "hware: $key => $value\n" if $debug;
-        $profileHash{$key} = $value;
     }
 
     ## If passed on command line via vars, then honor those

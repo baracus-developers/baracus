@@ -1,0 +1,17 @@
+## Required Variables
+## Can be passed via cmdline
+##
+netmask=
+gateway=
+dnsdomain=
+dns1=
+
+## Optional Variables
+##
+## example ntp1=ntp.myntpserver.com
+## example language=en_US
+## example timezone=US/Eastern
+timezone=
+lang=
+hardware=
+arch=

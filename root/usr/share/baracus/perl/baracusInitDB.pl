@@ -32,8 +32,10 @@ if ( defined $reverse_flag ) {
     &main();
     system ( "/usr/share/baracus/perl/baconfig_load_distro" );
     system ( "/usr/share/baracus/perl/baconfig_load_hardware" );
-    my $need_restart = &add_apache2_perl();
-    system ( "service apache2 restart" ) if $need_restart;
+    system ( "/usr/share/baracus/perl/baconfig_load_profile" );
+    my $perl_reload = &add_apache2_perl();
+    my $listen_reload = &apache2_listen_conf();
+    system ( "service apache2 reload" ) if ( $perl_reload or $listen_reload );
     &add_www_sudoers();
 }
 
@@ -235,6 +237,39 @@ sub add_apache2_perl
     close SYSCONF_IN;
     close SYSCONF_OUT;
     unlink $sysconf_in;
+    return $restart;
+}
+
+sub apache2_listen_conf
+{
+    my $listenconf_in  = "/etc/apache2/listen.conf.bk";
+    my $listenconf_out = "/etc/apache2/listen.conf";
+    my $restart = 0;
+
+    use AppConfig;
+    my $sysconfigfile = '/etc/sysconfig/baracus';
+    my $sysconfig = AppConfig->new( {CREATE => 1} );
+    $sysconfig->define( 'buildip=s' );
+    $sysconfig->file( $sysconfigfile );
+    my $mods = $sysconfig->get( 'buildip' );
+
+    # listen.conf support systems with more than one IP and use BUILDIP
+
+    copy ($listenconf_out, $listenconf_in);
+    open (LISTENCONF_IN, "<$listenconf_in")
+        or die "Unable to open $listenconf_in: $!\n";
+    open (LISTENCONF_OUT, ">$listenconf_out")
+        or die "Unable to open $listenconf_out: $!\n";
+    while (<LISTENCONF_IN>) {
+        if (m|^(\s*[Ll]isten\s+)([0-9]+)$|) {
+            $_ = $1 . $mods . ':' . $2 . "\n";
+            $restart = 1;
+        }
+        print LISTENCONF_OUT $_;
+    }
+    close LISTENCONF_IN;
+    close LISTENCONF_OUT;
+    unlink $listenconf_in;
     return $restart;
 }
 

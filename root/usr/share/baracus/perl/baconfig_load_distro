@@ -1,77 +1,54 @@
-#!/bin/bash
+#!/usr/bin/perl -w
 
-baconfig add distro --name sles9-i586 \
---os=sles9 \
---sp=sp4 \
---description="SUSE Linux Enterprise 9 32bit" \
---arch=i586 \
---pxekernel=linux.sles9-SP4 \
---pxeinitrd=initrd.sles9-SP4
+use strict;
+use XML::Simple;
 
-baconfig add distro --name sles9-x86_64 \
---os=sles9 \
---sp=sp4 \
---description="SUSE Linux Enterprise 9 64bit" \
---arch=x86_64 \
---pxekernel=linux.sles9-x86_64-SP4 \
---pxeinitrd=initrd.sles9-x86_64-SP4
+my $xml = new XML::Simple;
+my $config = $xml->XMLin( "/usr/share/baracus/qs.xml",
+                          forcearray => [ 'distribution', 'file' ],
+                          keyattr => [ 'distribution' => 'os' ]
+                         );
 
-baconfig add distro --name sles10-i586 \
---os=sles10 \
---sp=sp2 \
---description="SUSE Linux Enterprise 10 32bit" \
---arch=i586 \
---pxekernel=linux.sles10 \
---pxeinitrd=initrd.sles10
+my $addon;
+my $baseos;
+my $osnoarch;
+my $arch;
+my $sp;
+my $desc;
 
-baconfig add distro --name sles10-x86_64 \
---os=sles10 \
---sp=sp2 \
---description="SUSE Linux Enterprise 10 64bit" \
---arch=x86_64 \
---pxekernel=linux.sles10-x86_64-SP2 \
---pxeinitrd=initrd.sles10-x86_64-SP2
+foreach my $os (keys %{$config->{'distribution'}} ) {
+    $arch = $config->{'distribution'}->{$os}->{'arch'};
+    $osnoarch = $os;
+    $osnoarch =~ s|\-$arch||;
+    $sp = $config->{'distribution'}->{$os}->{'sp'};
+    if ( $sp =~ m|[0-9]| ) {
+        $sp = "sp$sp";
+    }
+    if (defined $config->{'distribution'}->{$os}->{'requires'}) {
+        $addon = 1;
+        $baseos = $config->{'distribution'}->{$os}->{'requires'};
+        $baseos =~ s|\-$arch||;
+    } else {
+        $addon = 0;
+    }
+    $desc = $config->{'distribution'}->{$os}->{'description'};
 
-baconfig add distro --name slert10-x86_64 \
---os=slert10 \
---sp=sp2 \
---description="SUSE Linux Enterprise Real Time 10 SP2 64bit" \
---arch=x86_64 \
---pxekernel=linux.sles10-x86_64-SP2 \
---pxeinitrd=initrd.sles10-x86_64-SP2 \
---addon --baseos=sles10
+    my $cmd = "baconfig add distro --name $os";
+    $cmd .= " --os $osnoarch";
+    $cmd .= " --arch $arch";
+    $cmd .= " --sp $sp";
+    $cmd .= " --description \"$desc\"";
+    $cmd .= " --addon --baseos $baseos" if $addon;
 
-baconfig add distro --name sles10-MONO-x86_64 \
---os=sles10-MONO \
---sp=sp2 \
---description="SUSE Linux Enterprise 10 SP2 with MONO 64bit" \
---arch=x86_64 \
---pxekernel=linux.sles10-x86_64-SP2 \
---pxeinitrd=initrd.sles10-x86_64-SP2 \
---addon --baseos=sles10
+    my $retval = system("baconfig detail distro $os &> /dev/null");
+    system ($cmd) if ($retval);
+}
 
-baconfig add distro --name sles11-x86_64 \
---os=sles11 \
---sp=ga \
---description="SUSE Linux Enterprise 11 GA 64bit" \
---arch=x86_64 \
---pxekernel=linux.sles11-x86_64-SPga \
---pxeinitrd=initrd.sles11-x86_64-SPga
+exit 0;
 
-baconfig add distro --name sles11-HAE-x86_64 \
---os=sles11-HAE \
---sp=ga \
---description="SUSE Linux Enterprise High Availability 11 GA 64bit" \
---arch=x86_64 \
---pxekernel=linux.sles11-x86_64-SPga \
---pxeinitrd=initrd.sles11-x86_64-SPga \
---addon --baseos=sles11
+die "DOES NOT EXECUTE";
 
-baconfig add distro --name sles11-MONO-x86_64 \
---os=sles11-MONO \
---sp=ga \
---description="SUSE Linux Enterprise 11 GA with MONO 64bit" \
---arch=x86_64 \
---pxekernel=linux.sles11-x86_64-SPga \
---pxeinitrd=initrd.sles11-x86_64-SPga \
---addon --baseos=sles11
+1;
+
+__END__
+

@@ -21,7 +21,6 @@ my $isoarg="";
 my $iarg="";
 my $add;
 my $remove;
-my $menu;
 my $disable;
 my $list;
 my $verify;
@@ -51,7 +50,6 @@ Usage:
 
 Where command is one of
 
-    menu                          : run full menu mode 
     add     --distro <x>          : add a new build source for distribution <x>
     remove  --distro <x>          : remove <x> as a build source
     disable --distro <x>          : diable a build source for distribution <x>
@@ -152,75 +150,6 @@ sub download_iso() {
     foreach $isofile ( @isofilelist ) {
         &get_iso($os,$config->{distribution}->{$os}->{file}->{$isofile}->{url},$isofile,$username,$password,$pusername,$ppassword,$proxyaddr);
     }
-}
-
-
-sub get_build_info() {
-
-    my $troot="";
-    my $iso="";
-    my $type="";
-    my $ip;
-    my $os;
-    my $sanswer="";
-    my $enable="";
-
-    ## What distribution to create build tree for
-    ##
-    print "\nPlease select a distribution: \n";
-    print "-----------------------------\n";
-    foreach my $d (sort { $b cmp $a } keys (%{$config->{distribution}})) {
-        print "$d\n"
-    }
-    print "> ";
-    chomp($os = ReadLine(0));
-
-    ## Check if add-on, ie. SLERT, OES
-    ##
-    if ($config->{distribution}->{$os}->{requires}) {
-        ($troot, $type, $ip) = &addon_product($os);
-    }
-
-    unless ($config->{distribution}->{$os}->{requires}) {
-        until ($type eq "nfs" || $type eq "http") {
-            print "\nPlease select installation type: \n";
-            print "--------------------------------\n";
-            print "nfs\n";
-            print "http\n\n";
-            print "> ";
-            chomp($type = ReadLine(0));
-            $type =~ tr/[A-Z]/[a-z]/;
-        }
-
-        until ($enable eq "yes" || $enable eq "no") {
-            print "Enable all necessary services? (yes/no) ";
-            chomp($enable = ReadLine(0));
-            $enable =~ tr/[A-Z]/[a-z]/;
-        }
-
-        print "Please specify IP address of remote build: ";
-        while ( ((chomp($ip = ReadLine(0)))) && ($ip !~ /^(\d{1,3}\.){3}\d{1,3}$/) ) {
-            print "$ip is NOT a valid IP Address.\n";
-            print "Please specify IP address of remote build: ";
-        }
-
-        print "Please specify a location for root of build tree: ";
-        chomp($troot = ReadLine(0));
-    }
-
-    ## Do we need to download the iso files
-    ##
-    unless ($iarg) {
-        print "Please enter path to $os iso files: ";
-        chomp($iso = ReadLine(0));
-    }
-
-    if ($enable eq "yes") {
-        foreach my $service ("$type", "dhcpd") {
-            &enable_service($service);
-        }
-    }
-    &add_build($os, $troot, $type, $ip, $iso);
 }
 
 sub add_db_source_entry() {
@@ -418,23 +347,19 @@ sub add_build() {
 
     my ($os, $troot, $datadir, $type, $ip, $iso) = @_;
 
-    (my $distro, my $arch) = split(/-/,$os);
+    my ($distro, $arch) = split(/-/,$os);
 
     ## Test if selection is valid
     ##
-    my @osarray;
-    foreach my $d (keys (%{$config->{distribution}})) {
-        push(@osarray, $d);
-    }
-    unless ( grep( /^$os/,@osarray ) ) {
-        print "unknown distribution\n";
+    unless ( defined $config->{'distribution'}->{$os} ) {
+        print "Unknown distribution: $os\n";
         exit(1);
     }
 
     ## Check if add-on, ie. SLERT, OES
     ##
     if ($config->{distribution}->{$os}->{requires}) {
-	&addon_product($os, $troot);
+        &addon_product($os, $troot);
     }
 
     &download_iso() if ($iarg);
@@ -450,6 +375,8 @@ sub add_build() {
     } else {
         &create_sle10_build($os,$troot,$type,$ip,@isoarray);
     }
+
+    # continue if we're not adding an add-on
 
     unless ($config->{distribution}->{$os}->{requires}) {
         print "Calling routine to configure $type\n" if ($verbose);
@@ -755,8 +682,8 @@ sub create_sle9_build() {
     symlink("SUSE-SLES-Version-9/CD1/control.xml","control.xml");
     symlink("SUSE-SLES-Version-9/CD1/media.1","media.1");
 
-    symlink("SUSE-SLES-9-Service-Pack-Version-$config->{distribution}->{$os}->{sp}/CD1/linux","linux");
-    symlink("SUSE-SLES-9-Service-Pack-Version-$config->{distribution}->{$os}->{sp}/CD1/driverupdate","driverupdate");
+    symlink("SUSE-SLES-9-Service-Pack-Version-$config->{'distribution'}->{$os}->{'sp'}/CD1/linux","linux");
+    symlink("SUSE-SLES-9-Service-Pack-Version-$config->{'distribution'}->{$os}->{'sp'}/CD1/driverupdate","driverupdate");
 
     ## Need to make sure license acceptance does not interfere
     ##
@@ -800,10 +727,47 @@ sub add_build_service
                     die "Unable to open file: $!";
                 print BA <<BAFILE;
 # httpd configuration for Baracus share
+
 Alias $bdir{'root'} $bdir{'root'}
 <Directory "$bdir{'root'}">
 
     Options -Indexes +FollowSymLinks
+
+    Order allow,deny
+    Allow from all
+
+</Directory>
+
+<IfModule mod_perl.c>
+    PerlRequire "/etc/apache2/mod_perl-startup.pl"
+
+    ScriptAlias /baracus/ba/ "$bdir{'root'}/www/cgi-bin/"
+    <Location /baracus/ba/>
+        # mod_perl mode
+        SetHandler perl-script
+        PerlResponseHandler ModPerl::Registry
+        PerlOptions +ParseHeaders
+        Options +ExecCGI
+        Order allow,deny
+        Allow from all
+    </Location>
+
+</IfModule>
+
+Alias /baracus/images $bdir{'root'}/www/htdocs/images
+<Directory "$bdir{'root'}/www/htdocs/images">
+
+    Options +Indexes +FollowSymLinks
+
+    Order allow,deny
+    Allow from all
+
+</Directory>
+
+Alias /baracus $bdir{'root'}/www/htdocs
+<Directory "$bdir{'root'}/www/htdocs">
+
+    Options +Indexes +FollowSymLinks
 
     Order allow,deny
     Allow from all
@@ -934,10 +898,13 @@ sub disable_service() {
     system("/etc/init.d/$type stop");
 }
 
+# pxe_config called only if non-add-on ('requires' is *not* defined)
+
 sub pxe_config() {
 
     my ($troot,$datadir,$os,$type,$ip) = @_;
-    my $sp = "$config->{distribution}->{$os}->{sp}";
+
+    my $pxeid = $config->{'distribution'}->{$os}->{'pxeid'};
 
     my $dbname = "sqltftp";
 
@@ -958,35 +925,33 @@ sub pxe_config() {
     my $tdir = tempdir();
     mkdir $tdir, 0755 || die ("Cannot create directory\n");
 
-    unless ($config->{distribution}->{$os}->{requires}) {
-
-        unless( $sqlfsOBJ->find( "linux.$os-SP$sp" ) ) {
-            copy("$troot/$config->{distribution}->{$os}->{basepath}/$config->{distribution}->{$os}->{pxepath}/linux","$tdir/linux.$os-SP$sp") or die "Copy failed: $!";
-            if ( $sqlfsOBJ->store( "$tdir/linux.$os-SP$sp" ) ) {
-                warn "failed to store linux.$os-SP$sp in sqlfs\n";
-            }
-            unlink ( "$tdir/linux.$os-SP$sp" );
+    unless( $sqlfsOBJ->find( "linux.$pxeid" ) ) {
+        copy("$troot/$config->{distribution}->{$os}->{basepath}/$config->{distribution}->{$os}->{pxepath}/linux","$tdir/linux.$pxeid") or die "Copy failed: $!";
+        if ( $sqlfsOBJ->store( "$tdir/linux.$pxeid" ) ) {
+            warn "failed to store linux.$pxeid in sqlfs\n";
         }
-        unless( $sqlfsOBJ->find( "initrd.$os-SP$sp" ) ) {
-            copy("$troot/$config->{distribution}->{$os}->{basepath}/$config->{distribution}->{$os}->{pxepath}/initrd","$tdir/initrd.gz") or die "Copy failed: $!";
-            if ( $os =~ /sles11/ ) {
-                system("gunzip", "$tdir/initrd.gz");
-                $>=$oldid;  # annoying permissions on gpghome
-                copy("/usr/share/baracus/gpghome/.gnupg/my-key.gpg", "$tdir/my-key.gpg") or die "Copy failed: $!";
-                my $result = `cd $tdir; find my-key.gpg | cpio --quiet -o -A -F initrd -H newc >> /dev/null`;
-                unlink( "$tdir/my-key.gpg" );
-                $> = $uid;  # back to user 'baracus' for last sqlfs operations
-                system("gzip", "$tdir/initrd");
-            }
-            copy("$tdir/initrd.gz", "$tdir/initrd.$os-SP$sp") or die "Copy failed: $!";
-            unlink( "$tdir/initrd.gz" );
-
-            if ( $sqlfsOBJ->store( "$tdir/initrd.$os-SP$sp" ) ) {
-                warn "failed to store initrd.$os-SP$sp in sqlfs\n";
-            }
-            unlink( "$tdir/initrd.$os-SP$sp" );
-        }
+        unlink ( "$tdir/linux.$pxeid" );
     }
+    unless( $sqlfsOBJ->find( "initrd.$pxeid" ) ) {
+        copy("$troot/$config->{distribution}->{$os}->{basepath}/$config->{distribution}->{$os}->{pxepath}/initrd","$tdir/initrd.gz") or die "Copy failed: $!";
+        if ( $os =~ /sles11/ ) {
+            system("gunzip", "$tdir/initrd.gz");
+            $>=$oldid;          # annoying permissions on gpghome
+            copy("/usr/share/baracus/gpghome/.gnupg/my-key.gpg", "$tdir/my-key.gpg") or die "Copy failed: $!";
+            my $result = `cd $tdir; find my-key.gpg | cpio --quiet -o -A -F initrd -H newc >> /dev/null`;
+            unlink( "$tdir/my-key.gpg" );
+            $> = $uid; # back to user 'baracus' for last sqlfs operations
+            system("gzip", "$tdir/initrd");
+        }
+        copy("$tdir/initrd.gz", "$tdir/initrd.$pxeid") or die "Copy failed: $!";
+        unlink( "$tdir/initrd.gz" );
+
+        if ( $sqlfsOBJ->store( "$tdir/initrd.$pxeid" ) ) {
+            warn "failed to store initrd.$pxeid in sqlfs\n";
+        }
+        unlink( "$tdir/initrd.$pxeid" );
+    }
+
     rmdir $tdir;
 
     ## Create example pxelinux.cfg boot file
@@ -996,8 +961,7 @@ sub pxe_config() {
     my $pxe = join '', <PXEFILE>;
     close(PXEFILE);
 
-    $pxe =~ s/%OS%/$os/g;
-    $pxe =~ s/%SP%/$sp/g;
+    $pxe =~ s/%PXEID%/$pxeid/g;
     $pxe =~ s/%TYPE%/$type/g;
     $pxe =~ s/%IP%/$ip/g;
     if ( $os =~ /sles9/ ) {
@@ -1007,12 +971,12 @@ sub pxe_config() {
     }
 
     # store won't overwrite ( $name, \$contentref, [ description ] )
-    $sqlfsOBJ->storeScalar( "template.$type.$os-SP$sp", \$pxe );
+    $sqlfsOBJ->storeScalar( "template.$type.$pxeid", \$pxe );
 
     # TODO:  perhaps create a menu of install sources to choose from
     # NOTE:  SqlFS is 'flat' so 'default' is only used for lookup match here
     unless ( $sqlfsOBJ->find( "pxelinux.cfg/default" ) ) {
-        $sqlfsOBJ->storeScalar( "pxelinux.cfg/default", \$pxe, "template.$type.$os-SP$sp" );
+        $sqlfsOBJ->storeScalar( "pxelinux.cfg/default", \$pxe, "template.$type.$pxeid" );
     }
 
     # restore original, non-baracus, running uid
@@ -1039,7 +1003,7 @@ sub get_iso() {
     } else {
         $ua = LWP::UserAgent->new(keep_alive => 1 ) || die "$!";
     }
-    $uar->cookie_jar({});
+    $ua->cookie_jar({});
     $ua->credentials('cdn.novell.com:80', 'iChain', "$username",  "$password" );
 
     $| = 1;
@@ -1197,7 +1161,6 @@ GetOptions(
            'enable'     => \$enable,  # command
            'verify'     => \$verify,  # command
            'service'    => \$service, # command
-           'menu'       => \$menu     # command
            ) or &get_usage();
 
 &get_usage if ($help);
@@ -1211,7 +1174,6 @@ my %action = (
               'enable'  => \&enable_build,
               'list'    => \&list_isos,
               'verify'  => \&verify_build,
-              'menu'    => \&get_build_info,
               'service' => \&do_service,
               );
 
@@ -1229,29 +1191,24 @@ $iarg = $isoarg if ($iarg);
 
 my $xmlfile = "$datadir/qs.xml";
 my $xml = new XML::Simple;
-$config = $xml->XMLin($xmlfile, forcearray => [ qw(distribution file) ], keyattr => [ distribution => 'os', 'iso', 'path', 'md5' ]);
+$config = $xml->XMLin($xmlfile, forcearray => [ qw(distribution file) ], keyattr => [ distribution => 'os', 'arch', 'description','iso', 'path', 'md5' ]);
 
-## Check arguments are valid (os a required arg for all but menu)
-##
-if ( "$command" ne "menu" ) {
-    if ( "$command" eq "service" &&
-         (( not defined $stop_services) && (not defined $start_services))) {
-        print "\nWith 'service' you need to specify\nservices to '--start' or '--stop' :\n";
-        print "-----------------------------------\n";
-        print "  service --start  # alone currently defaults to \'$type\' and \'dhcpd\'\n";
-        print "  service --stop   # ditto\n\n";
-        print "  service --start http --stop nfs\n\n";
-        exit(1);
+if ( "$command" eq "service" &&
+     (( not defined $stop_services) && (not defined $start_services))) {
+    print "\nWith 'service' you need to specify\nservices to '--start' or '--stop' :\n";
+    print "-----------------------------------\n";
+    print "  service --start  # alone currently defaults to \'$type\' and \'dhcpd\'\n";
+    print "  service --stop   # ditto\n\n";
+    print "  service --start http --stop nfs\n\n";
+    exit(1);
+} elsif ( (("$command" ne "service") && ("$command" ne "verify") )  &&
+          (! defined $config->{distribution}->{$os} )) {
+    print "\nPlease provide the \"--distro <arg>\":\n";
+    print "------------------------------------\n";
+    foreach my $d (sort { $b cmp $a } keys (%{$config->{distribution}})) {
+        print "$d\n"
     }
-    elsif ( (("$command" ne "service") && ("$command" ne "verify") )  &&
-            (! defined $config->{distribution}->{$os} )) {
-        print "\nPlease provide the \"--distro <arg>\":\n";
-        print "------------------------------------\n";
-        foreach my $d (sort { $b cmp $a } keys (%{$config->{distribution}})) {
-            print "$d\n"
-        }
-        exit(1);
-    }
+    exit(1);
 }
 
 my %arguments = (
@@ -1261,7 +1218,6 @@ my %arguments = (
                  'enable'  => [$os,$troot,$type,$datadir],
                  'list'    => [$os],
                  'verify'  => [$os],
-                 'menu'    => [],
                  'service' => [$start_services,$stop_services],
                  );
 

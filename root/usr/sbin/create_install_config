@@ -12,7 +12,7 @@ use BaracusSql;
 
 =head1 NAME
 
-B<create_install_config> - baracus tool to manage distro, hardware, module entries.
+B<create_install_config> - baracus tool to manage distro, hardware, module, and profile entries.
 
 =head1 SYNOPSIS
 
@@ -26,19 +26,20 @@ Where E<lt>commandE<gt> is
     add    <type>  Copy to database from file in specified location.
     detail <type>  Display file entry in the database table.
     remove <type>  Delete file specified from database table.
-    update module  Add a new version or modify attributes of an existing module
+    update <type>  Add version or modify attribs of module or profile
 
 And, where E<lt>typeE<gt> is
 
     distro    values related to the distribution
     hardware  values related to the hardware of the build client
     module    postinstall scripts to run on build completion
+    profile   network or other variable definitions
 
 =head1 DESCRIPTION
 
-This tool allows files related to distro, hardware, or modules to be added to,
-removed from, detailed, fetched from database tables.  Additionally, all the
-database entries can be listed.
+This tool allows files related to distro, hardware, modules or profiles to be
+added to, removed from, detailed, fetched from database tables.  Additionally,
+all the database entries can be listed.
 
 =cut
 
@@ -57,15 +58,16 @@ my %tbl = (
            'distro'   => 'distro_cfg',
            'hardware' => 'hardware_cfg',
            'module'   => 'module_cfg',
+           'profile'  => 'profile_cfg',
            'oscert'   => 'hardwareid',
            );
 
 my %cmds = (
             'list'   => \&list,
             'add'    => \&add,
-            'fetch'  => \&fetch,
             'detail' => \&detail,
             'remove' => \&remove,
+#            'update' => \&update,
             'help'   => \&help,
             'man'    => \&man,
             );
@@ -80,6 +82,10 @@ GetOptions(
 &man()  if $man;
 &help() if $help;
 if ( scalar @ARGV ) {
+    if ( not defined $cmds{ $ARGV[0] } ) {
+        print "\nUnknown command: $ARGV[0]\n";
+        &help();
+    }
     &man()  if ($ARGV[0] eq "man"  );
     &help() if ($ARGV[0] eq "help" );
 }
@@ -111,10 +117,6 @@ sub main
 
     $command = lc $command;
 
-    if ( not defined $cmds{ $command } ) {
-        &help();
-    }
-
     printf "Executing $command with \"@_\".\n" if $debug;
 
     $cmds{ $command }( @_ );
@@ -135,7 +137,7 @@ sub man
 
 =item list
 
-    Takes <type> as an argument, (distro, hardware, modules).
+    Takes <type> as an argument, (distro, hardware, module, profile).
     Also takes an optional string to do use for partial matching.
     Lists all entries of this type in the filesystem.
 
@@ -188,6 +190,8 @@ HEAD
     return 0;
 }
 
+# add invoke proper add type
+
 sub add
 {
     my $type = shift;
@@ -202,6 +206,8 @@ sub add
         $status = &add_hardware( @_ );
     } elsif ( $type eq "module" ) {
         $status = &add_module( @_ );
+    } elsif ( $type eq "profile" ) {
+        $status = &add_profile( @_ );
     }
 
     return $status;
@@ -220,10 +226,10 @@ Where <options and args> are
 The pxe arguments describe the kernel and initrd a bootp client should load.
 They must be changed to the installed base kernel and initrd for add-ons.
 
-    --pxekernel linux   linux.sles10-x86_64-sp2
-                        [default linux.<os>-<arch>-<sp>]
-    --pxeinitrd initrd  initrd.sles10-x86_64-sp2
-                        [default initrd.<os>-<arch>-<sp>]
+    --pxekernel linux   linux.sles10-sp2-x86_64
+                        [default linux.<os>-<sp>-<arch>]
+    --pxeinitrd initrd  initrd.sles10-sp-x86_64
+                        [default initrd.<os>-<sp>-<arch>]
 
 These arguments are for describing HAE, MONO, OES, SLERT add-on products
 
@@ -268,25 +274,28 @@ sub add_distro
     $entry{'distroid'} = "$entry{'os'}-$entry{'arch'}"
         unless ( $entry{'distroid'} );
 
+    my $pxeos;
 
     if ( $entry{'addon'} ) {
         $entry{'addon'} = 't';
         # have to define these if it is an add-on
-        &help() unless ( $entry{'pxekernel'} );
-        &help() unless ( $entry{'pxeinitrd'} );
         # if we have base we could look up its pxe values
         &help() unless ( defined $entry{'baseos'} );
+        $pxeos = $entry{'baseos'};
     }
     else {
         $entry{'addon'} = 'f';
+        $pxeos = $entry{'os'};
     }
     unless ( $entry{'pxekernel'} ) {
-        $entry{'pxekernel'} = "linux.$entry{'os'}-$entry{'arch'}";
+        $entry{'pxekernel'}  = "linux.${pxeos}";
         $entry{'pxekernel'} .= "-$entry{'sp'}" if ( $entry{'sp'} );
+        $entry{'pxekernel'} .= "-$entry{'arch'}";
     }
     unless ( $entry{'pxeinitrd'} ) {
-        $entry{'pxeinitrd'} = "initrd.$entry{'os'}-$entry{'arch'}";
+        $entry{'pxeinitrd'}  = "initrd.${pxeos}";
         $entry{'pxeinitrd'} .= "-$entry{'sp'}" if ( $entry{'sp'} );
+        $entry{'pxeinitrd'} .= "-$entry{'arch'}";
     }
 
     my $sql_cols = lc get_cols( 'distro' );
@@ -427,8 +436,8 @@ Where <options and args> are
 
     --name id            required unique id, suggest script name
     --file <path/script> script to use for this module
-    --enabled             enable module so it is available for use [default true]
-    --description "note"  quoted note describing this script
+    --enabled            enable module so it is available for use [default true]
+    --description "note" quoted note describing this script
 
 =cut
 
@@ -500,7 +509,6 @@ sub add_module
                 ( $sql_cols )
                 VALUES ( $sql_vals )
                 |;
-
     print $sql . "\n" if $debug;
 
     unless ( $sth = $dbh->prepare( $sql ) ) {
@@ -528,6 +536,118 @@ sub add_module
     return 0;
 }
 
+=item add profile <options and args>
+
+Where <options and args> are
+
+    --name id            required unique id
+    --file <path/prof>   script to use for this module
+    --enabled            enable profile so it is available for use [default true]
+    --description "note" quoted note describing this profile
+
+=cut
+
+sub add_profile
+{
+    my $file = "";
+    my %entry = (
+                 'profileid'   => "",
+                 'description' => "",
+                 'data'        => "",
+                 'status'      => "t",
+                 'version'     => 1,
+                 );
+
+    @ARGV = @_;
+    GetOptions(
+               'name=s'         => \$entry{'profileid'},
+               'description=s'  => \$entry{'description'},
+               'file=s'         => \$file,
+               'enabled!'       => \$entry{'status'},
+               );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    &help() unless ( $entry{'profileid'} );
+
+    if ( $entry{'status'} ) {
+        $entry{'status'} = 't';
+    } else {
+        $entry{'status'} = 'f';
+    }
+
+    unless ( -f $file ) {
+        $LASTERROR = "Need --file <script> to add. Unable to find file: $file.\n";
+        return 1;
+    }
+
+    open (FILE, "<$file") || die "unable to open $file: $!\n";
+    undef $/;
+    $entry{'data'}=<FILE>;  # slurp mode
+    $/ = "\n";
+    close FILE;
+
+    my $sql_cols = lc get_cols( 'profile' );
+    $sql_cols =~ s/[ \t]*//g;
+    my @cols = split( /,/, $sql_cols );
+    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+    my $sql = qq|INSERT INTO $tbl{ 'profile' }
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+    print $sql . "\n" if $debug;
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'add' profile statement\n" .
+            $dbh->errstr;
+        return 1;
+    }
+
+    $paramidx = 0;
+    foreach $col (@cols) {
+        $paramidx += 1;
+        $sth->bind_param( $paramidx, $entry{ $col } );
+    }
+
+    # finished with last entry
+    unless( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'add' profile statement\n" .
+            $sth->err;
+        return 1;
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+# update - invoke proper update type
+
+sub update
+{
+    my $type = shift;
+    my $status;
+
+    &check_type( $type );
+    $type = lc $type;
+
+    if ( $type eq "module" ) {
+        $status = &update_module( @_ );
+    } elsif ( $type eq "profile" ) {
+        $status = &update_profile( @_ );
+    } else {
+        $LASTERROR = "Invalid <type> '$type' passed for update.\nOnly 'module' and 'profile' supported.\n";
+        return 1;
+    }
+
+    return $status;
+}
+
 =item update module <options and args>
 
 Where <options and args> are
@@ -543,22 +663,14 @@ Where <options and args> are
 
 =cut
 
-# thought init-scripts would support this but they don't anymore:
+# dhb: thought init-scripts would support this but they don't anymore:
 #
 #   --interpreter value   where value is shell, perl, python  [default shell]
 
-sub update  # module
+sub update_module
 {
-    my $type = shift;
+    my $type = 'module';
     my $file = "";
-
-    &check_type( $type );
-    $type = lc $type;
-
-    if ( $type ne "module" ) {
-        $LASTERROR = "Only 'module' updates supported at this time\n";
-        return 1;
-    }
 
     my %entry = (
                  'moduleid'    => "",
@@ -602,9 +714,6 @@ sub update  # module
         $entry{'status'} = 'f';
     }
 
-    # in update if file is not specified we want to change parameters
-    # related to an existing entry - status, description, interpreter...
-
     my $sql_cols = lc get_cols( 'module' );
     $sql_cols =~ s/[ \t]*//g;
     my @cols = split( /,/, $sql_cols );
@@ -615,8 +724,10 @@ sub update  # module
                 |;
     print $sql . "\n" if $debug;
 
+    # in update if file is not specified we want to change parameters
+    # related to an existing entry - status, description, interpreter...
+
     my $version_href;
-    my $enabled_href;
 
     $sql .= " WHERE moduleid=?";
     my $ver_sql = $sql . ", version=?";  # to alter a specific version (status)
@@ -626,13 +737,16 @@ sub update  # module
             $LASTERROR = "You cannot change the --file content of a version\n";
             return 1;
         }
-        $version_href = &get_version( $type, $name, $entry{'version'} );
+        $version_href = &get_version( $type,
+                                      $entry{'moduleid'},
+                                      $entry{'version'} );
     }
     elsif ( $file eq "" ) {
-        $LASTERROR = "Neither --file nor --version specified for update.\n"
+        $LASTERROR = "Need to specify --file or --version for update.\n";
+        return 1;
     }
     elsif ( ! $file ) {
-        $LASTERROR = "Need --file <script> to add. Unable to find file: $file.\n";
+        $LASTERROR = "Need --file <file> to add. Unable to find: $file.\n";
         return 1;
     }
     else {
@@ -645,12 +759,13 @@ sub update  # module
 
     # find enabled entry
 
-    $enabled_href = &get_enabled( $type, $name );
+    my $enabled_href;
+
+    $enabled_href = &get_enabled( $type, $entry{'moduleid'} );
     unless ( defined $enabled_href ) {
-        $LASTERROR = "Attempt to update non-existent entry for $type $name\n";
+        $LASTERROR = "Attempt to update non-existent entry for $type $entry{'moduleid'}\n";
         return 1;
     }
-
 
     unless ( $sth = $dbh->prepare( $sql ) ) {
         $LASTERROR = "Unable to prepare 'update' module statement\n" .
@@ -677,11 +792,139 @@ sub update  # module
     return 0;
 }
 
+=item update profile <options and args>
+
+Where <options and args> are
+
+    --name id             required unique id
+
+    --enabled             enable profile so it is available for use
+    --description "note"  quoted note describing this profile
+
+    --file <path/file>    file to use to update this profiles content
+    --version ver         if --file not given we must be modifing parameters of
+                          an existing ver - use integer to specify which ver
+
+=cut
+
+sub update_profile
+{
+    my $type = 'profile';
+    my $file = "";
+
+    my %entry = (
+                 'profileid'    => "",
+                 'description' => "",
+                 'data'        => "",
+                 'status'      => "",
+                 'version'     => 0,
+                 );
+
+    @ARGV = @_;
+    GetOptions(
+               'name=s'         => \$entry{'profileid'},
+               'description=s'  => \$entry{'description'},
+               'file=s'         => \$file,
+               'enabled!'       => \$entry{'status'},
+               'version=i'      => \$entry{'version'},
+               );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    &help() unless ( $entry{'profileid'} );
+
+    if ( $entry{'status'} ) {
+        $entry{'status'} = 't';
+    } else {
+        $entry{'status'} = 'f';
+    }
+
+    my $sql_cols = lc get_cols( 'profile' );
+    $sql_cols =~ s/[ \t]*//g;
+    my @cols = split( /,/, $sql_cols );
+    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+    my $sql = qq|UPDATE $tbl{ 'profile' } SET
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+    print $sql . "\n" if $debug;
+
+    # in update if file is not specified we want to change parameters
+    # related to an existing entry - status, description, interpreter...
+
+    my $version_href;
+
+    $sql .= " WHERE profileid=?";
+    my $ver_sql = $sql . ", version=?";  # to alter a specific version (status)
+
+    if ( $entry{'version'} != 0 ) {
+        if ( $file ne "" ) {
+            $LASTERROR = "You cannot change the --file content of a version\n";
+            return 1;
+        }
+        $version_href = &get_version( $type,
+                                      $entry{'profileid'},
+                                      $entry{'version'} );
+    }
+    elsif ( $file eq "" ) {
+        $LASTERROR = "Need to specify --file or --version for update.\n";
+        return 1;
+    }
+    elsif ( ! $file ) {
+        $LASTERROR = "Need --file <file> to add. Unable to find: $file.\n";
+        return 1;
+    }
+    else {
+        open (FILE, "<$file") || die "unable to open $file: $!\n";
+        undef $/;
+        $entry{'data'}=<FILE>;  # slurp mode
+        $/ = "\n";
+        close FILE;
+    }
+
+    # find enabled entry
+
+    my $enabled_href;
+
+    $enabled_href = &get_enabled( $type, $entry{'profileid'} );
+    unless ( defined $enabled_href ) {
+        $LASTERROR = "Attempt to update non-existent entry for $type $entry{'profileid'}\n";
+        return 1;
+    }
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'update' profile statement\n" .
+            $dbh->errstr;
+        return 1;
+    }
+
+    $paramidx = 0;
+    foreach $col (@cols) {
+        $paramidx += 1;
+        $sth->bind_param( $paramidx, $entry{ $col } );
+    }
+
+    # finished with last entry
+    unless( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'update' profile statement\n" .
+            $sth->err;
+        return 1;
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
 =item detail E<lt>typeE<gt> E<lt>nameE<gt> [ --all ]
 
     Takes type and name as argument. Option --all can be used to display
-    all module versions, otherwise only the 'active' version is shown.
-    Fetch and display the details about the entry in the type database.
+    all module or profile versions, otherwise only the 'active' version is
+    shown. Fetch and display the details about the entry in the type database.
 
 =cut
 
@@ -720,9 +963,10 @@ sub detail
         $sql_cert = qq|SELECT $sql_cols
                        FROM $tbl{ 'oscert' }
                        WHERE hardwareid = '| . $name . qq|'|;
-
     } elsif ( $type eq "module" ) {
         $sql .= "WHERE moduleid = ?";
+    } elsif ( $type eq "profile" ) {
+        $sql .= "WHERE profileid = ?";
     }
 
     unless ( $sth = $dbh->prepare( $sql ) ) {
@@ -745,6 +989,15 @@ sub detail
                 printf "#\n# module: %s\n",   $href->{'moduleid'};
                 printf "# description: %s\n", $href->{'description'};
 #               printf "# interpreter: %s\n", $href->{'interpreter'};
+                printf "# enabled: %s\n",     $href->{'status'} if $all;
+                printf "# version: %s\n",     $href->{'version'};
+            }
+        }
+        if ( $type eq "profile" ) {
+            if ( $all || $href->{'status'} ) {
+                print  $href->{'data'};
+                printf "#\n# profile: %s\n",   $href->{'profileid'};
+                printf "# description: %s\n", $href->{'description'};
                 printf "# enabled: %s\n",     $href->{'status'} if $all;
                 printf "# version: %s\n",     $href->{'version'};
             }
@@ -827,6 +1080,8 @@ sub remove
         $sql = qq|DELETE FROM $tbl{ $type } WHERE hardwareid = ?|;
     } elsif ( $type eq "module" ) {
         $sql = qq|DELETE FROM $tbl{ $type } WHERE moduleid = ?|;
+    } elsif ( $type eq "profile" ) {
+        $sql = qq|DELETE FROM $tbl{ $type } WHERE profileid = ?|;
     }
 
     unless ( $sth = $dbh->prepare( $sql ) ) {
@@ -851,12 +1106,12 @@ sub check_type
 {
     my $type = shift;
     unless ( defined $type ) {
-        print "requires <type> argument (e.g. distro, hardware, module)\n";
+        print "requires <type> (e.g. distro, hardware, module, profile)\n";
         exit 1;
     }
     $type = lc $type;
     unless ( defined $tbl{ $type } ) {
-        print "invalid <type> please use:  distro, hardware, or module\n";
+        print "invalid <type> '$type' please use:  distro, hardware, module or profile\n";
         exit 1;
     }
 }
@@ -883,6 +1138,11 @@ sub list_start
         $sql = qq|SELECT moduleid as name, description
                   FROM $tbl{ $type }
                   WHERE moduleid LIKE ?
+                 |;
+    } elsif ( $type eq "profile" ) {
+        $sql = qq|SELECT profileid as name, description
+                  FROM $tbl{ $type }
+                  WHERE profileid LIKE ?
                  |;
     }
 
@@ -929,7 +1189,7 @@ sub get_cols
 
 # get_version
 #
-# args: type (module, distro, hardware), $name, $version
+# args: type (module, distro, hardware, profile), $name, $version
 # ret:  hash to entry found or undef on error
 
 sub get_version
@@ -940,7 +1200,8 @@ sub get_version
 
 # get_enabled
 #
-# args: type (module, distro, hardware), $name, $high (true: get highest version)
+# args: type (module, distro, hardware, profile), $name, $high
+#            (if $high is true: get highest version)
 # ret:  hash to entry found or undef on error
 
 sub get_enabled
@@ -966,13 +1227,16 @@ sub get_entry
     $high = 0 unless ( defined $high );
 
     $sql_cols = get_cols( $type );
-    $sql = qq| SELECT $sql_cols FROM $tbl{ $type } ORDER BY version |;
+    $sql = qq| SELECT $sql_cols FROM $tbl{ $type } |;
 
-    if ( $type eq "distro" ) {
-        $sql .= "WHERE distroid = ?";
+    if ( $type eq "module" ) {
+        $sql .= "WHERE moduleid = ? ORDER BY version;";
+    }
+    elsif ( $type eq "profile" ) {
+        $sql .= "WHERE profileid = ? ORDER BY version;";
     }
     else {
-        die "Only module versions supported at this time\n";
+        print "Expected 'module' or 'profile'\n";
     }
 
     unless ( $sth = $dbh->prepare( $sql ) ) {

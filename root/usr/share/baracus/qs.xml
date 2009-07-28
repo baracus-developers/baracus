@@ -5,7 +5,10 @@
 		<os>sles11-x86_64</os>
 		<basepath>sles11/ga/x86_64</basepath>
 		<pxepath>dvd1/boot/x86_64/loader</pxepath>
+		<pxeid>sles11-ga-x86_64</pxeid>
 		<sp>ga</sp>
+		<arch>x86_64</arch>
+		<description>SUSE Linux Enterprise 11 GA 64bit</description>
 		<file iso="SLES-11-DVD-x86_64-GM-DVD1.iso">
 			<md5>50a2bd45cd12c3808c3ee48208e2586b</md5>
 			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-x86_64-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=X8FFufxq0nU~&mirror=AkamaiHost&nohost=false]]></url>
@@ -24,7 +27,10 @@
 		<os>sles11-i586</os>
 		<basepath>sles11/ga/i586</basepath>
 		<pxepath>dvd1/boot/i586/loader</pxepath>
+		<pxeid>sles11-ga-i586</pxeid>
 		<sp>ga</sp>
+		<arch>i586</arch>
+		<description>SUSE Linux Enterprise 11 GA 32bit</description>
 		<file iso="SLES-11-DVD-i586-GM-DVD1.iso">
 			<md5>4958d4dde2575666355c8a1c5858bab0</md5>
 			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-i586-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=-lJMHbIN6s8~&mirror=AkamaiHost&nohost=false]]></url>
@@ -43,7 +49,10 @@
 		<os>sles10-x86_64</os>
 		<basepath>sles10/sp2/x86_64</basepath>
 		<pxepath>dvd1/boot/x86_64/loader</pxepath>
+		<pxeid>sles10-sp2-x86_64</pxeid>
 		<sp>2</sp>
+		<arch>x86_64</arch>
+		<description>SUSE Linux Enterprise 10 SP2 64bit</description>
 		<file iso="SLES-10-SP2-DVD-x86_64-GM-DVD1.iso">
 			<md5>dab2c4b8fc9939b33535ab2d321f3f2e</md5>
 			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FxWohTS2zkSs%7E%2FSLES-10-SP2-DVD-x86_64-GM-DVD1.iso&buildid=xWohTS2zkSs~&fileid=ymcKKUqgjzY~&mirror=AkamaiHost&nohost=false]]></url>
@@ -60,9 +69,12 @@
 
 	<distribution>
 		<os>sles10-i386</os>
-		<sp>2</sp>
 		<basepath>sles10/sp2/i386</basepath>
 		<pxepath>dvd1/boot/i386/loader</pxepath>
+		<pxeid>sles10-sp2-i386</pxeid>
+		<sp>2</sp>
+		<arch>i386</arch>
+		<description>SUSE Linux Enterprise 10 SP2 32bit</description>
 		<file iso="SLES-10-SP2-DVD-i386-GM-DVD1.iso">
 			<md5>2b91efeb8a62e2824302bf9269080252</md5>
 			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FxWohTS2zkSs%7E%2FSLES-10-SP2-DVD-i386-GM-DVD1.iso&buildid=xWohTS2zkSs~&fileid=6Hjh1FLHxbI~&mirror=AkamaiHost&nohost=false]]></url>
@@ -79,9 +91,12 @@
 
 	<distribution>
 		<os>sles9-i386</os>
-		<sp>4</sp>
 		<basepath>sles9/i386/</basepath>
 		<pxepath>SUSE-SLES-9-Service-Pack-Version-4/CD1/boot/loader</pxepath>
+		<pxeid>sles9-sp4-i386</pxeid>
+		<sp>4</sp>
+		<arch>i386</arch>
+		<description>SUSE Linux Enterprise 9 SP4 32bit</description>
 		<file iso="SLES-9-i386-RC5-CD1.iso">
 			<md5>cc419d86f3f5ff99395ca4de9d967600</md5>
 			<path>sles9/i386/SUSE-SLES-Version-9/CD1</path>
@@ -149,9 +164,12 @@
 
 	<distribution>
 		<os>sles9-x86_64</os>
-		<sp>4</sp>
 		<basepath>sles9/x86_64</basepath>
 		<pxepath>SUSE-SLES-9-Service-Pack-Version-4/CD1/boot/loader</pxepath>
+		<pxeid>sles9-sp4-x86_64</pxeid>
+		<sp>4</sp>
+		<arch>x86_64</arch>
+		<description>SUSE Linux Enterprise 9 SP4 64bit</description>
 		<file iso="SLES-9-x86-64-RC5-CD1.iso">
 			<md5>1fb270a7123895abc846a377c3d1dfdd</md5>
 			<path>sles9/x86_64/SUSE-SLES-Version-9/CD1</path>
@@ -227,8 +245,10 @@
 	<distribution>
 		<os>slert10-x86_64</os>
 		<basepath>sles10/sp2/x86_64</basepath>
-		<sp>2</sp>
 		<requires>sles10-x86_64</requires>
+		<sp>2</sp>
+		<arch>x86_64</arch>
+		<description>SUSE Linux Enterprise 10 Real-Time Add-On SP2 64bit</description>
 		<file iso="SLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso">
 			<md5>a8601be6ad153a50d811dada3e4c2d61</md5>
 			<path>sles10/sp2/x86_64/slert</path>
@@ -240,8 +260,10 @@
 	<distribution>
 		<os>slert10-i386</os>
 		<basepath>sles10/sp2/i386</basepath>
-		<sp>2</sp>
 		<requires>sles10-i386</requires>
+		<sp>2</sp>
+		<arch>i386</arch>
+		<description>SUSE Linux Enterprise 10 Real-Time Add-On SP2 32bit</description>
 		<file iso="SLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso">
 			<md5>a8601be6ad153a50d811dada3e4c2d61</md5>
 			<path>sles10/sp2/i386/slert</path>
@@ -253,8 +275,10 @@
 	<distribution>
 		<os>sles10-MONO-x86_64</os>
 		<basepath>sles10/sp2/x86_64</basepath>
-		<sp>2</sp>
 		<requires>sles10-x86_64</requires>
+		<sp>2</sp>
+		<arch>x86_64</arch>
+		<description>SUSE Linux Enterprise 10 SP2 MONO Add-On 64bit</description>
 		<file iso="SLES-10-SP2-Mono-GM-DVD1.iso">
 			<md5>63d8936595c7cf9e3f4d648eb2fdff5d</md5>
 			<path>sles10/sp2/x86_64/mono</path>
@@ -266,8 +290,10 @@
 	<distribution>
 		<os>sles11-HAE-x86_64</os>
 		<basepath>sles11/ga/x86_64</basepath>
-		<sp>ga</sp>
 		<requires>sles11-x86_64</requires>
+		<sp>ga</sp>
+		<arch>x86_64</arch>
+		<description>SLES 11 GA High Availability Extension 64bit</description>
 		<file iso="SLE-11-HAE-x86_64-GM-DVD1.iso">
 			<md5>2af67dcd5ef29bf3faf3cb6fc1bea371</md5>
 			<path>sles11/ga/x86_64/hae</path>
@@ -279,8 +305,10 @@
 	<distribution>
 		<os>sles11-HAE-i586</os>
 		<basepath>sles11/ga/i586</basepath>
-		<sp>ga</sp>
 		<requires>sles11-i586</requires>
+		<sp>ga</sp>
+		<arch>i586</arch>
+		<description>SLES 11 GA High Availability Extension 32bit</description>
 		<file iso="SLE-11-HAE-i586-GM-DVD1.iso">
 			<md5>3ce1a860336aac4174daab3d9796ca31</md5>
 			<path>sles11/ga/i586/hae</path>
@@ -292,8 +320,10 @@
 	<distribution>
 		<os>sles11-MONO-x86_64</os>
 		<basepath>sles11/ga/x86_64</basepath>
-		<sp>ga</sp>
 		<requires>sles11-x86_64</requires>
+		<sp>ga</sp>
+		<arch>x86_64</arch>
+		<description>SUSE Linux Enterprise 11 GA MONO Add-On 64bit</description>
 		<file iso="SLES-11-Mono-GM-DVD1.iso">
 			<md5>8d9907df21cb781fd97848aafedd6838</md5>
 			<path>sles11/ga/x86_64/mono</path>
@@ -305,8 +335,10 @@
 	<distribution>
 		<os>sles11-MONO-i586</os>
 		<basepath>sles11/ga/i586</basepath>
-		<sp>ga</sp>
 		<requires>sles11-i586</requires>
+		<sp>ga</sp>
+		<arch>i586</arch>
+		<description>SUSE Linux Enterprise 11 GA MONO Add-On 32bit</description>
 		<file iso="SLES-11-Mono-GM-DVD1.iso">
 			<md5>8d9907df21cb781fd97848aafedd6838</md5>
 			<path>sles11/ga/i586/mono</path>
@@ -319,7 +351,10 @@
 		<os>opensuse11.1-x86_64</os>
 		<basepath>opensuse11.1/ga/x86_64</basepath>
 		<pxepath>dvd1/boot/x86_64/loader</pxepath>
+		<pxeid>opensuse11.1-x86_64</pxeid>
 		<sp>ga</sp>
+		<arch>x86_64</arch>
+		<description>OpenSuSE 11.1 64bit</description>
 		<file iso="openSUSE-11.1-DVD-x86_64.iso">
 			<md5>2afee1b8a87175e6dee2b8dbbd1ad8e8</md5>
 			<path>opensuse11.1/ga/x86_64/dvd1</path>

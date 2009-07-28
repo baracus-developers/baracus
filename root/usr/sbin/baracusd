@@ -154,6 +154,13 @@ while (1) {
         # process request and be done if validateURL
         unless ( $dovalidate && &validateURL( $request ) ) {
 
+            # if 01- mac for pxe we'll upcase MAC portion of the filename
+            if ( $request->{'_REQUEST_'}{'FileName'} =~ m|01(-[0-9a-fA-F]{2}){6}| ) {
+                $request->{'_REQUEST_'}{'FileName'} =~ s|^([^/]*)/||;
+                $request->{'_REQUEST_'}{'FileName'} =~ tr|a-z|A-Z|;
+                $request->{'_REQUEST_'}{'FileName'} =
+                    "$1/" . $request->{'_REQUEST_'}{'FileName'};
+            }
             printf "Received a %s from peer %s for file '%s'\n",
                 $OPCODES{$request->{'_REQUEST_'}{'OPCODE'}},
                     $request->{'_REQUEST_'}{'PeerAddr'},
