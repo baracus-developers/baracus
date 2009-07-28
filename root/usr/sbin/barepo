@@ -97,8 +97,12 @@ sub add() {
 sub create() {
     my $repo = shift;
     my @packages = @_;
+    my $yumpath = "/var/spool/baracus/byum";
 
     $repo = "$repopath/$repo";
+    unless ( -d $yumpath) {
+        mkdir $yumpath, 0755 || die ("Cannot create directory\n");
+    }
     my $status = BaracusREPO::create_repo($repo, @packages);
     if ($verbose) { print "Creating $repo \n"; }
 
