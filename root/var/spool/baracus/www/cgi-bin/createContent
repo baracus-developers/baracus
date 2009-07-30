@@ -43,7 +43,7 @@ sub getContent
 	if( $a eq "prof")
 	{
 		$r = "Profile: $v\n\n";
-		$r = $r.BATools::readFile( $BATools::profilePath.$v);
+		$r = $r.BAdb::getProfileFromDB( $v);
 	}
 	elsif( $a eq "hardware")
 	{

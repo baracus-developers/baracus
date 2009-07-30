@@ -36,6 +36,6 @@ open (NEWFILE, ">>$fileName") || die "Error: $!";
 print NEWFILE "\n\nFINISHED\n\n";
 close (NEWFILE);
 
-sleep 10;
-#unlink($fileName);
+sleep 60;
+unlink($fileName);
 

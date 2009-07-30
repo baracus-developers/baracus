@@ -68,6 +68,13 @@ sub main {
             unless( BaracusDB::create_role( $dbh, $role, @args ));
     }
 
+    $status = BaracusDB::exists_role( $dbh, "wwwrun" );
+    die BaracusDB::errstr unless( defined $status );
+    unless( $status ) {
+        die BaracusDB::errstr
+            unless( BaracusDB::create_role( $dbh, "wwwrun", @args ));
+    }
+
     $status = BaracusDB::exists_database( $dbh, $db_baracus);
     die BaracusDB::errstr unless ( defined $status );
     unless( $status ) {

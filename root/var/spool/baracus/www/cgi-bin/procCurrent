@@ -41,7 +41,7 @@ sub getContent
 {
 	my $cFile = $_[0];
 	my $r = "";
-	$r = $r.BATools::readFile( $BATools::poolPath.$cFile, "Finished Processing: \n$BATools::poolPath\n$cFile");
+	$r = $r.BATools::readFile( $BATools::poolPath.$cFile, "\n\nFinished Processing");
 	return $r;
 }
 

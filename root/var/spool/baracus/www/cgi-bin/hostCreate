@@ -3,6 +3,7 @@
 
 use lib '/var/spool/baracus/www/modules';
 use BATools qw(:standard);
+use BAdb qw(:standard);
 use CGI qw(:standard);
 
 print "Content-type: text/html\n\n";
@@ -59,7 +60,7 @@ chomp($distro);
 initProfileOptions();
 createProfileVars();
 
-$distroList = BATools::getDistroSelectionList( $distro, $distroD, "onClick='distUpdate()'");
+$distroList = BATools::getDistroSelectionList( $distro, $distroD, "onClick='distUpdate()'", "current");
 $hardwareList = BATools::getHardwareSelectionList( $hardware, $hardwareD, "onClick='hwUpdate()'");
 
 getAndCheckModules();
@@ -161,8 +162,9 @@ sub createProfileVars
 	my $name;
 	my $val;
 	
-  	open (PROFILE, $profilePath.$prof) || die "couldn't open the file!: $!\n $profilePath$prof";
-   	while ($record = <PROFILE>)
+	$profile = BAdb::getProfileFromDB( $prof);
+	my @profileLines = split( "\n", $profile);
+	foreach $record ( @profileLines)
    	{
     	foreach (@profileOptions)
 		{
@@ -194,7 +196,6 @@ sub createProfileVars
 	    	}
 	    }
    	}
-	close(PROFILE);
 }
 
 sub generateProfiles
@@ -202,11 +203,9 @@ sub generateProfiles
 	my $retString = "";
 	my $isSelected;
 	
-	opendir(DIR, $profilePath) || die "can't opendir $profilePath: $!";
-	 
-	@dots = readdir(DIR);
-	 
-	foreach (@dots)
+	@profiles = BAdb::getProfileListFromDB();
+
+	foreach (@profiles)
 	{
 	
 		# If file is not ., .., and does not end with ~
@@ -224,7 +223,6 @@ sub generateProfiles
 		}
 	}	
 	
-	closedir DIR;
 	return $retString;
 }
 

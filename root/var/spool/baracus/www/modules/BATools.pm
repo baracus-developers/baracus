@@ -1,6 +1,8 @@
 
 package BATools;
 
+use lib '/var/spool/baracus/www/modules';
+use BAdb qw(:standard);
 use XML::Simple;
 
 our $profilePath = "/etc/baracus.d/profiles/";
@@ -38,17 +40,22 @@ sub getDistrosXML
 }
 sub getDistros
 {
-	my $dcmd = "sudo baconfig list distro --quiet";
+	my $filter = $_[0];
+	my @darray;
+	my $arrayTmp;
 	
-	my $dstring = `$dcmd`; 
-	my @darray = split("\n", $dstring);
-	foreach( @darray)
+	if( $filter)
 	{
-		$_ = trim($_);
+		@darray = BAdb::getDistros( $filter);
+	}
+	else
+	{
+		@darray = BAdb::getAllDistros();
 	}
 
 	return @darray;
 }
+
 
 ###########################################################################################
 #  Generate distro selection list from $distro_path xml file      
@@ -61,6 +68,7 @@ sub getDistroSelectionList
 	my $select = $_[0];
 	my $disable = $_[1];
 	my $script = $_[2];
+	my $filter = $_[3];
 	my $isSelected;
 
 	chomp($select);
@@ -76,7 +84,7 @@ sub getDistroSelectionList
 		
 	$retString = "<select name='distro' $disabled $script>\n";
 
-	@distros = getDistros();
+	@distros = getDistros( $filter);
 	
 	foreach (@distros)
 	{
@@ -335,12 +343,12 @@ sub readFile
 	$fileName = $_[0];
 	$message = $_[1] || "couldn't open file: $fileName";
 	my $retString = "";
-  	open (PROFILE, $fileName) || return $message;
-	while (<PROFILE>)
+  	open ( FILE, $fileName) || return $message;
+	while( <FILE>)
 	{
 		$retString = $retString.$_;
 	}
-	close(PROFILE);
+	close( FILE);
 	return $retString;
 }
 

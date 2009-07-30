@@ -6,7 +6,7 @@ use CGI qw(:standard);
 
 my $source_help = "$BATools::baPath/htdocs/help/source.hlp";
 
-my $dselect = BATools::getDistroSelectionList("", "", "size='10'");
+my $dselect = BATools::getDistroSelectionList("", "", "size='10'", "current");
 my $help = print_help();
 
 ########################################################################################################
