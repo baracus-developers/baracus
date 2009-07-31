@@ -710,6 +710,7 @@ if ($command eq "add") {
     my $sql_cols;
     my @cols;
     my $sql;
+    my $sth;
     my $sel;
     my $rowcount;
 
@@ -732,6 +733,7 @@ if ($command eq "add") {
     }
 #    $sel = $dbh->selectrow_hashref( $sql );
     $rowcount = 0;
+    $sel = undef;
     while( my $href = $sth->fetchrow_hashref( ) ) {
         $rowcount += 1;
         $sel = $href if ($href->{'status'});
@@ -849,6 +851,7 @@ if ($command eq "add") {
             }
 #            $sel = $dbh->selectrow_hashref( $sql );
             $rowcount = 0;
+            $sel = undef;
             while ( my $href = $sth->fetchrow_hashref( ) ) {
                 $rowcount += 1;
                 $sel = $href if ($href->{'status'});

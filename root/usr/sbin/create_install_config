@@ -519,10 +519,12 @@ sub add_module
         return 1;
     }
 
-    if ( $entry{'status'} ) {
-        $entry{'status'} = 't';
-    } else {
-        $entry{'status'} = 'f';
+    if ( $entry{'status'} ne "" ) {
+        if ( $entry{'status'} ) {
+            $entry{'status'} = "t";
+        } else {
+            $entry{'status'} = "f";
+        }
     }
 
     unless ( -f $file ) {
@@ -610,10 +612,12 @@ sub add_profile
 
     &help() unless ( $entry{'profileid'} );
 
-    if ( $entry{'status'} ) {
-        $entry{'status'} = 't';
-    } else {
-        $entry{'status'} = 'f';
+    if ( $entry{'status'} ne "" ) {
+        if ( $entry{'status'} ) {
+            $entry{'status'} = "t";
+        } else {
+            $entry{'status'} = "f";
+        }
     }
 
     unless ( -f $file ) {
@@ -746,9 +750,13 @@ sub update_module
         &help();
     }
 
-    # dont disable an enabled entry because --enable wasn't passed on cmdline
-    if ( $entry{'status'} ) {
-        $entry{'status'} = 't';
+    if ( $entry{'status'} ne "" ) {
+        print "enable or noenable passed: $entry{'status'}\n" if $debug;
+        if ( $entry{'status'} ) {
+            $entry{'status'} = "t";
+        } else {
+            $entry{'status'} = "f";
+        }
     }
 
     # fetch needed entries from db
@@ -800,8 +808,8 @@ sub update_module
             # disable enabled version - in preperation to enable specified version
             return 1 if &change_status( $type, "f", $enabled_href );
         }
-        if ( $entry{'status'} eq "t" ) {
-            return 1 if &change_status( $type, "t", $version_href );
+        if ( $entry{'status'} ne "" ) {
+            return 1 if &change_status( $type, $entry{'status'}, $version_href );
         }
 
         # the only other param to modify is description
@@ -947,9 +955,13 @@ sub update_profile
         &help();
     }
 
-    # dont disable an enabled entry because --enable wasn't passed on cmdline
-    if ( $entry{'status'} ) {
-        $entry{'status'} = 't';
+    if ( $entry{'status'} ne "" ) {
+        print "enable or noenable passed: $entry{'status'}\n" if $debug;
+        if ( $entry{'status'} ) {
+            $entry{'status'} = "t";
+        } else {
+            $entry{'status'} = "f";
+        }
     }
 
     # fetch needed entries from db
@@ -1001,8 +1013,8 @@ sub update_profile
             # disable enabled version - in preperation to enable specified version
             return 1 if &change_status( $type, "f", $enabled_href );
         }
-        if ( $entry{'status'} eq "t" ) {
-            return 1 if &change_status( $type, "t", $version_href );
+        if ( $entry{'status'} ne "" ) {
+            return 1 if &change_status( $type, $entry{'status'}, $version_href );
         }
 
         # the only other param to modify is description
@@ -1053,6 +1065,7 @@ sub update_profile
             }
         }
 
+        # if not explicitly enabled we default to disabled
         if ( $entry{'status'} ne "t" ) {
             $use_href->{ 'status' } = "f";
         }
@@ -1101,13 +1114,13 @@ sub update_profile
     return 0;
 }
 
-=item detail E<lt>typeE<gt> E<lt>nameE<gt> [ --all ]
+=item detail E<lt>typeE<gt> E<lt>nameE<gt> [ --all | --version <ver> ]
 
 Takes <type> and <name> as arguments.
 
 Fetch and display the details about the entry in the type database.
 
-Option --all can be used to display all module or profile versions, otherwise only the 'enabled' version is shown.
+Only the 'enabled' version is shown unless --all or --version specified. If option --all is used all module or profile versions are displayed.  Also, --version <ver> can be used to display on the desired version.
 
 =cut
 
@@ -1116,9 +1129,21 @@ sub detail
     my $type = shift;
     my $name = shift;
     my $href;
+    my $version = 0;
 
-    if ( scalar @_ ) {
-        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @_);
+    @ARGV=@_;
+    if ( ( $type eq "module" ) || ( $type eq "profile" ) ) {
+        GetOptions(
+                   'version=i'      => \$version,
+                   );
+    }
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    if ( $version && $all ) {
+        $LASTERROR = "Please use either --all _or_ --version <ver>. Not both.\n";
         return 1;
     }
 
@@ -1145,8 +1170,10 @@ sub detail
                        WHERE hardwareid = '| . $name . qq|'|;
     } elsif ( $type eq "module" ) {
         $sql .= "WHERE moduleid = ?";
+        $sql .= " AND version = $version" if ( $version );
     } elsif ( $type eq "profile" ) {
         $sql .= "WHERE profileid = ?";
+        $sql .= " AND version = $version" if ( $version );
     }
 
     my $sth;
@@ -1161,27 +1188,36 @@ sub detail
     }
 
     my $rowcount = 0;
+    my $printcount = 0;
 
     while( $href = $sth->fetchrow_hashref( ) ) {
         $rowcount += 1;
         if ( $type eq "module" ) {
-            if ( $all || $href->{'status'} ) {
+            if ( $all ||
+                 $href->{'status'} ||
+                 $href->{'version'} == $version ) {
                 print  $href->{'data'};
                 printf "#\n# module: %s\n",   $href->{'moduleid'};
                 printf "# description: %s\n", $href->{'description'};
 #               printf "# interpreter: %s\n", $href->{'interpreter'};
-                printf "# enabled: %s\n",     $href->{'status'} if $all;
+                printf "# enabled: %s\n",     $href->{'status'}
+                    if ( $all || $version );
                 printf "# version: %s\n",     $href->{'version'};
                 print "##########\n\n" if $all;
+                $printcount += 1;
             }
         }
         if ( $type eq "profile" ) {
-            if ( $all || $href->{'status'} ) {
+            if ( $all ||
+                 $href->{'status'} ||
+                 $href->{'version'} == $version ) {
                 print  $href->{'data'};
                 printf "#\n# profile: %s\n",   $href->{'profileid'};
                 printf "# description: %s\n", $href->{'description'};
-                printf "# enabled: %s\n",     $href->{'status'} if $all;
+                printf "# enabled: %s\n",     $href->{'status'}
+                    if ( $all || $version );
                 printf "# version: %s\n",     $href->{'version'};
+                $printcount += 1;
             }
         }
         if ( $type eq "distro" ) {
@@ -1195,6 +1231,7 @@ sub detail
             printf "addon=%s\n",       $href->{'addon'};
             printf "baseos=%s\n",      $href->{'baseos'}
                 if ( $href->{'baseos'} );
+            $printcount += 1;
         }
         if ( $type eq "hardware" ) {
             printf "[%s]\n",            $href->{'hardwareid'};
@@ -1205,6 +1242,7 @@ sub detail
             printf "pxeTemplate=%s\n",  $href->{'pxetemplate'};
             printf "yastTemplate=%s\n", $href->{'yasttemplate'};
             printf "hwdriver=%s\n",     $href->{'hwdriver'};
+            $printcount += 1;
 
             my $oscert = "";
             my $certs = $dbh->selectall_arrayref( $sql_cert, { slice => {} } );
@@ -1221,8 +1259,11 @@ sub detail
     $sth->finish;
     undef $sth;
 
-    if ( $rowcount == 0 ) {
-        $LASTERROR = "$type $name not found in db\n";
+    if ( $printcount == 0 ) {
+        $LASTERROR = "No $type named $name";
+        $LASTERROR .= " *enabled* entry" if ( $rowcount && ! $version );
+        $LASTERROR .= " version $version" if ( $version );
+        $LASTERROR .= " found in db\n";
         return 1;
     }
 
