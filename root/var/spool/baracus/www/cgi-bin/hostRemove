@@ -1,0 +1,65 @@
+#!/usr/bin/perl
+
+use strict;
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+	
+my $content = getContent();
+my $ccurl = "";
+
+print "Content-type: text/html\n\n";
+
+print <<HTML0;
+
+<html>
+	<head>
+		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
+		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
+		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
+	</head>
+	<body background="/baracus/images/bg06b.jpg">
+	<div id='f-labels'>
+	<div id='block1'>
+	<h1>Delete Host Template</h1>
+	</div>
+
+	<div id='block2'>
+		<br><br>
+		<form name="del" action="/$BATools::baCGI/hostHandler">
+			<br>
+			<br>
+			<h3>Templates</h3>
+			$content
+			<br>
+			<input type="hidden" name="sub" value="del">
+			<input class="button" type="submit" value="Delete" onClick="return verifyDelete( this.form.selValue)">
+		</form>
+	</div>
+
+	<div id='status'>
+		<iframe src=\"$ccurl\" scrolling='no' height='100%' width='100%' frameborder='0' id='infoBox' ></iframe>
+	</div>
+	
+	</div>
+	</div>
+	<body>
+	</html>
+
+HTML0
+
+sub getContent
+{
+	my $r = "";
+	my $hostCmd = "sudo bahost list templates";
+	my $result = BATools::execute( $hostCmd);
+	my @array = split( "\n", $result);
+	$r = "<select name='selValue' size='18' onClick='templateUpdate(this)'>";
+	foreach ( @array)
+	{
+		my @words = split( " ", $_);
+		$r = $r."<option>@words[0]</option>";		
+	}
+	$r = $r."</select>";
+	return $r;
+}

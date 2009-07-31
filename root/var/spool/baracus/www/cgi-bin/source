@@ -9,8 +9,8 @@ use CGI qw(:standard);
 my $op = param('op') || "List";
 my $current = "";
 
-my @tmenu = ( "List", "Add", "Delete", "Enable", "Disable", "Verify");
-my @tlink = ( "sourceHandler?sub=list", "sourceAdd", "sourceDel", "sourceEna", "sourceDis", "sourceVer");		
+my @tmenu = ( "List", "Add", "Remove", "Enable", "Disable", "Verify");
+my @tlink = ( "sourceHandler?sub=list", "sourceAdd", "sourceRemove", "sourceEna", "sourceDis", "sourceVer");		
 
 my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, "source");
 		 

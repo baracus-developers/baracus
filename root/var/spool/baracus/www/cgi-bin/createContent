@@ -57,7 +57,13 @@ sub getContent
 		$r = "Distribution Detail\n\n";
 		$r = $r.`$cmd`;
 	}
-	else
+	elsif( $a eq "profile")
+	{
+		$cmd = "sudo baconfig detail profile $v";
+		$r = "Distribution Detail\n\n";
+		$r = $r.`$cmd`;
+	}
+	elsif( $a eq "module")
 	{
 		foreach (@v)
 		{
@@ -65,6 +71,16 @@ sub getContent
 			$r = $r."Module Detail: $_\n\n";
 			$r = $r.`$cmd`."\n\n";
 		}
+	}
+	elsif( $a eq "template")
+	{
+		$cmd = "sudo bahost verify --hostname $v";
+		$r = "Host $v Detail\n\n";
+		$r = $r.`$cmd`."\n\n";
+	}
+	else
+	{
+		$r = "\n\nInvalid Attribute";
 	}
 	return $r;
 }

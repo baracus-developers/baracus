@@ -14,18 +14,12 @@ my @params = ("mac", "ip", "hostname", "distro", "hardware", "module", "profile"
 my @vars = ( "netmask", "gateway", "dnsdomain", "dns1");
 my $varlist;
 
-my $command = "sudo create_install_host add ";
+my $command = "sudo bahost add ";
 
 foreach $myname ( @names)
 {
 	@myvals = param($myname);
 	
-#	if( $myname eq "profile")
-#	{
-#		@split = split( "=", "@myvals[0]", 2);
-#		$p = " --".$myname."=".@split[1];	
-#		$command = $command.$p;
-#	}
 	if( BATools::isInArray( $myname, @params))
 	{
 		foreach $val( @myvals)

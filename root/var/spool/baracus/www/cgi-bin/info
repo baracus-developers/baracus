@@ -6,11 +6,11 @@ use BATools qw(:standard);
 use vars qw( %hash @array);
 use CGI qw(:standard);
 
-my $op = param('op') || "Hardware";
+my $op = param('op') || "Distribution";
 my $current = "";
 
-my @tmenu = ( "Hardware", "Distributions", "Modules");
-my @tlink = ( "infoHW", "infoDist", "infoMods");		
+my @tmenu = ( "Distribution", "Hardware", "Module", "Profile");
+my @tlink = ( "infoDist", "infoHW", "infoMod", "infoProf");		
 
 my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, "info");
 		 
