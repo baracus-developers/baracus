@@ -1,5 +1,14 @@
 var sURL = unescape(window.location.pathname+window.location.search);
 
+function verifyDelete( selVal)
+{
+	var agree=confirm("Confirm Delete of: " + selVal.value);
+	if (agree)
+		return true ;
+	else
+		return false ;
+}
+
 function enableISO( box)
 {
 	if( box.checked)
@@ -91,10 +100,24 @@ function profileChange()
  	window.location.href = sURL;
 }
 
+function profUpdate()
+{
+	var selection = document.profList.profile.value;
+	var url = "/baracus/ba/createContent?caller=create&attr=profile&val=" + selection;
+	document.getElementById("infoBox").src=url;
+}
+
 function distUpdate()
 {
 	var selection = document.createAdd.distro.value;
 	var url = "/baracus/ba/createContent?caller=create&attr=distro&val=" + selection;
+	document.getElementById("infoBox").src=url;
+}
+
+function templateUpdate( select)
+{
+	var selection = select.value;
+	var url = "/baracus/ba/createContent?caller=create&attr=template&val=" + selection;
 	document.getElementById("infoBox").src=url;
 }
 

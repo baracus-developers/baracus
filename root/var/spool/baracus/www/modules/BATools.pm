@@ -1,4 +1,3 @@
-
 package BATools;
 
 use lib '/var/spool/baracus/www/modules';
@@ -140,7 +139,6 @@ sub getHardwareSelectionList
 				# FIX: This could potentially result in multiple selected items if they start with the same prefix 
 				#		(example: kvm1, and kvm2 are in hardware list and kvm is passed)
 				if( $hardware =~ m/^$val/)
-				#if( $hardware eq $val)
 				{
 					$isSelected = "selected";
 					$retString =~ s/enabled/$disabled/;	
@@ -152,14 +150,7 @@ sub getHardwareSelectionList
 			}
 			else
 			{
-#				if( $val eq "default")
-#				{
-#					$isSelected = "selected";
-#				}
-#				else
-#				{
 					$isSelected = "no2";
-#				}
 			}
 			
 			$option = "<option value='$val' $isSelected>$val</option>\n";	

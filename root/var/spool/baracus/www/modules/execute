@@ -15,7 +15,7 @@ if( $verbose ne "-v")
 	$verbose = "";
 }
 
-my $cmd = "sudo create_install_source $op --distro $distro 2>&1"; 
+my $cmd = "sudo basource $op --distro $distro 2>&1"; 
 
 chomp($date);
 open (NEWFILE, ">$fileName") || die "Error: $!";
