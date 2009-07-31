@@ -711,6 +711,7 @@ if ($command eq "add") {
     my @cols;
     my $sql;
     my $sel;
+    my $rowcount;
 
     $profile = "default"
         unless ($profile);
@@ -722,9 +723,22 @@ if ($command eq "add") {
     $sql_cols =~ s/[ \t]*//g;
     @cols = split(/,/, $sql_cols);
     $sql = qq|SELECT $sql_cols FROM profile_cfg
-                 WHERE profileid = '| . $profile . qq|'|;
-    $sel = $dbh->selectrow_hashref( $sql );
+                 WHERE profileid = '| . $profile . qq|' ORDER BY version|;
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        die "Unable to prepare 'profile_cfg' statement\n" . $dbh->errstr;
+    }
+    unless( $sth->execute( ) ) {
+        die "Unable to execute 'profile_cfg' statement\n" . $sth->err;
+    }
+#    $sel = $dbh->selectrow_hashref( $sql );
+    $rowcount = 0;
+    while( my $href = $sth->fetchrow_hashref( ) ) {
+        $rowcount += 1;
+        $sel = $href if ($href->{'status'});
+    }
     die "Unable to find profile entry for $profile.\n"
+        unless ( $rowcount );
+    die "Unable to find *enabled* profile entry for $profile.\n"
         unless ( defined $sel );
     print $sel . "\n" if $debug;
 
@@ -826,9 +840,22 @@ if ($command eq "add") {
             $sql_cols =~ s/[ \t]*//g;
             @cols = split(/,/, $sql_cols);
             $sql = qq|SELECT $sql_cols FROM module_cfg
-                 WHERE moduleid = '| . $item . qq|'|;;
-            $sel = $dbh->selectrow_hashref( $sql );
+                 WHERE moduleid = '| . $item . qq|' ORDER BY version|;
+            unless ( $sth = $dbh->prepare( $sql ) ) {
+                die "Unable to prepare 'module_cfg' statement\n" . $dbh->errstr;
+            }
+            unless( $sth->execute( ) ) {
+                die "Unable to execute 'module_cfg' statement\n" . $sth->err;
+            }
+#            $sel = $dbh->selectrow_hashref( $sql );
+            $rowcount = 0;
+            while ( my $href = $sth->fetchrow_hashref( ) ) {
+                $rowcount += 1;
+                $sel = $href if ($href->{'status'});
+            }
             die "Unable to find module entry for $item.\n"
+                unless ( $rowcount );
+            die "Unable to find *enabled* module entry for $item.\n"
                 unless ( defined $sel );
             print $sel . "\n" if $debug;
 

@@ -302,66 +302,10 @@ RETURNS TRIGGER AS $template_state_trigger$
 $template_state_trigger$ LANGUAGE 'plpgsql';
 |;
 
-    my $func_module_update = q|
-RETURNS TRIGGER AS $module_increment_trigger$
-    DECLARE
-        new_moduleid VARCHAR;
-        new_version INTEGER;
-        new_description VARCHAR;
-        new_interpreter VARCHAR;
-        new_data VARCHAR;
-        new_status BOOLEAN;
-    BEGIN
-    INSERT INTO module_cfg ( moduleid,
-                             version,
-                             description,
-                             interpreter,
-                             data,
-                             status
-                           )
-    VALUES ( NEW.moduleid,
-             (NEW.version+1),
-             NEW.description,
-             NEW.interpreter,
-             NEW.data,
-             NEW.status
-           );
-    RETURN NEW;
-    END;
-$module_increment_trigger$  LANGUAGE 'plpgsql';
-|;
-
-    my $func_profile_update = q|
-RETURNS TRIGGER AS $profile_increment_trigger$
-    DECLARE
-        new_profileid VARCHAR;
-        new_version INTEGER;
-        new_description VARCHAR;
-        new_data VARCHAR;
-        new_status BOOLEAN;
-    BEGIN
-    INSERT INTO profile_cfg ( profileid,
-                              version,
-                              description,
-                              data,
-                              status
-                            )
-    VALUES ( NEW.profileid,
-             (NEW.version+1),
-             NEW.description,
-             NEW.data,
-             NEW.status
-           );
-    RETURN NEW;
-    END;
-$proflie_increment_trigger$  LANGUAGE 'plpgsql';
-|;
 
     my %baracus_functions = (
         'template_state_add_delete()' => $func_add_delete,
         'template_state_update()'     => $func_update,
-#        'module_increment_trigger()'  => $func_module_update,
-#        'profile_increment_trigger()' => $func_profile_update,
                             );
 
     return \%baracus_functions;
@@ -377,25 +321,16 @@ FOR EACH ROW EXECUTE PROCEDURE template_state_add_delete()
 FOR EACH ROW EXECUTE PROCEDURE template_state_update()
 |;
 
-    my $module_increment = q|AFTER UPDATE OF data ON module_cfg
-FOR EACH STATEMENT EXECUTE PROCEDURE module_increment_trigger()
-|;
-
-    my $profile_increment = q|AFTER UPDATE OF data ON profile_cfg
-FOR EACH STATEMENT EXECUTE PROCEDURE profile_increment_trigger()
-|;
-
     my %baracus_triggers = (
         'template_state_add_delete_trigger' => $trigger_add_delete,
         'template_state_update_trigger' => $trigger_update,
-#        'module_increment_trigger' => $module_increment,
-#        'profile_increment_trigger' => $profile_increment,
                             );
 
     return \%baracus_triggers;
 }
 
 1;
+
 __END__
 
 
