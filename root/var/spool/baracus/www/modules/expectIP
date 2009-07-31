@@ -116,7 +116,11 @@ else
 		my $iter = 0;
 	    while( !$ba->exitstatus())
 	    {
-	
+			if( $ba->exitstatus() eq 0)
+			{
+				last;
+			}
+			
 			$pos = -2;  # Use this to get past EOF and last newline
 			my $char = "";
 			while($char ne "\r")
