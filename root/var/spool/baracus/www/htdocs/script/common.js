@@ -137,9 +137,9 @@ function modUpdate()
 	document.getElementById("infoBox").src=url;
 }
 
-function hwUpdate()
+function hwUpdate( sel)
 {
-	var selection = document.createAdd.hardware.value;
+	var selection = sel.value;
 	var url = "/baracus/ba/createContent?caller=create&attr=hardware&val=" + selection;
 	document.getElementById("infoBox").src=url;
 }

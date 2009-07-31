@@ -43,7 +43,7 @@ sub getContent
 {
 	my $r = "";
 	$r = $r."<form>\n";
-	$r = $r.BATools::getHardwareSelectionList( "", "", "size='25' onClick='hwUpdate()'");
+	$r = $r.BATools::getHardwareSelectionList( "", "", "size='25' onClick='hwUpdate(this)'");
 	$r = $r."</form>\n";
 	
 	return $r;
