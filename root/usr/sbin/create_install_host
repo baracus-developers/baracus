@@ -30,6 +30,7 @@ my $yasttemplate="";
 my $vars;
 my $add;
 my $remove;
+my $wipe;
 my $list;
 my $verify;
 my $help;
@@ -252,7 +253,7 @@ sub update_db_host_entry() {
     my %Hash = %$HashRef;
 
     my $sql = q|UPDATE templateid SET ip=?,
-                              iphex=?,
+                          iphex=?,
                           mac=?,
                           uuid=?,
                           state=5,
@@ -287,6 +288,35 @@ sub remove_db_host_entry() {
 
     $sth->execute( $hostname )
         or die "Cannot execute sth: ",$sth->errstr;
+}
+
+sub wipe_host_disk() {
+
+    my $HashRef = shift @_;
+    my %Hash = %$HashRef;
+
+    ## Verify Mandatory parameters
+    ##
+    unless ($Hash{'hostname'}) {
+        print "Missing  --hostname\n";
+        &get_usage_add;
+    }
+
+    my $dbref = &get_db_host_entry( $Hash{'hostname'} );
+
+    if (! defined $dbref) {
+        print "unable to find template for $Hash{'hostname'}\n";
+        return;
+    }
+
+    $sqlfsOBJ->internalDataCopy( "pxetemplate-auto.dban", "01-$Hash{'mac'}" )
+        or die "Cannot update host to dban wipe\n";
+
+    ## Need to add something to update the host template table to set the state to wipe
+    ##
+
+    $sqlfsOBJ->discard();
+
 }
 
 sub add_host_entry() {
@@ -648,6 +678,7 @@ GetOptions(
            'vars=s'     => \&multiarg_handler,
            'add'        => \$add,    # command
            'remove'     => \$remove, # command
+           'wipe'       => \$wipe,   # command
            'verify'     => \$verify, # command
            'list'       => \$list,   # command <subcommand>
            ) or die "Incorrect usage!\n";
@@ -664,6 +695,7 @@ $vars   = $multiarg{ 'vars'   } if (defined $multiarg{ 'vars'   });
 my %action = (
               'add'     => \&add_host_entry,
               'remove'  => \&remove_host_entry,
+              'wipe'    => \&wipe_host_disk,
               'list'    => \&list,
               'verify'  => \&verify,
               );
