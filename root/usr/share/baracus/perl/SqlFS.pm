@@ -403,9 +403,221 @@ sub store
 
     binmode $fh;
 
-    $self->finishStore( $sth, $fh, $name, $description );
+    $self->finishStore( $sth, $fh, $name, $description, 1 );
 
     close $fh;
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+=item update
+
+update data portion of db entry with contents of file pointed to as an argument.
+additional arguments may modify the description or the status of the entry.
+
+this operation will refuse to add new entries (the name must already be in db).
+
+return non-zero on error
+
+=cut
+
+sub update
+{
+    my $self = shift;
+    my $hash = %{$_[0]};
+
+    my $fh;
+    my $sth;
+    my $href;
+    my $save;
+
+    my $name;
+
+    if ( defined $hash{'name'} ) {
+        $name = $hash{'name'};
+    }
+    else {
+        $LASTERROR = "Parameter 'name' missing in call to update.\n";
+        return 1;
+    }
+
+    if (not open( $fh, "<", $name ) ) {
+        $LASTERROR = "Unable to open $name: $!\n";
+        return 1;
+    }
+
+    unless ( $sth = $self->{'dbh'}->prepare( $self->{'sql_file_detail'} ) ) {
+        $LASTERROR = "Unable to prepare 'update detail' statement" .
+            $self->{'dbh'}->errstr;
+        return 1;
+    }
+
+    $name =~ s|.*/||;           # again only the short name for the db
+
+    unless ( $sth->execute( $name ) ) {
+        $LASTERROR = "Unable to execute 'update detail' statement" . $sth->err;
+        return 1;
+    }
+
+    my $rowcount = 0;
+
+    # store off first entry
+    while ( $href = $sth->fetchrow_hashref( ) ) {
+        unless ( $rowcount ) {
+            foreach ( my ($key, $val) = each %href ) {
+                $save{ $key } = $val;
+            }
+        }
+        $rowcount += 1;
+    }
+
+    unless ( $rowcount ) {
+        $LASTERROR = "Entry to be updated not found in db found: $name.\n";
+        return 1;
+    }
+
+    # remove all entries before 'new' update
+    $self->remove( $name );
+
+    # SELECT name, description, enabled, insertion, change, bin
+
+    if ( defined $hash{'description'} ) {
+        $save{'description'} = $hash{'description'};
+    }
+
+    if ( defined $hash{'status'} ) {
+        $save{'status'} = $hash{'status'};
+    }
+
+    my $sql = qq|INSERT INTO $cfg{'TableName'}
+                 (name, description, bin, enabled, insertion, change)
+                 VALUES ( ?, ?, ?, ?, $save{'insertion'}, CURRENT_TIMESTAMP)
+                |;
+
+    unless ( $sth = $self->{'dbh'}->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'update insert' statement" .
+            $self->{'dbh'}->errstr;
+        return 1;
+    }
+
+    $self->finishStore( $sth, $fh, $name, $save{'description'}, $save{'status'} );
+
+    close $fh;
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+=item internalDataCopy
+
+copy data portion of src name to dst name db entry.
+
+return non-zero on error
+
+=cut
+
+sub internalDateCopy
+{
+    my $self = shift;
+
+    my $src = shift;
+    my $dst = shift;
+
+    my $fh;
+    my $sth;
+    my $href;
+
+    my $src_save;
+    my $dst_save;
+
+    unless ( defined $src ) {
+        $LASTERROR = "Parameter 'src' missing for internalDataCopy.\n";
+        return 1;
+    }
+
+    my $sql = $self->{'sql_file_detail'} . " ORDER BY id";
+    unless ( $sth = $self->{'dbh'}->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'idc detail' statement" .
+            $self->{'dbh'}->errstr;
+        return 1;
+    }
+
+    unless ( $sth->execute( $src ) ) {
+        $LASTERROR = "Unable to execute 'idc detail' statement" . $sth->err;
+        return 1;
+    }
+
+    my $data;
+    my $rowcount = 0;
+    # store off first entry
+    while ( $href = $sth->fetchrow_hashref( ) ) {
+        unless ( $rowcount ) {
+            foreach ( my ($key, $val) = each %href ) {
+                $src_save{ $key } = $val;
+            }
+        }
+        $rowcount += 1;
+        push @data, $row[0];
+    }
+
+    unless ( $rowcount ) {
+        $LASTERROR = "Source entry not found: $name.\n";
+        return 1;
+    }
+
+    unless ( defined $dst ) {
+        $LASTERROR = "Parameter 'dst' missing for internalDataCopy.\n";
+        return 1;
+    }
+
+    unless ( $sth->execute( $dst ) ) {
+        $LASTERROR = "Unable to execute 'idc detail' statement" . $sth->err;
+        return 1;
+    }
+
+    $rowcount = 0;
+    # store off first entry
+    while ( $href = $sth->fetchrow_hashref( ) ) {
+        unless ( $rowcount ) {
+            foreach ( my ($key, $val) = each %href ) {
+                $dst_save{ $key } = $val;
+            }
+        }
+        $rowcount += 1;
+    }
+
+    unless ( $rowcount ) {
+        $LASTERROR = "Destination entry not found: $name.\n";
+        return 1;
+    }
+
+    # remove all entries before 'new' update
+    $self->remove( $dst_save{'name'} );
+
+    # SELECT name, description, enabled, insertion, change, bin
+
+    my $sql = qq|INSERT INTO $cfg{'TableName'}
+                 (name, description, bin, enabled, insertion, change)
+                 VALUES ( ?, ?, ?, ?, $save{'insertion'}, CURRENT_TIMESTAMP)
+                |;
+
+    unless ( $sth = $self->{'dbh'}->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'update insert' statement" .
+            $self->{'dbh'}->errstr;
+        return 1;
+    }
+
+    my $pop;
+    while ( scalar @data ) {
+        $pop = pop @data;
+        $sth->execute( $dst, $dst_save{ 'description' },
+                       $pop, $dst_save{ 'status' } );
+    }
 
     $sth->finish;
     undef $sth;
@@ -454,7 +666,7 @@ sub storeScalar
 
     binmode $fh;
 
-    $self->finishStore( $sth, $fh, $name, $description );
+    $self->finishStore( $sth, $fh, $name, $description, 1 );
 
     close $fh;
 
@@ -491,6 +703,7 @@ sub finishStore
     my $fh   = shift;
     my $name = shift;
     my $desc = shift;
+    my $status = shift;
 
     $name =~ s|.*/||;           # again only the short name
 
@@ -501,7 +714,7 @@ sub finishStore
     while ( $bytes ) {
         read $fh, $bytes, $chunk_size;
         $byteas = &bytea_encode( $bytes );
-        $sth->execute( $name, $desc, $byteas, 1)
+        $sth->execute( $name, $desc, $byteas, $status)
             if ( $bytes );
     }
 }
