@@ -16,6 +16,8 @@ use SqlFS;
 use BaracusDB;
 use BaracusSql;
 
+our $LASTERROR;
+
 my $command;
 my $subcommand;
 my $arg;
@@ -61,6 +63,7 @@ Where command is one of
     add     <arg1 arg2 arg3> [etc.] : add a new build source
                                       for details use: 'add --help'
     remove  --hostname <x>          : delete a build template for host <x>
+    wipe    --hostname <x>          : mark host for decom on next pxe boot
     verify  --hostname <x>          : verify build template for host <x> (TBD)
     list    <templates>             : list host templates
     list    <history>               : list build client template history
@@ -109,22 +112,6 @@ MARKER2
     exit 1;
 }
 
-sub get_hexIP() {
-
-    ## Determine IP in Hex
-    ##
-    my $ip = shift @_;
-
-    my @hexIP = split(/\./, $ip);
-    foreach (@hexIP) {
-        $_ = sprintf("%02X", $_);
-    }
-    my $hexIP = join('',@hexIP,);
-
-    return($hexIP);
-
-}
-
 sub get_uuid() {
 
     ## Generate a new UUID
@@ -146,59 +133,30 @@ sub get_rundate() {
 
 }
 
-sub list_db_history() {
-
-    my $hostname = shift @_;
-    $hostname =~ s/\*/\%/g;
-    print "$hostname\n";
-
-    my $sql = q|SELECT hostname,
-                           ip,
-                           iphex,
-                           mac,
-                           uuid,
-                           state,
-                           stateOLD,
-                           cmdline,
-                           creation,
-                           change
-                    FROM templateidhist
-                    WHERE hostname LIKE ?|;
-
-    my $sth = $dbh->prepare( $sql )
-        or die "Cannot prepare sth: ",$dbh->errstr;
-
-    $sth->execute($hostname)
-        or die "Cannot execute sth: ",$sth->errstr;
-
-    return $sth->fetchall_arrayref();
-}
-
 sub add_db_host_entry() {
 
     my $HashRef = shift @_;
     my %Hash = %$HashRef;
 
     my $sql = q|INSERT INTO templateid ( hostname,
-                             ip,
-                             iphex,
-                             mac,
-                             uuid,
-                             state,
-                                             cmdline,
-                             creation,
-                             change )
-                VALUES ( ?, ?, ?, ?, ?, 1, ?, CURRENT_TIMESTAMP(2), CURRENT_TIMESTAMP(2) )|;
+                                         ip,
+                                         mac,
+                                         uuid,
+                                         state,
+                                         cmdline,
+                                         creation,
+                                         change )
+                VALUES ( ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(0), CURRENT_TIMESTAMP(0) )|;
 
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare sth: ",$dbh->errstr;
 
-    $sth->bind_param( 1,  $Hash{'hostname'}  );
-    $sth->bind_param( 2,  $Hash{'ip'}        );
-    $sth->bind_param( 3,  $Hash{'hexip'}     );
-    $sth->bind_param( 4,  $Hash{'mac'}       );
-    $sth->bind_param( 5,  $Hash{'uuid'}      );
-    $sth->bind_param( 6,  $Hash{'cmdline'}   );
+    $sth->bind_param( 1, $Hash{'hostname'}    );
+    $sth->bind_param( 2, $Hash{'ip'}          );
+    $sth->bind_param( 3, $Hash{'mac'}         );
+    $sth->bind_param( 4, $Hash{'uuid'}        );
+    $sth->bind_param( 5, BaracusSql::BA_ADDED );
+    $sth->bind_param( 6, $Hash{'cmdline'}     );
 
     $sth->execute()
         or die "Cannot execute sth: ", $sth->errstr;
@@ -209,15 +167,14 @@ sub get_db_host_entry() {
     my $hostname = shift @_;
 
     my $sql = q|SELECT hostname,
-                   ip,
-                   iphex,
-                   mac,
-                   uuid,
-                   state,
-                   creation,
-                   change
-                    FROM templateid
-                    WHERE hostname = ? |;
+                       ip,
+                       mac,
+                       uuid,
+                       state,
+                       creation,
+                       change
+                FROM templateid
+                WHERE hostname = ? |;
 
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare sth: ",$dbh->errstr;
@@ -228,45 +185,32 @@ sub get_db_host_entry() {
     return $sth->fetchrow_hashref();
 }
 
-sub get_db_list_entry() {
-
-    my $sql = q|SELECT hostname,
-                       iphex,
-                       mac
-                FROM templateid
-                WHERE state <> '4'
-                ORDER BY hostname|;
-
-    my $sth = $dbh->prepare( $sql )
-        or die "Cannot prepare sth: ",$dbh->errstr;
-
-    $sth->execute()
-        or die "Cannot execute sth: ",$sth->errstr;
-
-    return $sth->fetchall_arrayref();
-
-}
-
 sub update_db_host_entry() {
 
     my $HashRef = shift @_;
     my %Hash = %$HashRef;
 
-    my $sql = q|UPDATE templateid SET ip=?,
-                          iphex=?,
-                          mac=?,
-                          uuid=?,
-                          state=5,
-                          change=CURRENT_TIMESTAMP
+    my $sql = q|UPDATE templateid
+                SET ip=?,
+                    mac=?,
+                    uuid=?,
+                    state=?,
+                    change=CURRENT_TIMESTAMP(0)
                 WHERE hostname=? |;
 
+    if ( $debug ) {
+        print "$sql\n";
+        while ( my ( $key, $value ) = each %Hash ) {
+            print "update db: $key => $value\n";
+        }
+    }
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare sth: ",$dbh->errstr;
 
     $sth->bind_param( 1,  $Hash{'ip'}        );
-    $sth->bind_param( 2,  $Hash{'hexip'}     );
-    $sth->bind_param( 3,  $Hash{'mac'}       );
-    $sth->bind_param( 4,  $Hash{'uuid'}      );
+    $sth->bind_param( 2,  $Hash{'mac'}       );
+    $sth->bind_param( 3,  $Hash{'uuid'}      );
+    $sth->bind_param( 4,  $Hash{'state'}     );
     $sth->bind_param( 5,  $Hash{'hostname'}  );
 
     $sth->execute()
@@ -276,47 +220,13 @@ sub update_db_host_entry() {
 sub remove_db_host_entry() {
     my $hostname = shift @_;
 
-    #   my $sql = q|UPDATE templateid SET state=4,
-    #                             change=CURRENT_TIMESTAMP
-    #                   WHERE hostname=? |;
-
-    my $sql = q|DELETE FROM templateid
-                    WHERE hostname=? |;
+    my $sql = q|DELETE FROM templateid WHERE hostname=?|;
 
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare sth: ",$dbh->errstr;
 
     $sth->execute( $hostname )
         or die "Cannot execute sth: ",$sth->errstr;
-}
-
-sub wipe_host_disk() {
-
-    my $HashRef = shift @_;
-    my %Hash = %$HashRef;
-
-    ## Verify Mandatory parameters
-    ##
-    unless ($Hash{'hostname'}) {
-        print "Missing  --hostname\n";
-        &get_usage_add;
-    }
-
-    my $dbref = &get_db_host_entry( $Hash{'hostname'} );
-
-    if (! defined $dbref) {
-        print "unable to find template for $Hash{'hostname'}\n";
-        return;
-    }
-
-    $sqlfsOBJ->internalDataCopy( "pxetemplate-auto.dban", "01-$Hash{'mac'}" )
-        or die "Cannot update host to dban wipe\n";
-
-    ## Need to add something to update the host template table to set the state to wipe
-    ##
-
-    $sqlfsOBJ->discard();
-
 }
 
 sub add_host_entry() {
@@ -367,7 +277,11 @@ sub add_host_entry() {
     my $date = &get_rundate();
     my $bootmac = $Hash{'mac'};
     $bootmac =~ s/:/-/g;
+    my $automackey = "hexip";
+    my $automac = "02-".$bootmac;
     $bootmac = "01-".$bootmac;
+    $Hash{ $automackey } = $automac;
+
 
     # get any existing db entry
     # if none exists add this new
@@ -375,10 +289,8 @@ sub add_host_entry() {
     #    and it is deleted we overwrite
     #    and it is not deleted we exit
     my $dbref = &get_db_host_entry( $Hash{'hostname'} );
-    if (! defined $dbref ) {
+    if ( ! defined $dbref ) {
         &add_db_host_entry( $HashRef );
-    } elsif ( $dbref->{'state'} == 4 ) {
-        &update_db_host_entry( $HashRef );
     } else {
         print "Attempt to add over a non-deleted entry for $Hash{'hostname'}\n";
         exit 1;
@@ -387,33 +299,33 @@ sub add_host_entry() {
     # add files to sqlfstable for sqltftpd server
 
     my $tdir = tempdir();
-    my $dbname = "sqltftp";
-    my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbname",
+    my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=sqltftp",
                                'User' => "baracus")
         or die "Unable to create new instance of SqlFS\n";
 
-    if ( $sqlfsOBJ->find("$Hash{'hexip'}") ) {
-        print "$Hash{'hexip'} already exists\n";
+    if ( $sqlfsOBJ->find( $automac ) ) {
+        print "$automac already exists\n";
     } else {
         while ( my ($key, $value) = each(%Hash) ) {
             $key =~ tr/a-z/A-Z/;
             $key = "__$key\__";
             $yastfile =~ s/$key/$value/g;
         }
-        open(FILE, ">$tdir/$Hash{'hexip'}") || die "Cannot open file $Hash{'hexip'}: $!\n";
+        open(FILE, ">$tdir/$automac") || die "Cannot open file $automac: $!\n";
         print FILE $yastfile;
         print FILE "<!-- baracus.Hostname: $Hash{'hostname'} -->\n";
         print FILE "<!-- baracus.MAC: $Hash{'mac'}; -->\n";
         print FILE "<!-- baracus.Generated: $date -->\n";
         close(FILE);
 
-        if ( $sqlfsOBJ->store( "$tdir/$Hash{'hexip'}" ) ) {
-            warn "failed to store $tdir/$Hash{'hexip'} in sqlfs\n";
+        if ( $sqlfsOBJ->store( "$tdir/$automac",
+                               "autoinst $Hash{'os'} $Hash{'sp'} $Hash{'arch'}" ) ) {
+            warn "failed to store $tdir/$automac in sqlfs\n";
         }
-        unlink "$tdir/$Hash{'hexip'}";
+        unlink "$tdir/$automac";
 
         if ($verbose) {
-            print "Successfully stored $Hash{'hexip'} \n";
+            print "Successfully stored $automac \n";
         }
     }
 
@@ -429,13 +341,14 @@ sub add_host_entry() {
         print FILE $pxefile;
         close(FILE);
 
-        if ( $sqlfsOBJ->store( "$tdir/$bootmac" ) ) {
+        if ( $sqlfsOBJ->store( "$tdir/$bootmac",
+                               "pxeboot $Hash{'os'} $Hash{'sp'} $Hash{'arch'}" ) ) {
             warn "failed to store $tdir/$bootmac in sqlfs\n";
         }
         unlink "$tdir/$bootmac";
 
         if ($verbose) {
-            print "Successfully stored $Hash{'hexip'} \n";
+            print "Successfully stored $bootmac \n";
         }
     }
     # disconnect and destroy
@@ -445,6 +358,63 @@ sub add_host_entry() {
     print "Added $Hash{'hostname'} template \n";
 }
 
+sub wipe_host_disk() {
+
+    my $HashRef = shift @_;
+    my %Hash = %$HashRef;
+
+    my $dbref = &get_db_host_entry( $Hash{'hostname'} );
+
+    unless ( defined $dbref ) {
+        print "Unable to find template for $Hash{'hostname'}\n";
+        return;
+    }
+
+    my ($key, $val);
+    while ( ($key, $val) = each %{$dbref} ) {
+        print "dbref $key => " . $val eq "" ? "" : $val . "\n" if $debug;
+    }
+
+    my $mac = $dbref->{'mac'};
+    $mac =~ s/:/-/g;
+    $mac = "01-".$mac;
+
+    # copy dban over mac template for host in sqltftpd server
+
+    my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=sqltftp",
+                               'User' => "baracus")
+        or die "Unable to create new instance of SqlFS\n";
+
+    # print coding example of 'constant' usage if debug
+    print "$BaracusSql::baState{ BaracusSql::BA_WIPE } = " .
+        BaracusSql::BA_WIPE . "\n" if $debug;
+
+    # if state is already 'wipe' don't do it all again
+    if ( $dbref->{'state'} == BaracusSql::BA_WIPE ) {
+        print "Host entry for $Hash{'hostname'} already set to wipe.\n";
+        return;
+    }
+
+    if ( $sqlfsOBJ->internalDataCopy( "pxetemplate-auto.dban", $mac ) ) {
+        die "Cannot update host to dban wipe\n" . $sqlfsOBJ->error();
+    }
+
+    if ( $sqlfsOBJ->update( { 'name' => $mac,
+                              'enabled' => 1,  # boolean enable/disable
+                              'description' =>
+                              "wipe disk on next pxeboot" } ) ) {
+        die "Unable to set status to enable for dban wipe\n" . $sqlfsOBJ->error();
+    }
+
+    $dbref->{'state'} = BaracusSql::BA_WIPE;
+
+    &update_db_host_entry( $dbref );
+
+    $sqlfsOBJ->discard();
+
+    print "Wipe of harddrive for $Hash{'hostname'} will occur on next pxeboot\n";
+}
+
 sub remove_host_entry() {
 
     my $HashRef = shift @_;
@@ -452,37 +422,43 @@ sub remove_host_entry() {
 
     my $dbref = &get_db_host_entry( $Hash{'hostname'} );
 
-    if (! defined $dbref) {
-        print "unable to find template for $Hash{'hostname'}\n";
+    unless ( defined $dbref ) {
+        print "Unable to find template for $Hash{'hostname'}\n";
         return;
     }
 
-    my $mac = $dbref->{'mac'};
-    $mac =~ s/:/-/g;
-    $mac = "01-$mac";
+    my ($key, $val);
+    while ( ($key, $val) = each %{$dbref} ) {
+        print "dbref $key => " . $val eq "" ? "" : $val . "\n" if $debug;
+    }
+
+    my $bootmac = $dbref->{'mac'};
+    $bootmac =~ s/:/-/g;
+    my $automac = "02-".$bootmac;
+    $bootmac = "01-".$bootmac;
 
     # remove files from sqlfstable for sqltftpd server
 
-    my $dbname = "sqltftp";
-    my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbname",
+    my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=sqltftp",
                                'User' => "baracus")
         or die "Unable to create new instance of SqlFS\n";
 
-    if ( $sqlfsOBJ->find( "$dbref->{'iphex'}" ) ) {
-        if ( $sqlfsOBJ->remove( "$dbref->{'iphex'}" ) ) {
-            warn "failed to remove $dbref->{'iphex'} from sqlfs\n";
+    if ( $sqlfsOBJ->find( "$automac" ) ) {
+        if ( $sqlfsOBJ->remove( "$automac" ) ) {
+            warn "failed to remove $automac from sqlfs\n";
         }
     }
 
-    if ( $sqlfsOBJ->find( "$mac" ) ) {
-        if ( $sqlfsOBJ->remove( "$mac" ) ) {
-            warn "failed to remove $mac from sqlfs\n";
+    if ( $sqlfsOBJ->find( "$bootmac" ) ) {
+        if ( $sqlfsOBJ->remove( "$bootmac" ) ) {
+            warn "failed to remove $bootmac from sqlfs\n";
         }
     }
+
     # disconnect and destroy
     $sqlfsOBJ->discard();
 
-    print "Removed: $Hash{'hostname'} [ $dbref->{'iphex'} ] $mac\n";
+    print "Removed $Hash{'hostname'} template\n";
 
     # change state of entry to removed
     &remove_db_host_entry( $Hash{'hostname'} );
@@ -492,54 +468,135 @@ sub list() {
 
     my $HashRef = shift @_;
     my %Hash = %$HashRef;
-    my %hardwareHash;
-    my @modelArray;
+
+    my $dbref;
 
     if ( ($subcommand ne "templates") and
          ($subcommand ne "history") ) {
-        print "Invalid subcommand for command 'list'\n";
+        print "Invalid subcommand '$subcommand' for command 'list'\n";
         &get_usage();
     }
 
-    if ($Hash{'subcommand'} eq "history") {
-
-        if (! exists($Hash{'hostname'})) {
-            $Hash{'hostname'} = "%";
-        }
-        my $dbref = &list_db_history($Hash{'hostname'});
-        foreach ( @$dbref ) {
-            print "$_->[0] $_->[1] $_->[3] $_->[4] $_->[5] $_->[6] $_->[8] $_->[9] \n";
-        }
+    if (! exists($Hash{'hostname'})) {
+        $Hash{'hostname'} = "%";
     }
 
-    if ($Hash{'subcommand'} eq "templates") {
+    my $sth = db_list_start ( $subcommand, $Hash{'hostname'} );
+
+    unless( defined $sth ) {
+        print $LASTERROR;
+        return 1;
+    }
+
+    if ( $subcommand eq "history" ) {
+        ## List history filtered by hostname if provided
+        ##
+
+        while ( $dbref = &db_list_next( $sth ) ) {
+            #
+            # hostname ip mac uuid state cmdline creation change
+            print "$dbref->{'hostname'} ";
+            print "$dbref->{'ip'} ";
+            print "$dbref->{'mac'} ";
+            print "$dbref->{'uuid'} ";
+            printf "%-7s ", $BaracusSql::baState{ $dbref->{'state'} };
+            print "$dbref->{'creation'} ";
+            print "$dbref->{'change'}\n";
+        }
+    }
+    elsif ( $subcommand eq "templates" ) {
         ## List all available build templates
         ##
-        my $dbname = "sqltftp";
-        my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbname",
+
+        my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=sqltftp",
                                    'User' => "baracus")
             or die "Unable to create new instance of SqlFS\n";
 
-        my $dbref = &get_db_list_entry();
-        foreach ( @$dbref ) {
-            my $autoinstallstring = "( missing)";
-            my $pxehexfilestring  = "( missing)";
-            my $iphex   = $_->[1];
-            my $bootmac = $_->[2];
+        while ( $dbref = &db_list_next( $sth ) ) {
+            my $autoinstallstring = "nf";
+            my $pxehexfilestring  = "nf";
+            my $bootmac = $dbref->{'mac'};
             $bootmac =~ s/:/-/g;
+            my $automac = "02-$bootmac";
             $bootmac = "01-$bootmac";
-            if ( $sqlfsOBJ->find( $iphex ) ) {
-                $autoinstallstring = "(verified)";
+
+            if ( $sqlfsOBJ->find( $automac ) ) {
+                $autoinstallstring = "ok";
             }
             if ( $sqlfsOBJ->find( $bootmac ) ) {
-                $pxehexfilestring = "(verified)";
+                $pxehexfilestring = "ok";
             }
-            printf "%24s [ %s $autoinstallstring ] %s $pxehexfilestring\n",
-                $_->[0], $iphex, $bootmac;
+            printf "%23s %-7s %s $autoinstallstring  %s $pxehexfilestring\n",
+                $dbref->{'hostname'}, $BaracusSql::baState{ $dbref->{'state'} },
+                    $automac, $bootmac;
         }
         # disconnect and destroy
         $sqlfsOBJ->discard();
     }
+    &db_list_finish( $sth );
+}
+
+# the db_list routines break up the db operations for better large db handling
+# using 'fetchrow_hashref' vs 'fetchall_arrayref' so we have names vs indexing
+
+sub db_list_start
+{
+    my $type  = shift;  # 'templates' or 'history'
+    my $name  = shift;
+
+    my $sql;
+    my $sth;
+
+    if ( $type eq "templates" ) {
+
+        $sql = q|SELECT hostname,
+                        mac,
+                        state
+                 FROM templateid
+                 ORDER BY hostname|;
+
+    } elsif ( $type eq "history" ) {
+
+        $name =~ s/\*/\%/g;
+        print "db_list_start history name: $name\n" if $debug;
+
+        $sql = q|SELECT hostname,
+                        ip,
+                        mac,
+                        uuid,
+                        state,
+                        cmdline,
+                        creation,
+                        change
+                 FROM templateidhist
+                 WHERE hostname LIKE '| .  $name . "'";
+    }
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'list' query\n" . $dbh->errstr;
+        return undef;
+    }
+
+    unless ( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'list' query" . $sth->err;
+        return undef;
+    }
+
+    return $sth;
+}
+
+sub db_list_next
+{
+    my $sth = shift;
+
+    return $sth->fetchrow_hashref();
+}
+
+sub db_list_finish
+{
+    my $sth = shift;
+    $sth->finish;
+    undef $sth;
 }
 
 sub verify() {
@@ -712,6 +769,7 @@ unless ($buildip) {
 
 if ( ( $command eq "add" ) or
      ( $command eq "remove" ) or
+     ( $command eq "wipe" ) or
      ( $command eq "verify" ) ) {
     unless ($hostname) {
         print "Please specify value for --hostname\n";
@@ -926,8 +984,23 @@ if ($command eq "add") {
         $profileHash{'buildroot'} = $buildroot;
     }
     if ($ip) {
+        $ip = lc $ip;
+        # check for ip format or 'dhcp' string
+        if ( $ip =~ m/(\d+).(\d+).(\d+).(\d+)/ ) {
+            # check for valid ip address range values
+            if ( ( $1 < 1 or $1 > 254 or $1 == 127 ) ||
+                 ( $2 < 0 or $2 > 254 ) ||
+                 ( $3 < 0 or $3 > 254 ) ||
+                 ( $4 < 1 or $4 > 254 ) ) {
+                print "Invalid IP address value given: $ip\n";
+                exit 1;
+            }
+        }
+        elsif ( $ip ne "dhcp" ) {
+            print "Invalid IPv4 address format or missing 'dhcp' string.\n";
+            exit 1;
+        }
         $profileHash{'ip'} = $ip;
-        $profileHash{'hexip'} = &get_hexIP($profileHash{'ip'});
     }
     if ($mac) {
         $profileHash{'mac'} = uc $mac;

@@ -7,30 +7,34 @@ use warnings;
 
 use Tie::IxHash;
 
-=item baState
-
-here we define some state constants and a hash to make easy use of them
-
-=cut
 
 use constant BA_ADDED   => 1;
 use constant BA_BUILT   => 2;
 use constant BA_SPOOFED => 3;
 use constant BA_DELETED => 4;
 use constant BA_UPDATED => 5;
+use constant BA_WIPE    => 6;
 
-my %baState = (
-	1         => 'added',
-	2         => 'built',
-	3         => 'spoofed',
-	4         => 'deleted',
-	5         => 'updated',
-	'added'   => BA_ADDED,
-	'built'   => BA_BUILT,
-	'spoofed' => BA_SPOOFED,
-	'deleted' => BA_DELETED,
-	'updated' => BA_UPDATED,
-);
+=item baState
+
+here we define some state constants and a hash to make easy use of them
+
+=cut
+
+our %baState = (
+               1         => 'added',
+               2         => 'built',
+               3         => 'spoofed',
+               4         => 'deleted',
+               5         => 'updated',
+               6         => 'wipe',
+               'added'   => BA_ADDED,
+               'built'   => BA_BUILT,
+               'spoofed' => BA_SPOOFED,
+               'deleted' => BA_DELETED,
+               'updated' => BA_UPDATED,
+               'wipe'    => BA_WIPE,
+               );
 
 
 =item keys2columns
@@ -114,7 +118,6 @@ sub get_baracus_tables
     my %tbl_templateid_columns = (
                                   'hostname' => 'VARCHAR(32) PRIMARY KEY',
                                   'ip'       => 'VARCHAR(15)',
-                                  'iphex'    => 'VARCHAR(9)',
                                   'mac'      => 'VARCHAR(17)',
                                   'uuid'     => 'VARCHAR(37)',
                                   'state'    => 'INTEGER',
@@ -127,11 +130,9 @@ sub get_baracus_tables
     my %tbl_templateidhist_comlumns = (
                                        'hostname' => 'VARCHAR(32)',
                                        'ip'       => 'VARCHAR(15)',
-                                       'iphex'    => 'VARCHAR(9)',
                                        'mac'      => 'VARCHAR(17)',
                                        'uuid'     => 'VARCHAR(37)',
                                        'state'    => 'INTEGER',
-                                       'stateOLD' => 'INTEGER',
                                        'cmdline'  => 'VARCHAR(255)',
                                        'creation' => 'TIMESTAMP',
                                        'change'   => 'TIMESTAMP',
@@ -209,7 +210,6 @@ RETURNS TRIGGER AS $template_state_trigger$
     DECLARE
         new_hostname VARCHAR;
         new_ip VARCHAR;
-        new_iphex VARCHAR;
         new_mac VARCHAR;
         new_uuid VARCHAR;
         new_state INTEGER;
@@ -219,46 +219,38 @@ RETURNS TRIGGER AS $template_state_trigger$
     IF (TG_OP='INSERT') THEN
         INSERT INTO templateidhist ( hostname,
                                      ip,
-                                     iphex,
                                      mac,
                                      uuid,
                                      state,
-                                     stateOLD,
                                      cmdline,
                                      creation,
                                      change )
         VALUES ( NEW.hostname,
                  NEW.ip,
-                 NEW.iphex,
                  NEW.mac,
                  NEW.uuid,
-                 '1',
                  NEW.state,
                  NEW.cmdline,
                  NEW.creation,
-                 CURRENT_TIMESTAMP(2) );
+                 CURRENT_TIMESTAMP(0) );
         RETURN NEW;
     ELSIF (TG_OP='DELETE') THEN
         INSERT INTO templateidhist ( hostname,
                                      ip,
-                                     iphex,
                                      mac,
                                      uuid,
                                      state,
-                                     stateOLD,
                                      cmdline,
                                      creation,
                                      change )
         VALUES ( OLD.hostname,
                  OLD.ip,
-                 OLD.iphex,
                  OLD.mac,
                  OLD.uuid,
-                 '4',
                  OLD.state,
                  OLD.cmdline,
                  OLD.creation,
-                 CURRENT_TIMESTAMP(2) );
+                 CURRENT_TIMESTAMP(0) );
         RETURN OLD;
     END IF;
     END;
@@ -270,7 +262,6 @@ RETURNS TRIGGER AS $template_state_trigger$
     DECLARE
         new_hostname VARCHAR;
         new_ip VARCHAR;
-        new_iphex VARCHAR;
         new_mac VARCHAR;
         new_uuid VARCHAR;
         new_state INTEGER;
@@ -279,24 +270,20 @@ RETURNS TRIGGER AS $template_state_trigger$
     BEGIN
     INSERT INTO templateidhist ( hostname,
                                  ip,
-                                 iphex,
                                  mac,
                                  uuid,
                                  state,
-                                 stateOLD,
                                  cmdline,
                                  creation,
                                  change )
     VALUES ( NEW.hostname,
              NEW.ip,
-             NEW.iphex,
              NEW.mac,
              NEW.uuid,
-             '2',
              NEW.state,
              NEW.cmdline,
              NEW.creation,
-             CURRENT_TIMESTAMP(2) );
+             CURRENT_TIMESTAMP(0) );
     RETURN NEW;
     END;
 $template_state_trigger$ LANGUAGE 'plpgsql';

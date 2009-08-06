@@ -87,7 +87,7 @@ sub new
                       |;
 
     # sql for file detail - cannot use sum(length(bin)) as 'text' its encoded
-    my $file_detail = qq|SELECT name, description, enabled, insertion, change, bin
+    my $file_detail = qq|SELECT id, name, description, enabled, insertion, change, bin
                          FROM $cfg{'TableName'}
                          WHERE name = ?
                         |;
@@ -207,13 +207,13 @@ sub find
     my $sth;
 
     if ( not ( $sth = $self->{'dbh'}->prepare( $self->{'sql_file_find'} ) ) ) {
-        $LASTERROR = "Unable to prepare 'find' query: $self->{'dbh'}->errstr";
+        $LASTERROR = "Unable to prepare 'find' query.\n" . $self->{'dbh'}->errstr;
         return undef;
     }
 
     $name =~ s|.*/||;           # only the short name for the lookup
     if ( not $sth->execute( $name ) ) {
-        $LASTERROR = "Unable to execute 'find' query: $sth->err";
+        $LASTERROR = "Unable to execute 'find' query\n" . $sth->err;
         return undef;
     }
 
@@ -243,7 +243,8 @@ sub detail
     my $sth;
 
     if ( not ( $sth = $self->{'dbh'}->prepare( $self->{'sql_file_detail'} ) ) ) {
-        $LASTERROR = "Unable to prepare 'detail' query: $self->{'dbh'}->errstr";
+        $LASTERROR = "Unable to prepare 'detail' query.\n" .
+            $self->{'dbh'}->errstr;
         return undef;
     }
 
@@ -251,7 +252,7 @@ sub detail
     #    print "fetching details for $name\n";
 
     if ( not $sth->execute( $name ) ) {
-        $LASTERROR = "Unable to execute 'detail' query: $sth->err";
+        $LASTERROR = "Unable to execute 'detail' query.\n" . $sth->err;
         return undef;
     }
 
@@ -268,7 +269,7 @@ sub detail
     $hash->{'binsize'} = 0;
     my $flag_first = 1;
     foreach my $ar ( @{ $array_lol } ) {
-        my ($nm, $des, $ena, $idate, $cdate, $bin) = @{ $ar };
+        my ($id, $nm, $des, $ena, $idate, $cdate, $bin) = @{ $ar };
         $hash->{'rowcount'} += 1;
         $hash->{'binsize'} += length &bytea_decode( $bin );
         if ( $flag_first == 1 ) {
@@ -304,7 +305,7 @@ sub list_start
     my $sth;
 
     if ( not ( $sth = $self->{'dbh'}->prepare( $self->{'sql_file_list'} ) ) ) {
-        $LASTERROR = "Unable to prepare 'list' query: $self->{'dbh'}->errstr";
+        $LASTERROR = "Unable to prepare 'list' query.\n" . $self->{'dbh'}->errstr;
         return undef;
     }
 
@@ -316,7 +317,7 @@ sub list_start
     }
 
     if ( not $sth->execute( $name ) ) {
-        $LASTERROR = "Unable to execute 'detail' query: $sth->err";
+        $LASTERROR = "Unable to execute 'detail' query.\n" . $sth->err;
         return undef;
     }
 
@@ -357,13 +358,14 @@ sub remove
     my $sth;
 
     if ( not ( $sth = $self->{'dbh'}->prepare( $self->{'sql_file_delete'} ) ) ) {
-        $LASTERROR = "Unable to prepare 'remove' statement: $self->{'dbh'}->errstr";
+        $LASTERROR = "Unable to prepare 'remove' statement.\n" .
+            $self->{'dbh'}->errstr;
         return 1;
     }
 
     $name =~ s|.*/||;           # only the short name for the lookup
     if ( not $sth->execute( $name ) ) {
-        $LASTERROR = "Unable to execute 'remove' statement: $sth->err";
+        $LASTERROR = "Unable to execute 'remove' statement.\n" . $sth->err;
         return 1;
     }
 
@@ -427,50 +429,58 @@ return non-zero on error
 sub update
 {
     my $self = shift;
-    my $hash = %{$_[0]};
+    my %hash = %{$_[0]};
 
     my $fh;
+    my $sql;
     my $sth;
     my $href;
-    my $save;
+    my %save;
 
     my $name;
+    my $file;
 
-    if ( defined $hash{'name'} ) {
-        $name = $hash{'name'};
+    if ( $debug ) {
+        while ( my ($key, $value) = each %hash ) {
+            print "update args: $key => $value\n";
+        }
     }
-    else {
+
+    unless ( defined $hash{'name'} ) {
         $LASTERROR = "Parameter 'name' missing in call to update.\n";
         return 1;
     }
 
-    if (not open( $fh, "<", $name ) ) {
-        $LASTERROR = "Unable to open $name: $!\n";
-        return 1;
-    }
+    $name = $hash{'name'};
+    $name =~ s|.*/||;           # again only the short name for the db
 
-    unless ( $sth = $self->{'dbh'}->prepare( $self->{'sql_file_detail'} ) ) {
-        $LASTERROR = "Unable to prepare 'update detail' statement" .
+    unless ( $sth = $self->{'dbh'}->prepare( $self->{ 'sql_file_detail' } ) ) {
+        $LASTERROR = "Unable to prepare 'update detail' statement\n" .
             $self->{'dbh'}->errstr;
         return 1;
     }
 
-    $name =~ s|.*/||;           # again only the short name for the db
-
     unless ( $sth->execute( $name ) ) {
-        $LASTERROR = "Unable to execute 'update detail' statement" . $sth->err;
+        $LASTERROR = "Unable to execute 'update detail' statement\n" . $sth->err;
         return 1;
     }
 
+    my %data;
     my $rowcount = 0;
 
     # store off first entry
     while ( $href = $sth->fetchrow_hashref( ) ) {
         unless ( $rowcount ) {
-            foreach ( my ($key, $val) = each %href ) {
+            while ( my ($key, $val) = each %{$href} ) {
                 $save{ $key } = $val;
+                if ( $key ne "bin" and $debug and $val ) {
+                    print "entry:  $key => $val\n";
+                } elsif ( $key ne "bin" and $debug ) {
+                    print "entry:  $key => \n";
+                }
             }
         }
+        $data{ $href->{'id'} } = $href->{'bin'};
         $rowcount += 1;
     }
 
@@ -479,33 +489,107 @@ sub update
         return 1;
     }
 
-    # remove all entries before 'new' update
-    $self->remove( $name );
-
-    # SELECT name, description, enabled, insertion, change, bin
+    my $desc_needed = 0;
+    my $stat_needed = 0;
+    my $file_needed = 0;
 
     if ( defined $hash{'description'} ) {
-        $save{'description'} = $hash{'description'};
+        if ( $save{'description'} ne $hash{'description'} ) {
+            $save{'description'} = $hash{'description'};
+            $desc_needed = 1;
+        }
     }
 
-    if ( defined $hash{'status'} ) {
-        $save{'status'} = $hash{'status'};
+    if ( defined $hash{'enabled'} ) {
+        if ( $save{'enabled'} ne $hash{'enabled'} ) {
+            $save{'enabled'} = $hash{'enabled'};
+            $stat_needed = 1;
+        }
     }
 
-    my $sql = qq|INSERT INTO $cfg{'TableName'}
-                 (name, description, bin, enabled, insertion, change)
-                 VALUES ( ?, ?, ?, ?, $save{'insertion'}, CURRENT_TIMESTAMP)
-                |;
+    if ( defined $hash{'file'} and  $hash{'file'} ne "" ) {
+        $file = $hash{'file'};
 
-    unless ( $sth = $self->{'dbh'}->prepare( $sql ) ) {
-        $LASTERROR = "Unable to prepare 'update insert' statement" .
-            $self->{'dbh'}->errstr;
-        return 1;
+        open (FILE, "<$file") || die "unable to open $file: $!\n";
+        undef $/;
+        my $file_data=<FILE>;   # slurp mode
+        $/ = "\n";
+        close FILE;
+
+        my $entry_data;
+        foreach my $id ( sort ( keys %data ) ) {
+            $entry_data .= &bytea_decode( $data{ $id } );
+        }
+        if ( $file_data eq $entry_data ) {
+            $LASTERROR = "Reject updating file entry with duplicate data\n";
+            return 1;
+        }
+        $file_data = $entry_data = ""; # free space
+
+        unless ( open( $fh, "<", $file ) ) {
+            $LASTERROR = "Unable to open $file: $!\n";
+            return 1;
+        }
+
+        # remove all entries before 'new' update
+        $self->remove( $hash{ 'name' } );
+
+        # SELECT name, description, enabled, insertion, change, bin
+
+        $sql = qq|INSERT INTO $self->{'TableName'}
+                  (name, description, bin, enabled, insertion, change)
+                  VALUES ( ?, ?, ?, ?, '$save{'insertion'}', CURRENT_TIMESTAMP)
+                 |;
+
+        print "update sql: $sql\n" if $debug;
+
+        unless ( $sth = $self->{'dbh'}->prepare( $sql ) ) {
+            $LASTERROR = "Unable to prepare 'update insert' statement" .
+                $self->{'dbh'}->errstr;
+            return 1;
+        }
+
+        $self->finishStore( $sth, $fh, $name,
+                            $save{'description'}, $save{'enabled'} );
+
+        close $fh;
+    } elsif ( $desc_needed == 1 || $stat_needed == 1 ) {
+
+        # no file to play with so only updating the status, description, or both
+        my $sql_cols;
+        my $sql_vals;
+
+        if ( $desc_needed == 1 ) {
+            $sql_cols .= "description";
+            $sql_vals .= "'$save{'description'}'";
+        }
+        if ( $stat_needed == 1 ) {
+            $sql_cols .= "," if ( $sql_cols );
+            $sql_vals .= "," if ( $sql_vals );
+            $sql_cols .= "enabled";
+            $sql_vals .= "'$save{'enabled'}'";
+        }
+        $sql_cols .= ",insertion,change";
+        $sql_vals .= ",'$save{'insertion'}', CURRENT_TIMESTAMP";
+
+        $sql = qq|UPDATE $self->{'TableName'}
+                  SET ( $sql_cols ) = ( $sql_vals )
+                  WHERE id = ?|;
+
+        unless ( $sth = $self->{'dbh'}->prepare( $sql ) ) {
+            $LASTERROR = "Unable to prepare 'update' statement\n" .
+                $self->{'dbh'}->errstr;
+            return 1;
+        }
+
+        foreach my $id ( sort keys %data ) {
+            unless ( $sth->execute( $id ) ) {
+                $LASTERROR = "Unable to execute 'update' statement\n" .
+                    $sth->err;
+                return 1;
+            }
+        }
     }
-
-    $self->finishStore( $sth, $fh, $name, $save{'description'}, $save{'status'} );
-
-    close $fh;
 
     $sth->finish;
     undef $sth;
@@ -521,7 +605,7 @@ return non-zero on error
 
 =cut
 
-sub internalDateCopy
+sub internalDataCopy
 {
     my $self = shift;
 
@@ -532,41 +616,49 @@ sub internalDateCopy
     my $sth;
     my $href;
 
-    my $src_save;
-    my $dst_save;
+    my @data;
+    my %src_save;
+    my %dst_save;
 
     unless ( defined $src ) {
         $LASTERROR = "Parameter 'src' missing for internalDataCopy.\n";
         return 1;
     }
 
-    my $sql = $self->{'sql_file_detail'} . " ORDER BY id";
+    my $sql = $self->{ 'sql_file_detail' } . " ORDER BY id";
+    print "idc sql: $sql\n" if $debug;
+
     unless ( $sth = $self->{'dbh'}->prepare( $sql ) ) {
-        $LASTERROR = "Unable to prepare 'idc detail' statement" .
+        $LASTERROR = "Unable to prepare 'idc detail' statement\n" .
             $self->{'dbh'}->errstr;
         return 1;
     }
 
     unless ( $sth->execute( $src ) ) {
-        $LASTERROR = "Unable to execute 'idc detail' statement" . $sth->err;
+        $LASTERROR = "Unable to execute 'idc detail' statement\n" . $sth->err;
         return 1;
     }
 
     my $data;
     my $rowcount = 0;
-    # store off first entry
+    # store off src data
     while ( $href = $sth->fetchrow_hashref( ) ) {
         unless ( $rowcount ) {
-            foreach ( my ($key, $val) = each %href ) {
+            while ( my ($key, $val) = each %{$href} ) {
                 $src_save{ $key } = $val;
+                if ( $key ne "bin" and $debug and $val ) {
+                    print "idc src $key => $val\n";
+                } elsif ( $key ne "bin" and $debug ) {
+                    print "idc src $key => \n";
+                }
             }
         }
         $rowcount += 1;
-        push @data, $row[0];
+        push @data, $href->{'bin'};
     }
 
     unless ( $rowcount ) {
-        $LASTERROR = "Source entry not found: $name.\n";
+        $LASTERROR = "Source entry not found: $src.\n";
         return 1;
     }
 
@@ -576,38 +668,45 @@ sub internalDateCopy
     }
 
     unless ( $sth->execute( $dst ) ) {
-        $LASTERROR = "Unable to execute 'idc detail' statement" . $sth->err;
+        $LASTERROR = "Unable to execute 'idc detail' statement\n" . $sth->err;
         return 1;
     }
 
     $rowcount = 0;
-    # store off first entry
+    # store off dst entries before removal from db (to prep for new data add)
     while ( $href = $sth->fetchrow_hashref( ) ) {
         unless ( $rowcount ) {
-            foreach ( my ($key, $val) = each %href ) {
+            while ( my ($key, $val) = each %{$href} ) {
                 $dst_save{ $key } = $val;
+                if ( $key ne "bin" and $debug and $val ) {
+                    print "idc dst $key => $val\n";
+                } elsif ( $key ne "bin" and $debug ) {
+                    print "idc dst $key => \n";
+                }
             }
         }
         $rowcount += 1;
     }
 
     unless ( $rowcount ) {
-        $LASTERROR = "Destination entry not found: $name.\n";
+        $LASTERROR = "Destination entry not found: $dst.\n";
         return 1;
     }
 
     # remove all entries before 'new' update
-    $self->remove( $dst_save{'name'} );
+    $self->remove( $dst );
 
     # SELECT name, description, enabled, insertion, change, bin
 
-    my $sql = qq|INSERT INTO $cfg{'TableName'}
-                 (name, description, bin, enabled, insertion, change)
-                 VALUES ( ?, ?, ?, ?, $save{'insertion'}, CURRENT_TIMESTAMP)
-                |;
+    $sql = qq|INSERT INTO $self->{'TableName'}
+              (name, description, bin, enabled, insertion, change)
+              VALUES ( ?, ?, ?, ?, '$dst_save{'insertion'}', CURRENT_TIMESTAMP)
+             |;
+
+    print "idc sql2: $sql\n" if $debug;
 
     unless ( $sth = $self->{'dbh'}->prepare( $sql ) ) {
-        $LASTERROR = "Unable to prepare 'update insert' statement" .
+        $LASTERROR = "Unable to prepare 'update insert' statement\n" .
             $self->{'dbh'}->errstr;
         return 1;
     }
@@ -616,7 +715,7 @@ sub internalDateCopy
     while ( scalar @data ) {
         $pop = pop @data;
         $sth->execute( $dst, $dst_save{ 'description' },
-                       $pop, $dst_save{ 'status' } );
+                       $pop, $dst_save{ 'enabled' } );
     }
 
     $sth->finish;
@@ -689,7 +788,8 @@ sub setupStore
     }
 
     if ( not ( $sth = $self->{'dbh'}->prepare( $self->{'sql_file_store'} ) ) ) {
-        $LASTERROR = "Unable to prepare 'store' statement: $self->{'dbh'}->errstr";
+        $LASTERROR = "Unable to prepare 'store' statement\n" .
+            $self->{'dbh'}->errstr;
         return undef;
     }
 
@@ -814,13 +914,14 @@ sub setupFetch
     }
 
     if ( not ( $sth = $self->{'dbh'}->prepare( $self->{'sql_file_fetch'} ) ) ) {
-        $LASTERROR = "Unable to prepare 'fetch' statement: $self->{'dbh'}->errstr";
+        $LASTERROR = "Unable to prepare 'fetch' statement.\n" .
+            $self->{'dbh'}->errstr;
         return undef;
     }
 
     $name =~ s|.*/||;           # only the short name for the lookup
     if ( not $sth->execute( $name ) ) {
-        $LASTERROR = "Unable to execute 'fetch' statement: $sth->err";
+        $LASTERROR = "Unable to execute 'fetch' statement.\n" . $sth->err;
         return undef;
     }
 
@@ -853,6 +954,7 @@ sub error
 }
 
 1;
+
 __END__
 
 

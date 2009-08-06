@@ -207,7 +207,7 @@ HEAD
 
     while( my $hash = $fs->list_next( $sth ) ) {
         # blobs, name, enabled, insertion
-        printf "%3s %-46s %2s %-10s\n",
+        printf "%3s %-46s %2d %-10s\n",
             $hash->{'blobs'},
             $hash->{'name'},
 #            (defined $hash{'description'}) ? $hash{'description'} : "",
