@@ -149,15 +149,27 @@ unless ( $sqlfsOBJ->find( $dbaninitrd ) )
 }
 
 # if first time we've launched load the bdan pxe boot file
-my $dbantemplate = "$bdir{'data'}/templates/pxetemplate-auto.dban";
-unless ( $sqlfsOBJ->find( $dbantemplate ) )
+my $dbanautopxe = "$bdir{'data'}/templates/pxetemplate-autowipe.dban";
+unless ( $sqlfsOBJ->find( $dbanautopxe ) )
 {
-    if (not -f $dbantemplate) {
-        print STDOUT "required file not found: $dbantemplate";
+    if (not -f $dbanautopxe) {
+        print STDOUT "required file not found: $dbanautopxe";
         exit 2;
     }
-    print STDOUT "Initial launch of baracusd - adding $dbantemplate to db\n";
-    $sqlfsOBJ->store( $dbantemplate );
+    print STDOUT "Initial launch of baracusd - adding $dbanautopxe to db\n";
+    $sqlfsOBJ->store( $dbanautopxe );
+}
+
+# if first time we've launched load the bdan pxe boot file
+my $dbanpxe = "$bdir{'data'}/templates/pxetemplate-noautowipe.dban";
+unless ( $sqlfsOBJ->find( $dbanpxe ) )
+{
+    if (not -f $dbanpxe) {
+        print STDOUT "required file not found: $dbanpxe";
+        exit 2;
+    }
+    print STDOUT "Initial launch of baracusd - adding $dbanpxe to db\n";
+    $sqlfsOBJ->store( $dbanpxe );
 }
 
 while (1) {
