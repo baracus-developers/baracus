@@ -124,8 +124,8 @@ unless ( $sqlfsOBJ->find( $pxefile ) )
     $sqlfsOBJ->store( $pxefile );
 }
 
-# if first time we've launched load the bdan file
-my $dbanfile = "$bdir{'data'}/dban.bzi";
+# if first time we've launched load the bdan kernel
+my $dbanfile = "$bdir{'data'}/data/dban.bzi";
 unless ( $sqlfsOBJ->find( $dbanfile ) )
 {
     if (not -f $dbanfile) {
@@ -136,7 +136,19 @@ unless ( $sqlfsOBJ->find( $dbanfile ) )
     $sqlfsOBJ->store( $dbanfile );
 }
 
-# if first time we've launched load the bdan file
+# if first time we've launched load the bdan initrd
+my $dbaninitrd = "$bdir{'data'}/data/dban.initrd";
+unless ( $sqlfsOBJ->find( $dbaninitrd ) )
+{
+    if (not -f $dbaninitrd) {
+        print STDOUT "required file not found: $dbaninitrd";
+        exit 2;
+    }
+    print STDOUT "Initial launch of baracusd - adding $dbaninitrd to db\n";
+    $sqlfsOBJ->store( $dbaninitrd );
+}
+
+# if first time we've launched load the bdan pxe boot file
 my $dbantemplate = "$bdir{'data'}/templates/pxetemplate-auto.dban";
 unless ( $sqlfsOBJ->find( $dbantemplate ) )
 {
