@@ -69,6 +69,7 @@ my $debug = 0;
 my $quiet = 0;
 my $all   = 0;
 my $verbose = 0;
+my $nolabels = 0;
 
 my %tbl = (
            'distro'   => 'distro_cfg',
@@ -91,12 +92,13 @@ my %cmds = (
             );
 
 GetOptions(
-           'help|?'         => \$help,
-           'man'            => \$man,
+           'help|?'   => \$help,
+           'man'      => \$man,
            'debug+'   => \$debug,
-           'quiet'          => \$quiet,
-           'all'            => \$all,
+           'quiet'    => \$quiet,
+           'all'      => \$all,
            'verbose+' => \$verbose,
+           'nolabels'  => \$nolabels,
            );
 
 &man()  if $man;
@@ -251,7 +253,7 @@ sub list
         return 1;
     }
 
-    unless ( $quiet ) {
+    unless ( $quiet || $nolabels ) {
         if ( ( $type eq "module" ) || ( $type eq "profile" ) ) {
 
 #        1         2         3         4         5         6         7         8
@@ -1852,14 +1854,17 @@ sub detail
             if ( $all ||
                  $href->{'status'} ||
                  $href->{'version'} == $version ) {
+                print "\n##########\n" if $all;
+                unless ( $nolabels ) {
+                    printf "# module: %s\n",      $href->{'moduleid'};
+                    printf "# description: %s\n", $href->{'description'};
+                   #printf "# interpreter: %s\n", $href->{'interpreter'};
+                    printf "# enabled: %s\n",     $href->{'status'}
+                        if ( $all || $version );
+                    printf "# version: %s\n",     $href->{'version'};
+                    print "##########\n";
+                }
                 print  $href->{'data'};
-                printf "#\n# module: %s\n",   $href->{'moduleid'};
-                printf "# description: %s\n", $href->{'description'};
-#               printf "# interpreter: %s\n", $href->{'interpreter'};
-                printf "# enabled: %s\n",     $href->{'status'}
-                    if ( $all || $version );
-                printf "# version: %s\n",     $href->{'version'};
-                print "##########\n\n" if $all;
                 $printcount += 1;
             }
         }
@@ -1867,17 +1872,21 @@ sub detail
             if ( $all ||
                  $href->{'status'} ||
                  $href->{'version'} == $version ) {
+                print "\n##########\n" if $all;
+                unless ( $nolabels ) {
+                    printf "# profile: %s\n",     $href->{'profileid'};
+                    printf "# description: %s\n", $href->{'description'};
+                    printf "# enabled: %s\n",     $href->{'status'}
+                        if ( $all || $version );
+                    printf "# version: %s\n",     $href->{'version'};
+                    print "##########\n";
+                }
                 print  $href->{'data'};
-                printf "#\n# profile: %s\n",   $href->{'profileid'};
-                printf "# description: %s\n", $href->{'description'};
-                printf "# enabled: %s\n",     $href->{'status'}
-                    if ( $all || $version );
-                printf "# version: %s\n",     $href->{'version'};
                 $printcount += 1;
             }
         }
         if ( $type eq "distro" ) {
-            printf "[%s]\n",           $href->{'distroid'};
+            printf "[%s]\n",           $href->{'distroid'} unless $nolabels;
             printf "os=%s\n",          $href->{'os'};
             printf "sp=%s\n",          $href->{'sp'};
             printf "description=%s\n", $href->{'description'};
@@ -1890,7 +1899,7 @@ sub detail
             $printcount += 1;
         }
         if ( $type eq "hardware" ) {
-            printf "[%s]\n",            $href->{'hardwareid'};
+            printf "[%s]\n",            $href->{'hardwareid'} unless $nolabels;
             printf "description=%s\n",  $href->{'description'};
             printf "bootArgs=%s\n",     $href->{'bootargs'};
             printf "rootDisk=%s\n",     $href->{'rootdisk'};
@@ -1916,14 +1925,21 @@ sub detail
             if ( $tftpname ne $name ) {
                 $tftpname = $name;
                 # first time for 'name' encountered - get chunks
-                my $chunks = $db2use->selectall_arrayref( $sql_chunks,{slice=>{}} );
-                if ( defined $chunks ) {
+                my $chunks = $db2use->selectall_arrayref($sql_chunks,{slice=>{}});
+                if ( defined $chunks and ( $all or $href->{'enabled'} ) ) {
+
+                    unless ( $nolabels ) {
+                        printf "#\n# name: %s\n",     $href->{'name'};
+                        printf "# description: %s\n", $href->{'description'};
+                        printf "# enabled: %s\n",     $href->{'enabled'};
+                        printf "# inserted: %s\n",    $href->{'insertion'}
+                            if $verbose;
+                        printf "# modified: %s\n",    $href->{'change'}
+                            if ( defined $href->{'change'} && $verbose );
+                    }
                     foreach my $chunk ( @{$chunks} ) {
                         $tftpdata .= &bytea_decode( @{$chunk}[0] );
                     }
-                }
-                if ( $all ||
-                     $href->{'enabled'} ) {
                     if ( ( length $tftpdata ) < 512 ) {
                         print $tftpdata;
                     } else {
@@ -1931,13 +1947,6 @@ sub detail
                         print "# file is large and may be binary.\n";
                         print "# please use the 'export' command.\n";
                     }
-                    printf "#\n# name: %s\n",     $href->{'name'};
-                    printf "# description: %s\n", $href->{'description'};
-                    printf "# enabled: %s\n",     $href->{'enabled'};
-                    printf "# inserted: %s\n",    $href->{'insertion'}
-                        if $verbose;
-                    printf "# modified: %s\n",    $href->{'change'}
-                        if ( defined $href->{'change'} && $verbose );
                     $printcount += 1;
                 }
             }
