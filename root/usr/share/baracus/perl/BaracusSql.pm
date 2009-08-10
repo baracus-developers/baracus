@@ -8,12 +8,12 @@ use warnings;
 use Tie::IxHash;
 
 
-use constant BA_ADDED   => 1;
+use constant BA_READY    => 1;
 use constant BA_BUILT   => 2;
 use constant BA_SPOOFED => 3;
 use constant BA_DELETED => 4;
 use constant BA_UPDATED => 5;
-use constant BA_WIPE    => 6;
+use constant BA_DISKWIPE => 6;
 
 =item baState
 
@@ -22,18 +22,18 @@ here we define some state constants and a hash to make easy use of them
 =cut
 
 our %baState = (
-               1         => 'added',
+                1          => 'ready',
                2         => 'built',
                3         => 'spoofed',
                4         => 'deleted',
                5         => 'updated',
-               6         => 'wipe',
-               'added'   => BA_ADDED,
+                6          => 'diskwipe',
+                'ready'    => BA_READY,
                'built'   => BA_BUILT,
                'spoofed' => BA_SPOOFED,
                'deleted' => BA_DELETED,
                'updated' => BA_UPDATED,
-               'wipe'    => BA_WIPE,
+                'diskwipe' => BA_DISKWIPE,
                );
 
 
@@ -247,7 +247,7 @@ RETURNS TRIGGER AS $template_state_trigger$
                  OLD.ip,
                  OLD.mac,
                  OLD.uuid,
-                 OLD.state,
+                 '4',
                  OLD.cmdline,
                  OLD.creation,
                  CURRENT_TIMESTAMP(0) );

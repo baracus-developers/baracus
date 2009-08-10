@@ -78,7 +78,10 @@ sub new
     $cfg{'User'} or $cfg{'User'} = "";
     $cfg{'Password'} or $cfg{'Password'} = "";
     $cfg{'TableName'} or $cfg{'TableName'} = "sqlfstable";
-
+    if ( defined $cfg{'debug'} ) {
+        $debug = $cfg{'debug'};
+        print "debug = $debug\n" if $debug;
+    }
 
     # sql for file present check
     my $file_find = qq|SELECT COUNT (*)
@@ -465,23 +468,30 @@ sub update
         return 1;
     }
 
-    my %data;
+    my $entry_data;
     my $rowcount = 0;
+    my %id;
 
     # store off first entry
     while ( $href = $sth->fetchrow_hashref( ) ) {
+        while ( my ($key, $val) = each %{$href} ) {
+            print "update $rowcount - $href->{'id'} entry:  $key => $val\n" if $debug;
+        }
         unless ( $rowcount ) {
             while ( my ($key, $val) = each %{$href} ) {
+                if ( $key ne "bin" ) {
                 $save{ $key } = $val;
-                if ( $key ne "bin" and $debug and $val ) {
-                    print "entry:  $key => $val\n";
-                } elsif ( $key ne "bin" and $debug ) {
-                    print "entry:  $key => \n";
+                    if ( $debug and $val ) {
+                        print "update entry:  $key => $val\n";
+                    } elsif ( $debug ) {
+                        print "update entry:  $key => \n";
+                    }
                 }
             }
         }
-        $data{ $href->{'id'} } = $href->{'bin'};
         $rowcount += 1;
+        $id{ $href->{'id'} } = $href->{'id '};
+        $entry_data .= &bytea_decode( $href->{'bin'} );
     }
 
     unless ( $rowcount ) {
@@ -491,12 +501,12 @@ sub update
 
     my $desc_needed = 0;
     my $stat_needed = 0;
-    my $file_needed = 0;
 
     if ( defined $hash{'description'} ) {
         if ( $save{'description'} ne $hash{'description'} ) {
             $save{'description'} = $hash{'description'};
             $desc_needed = 1;
+            print "update description change needed\n" if $debug;
         }
     }
 
@@ -504,6 +514,7 @@ sub update
         if ( $save{'enabled'} ne $hash{'enabled'} ) {
             $save{'enabled'} = $hash{'enabled'};
             $stat_needed = 1;
+            print "update enabled change needed\n" if $debug;
         }
     }
 
@@ -516,15 +527,13 @@ sub update
         $/ = "\n";
         close FILE;
 
-        my $entry_data;
-        foreach my $id ( sort ( keys %data ) ) {
-            $entry_data .= &bytea_decode( $data{ $id } );
-        }
         if ( $file_data eq $entry_data ) {
             $LASTERROR = "Reject updating file entry with duplicate data\n";
             return 1;
         }
         $file_data = $entry_data = ""; # free space
+
+        print "update working file change\n" if $debug;
 
         unless ( open( $fh, "<", $file ) ) {
             $LASTERROR = "Unable to open $file: $!\n";
@@ -553,7 +562,10 @@ sub update
                             $save{'description'}, $save{'enabled'} );
 
         close $fh;
+
     } elsif ( $desc_needed == 1 || $stat_needed == 1 ) {
+
+        print "update working description and/or status change\n" if $debug;
 
         # no file to play with so only updating the status, description, or both
         my $sql_cols;
@@ -576,13 +588,16 @@ sub update
                   SET ( $sql_cols ) = ( $sql_vals )
                   WHERE id = ?|;
 
+        print "update $sql\n" if $debug;
+
         unless ( $sth = $self->{'dbh'}->prepare( $sql ) ) {
             $LASTERROR = "Unable to prepare 'update' statement\n" .
                 $self->{'dbh'}->errstr;
             return 1;
         }
 
-        foreach my $id ( sort keys %data ) {
+        foreach my $id ( sort keys %id ) {
+            print "update id $id\n" if $debug;
             unless ( $sth->execute( $id ) ) {
                 $LASTERROR = "Unable to execute 'update' statement\n" .
                     $sth->err;

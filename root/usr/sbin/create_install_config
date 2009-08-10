@@ -10,25 +10,29 @@ use lib "/usr/share/baracus/perl";
 use BaracusDB;
 use BaracusSql;
 
+my $execname = $0;
+$execname = $1 if ( $0 =~ m|^.*/([^/].+)| );
+
 =pod
 
 =head1 NAME
 
-B<create_install_config> - baracus tool to manage distro, hardware, module, and profile entries.
+B<baconfig> - baracus tool to manage distro, hardware, module, and profile entries.
 
 =head1 SYNOPSIS
 
-B<create_install_config> E<lt>commandE<gt> E<lt>typeE<gt> [options and arguments]
+B<baonfig> E<lt>commandE<gt> E<lt>typeE<gt> [options and arguments]
 
 Where E<lt>commandE<gt> is
 
-    list   <type> [match]  List entries in database
-    add    <type> [ ... ]  Copy to database from specified file.
-    update <type> [ ... ]  Add version or modify module or profile.
+    list   <type> [match]  List entries in database.
+    add    <type> <...>    Copy to database from specified file.
+    update <type> <...>    Modify module, profile or tftp entry.
+    export <type> <...>    Export data portion of entry to new file.
     detail <type> <name>   Display file entry in database table.
     remove <type> <name>   Delete file from database table.
 
-    help      Usage summary message.
+    help      This 'Usage' summary message.
     man       Detailed man page.
 
 And, where E<lt>typeE<gt> is
@@ -38,6 +42,10 @@ And, where E<lt>typeE<gt> is
     module    Postinstall scripts to run on build completion.
     profile   Network or other variable definitions.
     tftp      TFTP filesystem database.
+
+And, where <...> indicates additional required arguments. 
+
+Use 'man' or 'help <command> [<type>]' for more details.
 
 =head1 DESCRIPTION
 
@@ -60,6 +68,7 @@ my $help  = 0;
 my $debug = 0;
 my $quiet = 0;
 my $all   = 0;
+my $verbose = 0;
 
 my %tbl = (
            'distro'   => 'distro_cfg',
@@ -73,9 +82,10 @@ my %tbl = (
 my %cmds = (
             'list'    => \&list,
             'add'     => \&add,
+            'update'  => \&update,
+            'export'  => \&export,
             'detail'  => \&detail,
             'remove'  => \&remove,
-            'update'  => \&update,
             'help'    => \&help,
             'man'     => \&man,
             );
@@ -83,24 +93,39 @@ my %cmds = (
 GetOptions(
            'help|?'         => \$help,
            'man'            => \$man,
-           'debug|verbose+' => \$debug,
+           'debug+'   => \$debug,
            'quiet'          => \$quiet,
            'all'            => \$all,
+           'verbose+' => \$verbose,
            );
 
 &man()  if $man;
 &help() if $help;
-if ( scalar @ARGV ) {
-    if ( not defined $cmds{ $ARGV[0] } ) {
-        print "\nUnknown command: $ARGV[0]\n";
-        &help();
-    }
-    &man()  if ($ARGV[0] eq "man"  );
-    &help() if ($ARGV[0] eq "help" );
-}
-else {
-    &help();
-}
+&help() unless ( scalar @ARGV );
+if ($ARGV[0] eq "man"  ) { &man(); }
+if ($ARGV[0] eq "help" ) { shift @ARGV; &help(@ARGV); }
+
+my $uid = BaracusDB::su_user( $dbrole );
+die BaracusDB::errstr unless ( defined $uid );
+
+my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
+die BaracusDB::errstr unless( $dbh );
+
+my $tftph = BaracusDB::connect_db( $dbtftp, $dbrole );
+die BaracusDB::errstr unless( $tftph );
+
+my $status = &main(@ARGV);
+
+die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+die BaracusDB::errstr unless BaracusDB::disconnect_db( $tftph );
+
+print $LASTERROR if $status;
+
+exit $status;
+
+die "DOES NOT EXECUTE";
+
+###########################################################################
 
 # START - dhb
 #
@@ -141,32 +166,11 @@ sub bytea_decode
 #
 # END - dhb
 
-my $uid = BaracusDB::su_user( $dbrole );
-die BaracusDB::errstr unless ( defined $uid );
-
-my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
-die BaracusDB::errstr unless( $dbh );
-
-my $tftph = BaracusDB::connect_db( $dbtftp, $dbrole );
-die BaracusDB::errstr unless( $tftph );
-
-my $status = &main(@ARGV);
-
-die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
-die BaracusDB::errstr unless BaracusDB::disconnect_db( $tftph );
-
-print $LASTERROR if $status;
-
-exit $status;
-
-die "DOES NOT EXECUTE";
-
-###########################################################################
-
 sub main
 {
     my $command = shift;
 
+    &check_command( $command );
     $command = lc $command;
 
     printf "Executing $command with \"@_\".\n" if $debug;
@@ -176,24 +180,51 @@ sub main
 
 sub help
 {
+    my $command = shift;
+    my $type = shift;
+
+    unless ( defined $command ) {
     pod2usage( -verboase => 0,
                -exitstatus => 0 );
 }
 
+    &check_command( $command );
+    $command = lc $command;
+
+    # so far only add and update have valid help for type
+
+    if ( defined $type and ( $command eq "add" or $command eq "update" ) ) {
+        &check_type( $type );
+        $type = lc $type;
+
+        pod2usage( -msg        => "$execname $command $type ...\n",
+                   -verbose    => 99,
+                   -sections   => "COMMANDS/${command} ${type}.*",
+                   -exitstatus => 0 );
+    } else {
+        pod2usage( -msg        => "$execname $command ...\n",
+                   -verbose    => 99,
+                   -sections   => "COMMANDS/${command}.*",
+                   -exitstatus => 0 );
+    }
+}
+
 sub man
 {
-    pod2usage( -verbose    => 99,
-               -sections   => "NAME|SYNOPSIS|DESCRIPTION|OPTIONS AND ARGUMENTS",
+    pod2usage( -verbose    => 2,
+               -sections   => "NAME|SYNOPSIS|DESCRIPTION",
                -exitstatus => 0 );
 }
 
-=item list <type> [--all] [--quiet] [match]
+=head1 COMMANDS
+
+=head2 list <type> [--all] [--quiet] [match]
 
     Takes <type> as an argument, (distro, hardware, module, profile).
     Also takes optional string [ match ] to use for partial matching.
 
     Lists enabled entries of type, matching match, in filesystem.
-    If --all specified all versions (if <type> supports versions)
+If --all is specified all versions (if <type> supports versions)
     are listed.
 
 =cut
@@ -314,7 +345,7 @@ sub add
     return $status;
 }
 
-=item add distro <options and args>
+=head2 add distro <options and args>
 
 Where <options and args> are
 
@@ -447,7 +478,7 @@ sub add_distro
     return 0;
 }
 
-=item add hardware <options and args>
+=head2 add hardware <options and args>
 
 Where <options and args> are
 
@@ -555,7 +586,7 @@ sub add_hardware  # TODO - add oscert support
     return 0;
 }
 
-=item add module <options and args>
+=head2 add module <options and args>
 
 Where <options and args> are
 
@@ -675,7 +706,7 @@ sub add_module
     return 0;
 }
 
-=item add profile <options and args>
+=head2 add profile <options and args>
 
 Where <options and args> are
 
@@ -779,7 +810,7 @@ sub add_profile
     return 0;
 }
 
-=item add tftp <options and args>
+=head2 add tftp <options and args>
 
 Where <options and args> are
 
@@ -935,7 +966,7 @@ sub update
     return $status;
 }
 
-=item update module <options and args>
+=head2 update module <options and args>
 
 Where <options and args> are
 
@@ -1146,7 +1177,7 @@ sub update_module
     return 0;
 }
 
-=item update profile <options and args>
+=head2 update profile <options and args>
 
 Where <options and args> are
 
@@ -1352,7 +1383,7 @@ sub update_profile
     return 0;
 }
 
-=item update tftp <options and args>
+=head2 update tftp <options and args>
 
 Where <options and args> are
 
@@ -1365,17 +1396,15 @@ There is no support for versioning of these files.
 
 =cut
 
-# dhb: thought init-scripts would support this but they don't anymore:
-#
-#   --interpreter value   where value is shell, perl, python  [default shell]
-
 sub update_tftp
 {
     my $type = 'tftp';
     my $file = "";
 
     my $sth;
-    my $old_save;
+    my $sql;
+    my $href;
+    my %save;
 
     my %entry = (
                  'name'         => "",
@@ -1403,51 +1432,72 @@ sub update_tftp
         &help();
     }
 
-    if ( $entry{'enabled'} ne "" ) {
-        print "enable or noenable passed: $entry{'enabled'}\n" if $debug;
-        if ( $entry{'enabled'} ) {
-            $entry{'enabled'} = "1";
-        } else {
-            $entry{'enabled'} = "0";
-        }
-    }
-
     # get the current description and enabled states to see if we need to change
-    my $desc_ena = qq|SELECT description, enabled, insertion, change, bin
-                      FROM $tbl{ $type }
-                      WHERE name = $entry{'name'}
-                     |;
+    my $sql_cols = lc get_cols( 'tftp' );
+    $sql_cols =~ s/[ \t]*//g;
 
-    unless ( $sth = $tftph->prepare( $desc_ena ) ) {
+    $sql = qq|SELECT $sql_cols
+                      FROM $tbl{ $type }
+              WHERE name = ?
+              ORDER BY id|;
+
+    print "$sql\n" if $debug;
+    unless ( $sth = $tftph->prepare( $sql ) ) {
         $LASTERROR = "Unable to prepare 'update' tftp query\n" . $tftph->errstr;
         return 1;
     }
 
-    unless ( $sth->execute( ) ) {
+    unless ( $sth->execute( $entry{'name'} ) ) {
         $LASTERROR = "Unable to execute 'update' tftp query\n" . $sth->err;
         return 1;
     }
 
-    # grab old entry and 'data' for possible file content comparison later
-    my $data;
+    my $entry_data;
     my $rowcount = 0;
-    while ( my $href = $sth->fetchrow_hashref() ) {
+    my %id;
+
+    # store off first entry
+    while ( $href = $sth->fetchrow_hashref( ) ) {
+        while ( my ($key, $val) = each %{$href} ) {
+            print "update $rowcount - $href->{'id'} entry:  $key => $val\n" if $debug;
+        }
         unless ( $rowcount ) {
-            foreach ( my ($key, $val) = each %{$href} ) {
-                unless ( $key eq "bin" or $key eq "id" ) {
-                    if ( $entry{ $key } eq "" ) {
-                        $entry{ $key } = $val;
+            while ( my ($key, $val) = each %{$href} ) {
+                if ( $key ne "bin" ) {
+                    $save{ $key } = $val;
+                    if ( $debug and $val ) {
+                        print "1 entry $href->{'id'}:  $key => $val\n";
+                    } elsif ( $debug ) {
+                        print "2 entry $href->{'id'}:  $key =>\n";
                     }
                 }
             }
         }
         $rowcount += 1;
-        $data .= &bytea_decode( $href->{'bin'} );
+        $id{ $href->{'id'} } = $href->{'id '};
+        $entry_data .= &bytea_decode( $href->{'bin'} );
     }
 
     unless ( $rowcount ) {
         $LASTERROR = "Entry not found for update: tftp $entry{'name'}.\n";
         return 1;
+    }
+
+    my $desc_needed = 0;
+    my $stat_needed = 0;
+
+    if ( defined $entry{'enabled'} && $entry{'enabled'} ne "" ) {
+        if ( $save{'enabled'} ne $entry{'enabled'} ) {
+            $save{'enabled'} = $entry{'enabled'};
+            $stat_needed = 1;
+        }
+    }
+
+    if ( defined $entry{'description'} && $entry{'description'} ne "" ) {
+        if ( $save{'description'} ne $entry{'description'} ) {
+            $save{'description'} = $entry{'description'};
+            $desc_needed = 1;
+        }
     }
 
     # determine if updating file now so can remove all entries -
@@ -1463,31 +1513,23 @@ sub update_tftp
         # grab file content for comparison with current entry 'data'
         open (FILE, "<$file") || die "unable to open $file: $!\n";
         undef $/;
-        $entry{'data'}=<FILE>;  # slurp mode
+        my $file_data = <FILE>;  # slurp mode
         $/ = "\n";
         close FILE;
 
         # must check first - for refusing to 'update' with duplicate data
-        unless ( $data ne $entry{'data'} ) {
+        if ( $file_data eq $entry_data ) {
             $LASTERROR = "Reject updating file entry with duplicate data\n";
             return 1;
         }
 
         # delete all old entries
         my $delete = qq|DELETE FROM $tbl{'tftp'} where name = $entry{'name'}|;
-        unless ( $sth = $tftph->prepare( $delete ) ) {
-            $LASTERROR = "Unable to prepare 'update' tftp removal\n" .
+        unless ( $sth = $tftph->do( $delete ) ) {
+            $LASTERROR = "Unable to do 'update' tftp removal\n" .
                 $tftph->errstr;
             return 1;
         }
-        unless ( $sth->execute( ) ) {
-            $LASTERROR = "Unable to execute 'update' tftp removal\n" . $sth->err;
-            return 1;
-        }
-
-        # open the file again to be read in by chunks to store
-        my $fh;
-        open ($fh, "<", $file) || die "unable to open $file: $!\n";
 
         my $sql_cols = lc get_cols( 'tftp' );
         $sql_cols =~ s/[ \t]*//g;
@@ -1495,27 +1537,28 @@ sub update_tftp
 
         my $sql_vals = "";
         $sql_cols = "";
-        # for the cols we are setting get rid of the autoincrement key
+
         foreach my $col ( @cols ) {
-            next if ( $col eq "id" );
+            next if ( $col eq "id" );  # do not include autoincr key in sql
             if ( $col eq "bin" ) {
                 $sql_cols .= "$col,";
                 $sql_vals .= "?,";
                 next;
             }
-            if ( $entry{ $col } ne "" ) {
+            if ( $save{ $col } ne "" ) {
                 $sql_cols .= "$col,";
-                if ( $col eq "insertion" or $col eq "change" ) {
-                    $sql_vals .= qq|$entry{ $col },|;
+                if ( $col eq "change" ) {
+                    # do not quote CURRENT_TIMESTAMP or other sql expressions
+                    $sql_vals .= qq|$save{ $col },|;
                 } else {
-                    $sql_vals .= qq|'$entry{ $col }',|;
+                    $sql_vals .= qq|'$save{ $col }',|;
                 }
             }
         }
         chop $sql_cols;
         chop $sql_vals;
 
-        my $sql = qq|INSERT INTO $tbl{ 'tftp' }
+        $sql = qq|INSERT INTO $tbl{ 'tftp' }
                   ( $sql_cols )
                   VALUES ( $sql_vals )
                  |;
@@ -1527,24 +1570,192 @@ sub update_tftp
             return 1;
         }
 
-        # finished with last entry
-        unless( $sth->execute( ) ) {
+        # open the file again to be read in by chunks to store
+        my $fh;
+        open ($fh, "<", $file) || die "unable to open $file: $!\n";
+
+        my $bytes = 1;
+        while ( $bytes ) {
+            read $fh, $bytes, $maxlen;
+            $file_data = &bytea_encode( $bytes );
+            if ( $bytes ) {
+                unless ( $sth->execute( $file_data ) ) {
             $LASTERROR = "Unable to execute 'update' tftp statement\n" .
                 $sth->err;
             return 1;
         }
+            }
+        }
 
         close $fh;
+
+    } elsif ( $desc_needed == 1 || $stat_needed == 1 ) {
+
+        # no file to play with so only updating the status, description, or both
+        my $sql_cols;
+        my $sql_vals;
+
+        if ( $desc_needed == 1 ) {
+            $sql_cols .= "description";
+            $sql_vals .= "'$save{'description'}'";
+        }
+        if ( $stat_needed == 1 ) {
+            $sql_cols .= "," if ( $sql_cols );
+            $sql_vals .= "," if ( $sql_vals );
+            $sql_cols .= "enabled";
+            $sql_vals .= "'$save{'enabled'}'";
+        }
+        $sql_cols .= ",insertion,change";
+        $sql_vals .= ",'$save{'insertion'}', CURRENT_TIMESTAMP";
+
+        $sql = qq|UPDATE $tbl{ $type }
+                  SET ( $sql_cols ) = ( $sql_vals )
+                  WHERE id = ?|;
+
+        unless ( $sth = $tftph->prepare( $sql ) ) {
+            $LASTERROR = "Unable to prepare 'update' statement\n" .
+                $tftph->errstr;
+            return 1;
+        }
+
+        foreach my $id ( sort keys %id ) {
+            print "update id $id\n" if $debug;
+            unless ( $sth->execute( $id ) ) {
+                $LASTERROR = "Unable to execute 'update' statement\n" .
+                    $sth->err;
+                return 1;
+            }
+        }
+    }
 
         $sth->finish;
         undef $sth;
 
+    return 0;
     }
 
-    return 0;
+=head2 export E<lt>typeE<gt> <options and args>
+
+Where <type> may be module, profile, or tftp.  Not hardware or distro.
+
+For similar functionality with hardware and distro types it is suggested to simply redirect the 'detail <type>' output. With these types there is no actual 'data' portion and no related '--file' argument used to add them.
+
+Where <options and args> are
+
+    --name <name>          Data of named entry used. [ default <file> ].
+    --file <path/file>     Create this new flie with db data contents.
+    --version <ver>        Required specifier for module or profile types.
+
+=cut
+
+sub export
+{
+    my $type = shift;
+    my $file = "";
+
+    my %entry = (
+                 'name'         => "",
+                 'version'      => "",  # not used for tftp
+                 'description'  => "",
+                 );
+
+    @ARGV = @_;
+    GetOptions(
+               'name=s'         => \$entry{'name'},
+               'description=s'  => \$entry{'description'},
+               'version=i'      => \$entry{'version'},
+               'file=s'         => \$file,
+               );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    unless ( $file ne "" ) {
+        print "Required --file <path/file> not provided.\n";
+        &help( "export" );
+    }
+
+    if ( -e $file ) {
+        $LASTERROR = "Unwilling to overwrite existing <path/file>: $file.\n";
+        return 1;
+    }
+
+    if ( $entry{'version'} eq "" ) {
+        unless ( $type eq "tftp" ) {
+            print "Required --version <ver> not provided.\n";
+            &help( "export" );
+        }
+    } elsif ( $type eq "tftp" ) {
+        print "Ignoring unsupported --version specifier for type $type\n";
+    }
+
+    if ( $entry{'name'} eq "" ) {
+        $entry{'name'} = $file;
+        $entry{'name'} =~ s|.*/||;       # only the short name for the lookup
 }
 
-=item detail E<lt>typeE<gt> E<lt>nameE<gt> [ --all | --version <ver> ]
+    my $sql;
+    my $db2use = $dbh;
+
+    if ( $type eq "module" ) {
+        $sql = qq|SELECT data
+                  FROM $tbl{ $type }
+                  WHERE moduleid = '| . $entry{'name'} . qq|'
+                  AND version = '| . $entry{'version'} . qq|'|;
+    } elsif ( $type eq "profile" ) {
+        $sql = qq|SELECT data
+                  FROM $tbl{ $type }
+                  WHERE profileid = '| . $entry{'name'} . qq|'
+                  AND version = '| . $entry{'version'} . qq|'|;
+    } elsif ( $type eq "tftp" ) {
+        $sql = qq|SELECT bin as data
+                  FROM $tbl{ $type }
+                  WHERE name = '| . $entry{'name'} . qq|'
+                  ORDER BY id
+                 |;
+        $db2use = $tftph;
+    } else {
+        $LASTERROR = "Unsuported type $type for export command\n";
+        return 1;
+    }
+
+    my $sth;
+    my $href;
+
+    unless ( $sth = $db2use->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'export' statement\n" . $db2use->errstr;
+        return 1;
+    }
+
+    unless( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'export' statement\n" . $sth->err;
+        return 1;
+    }
+
+    open( my $fh, ">", $file ) or die "Unable to open $file: $!\n";
+
+    my $rowcount = 0;
+    my $row;
+    while( $href = $sth->fetchrow_hashref( ) ) {
+        $rowcount += 1;
+        if ( $type ne "tftp" ) {
+            $row = $href->{'data'};
+        } else {
+            $row = &bytea_decode ( $href->{'data'} );
+        }
+        print $fh $row;
+    }
+    close $fh;
+
+    $sth->finish;
+    undef $sth;
+
+    return 0
+}
+
+=head2 detail E<lt>typeE<gt> E<lt>nameE<gt> [ --all | --version <ver> ]
 
 Takes <type> and <name> as arguments.
 
@@ -1588,6 +1799,9 @@ sub detail
     my $sql_cols = lc get_cols( $type );
     my $sql = qq| SELECT $sql_cols FROM $tbl{ $type } |;
     my $sql_cert;
+    my $sql_chunks;
+
+    my $db2use = $dbh;
 
     if ( $type eq "distro" ) {
         $sql .= "WHERE distroid = ?";
@@ -1595,7 +1809,7 @@ sub detail
         $sql .= "WHERE hardwareid = ?";
 
         $sql_cols = lc get_cols( 'oscert' );
-        $sql_cert = qq|SELECT $sql_cols
+        $sql_cert = qq|SELECT oscert
                        FROM $tbl{ 'oscert' }
                        WHERE hardwareid = '| . $name . qq|'|;
     } elsif ( $type eq "module" ) {
@@ -1604,11 +1818,21 @@ sub detail
     } elsif ( $type eq "profile" ) {
         $sql .= "WHERE profileid = ?";
         $sql .= " AND version = $version" if ( $version );
+    } elsif ( $type eq "tftp" ) {
+        $sql .= "WHERE name = ?";
+        $sql .= " ORDER BY id";
+
+        $sql_chunks = qq|SELECT bin
+                         FROM $tbl{ $type }
+                         WHERE name =  '| . $name .
+                      qq|' ORDER BY id|;
+
+        $db2use = $tftph;
     }
 
     my $sth;
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $LASTERROR = "Unable to prepare 'detail' statement\n" . $dbh->errstr;
+    unless ( $sth = $db2use->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'detail' statement\n" . $db2use->errstr;
         return 1;
     }
 
@@ -1619,6 +1843,8 @@ sub detail
 
     my $rowcount = 0;
     my $printcount = 0;
+    my $tftpname = "";
+    my $tftpdata;
 
     while( $href = $sth->fetchrow_hashref( ) ) {
         $rowcount += 1;
@@ -1675,14 +1901,46 @@ sub detail
             $printcount += 1;
 
             my $oscert = "";
-            my $certs = $dbh->selectall_arrayref( $sql_cert, { slice => {} } );
+            my $certs = $db2use->selectall_arrayref( $sql_cert, { slice => {} } );
             if ( defined $certs ) {
-                foreach my $cert ( @$certs ) {
+                foreach my $cert ( @{$certs} ) {
                     $oscert .= ":" if ( $oscert ne "" );
-                    $oscert .= $cert->{'oscert'};
+                    $oscert .= @{$cert}[0];
                 }
             }
             printf "oscert=%s\n", $oscert if ( defined $oscert );
+        }
+        if ( $type eq "tftp" ) {
+            # because tftp file data is stored in chunks
+            # need to collect the chunks before output
+            if ( $tftpname ne $name ) {
+                $tftpname = $name;
+                # first time for 'name' encountered - get chunks
+                my $chunks = $db2use->selectall_arrayref( $sql_chunks,{slice=>{}} );
+                if ( defined $chunks ) {
+                    foreach my $chunk ( @{$chunks} ) {
+                        $tftpdata .= &bytea_decode( @{$chunk}[0] );
+                    }
+                }
+                if ( $all ||
+                     $href->{'enabled'} ) {
+                    if ( ( length $tftpdata ) < 512 ) {
+                        print $tftpdata;
+                    } else {
+                        print "\n# File content will not be displayed.\n";
+                        print "# file is large and may be binary.\n";
+                        print "# please use the 'export' command.\n";
+                    }
+                    printf "#\n# name: %s\n",     $href->{'name'};
+                    printf "# description: %s\n", $href->{'description'};
+                    printf "# enabled: %s\n",     $href->{'enabled'};
+                    printf "# inserted: %s\n",    $href->{'insertion'}
+                        if $verbose;
+                    printf "# modified: %s\n",    $href->{'change'}
+                        if ( defined $href->{'change'} && $verbose );
+                    $printcount += 1;
+                }
+            }
         }
     }
 
@@ -1700,7 +1958,7 @@ sub detail
     return 0;
 }
 
-=item remove E<lt>typeE<gt> E<lt>nameE<gt> [--version <ver>]
+=head2 remove E<lt>typeE<gt> E<lt>nameE<gt> [--version <ver>]
 
 Takes <type> and <name> as arguments.
 
@@ -1737,6 +1995,8 @@ sub remove
 
     my $sql;
 
+    my $db2use = $dbh;
+
     if ( $type eq "distro" ) {
         $sql = qq|DELETE FROM $tbl{ $type } WHERE distroid = ?|;
     } elsif ( $type eq "hardware" ) {
@@ -1745,6 +2005,9 @@ sub remove
         $sql = qq|DELETE FROM $tbl{ $type } WHERE moduleid = ?|;
     } elsif ( $type eq "profile" ) {
         $sql = qq|DELETE FROM $tbl{ $type } WHERE profileid = ?|;
+    } elsif ( $type eq "tftp" ) {
+        $sql = qq|DELETE FROM $tbl{ $type } WHERE name = ?|;
+        $db2use = $tftph;
     }
 
     if ( defined $version ) {
@@ -1752,8 +2015,8 @@ sub remove
     }
 
     my $sth;
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $LASTERROR = "Unable to prepare 'remove' statement\n" . $dbh->errstr;
+    unless ( $sth = $db2use->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'remove' statement\n" . $db2use->errstr;
         return 1;
     }
 
@@ -1770,16 +2033,34 @@ sub remove
 
 ###########################################################################
 
+sub check_command
+{
+    my $command = shift;
+
+    my $cmd_list = "list, add, detail, remove, update";
+    unless ( defined $command ) {
+        print "requires <command> (e.g. $cmd_list)\n";
+        &help();
+    }
+    $command = lc $command;
+    unless ( defined $cmds{ $command } ) {
+        print "invalid <command> '$command' please use:  $cmd_list\n";
+        exit 1;
+    }
+}
+
 sub check_type
 {
     my $type = shift;
+
+    my $type_list = "distro, hardware, module, profile, tftp";
     unless ( defined $type ) {
-        print "requires <type> (e.g. distro, hardware, module, profile)\n";
+        print "requires <type> (e.g. $type_list)\n";
         exit 1;
     }
     $type = lc $type;
     unless ( defined $tbl{ $type } ) {
-        print "invalid <type> '$type' please use:  distro, hardware, module or profile\n";
+        print "invalid <type> '$type' please use: $type_list\n";
         exit 1;
     }
 }
@@ -2106,7 +2387,6 @@ sub change_description
     }
     return 0;
 }
-
 
 die "ABSOLUTELY DOES NOT EXECUTE";
 

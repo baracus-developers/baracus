@@ -155,7 +155,7 @@ sub add_db_host_entry() {
     $sth->bind_param( 2, $Hash{'ip'}          );
     $sth->bind_param( 3, $Hash{'mac'}         );
     $sth->bind_param( 4, $Hash{'uuid'}        );
-    $sth->bind_param( 5, BaracusSql::BA_ADDED );
+    $sth->bind_param( 5, BaracusSql::BA_READY );
     $sth->bind_param( 6, $Hash{'cmdline'}     );
 
     $sth->execute()
@@ -277,7 +277,7 @@ sub add_host_entry() {
     my $date = &get_rundate();
     my $bootmac = $Hash{'mac'};
     $bootmac =~ s/:/-/g;
-    my $automackey = "hexip";
+    my $automackey = "autoinst";
     my $automac = "02-".$bootmac;
     $bootmac = "01-".$bootmac;
     $Hash{ $automackey } = $automac;
@@ -382,15 +382,16 @@ sub wipe_host_disk() {
     # copy dban over mac template for host in sqltftpd server
 
     my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=sqltftp",
-                               'User' => "baracus")
+                               'User' => "baracus",
+                               'debug' => $debug )
         or die "Unable to create new instance of SqlFS\n";
 
     # print coding example of 'constant' usage if debug
-    print "$BaracusSql::baState{ BaracusSql::BA_WIPE } = " .
-        BaracusSql::BA_WIPE . "\n" if $debug;
+    print "$BaracusSql::baState{ BaracusSql::BA_DISKWIPE } = " .
+        BaracusSql::BA_DISKWIPE . "\n" if $debug;
 
     # if state is already 'wipe' don't do it all again
-    if ( $dbref->{'state'} == BaracusSql::BA_WIPE ) {
+    if ( $dbref->{'state'} == BaracusSql::BA_DISKWIPE ) {
         print "Host entry for $Hash{'hostname'} already set to wipe.\n";
         return;
     }
@@ -406,7 +407,7 @@ sub wipe_host_disk() {
         die "Unable to set status to enable for dban wipe\n" . $sqlfsOBJ->error();
     }
 
-    $dbref->{'state'} = BaracusSql::BA_WIPE;
+    $dbref->{'state'} = BaracusSql::BA_DISKWIPE;
 
     &update_db_host_entry( $dbref );
 
@@ -495,12 +496,12 @@ sub list() {
         while ( $dbref = &db_list_next( $sth ) ) {
             #
             # hostname ip mac uuid state cmdline creation change
-            print "$dbref->{'hostname'} ";
-            print "$dbref->{'ip'} ";
-            print "$dbref->{'mac'} ";
-            print "$dbref->{'uuid'} ";
-            printf "%-7s ", $BaracusSql::baState{ $dbref->{'state'} };
-            print "$dbref->{'creation'} ";
+            printf "%-16s ", $dbref->{'hostname'} ;
+            printf "%-16s ", $dbref->{'ip'} ;
+            printf "%17s ", $dbref->{'mac'} ;
+            printf "%-8s ", $BaracusSql::baState{ $dbref->{'state'} };
+            print "$dbref->{'uuid'} " if $verbose;
+            print "$dbref->{'creation'} " if $verbose;
             print "$dbref->{'change'}\n";
         }
     }
@@ -513,22 +514,37 @@ sub list() {
             or die "Unable to create new instance of SqlFS\n";
 
         while ( $dbref = &db_list_next( $sth ) ) {
-            my $autoinstallstring = "nf";
-            my $pxehexfilestring  = "nf";
+            my $autostate = "missing";
+            my $pxestate  = "missing";
             my $bootmac = $dbref->{'mac'};
             $bootmac =~ s/:/-/g;
             my $automac = "02-$bootmac";
             $bootmac = "01-$bootmac";
 
-            if ( $sqlfsOBJ->find( $automac ) ) {
-                $autoinstallstring = "ok";
-            }
             if ( $sqlfsOBJ->find( $bootmac ) ) {
-                $pxehexfilestring = "ok";
+                $pxestate = "ok";
             }
-            printf "%23s %-7s %s $autoinstallstring  %s $pxehexfilestring\n",
-                $dbref->{'hostname'}, $BaracusSql::baState{ $dbref->{'state'} },
-                    $automac, $bootmac;
+            if ( $sqlfsOBJ->find( $automac ) ) {
+                $autostate = "ok";
+            }
+
+            # at some point we need logic for the state of the host entry
+            # and the state of the related tftp files for 'verified' reporting.
+            printf "%-16s %-8s  ", $dbref->{'hostname'},
+                $BaracusSql::baState{ $dbref->{'state'} };
+            if ( $verbose ) {
+                printf "%s $pxestate  %s $autostate\n", $bootmac, $automac;
+            } else {
+                if ( $pxestate ne "ok" && $autostate ne "ok" ) {
+                    print "error - tftp files missing\n";
+                } elsif ( $pxestate ne "ok" ) {
+                    printf "error - %s $pxestate\n", $bootmac;
+                } elsif ( $autostate ne "ok" ) {
+                    printf "error - %s $autostate\n", $automac;
+                } else {
+                    print "verified\n";
+            }
+            }
         }
         # disconnect and destroy
         $sqlfsOBJ->discard();
@@ -547,18 +563,19 @@ sub db_list_start
     my $sql;
     my $sth;
 
+    $name =~ s/\*/\%/g;
+    print "db_list_start name: $name\n" if $debug;
+
     if ( $type eq "templates" ) {
 
         $sql = q|SELECT hostname,
                         mac,
                         state
                  FROM templateid
+                 WHERE hostname LIKE ?
                  ORDER BY hostname|;
 
     } elsif ( $type eq "history" ) {
-
-        $name =~ s/\*/\%/g;
-        print "db_list_start history name: $name\n" if $debug;
 
         $sql = q|SELECT hostname,
                         ip,
@@ -569,7 +586,7 @@ sub db_list_start
                         creation,
                         change
                  FROM templateidhist
-                 WHERE hostname LIKE '| .  $name . "'";
+                 WHERE hostname LIKE ?|;
     }
 
     unless ( $sth = $dbh->prepare( $sql ) ) {
@@ -577,7 +594,7 @@ sub db_list_start
         return undef;
     }
 
-    unless ( $sth->execute( ) ) {
+    unless ( $sth->execute( $name ) ) {
         $LASTERROR = "Unable to execute 'list' query" . $sth->err;
         return undef;
     }
