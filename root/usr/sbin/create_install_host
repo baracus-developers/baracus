@@ -33,6 +33,7 @@ my $vars;
 my $add;
 my $remove;
 my $wipe;
+my $autowipe = 0;
 my $list;
 my $verify;
 my $help;
@@ -396,7 +397,11 @@ sub wipe_host_disk() {
         return;
     }
 
-    if ( $sqlfsOBJ->internalDataCopy( "pxetemplate-auto.dban", $mac ) ) {
+    # noautowipe is the safe default - change only if --autowipe passed.
+    my $autofile = "pxetemplate-noautowipe.dban";
+    $autofile = "pxetemplate-autowipe.dban" if ( $autowipe );
+
+    if ( $sqlfsOBJ->internalDataCopy( $autofile, $mac ) ) {
         die "Cannot update host to dban wipe\n" . $sqlfsOBJ->error();
     }
 
@@ -543,7 +548,7 @@ sub list() {
                     printf "error - %s $autostate\n", $automac;
                 } else {
                     print "verified\n";
-            }
+                }
             }
         }
         # disconnect and destroy
@@ -747,6 +752,7 @@ GetOptions(
            'distro=s'   => \$distro,
            'hardware=s' => \$hardware,
            'yasttemplate=s' => \$yasttemplate,
+           'autowipe!'  => \$autowipe,
            'profile=s'  => \$profile,
            'module=s'   => \&multiarg_handler,
            'vars=s'     => \&multiarg_handler,
