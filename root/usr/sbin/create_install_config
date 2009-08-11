@@ -63,13 +63,16 @@ my $dbtftp = "sqltftp";
 
 our $LASTERROR="";
 
-my $man   = 0;
-my $help  = 0;
-my $debug = 0;
-my $quiet = 0;
-my $all   = 0;
+my $man     = 0;
+my $help    = 0;
+my $debug   = 0;
+my $quiet   = 0;
+my $all     = 0;
 my $verbose = 0;
 my $nolabels = 0;
+
+# max_allowed_packets a mysql specific construct
+my $maxlen = 1048575;
 
 my %tbl = (
            'distro'   => 'distro_cfg',
@@ -134,10 +137,6 @@ die "DOES NOT EXECUTE";
 # these constructs are duplicates of those in SqlFS.pm
 # at some point want to break out the guts of baconfig
 # into a refreshed pm and clean up our interfaces....
-
-# max_allowed_packets a mysql specific construct
-my $maxlen = 1048575;
-
 # bytea_encode
 
 # encode bytestream for VARCHAR storage
@@ -186,9 +185,9 @@ sub help
     my $type = shift;
 
     unless ( defined $command ) {
-    pod2usage( -verboase => 0,
-               -exitstatus => 0 );
-}
+        pod2usage( -verboase => 0,
+                   -exitstatus => 0 );
+    }
 
     &check_command( $command );
     $command = lc $command;
@@ -222,12 +221,12 @@ sub man
 
 =head2 list <type> [--all] [--quiet] [match]
 
-    Takes <type> as an argument, (distro, hardware, module, profile).
-    Also takes optional string [ match ] to use for partial matching.
+Takes <type> as an argument, (distro, hardware, module, profile).
+Also takes optional string [ match ] to use for partial matching.
 
-    Lists enabled entries of type, matching match, in filesystem.
+Lists enabled entries of type, matching match, in filesystem.
 If --all is specified all versions (if <type> supports versions)
-    are listed.
+are listed.
 
 =cut
 
@@ -351,24 +350,24 @@ sub add
 
 Where <options and args> are
 
-    --name id              sles10-x86_64 [ default <os>-<arch> ]
-    --os product           sles10
-    --arch                 x86_64, i386, i586 [ default x86_64 ]
-    --sp release           for example ga, sp2.
-    --description "note"   describe the distribution.
+  --name id              sles10-x86_64 [ default <os>-<arch> ]
+  --os product           sles10
+  --arch                 x86_64, i386, i586 [ default x86_64 ]
+  --sp release           for example ga, sp2.
+  --description "note"   describe the distribution.
 
 The pxe arguments describe the kernel and initrd a bootp client should load.
 They must be changed to the installed base kernel and initrd for add-ons.
 
-    --pxekernel linux      for example linux.sles10-sp2-x86_64.
-                           [ default linux.<os>-<sp>-<arch> ]
-    --pxeinitrd initrd     for example initrd.sles10-sp-x86_64.
-                           [ default initrd.<os>-<sp>-<arch> ]
+  --pxekernel linux      for example linux.sles10-sp2-x86_64.
+                         [ default linux.<os>-<sp>-<arch> ]
+  --pxeinitrd initrd     for example initrd.sles10-sp-x86_64.
+                         [ default initrd.<os>-<sp>-<arch> ]
 
 These arguments are for describing HAE, MONO, OES, SLERT add-on products
 
-    --addon                If specified this product is an add-on.
-    --baseos base          Add-on requires this distro. [ no default ]
+  --addon                If specified this product is an add-on.
+  --baseos base          Add-on requires this distro. [ no default ]
 
 =cut
 
@@ -1439,7 +1438,7 @@ sub update_tftp
     $sql_cols =~ s/[ \t]*//g;
 
     $sql = qq|SELECT $sql_cols
-                      FROM $tbl{ $type }
+              FROM $tbl{ $type }
               WHERE name = ?
               ORDER BY id|;
 
@@ -1502,6 +1501,9 @@ sub update_tftp
         }
     }
 
+    # if first change we don't have a value in entry.
+    $save{'change'} = $entry{'change'};
+
     # determine if updating file now so can remove all entries -
     # then add data entries - after update status and desc if needed
 
@@ -1526,7 +1528,7 @@ sub update_tftp
         }
 
         # delete all old entries
-        my $delete = qq|DELETE FROM $tbl{'tftp'} where name = $entry{'name'}|;
+        my $delete = qq|DELETE FROM $tbl{'tftp'} where name = '$entry{'name'}'|;
         unless ( $sth = $tftph->do( $delete ) ) {
             $LASTERROR = "Unable to do 'update' tftp removal\n" .
                 $tftph->errstr;
@@ -1582,10 +1584,10 @@ sub update_tftp
             $file_data = &bytea_encode( $bytes );
             if ( $bytes ) {
                 unless ( $sth->execute( $file_data ) ) {
-            $LASTERROR = "Unable to execute 'update' tftp statement\n" .
-                $sth->err;
-            return 1;
-        }
+                    $LASTERROR = "Unable to execute 'update' tftp statement\n" .
+                        $sth->err;
+                    return 1;
+                }
             }
         }
 
@@ -1630,11 +1632,11 @@ sub update_tftp
         }
     }
 
-        $sth->finish;
-        undef $sth;
+    $sth->finish;
+    undef $sth;
 
     return 0;
-    }
+}
 
 =head2 export E<lt>typeE<gt> <options and args>
 
@@ -1696,7 +1698,7 @@ sub export
     if ( $entry{'name'} eq "" ) {
         $entry{'name'} = $file;
         $entry{'name'} =~ s|.*/||;       # only the short name for the lookup
-}
+    }
 
     my $sql;
     my $db2use = $dbh;
