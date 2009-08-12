@@ -9,11 +9,12 @@ use Tie::IxHash;
 
 
 use constant BA_READY    => 1;
-use constant BA_BUILT   => 2;
-use constant BA_SPOOFED => 3;
-use constant BA_DELETED => 4;
-use constant BA_UPDATED => 5;
+use constant BA_BUILT    => 2;
+use constant BA_SPOOFED  => 3;
+use constant BA_DELETED  => 4;
+use constant BA_UPDATED  => 5;
 use constant BA_DISKWIPE => 6;
+use constant BA_DISABLED => 7;
 
 =item baState
 
@@ -23,19 +24,20 @@ here we define some state constants and a hash to make easy use of them
 
 our %baState = (
                 1          => 'ready',
-               2         => 'built',
-               3         => 'spoofed',
-               4         => 'deleted',
-               5         => 'updated',
+                2          => 'built',
+                3          => 'spoofed',
+                4          => 'deleted',
+                5          => 'updated',
                 6          => 'diskwipe',
+                7          => 'disabled',
                 'ready'    => BA_READY,
-               'built'   => BA_BUILT,
-               'spoofed' => BA_SPOOFED,
-               'deleted' => BA_DELETED,
-               'updated' => BA_UPDATED,
+                'built'    => BA_BUILT,
+                'spoofed'  => BA_SPOOFED,
+                'deleted'  => BA_DELETED,
+                'updated'  => BA_UPDATED,
                 'diskwipe' => BA_DISKWIPE,
-               );
-
+                'disabled' => BA_DISABLED,
+                );
 
 =item keys2columns
 

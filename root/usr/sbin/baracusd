@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 use strict;
 use warnings;
@@ -11,13 +11,17 @@ use lib "/usr/share/baracus/perl";
 use SqlTFTPd qw(%OPCODES);
 use SqlFS;
 
-my $debug = shift;
+my $debug = 0;
 
 my $sysconfigfile = '/etc/sysconfig/baracus';
 my $sysconfig = AppConfig->new( {CREATE => 1} );
 $sysconfig->define( 'baracusdir=s' );
+$sysconfig->define( 'baracus_options=s' );
 $sysconfig->file($sysconfigfile);
 my $baracusdir = $sysconfig->get( 'baracusdir' ); # ~baracus is default
+my $baracus_options=$sysconfig->get( 'baracus_options' );
+
+$debug = 1 if ( defined $baracus_options and $baracus_options =~ m|debug| );
 
 print "\$baracusdir after : $baracusdir EOL\n" if $debug;
 if ( $baracusdir =~ m|^~([^/]*)| ) {
@@ -59,15 +63,16 @@ open(STDERR, ">>$bdir{'logs'}/baracusd")
 
 my $dovalidate = 1;
 our $validatefile = "$bdir{'hooks'}/verify_client_build";
-if (not -e $validatefile) {
-    print STDOUT "Build client verification script not found:\n\t$validatefile\n";
-    print STDOUT "No confirmation of completed builds or do post install hooks\n";
-    print STDOUT "Please check setting of BARACUSDIR in $sysconfigfile\n";
-    $dovalidate = 0;
-}
+our $validatepass = "$bdir{'hooks'}/verify_client_build_passed";
+our $validatefail = "$bdir{'hooks'}/verify_client_build_failed";
+&checkdovalidate();
 
-our $passedfile = "$bdir{'hooks'}/verify_client_build_passed";
-our $failedfile = "$bdir{'hooks'}/verify_client_build_failed";
+my $dopxehook = 1;
+my $dopxehookpass = 1;
+my $dopxehookfail = 1;
+our $pxehookpass = "$bdir{'hooks'}/post_pxe_delivery_passed";
+our $pxehookfail = "$bdir{'hooks'}/post_pxe_delivery_failed";
+&checkdopxehook();
 
 # get baracus id information
 my $user = "baracus";
@@ -75,6 +80,8 @@ my $uid;
 unless ($uid = (getpwnam($user))[2]) {
     die "Attempt to run server as non-existent or super user\n";
 }
+
+# create instance of TFTP server
 my $listener = SqlTFTPd->new( 'Timeout' => 10 )
     or die SqlTFTPd->error;
 
@@ -107,70 +114,35 @@ my $dbsource = "DBI:Pg:dbname=$dbname";
 print STDOUT "dbsource   $dbsource\n";
 
 my $sqlfsOBJ = SqlFS->new( 'DataSource' => "$dbsource",
-                           'User' => "baracus" )
+                           'User' => "baracus",
+                           'debug' => $debug )
     or die "Unable to create new instance of SqlFS\n";
 
 $listener->setSqlFSHandle( $sqlfsOBJ );
 
-# if first time we've launched load the root pxe file
-my $pxefile = "$bdir{'data'}/pxelinux.0";
-unless ( $sqlfsOBJ->find( $pxefile ) )
-{
-    if (not -f $pxefile) {
-        print STDOUT "required file not found: $pxefile";
-        exit 2;
+# load any missing required files
+my @requiredfiles = ( "$bdir{'data'}/pxelinux.0",
+                      "$bdir{'data'}/data/dban.bzi",
+                      "$bdir{'data'}/data/dban.initrd",
+                      "$bdir{'data'}/templates/pxetemplate-autowipe.dban",
+                      "$bdir{'data'}/templates/pxetemplate-noautowipe.dban",
+                     );
+
+foreach my $requiredfile ( @requiredfiles ) {
+    unless ( $sqlfsOBJ->find( $requiredfile ) ) {
+        if (not -f $requiredfile) {
+            print STDOUT "required file not found: $requiredfile";
+            exit 2;
+        }
+        print STDOUT "missing required - adding $requiredfile\n";
+        $sqlfsOBJ->store( $requiredfile );
     }
-    print STDOUT "Initial launch of baracusd - adding $pxefile to db\n";
-    $sqlfsOBJ->store( $pxefile );
 }
 
-# if first time we've launched load the bdan kernel
-my $dbanfile = "$bdir{'data'}/data/dban.bzi";
-unless ( $sqlfsOBJ->find( $dbanfile ) )
-{
-    if (not -f $dbanfile) {
-        print STDOUT "required file not found: $dbanfile";
-        exit 2;
-    }
-    print STDOUT "Initial launch of baracusd - adding $dbanfile to db\n";
-    $sqlfsOBJ->store( $dbanfile );
-}
+# perpetually serve up files from SqlFS database via TFTP
 
-# if first time we've launched load the bdan initrd
-my $dbaninitrd = "$bdir{'data'}/data/dban.initrd";
-unless ( $sqlfsOBJ->find( $dbaninitrd ) )
-{
-    if (not -f $dbaninitrd) {
-        print STDOUT "required file not found: $dbaninitrd";
-        exit 2;
-    }
-    print STDOUT "Initial launch of baracusd - adding $dbaninitrd to db\n";
-    $sqlfsOBJ->store( $dbaninitrd );
-}
-
-# if first time we've launched load the bdan pxe boot file
-my $dbanautopxe = "$bdir{'data'}/templates/pxetemplate-autowipe.dban";
-unless ( $sqlfsOBJ->find( $dbanautopxe ) )
-{
-    if (not -f $dbanautopxe) {
-        print STDOUT "required file not found: $dbanautopxe";
-        exit 2;
-    }
-    print STDOUT "Initial launch of baracusd - adding $dbanautopxe to db\n";
-    $sqlfsOBJ->store( $dbanautopxe );
-}
-
-# if first time we've launched load the bdan pxe boot file
-my $dbanpxe = "$bdir{'data'}/templates/pxetemplate-noautowipe.dban";
-unless ( $sqlfsOBJ->find( $dbanpxe ) )
-{
-    if (not -f $dbanpxe) {
-        print STDOUT "required file not found: $dbanpxe";
-        exit 2;
-    }
-    print STDOUT "Initial launch of baracusd - adding $dbanpxe to db\n";
-    $sqlfsOBJ->store( $dbanpxe );
-}
+# hash ref of ips that have been denied pxe 01-<mac> disabled entries
+my $disabledips = {};
 
 while (1) {
     # wait for any request (RRQ or WRQ)
@@ -178,28 +150,57 @@ while (1) {
         # process request and be done if validateURL
         unless ( $dovalidate && &validateURL( $request ) ) {
 
-            # if 01- mac for pxe we'll upcase MAC portion of the filename
-            if ( $request->{'_REQUEST_'}{'FileName'} =~ m|01(-[0-9a-fA-F]{2}){6}| ) {
-                $request->{'_REQUEST_'}{'FileName'} =~ s|^([^/]*)/||;
-                $request->{'_REQUEST_'}{'FileName'} =~ tr|a-z|A-Z|;
-                $request->{'_REQUEST_'}{'FileName'} =
-                    "$1/" . $request->{'_REQUEST_'}{'FileName'};
-            }
-            printf "Received a %s from peer %s for file '%s'\n",
+            # upcase MAC portion of pxeboot 01-<mac> file
+            &upcasepxefilename( $request );
+
+            printf "Received %s peer %s file '%s'\n",
                 $OPCODES{$request->{'_REQUEST_'}{'OPCODE'}},
                     $request->{'_REQUEST_'}{'PeerAddr'},
                         $request->{'_REQUEST_'}{'FileName'};
 
             # process the request
-            if ($request->processRQ()) {
-                printf STDOUT "Successful delivery to peer %s of file '%s'\n",
-                    $request->{'_REQUEST_'}{'PeerAddr'},
-                        $request->{'_REQUEST_'}{'FileName'};
-
+            my $status = $request->processRQ( $disabledips );
+            if ( $status ) {
+                printf STDOUT "Succeess %s peer %s file '%s' done\n",
+                    $OPCODES{$request->{'_REQUEST_'}{'OPCODE'}},
+                        $request->{'_REQUEST_'}{'PeerAddr'},
+                            $request->{'_REQUEST_'}{'FileName'};
             } else {
                 print STDOUT SqlTFTPd->error;
+                if ( $debug and
+                     ( defined $disabledips->{ $request->{'_REQUEST_'}{'PeerAddr'} } ) ) {
+                    print STDOUT "Disabled PXE peer $request->{'_REQUEST_'}{'PeerAddr'} check tftp entry no|enable flag\n";
+                }
             }
+            &deliverPXE( $request, $status ) if ( $dopxehook );
         }
+    }
+}
+
+exit 0;
+
+die "DOES NOT EXECUTE";
+
+###########################################################################
+
+sub checkdovalidate {
+if (not -e $validatefile) {
+    print STDOUT "Build client verification script not found:\n\t$validatefile\n";
+    print STDOUT "No confirmation of completed builds or do post install hooks\n";
+    print STDOUT "Please check setting of BARACUSDIR in $sysconfigfile\n";
+    $dovalidate = 0;
+}
+}
+
+sub checkdopxehook {
+    if (not -e $pxehookpass) {
+        $dopxehookpass = 0;
+    }
+    if (not -e $pxehookfail) {
+        $dopxehookfail = 0;
+    }
+    unless ( $dopxehookpass or $dopxehookfail ) {
+        $dopxehook = 0;
     }
 }
 
@@ -210,31 +211,77 @@ sub validateURL
     my $ip = $request->{'_REQUEST_'}{'PeerAddr'};
     my $name = $request->{'_REQUEST_'}{'FileName'};
 
-    if ( $name =~ m|.*/baracus/uuid/([-0-9a-zA-Z]{36})\?(\S+).*$| ) {
-        my $uuid=$1;
-        my $hostname=$2;
-#        print STDOUT "VERIFYING hostname $hostname ip $ip uuid $uuid\n";
-        my $status = system("$validatefile $hostname $ip $uuid");
-        if ( $status == 1 ) {
-            print STDOUT "VERIFYING FAILED $hostname $ip $uuid\n";
-            if (-x $failedfile) {
-                print STDOUT "INVOKING $failedfile\n";
-                system("$failedfile $hostname $ip $uuid");
-            } else {
-                print STDOUT "no executable failed script found: $failedfile\n";
-            }
-        } elsif ( $status == 0 ) {
-            print STDOUT "VERIFYING PASSED $hostname $ip $uuid\n";
-            if ( -x $passedfile ) {
-                print STDOUT "INVOKING $passedfile\n";
-                system("$passedfile $hostname $ip $uuid");
-            } else {
-                print STDOUT "no executable passed script found: $passedfile\n";
-            }
-        }
-        # was a valid validate url - even if a spoofing attempt
-        return 1;
+    unless ( $name =~ m|.*/baracus/uuid/([-0-9a-zA-Z]{36})\?(\S+).*$| ) {
+        return 0;
     }
-    # was not a valid validate url - so we need to continue processing tftp
-    return 0;
+
+    my $uuid=$1;
+    my $hostname=$2;
+    # print STDOUT "VERIFYING hostname $hostname ip $ip uuid $uuid\n";
+    my $status = system("$validatefile $hostname $ip $uuid");
+    if ( $status == 1 ) {
+        print STDOUT "VERIFYING FAILED $hostname $ip $uuid\n";
+        if (-x $validatefail) {
+            print STDOUT "INVOKING $validatefail\n";
+            system("$validatefail $hostname $ip $uuid");
+        } else {
+            print STDOUT "no executable failed script found: $validatefail\n";
+        }
+    } elsif ( $status == 0 ) {
+        print STDOUT "VERIFYING PASSED $hostname $ip $uuid\n";
+        if ( -x $validatepass ) {
+            print STDOUT "INVOKING $validatepass\n";
+            system("$validatepass $hostname $ip $uuid");
+        } else {
+            print STDOUT "no executable passed script found: $validatepass\n";
+        }
+    }
+    # was a valid validate url - even if a spoofing attempt
+    return 1;
 }
+
+sub upcasepxefilename {
+    my $request = shift;
+
+    unless ( $request->{'_REQUEST_'}{'FileName'} =~ m|01-((([0-9a-fA-F]){2}-?){6})| ) {
+        return;
+    }
+    $request->{'_REQUEST_'}{'FileName'} =~ s|^([^/]*)/||;  # match prefix and rm
+    $request->{'_REQUEST_'}{'FileName'} =~ tr|a-z|A-Z|;    # upcase
+    $request->{'_REQUEST_'}{'FileName'} =
+        "$1/" . $request->{'_REQUEST_'}{'FileName'};       # put prefix back
+}
+
+sub deliverPXE {
+    my $request = shift;
+    my $tftpsts = shift;
+
+    unless ( $request->{'_REQUEST_'}{'FileName'} =~ m|01-((([0-9a-fA-F]){2}-?){6})| ) {
+        return;
+    }
+
+    # on successful deliver of pxeboot file we may like to automate
+    # some changes of the related entries. for instance for generic
+    # hardware set to always pxe boot we need to disable the related
+    # tftp server build entry. another example, after delivery of the
+    # dban pxeboot file we may want to auto-remove the host template.
+
+    my $mac = $1;
+    my $ip = $request->{'_REQUEST_'}{'PeerAddr'};
+
+    $mac =~ s|\-|:|g;
+
+    if ( defined $tftpsts and $dopxehookpass) {
+        print STDOUT "INVOKING PXE PASS $pxehookpass $mac $ip\n";
+        system("$pxehookpass $mac $ip");
+    } elsif ( $dopxehookfail ) {
+        print STDOUT "INVOKING PXE FAIL $pxehookpass $mac $ip\n";
+        system("$pxehookfail $mac $ip");
+    }
+    return;
+}
+
+die "ABSOLUTELY DOES NOT EXECUTE";
+
+__END__
+

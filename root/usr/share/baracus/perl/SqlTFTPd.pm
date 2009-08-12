@@ -172,11 +172,11 @@ sub setSqlFSHandle
 sub waitRQ
 {
 	# the tftpd object
-#	my $tftpd = shift;
+    # my $tftpd = shift;
 
 	my $self  = shift;
 	my $class = ref($self) || $self;
-# return bless {}, $class;
+    # return bless {}, $class;
 
 	$LASTERROR = '';
 
@@ -253,6 +253,7 @@ sub processRQ
 {
 	# the request object
 	my $self = shift;
+    my $disabledips = shift;
 
 	$LASTERROR = '';
 
@@ -283,7 +284,7 @@ sub processRQ
 					return(undef);
 				}
 
-				if(defined($self->checkFILE()))
+				if(defined($self->checkFILE( $disabledips)))
 				{
 					# file is present
 					if(defined($self->negotiateOPTS()))
@@ -320,7 +321,7 @@ sub processRQ
 				else
 				{
 					# file not found
-					$LASTERROR = sprintf "File '%s' not found\n", $self->{'_REQUEST_'}{'FileName'};
+					$LASTERROR .= sprintf "File '%s' not found\n", $self->{'_REQUEST_'}{'FileName'};
 					$self->sendERR(1);
 					return(undef);
 				}
@@ -349,7 +350,7 @@ sub processRQ
 					return(undef);
 				}
 
-				if(!defined($self->checkFILE()))
+				if(!defined($self->checkFILE( $disabledips )))
 				{
 					# RFC 2347 options negotiated
 					if(defined($self->openFILE()))
@@ -966,13 +967,54 @@ sub checkFILE
 {
 	# the request object
 	my $self = shift;
+    my $disabledips = shift;
 
 	# requested file
 	my $reqfile = $self->{'_REQUEST_'}{'FileName'};
 
 	my $hash = $self->{'SqlFSHandle'}->detail( $reqfile );
 
-	if (not defined $hash) { return undef };
+    return undef unless (defined $hash);        # no entry
+
+    if ( not $hash->{'enabled'} ) {
+
+        unless ( $self->{'_REQUEST_'}{'FileName'} =~ m|01-((([0-9a-fA-F]){2}-?){6})| ) {
+            return undef;
+        }
+
+        my $mac = $1;
+        $mac =~ s|\-|:|;
+
+        # if entry was disabled and filename was 01-<mac>
+        # we need to store off ip to 'miss' next request for default
+
+        $disabledips->{ $self->{'_REQUEST_'}{'PeerAddr'} } = $mac;
+        $LASTERROR = "Disabled PXE peer " .
+            $self->{'_REQUEST_'}{'PeerAddr'} . " file '" .
+            $self->{'_REQUEST_'}{'FileName'} . "'\n";
+        return undef;   # entry disabled
+    }
+    elsif ( $self->{'_REQUEST_'}{'FileName'} =~ m|01-((([0-9a-fA-F]){2}-?){6})| ) {
+        # found 01- entry and it is enabled - make sure ip is not listed disabled
+        if ( defined $disabledips->{ $self->{'_REQUEST_'}{'PeerAddr'} } ) {
+            undef $disabledips->{ $self->{'_REQUEST_'}{'PeerAddr'} } ;
+        }
+    }
+
+    # if we are serving up the default we need to make sure
+    # that the IP of the requestor is not the same as that
+    # of the 01-<mac> that was 'missing' because it was disabled
+
+    if ( $self->{'_REQUEST_'}{'FileName'} =~ m|/default| ) {
+        if ( defined $disabledips->{ $self->{'_REQUEST_'}{'PeerAddr'} } ) {
+            my $pxename = "01-";
+            $pxename .= $disabledips->{ $self->{'_REQUEST_'}{'PeerAddr'} };
+            $pxename =~ s|:|\-|g;
+            $LASTERROR = "Refused  PXE peer " .
+                $self->{'_REQUEST_'}{'PeerAddr'} . " file 'default' as $pxename is disabled\n";
+            return undef;
+        }
+    }
 
 	return ( $self->{'FileSize'} = $hash->{'binsize'} );
 }
@@ -1076,8 +1118,6 @@ sub sendERR
 	my $self = shift;
 	my($errcode, $errmsg) = @_;
 	$errmsg or $errmsg = '';
-
-	$LASTERROR = '';
 
 	my $udpserver = $self->{'_UDPSERVER_'};
 

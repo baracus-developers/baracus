@@ -10,9 +10,6 @@ use lib "/usr/share/baracus/perl";
 use BaracusDB;
 use BaracusSql;
 
-my $execname = $0;
-$execname = $1 if ( $0 =~ m|^.*/([^/].+)| );
-
 =pod
 
 =head1 NAME
@@ -21,7 +18,7 @@ B<baconfig> - baracus tool to manage distro, hardware, module, and profile entri
 
 =head1 SYNOPSIS
 
-B<baonfig> E<lt>commandE<gt> E<lt>typeE<gt> [options and arguments]
+B<baconfig> E<lt>commandE<gt> E<lt>typeE<gt> [options and arguments]
 
 Where E<lt>commandE<gt> is
 
@@ -101,7 +98,7 @@ GetOptions(
            'quiet'    => \$quiet,
            'all'      => \$all,
            'verbose+' => \$verbose,
-           'nolabels'  => \$nolabels,
+           'nolabels' => \$nolabels,
            );
 
 &man()  if $man;
@@ -194,6 +191,9 @@ sub help
 
     # so far only add and update have valid help for type
 
+    my $execname = $0;
+    $execname = $1 if ( $0 =~ m|^.*/([^/].+)| );
+
     if ( defined $type and ( $command eq "add" or $command eq "update" ) ) {
         &check_type( $type );
         $type = lc $type;
@@ -240,8 +240,23 @@ sub list
         &help();
     }
 
-    &check_type( $type );
+    my $tlist = &check_type( $type );
     $type = lc $type;
+
+    # recursive call to list for all types - one shot whammy
+    if ( $type eq "all" ) {
+        my @ltypes = split( /, /, $tlist);
+        my $status;
+        foreach my $ltype ( @ltypes ) {
+            if ( defined $pattern ) {
+                $status = &list( $ltype, $pattern );
+            } else {
+                $status = &list( $ltype );
+            }
+            return $status if $status;
+        }
+        return 0;
+    }
 
     $pattern = "" unless( defined $pattern );
 
@@ -253,36 +268,15 @@ sub list
     }
 
     unless ( $quiet || $nolabels ) {
+        print "--------------------------------------------------------------------------------\n";
         if ( ( $type eq "module" ) || ( $type eq "profile" ) ) {
-
-#        1         2         3         4         5         6         7         8
-#2345678901234567890123456789012345678901324567890123456789012345678901234567890
-
-            print <<'1HEAD';
---------------------------------------------------------------------------------
-name                             ver sts description
---------------------------------------------------------------------------------
-1HEAD
-
+            printf "%-32s ver sts description\n", $type;
         } elsif ( $type eq "tftp" ) {
-
-            print <<'2HEAD';
---------------------------------------------------------------------------------
-name                             cnt sts description
---------------------------------------------------------------------------------
-2HEAD
-
+            printf "%-32s cnt sts description\n", $type;
         } else {
-
-            print <<'3HEAD';
---------------------------------------------------------------------------------
-name                             description
---------------------------------------------------------------------------------
-3HEAD
-
-#2345678901234567890123456789012345678901324567890123456789012345678901234567890
-#        1         2         3         4         5         6         7         8
+            printf "%-32s description\n", $type;
         }
+        print "--------------------------------------------------------------------------------\n";
     }
     while ( my $href = &list_next( $sth ) ) {
         if ( ( $type eq "module" ) || ( $type eq "profile" ) ) {
@@ -1856,15 +1850,16 @@ sub detail
             if ( $all ||
                  $href->{'status'} ||
                  $href->{'version'} == $version ) {
-                print "\n##########\n" if $all;
+                print "\n# ba #####" if $all;
                 unless ( $nolabels ) {
-                    printf "# module: %s\n",      $href->{'moduleid'};
-                    printf "# description: %s\n", $href->{'description'};
-                   #printf "# interpreter: %s\n", $href->{'interpreter'};
-                    printf "# enabled: %s\n",     $href->{'status'}
+                    print  "# ba\n";
+                    printf "# ba module: %s\n",      $href->{'moduleid'};
+                    printf "# ba description: %s\n", $href->{'description'};
+                   #printf "# ba interpreter: %s\n", $href->{'interpreter'};
+                    printf "# ba enabled: %s\n",     $href->{'status'}
                         if ( $all || $version );
-                    printf "# version: %s\n",     $href->{'version'};
-                    print "##########\n";
+                    printf "# ba version: %s\n",     $href->{'version'};
+                    print  "# ba\n";
                 }
                 print  $href->{'data'};
                 $printcount += 1;
@@ -1874,14 +1869,15 @@ sub detail
             if ( $all ||
                  $href->{'status'} ||
                  $href->{'version'} == $version ) {
-                print "\n##########\n" if $all;
+                print "\n# ba #####" if $all;
                 unless ( $nolabels ) {
-                    printf "# profile: %s\n",     $href->{'profileid'};
-                    printf "# description: %s\n", $href->{'description'};
-                    printf "# enabled: %s\n",     $href->{'status'}
+                    print  "# ba\n";
+                    printf "# ba profile: %s\n",     $href->{'profileid'};
+                    printf "# ba description: %s\n", $href->{'description'};
+                    printf "# ba enabled: %s\n",     $href->{'status'}
                         if ( $all || $version );
-                    printf "# version: %s\n",     $href->{'version'};
-                    print "##########\n";
+                    printf "# ba version: %s\n",     $href->{'version'};
+                    print  "# ba\n";
                 }
                 print  $href->{'data'};
                 $printcount += 1;
@@ -1931,13 +1927,15 @@ sub detail
                 if ( defined $chunks and ( $all or $href->{'enabled'} ) ) {
 
                     unless ( $nolabels ) {
-                        printf "#\n# name: %s\n",     $href->{'name'};
-                        printf "# description: %s\n", $href->{'description'};
-                        printf "# enabled: %s\n",     $href->{'enabled'};
-                        printf "# inserted: %s\n",    $href->{'insertion'}
+                        print  "# ba\n";
+                        printf "# ba name: %s\n",     $href->{'name'};
+                        printf "# ba description: %s\n", $href->{'description'};
+                        printf "# ba enabled: %s\n",     $href->{'enabled'};
+                        printf "# ba inserted: %s\n",    $href->{'insertion'}
                             if $verbose;
-                        printf "# modified: %s\n",    $href->{'change'}
+                        printf "# ba modified: %s\n",    $href->{'change'}
                             if ( defined $href->{'change'} && $verbose );
+                        print  "# ba\n";
                     }
                     foreach my $chunk ( @{$chunks} ) {
                         $tftpdata .= &bytea_decode( @{$chunk}[0] );
@@ -2063,17 +2061,20 @@ sub check_command
 sub check_type
 {
     my $type = shift;
-
     my $type_list = "distro, hardware, module, profile, tftp";
+
+    $type = lc $type;
+    return $type_list if ( $type eq "all" );
+
     unless ( defined $type ) {
         print "requires <type> (e.g. $type_list)\n";
         exit 1;
     }
-    $type = lc $type;
     unless ( defined $tbl{ $type } ) {
         print "invalid <type> '$type' please use: $type_list\n";
         exit 1;
     }
+    return $type;
 }
 
 # find - simple lookup to see if entry already exists
