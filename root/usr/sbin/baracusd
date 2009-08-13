@@ -142,7 +142,8 @@ foreach my $requiredfile ( @requiredfiles ) {
 # perpetually serve up files from SqlFS database via TFTP
 
 # hash ref of ips that have been denied pxe 01-<mac> disabled entries
-my $disabledips = {};
+my $pxedisabledips = {};
+my $pxedeliveredips = {};
 
 while (1) {
     # wait for any request (RRQ or WRQ)
@@ -158,8 +159,9 @@ while (1) {
                     $request->{'_REQUEST_'}{'PeerAddr'},
                         $request->{'_REQUEST_'}{'FileName'};
 
-            # process the request
-            my $status = $request->processRQ( $disabledips );
+            # process the request - track 01-<mac> denies and deliveries
+            my $status = $request->processRQ( $pxedisabledips,
+                                              $pxedeliveredips );
             if ( $status ) {
                 printf STDOUT "Succeess %s peer %s file '%s' done\n",
                     $OPCODES{$request->{'_REQUEST_'}{'OPCODE'}},
@@ -168,7 +170,7 @@ while (1) {
             } else {
                 print STDOUT SqlTFTPd->error;
                 if ( $debug and
-                     ( defined $disabledips->{ $request->{'_REQUEST_'}{'PeerAddr'} } ) ) {
+                     ( defined $pxedisabledips->{ $request->{'_REQUEST_'}{'PeerAddr'} } ) ) {
                     print STDOUT "Disabled PXE peer $request->{'_REQUEST_'}{'PeerAddr'} check tftp entry no|enable flag\n";
                 }
             }
@@ -208,30 +210,35 @@ sub validateURL
 {
     my $request = shift;
 
-    my $ip = $request->{'_REQUEST_'}{'PeerAddr'};
     my $name = $request->{'_REQUEST_'}{'FileName'};
 
     unless ( $name =~ m|.*/baracus/uuid/([-0-9a-zA-Z]{36})\?(\S+).*$| ) {
         return 0;
     }
-
     my $uuid=$1;
     my $hostname=$2;
-    # print STDOUT "VERIFYING hostname $hostname ip $ip uuid $uuid\n";
-    my $status = system("$validatefile $hostname $ip $uuid");
+    my $ip = $request->{'_REQUEST_'}{'PeerAddr'};
+    my $mac = "";
+    if ( defined $pxedeliveredips->{ $request->{'_REQUEST_'}{'PeerAddr'} } ) {
+        $mac = $pxedeliveredips->{ $request->{'_REQUEST_'}{'PeerAddr'} };
+    }
+
+    print STDOUT "VERIFYING hostname $hostname ip $ip uuid $uuid mac $mac\n"
+        if $debug;
+    my $status = system("$validatefile $hostname $ip $uuid $mac ");
     if ( $status == 1 ) {
-        print STDOUT "VERIFYING FAILED $hostname $ip $uuid\n";
+        print STDOUT "VERIFYING FAILED $hostname $ip $uuid $mac \n";
         if (-x $validatefail) {
             print STDOUT "INVOKING $validatefail\n";
-            system("$validatefail $hostname $ip $uuid");
+            system("$validatefail $hostname $ip $uuid $mac");
         } else {
             print STDOUT "no executable failed script found: $validatefail\n";
         }
     } elsif ( $status == 0 ) {
-        print STDOUT "VERIFYING PASSED $hostname $ip $uuid\n";
+        print STDOUT "VERIFYING PASSED $hostname $ip $uuid $mac\n";
         if ( -x $validatepass ) {
             print STDOUT "INVOKING $validatepass\n";
-            system("$validatepass $hostname $ip $uuid");
+            system("$validatepass $hostname $ip $uuid $mac");
         } else {
             print STDOUT "no executable passed script found: $validatepass\n";
         }

@@ -2,6 +2,8 @@
 
 host=$1
 ip=$2
-uuid=$3
+
+# uuid=$3
+# mac=$4 - maybe
 
 ssh root@blade9 /etc/nagios/objects/prod/add_hosts $host $ip

@@ -42,3 +42,19 @@ BUILDIP=
 # Currently the only valid option is 'debug'
 #
 BARACUSD_OPTIONS=
+
+## Description:    Automatically disable PXE entry after successful file  delivery
+## Type:           yesno
+## Default:        "no"
+#
+# After successful delivery of the PXE boot file to a build client
+# we can automatically disable the entries in the TFTF db so that
+# on the next PXE boot of the device we will not serve any files
+# and perhaps unintentionally begin a fresh installation.
+#
+# If user needs manual control over this state they are provided 
+#   > bahost <enable|disable> --hostname <name>
+#
+# This variable is used by baracus hook 'post_pxe_delivery_passed'
+
+AUTODISABLEPXE="no"

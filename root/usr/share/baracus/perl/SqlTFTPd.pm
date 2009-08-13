@@ -253,7 +253,8 @@ sub processRQ
 {
 	# the request object
 	my $self = shift;
-    my $disabledips = shift;
+    my $pxedisabledips  = shift;
+    my $pxedeliveredips = shift;
 
 	$LASTERROR = '';
 
@@ -284,7 +285,8 @@ sub processRQ
 					return(undef);
 				}
 
-				if(defined($self->checkFILE( $disabledips)))
+				if(defined($self->checkFILE( $pxedisabledips,
+                                             $pxedeliveredips )))
 				{
 					# file is present
 					if(defined($self->negotiateOPTS()))
@@ -350,7 +352,8 @@ sub processRQ
 					return(undef);
 				}
 
-				if(!defined($self->checkFILE( $disabledips )))
+				if(!defined($self->checkFILE( $pxedisabledips,
+                                              $pxedeliveredips )))
 				{
 					# RFC 2347 options negotiated
 					if(defined($self->openFILE()))
@@ -967,7 +970,8 @@ sub checkFILE
 {
 	# the request object
 	my $self = shift;
-    my $disabledips = shift;
+    my $pxeips_not = shift;  # track IPs for 01-<mac> pxe disabled entries
+    my $pxeips_yes = shift;  # track IPs for 01-<mac> pxe enabled  entries
 
 	# requested file
 	my $reqfile = $self->{'_REQUEST_'}{'FileName'};
@@ -976,40 +980,47 @@ sub checkFILE
 
     return undef unless (defined $hash);        # no entry
 
-    if ( not $hash->{'enabled'} ) {
-
-        unless ( $self->{'_REQUEST_'}{'FileName'} =~ m|01-((([0-9a-fA-F]){2}-?){6})| ) {
-            return undef;
-        }
+    if ( $self->{'_REQUEST_'}{'FileName'} =~ m|01-((([0-9a-fA-F]){2}-?){6})| ) {
+        # special logic for PXE boot files served up via TFTP for baracus
 
         my $mac = $1;
-        $mac =~ s|\-|:|;
+        $mac =~ s|-|:|g;
 
-        # if entry was disabled and filename was 01-<mac>
-        # we need to store off ip to 'miss' next request for default
+        if ( $hash->{'enabled'} ) {
+            # found 01- entry and it is enabled
+            # make sure to remove any _not entry for this ip
+            if ( defined $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} } ) {
+                undef $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} } ;
+            }
+            # we will deilver - store the mac for verify build hook
+            $pxeips_yes->{ $self->{'_REQUEST_'}{'PeerAddr'} } = $mac;
+        }
+        else {
+            # found 01- entry and it is disabled
+            # make sure to remove any _yes entry for this ip
+            if ( defined $pxeips_yes->{ $self->{'_REQUEST_'}{'PeerAddr'} } ) {
+                undef $pxeips_yes->{ $self->{'_REQUEST_'}{'PeerAddr'} } ;
+            }
+            # will not deilver - store the mac for 'miss' on request for 'default'
+            $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} } = $mac;
 
-        $disabledips->{ $self->{'_REQUEST_'}{'PeerAddr'} } = $mac;
-        $LASTERROR = "Disabled PXE peer " .
-            $self->{'_REQUEST_'}{'PeerAddr'} . " file '" .
-            $self->{'_REQUEST_'}{'FileName'} . "'\n";
-        return undef;   # entry disabled
-    }
-    elsif ( $self->{'_REQUEST_'}{'FileName'} =~ m|01-((([0-9a-fA-F]){2}-?){6})| ) {
-        # found 01- entry and it is enabled - make sure ip is not listed disabled
-        if ( defined $disabledips->{ $self->{'_REQUEST_'}{'PeerAddr'} } ) {
-            undef $disabledips->{ $self->{'_REQUEST_'}{'PeerAddr'} } ;
+            $LASTERROR = "Disabled PXE peer " .
+                $self->{'_REQUEST_'}{'PeerAddr'} . " file '" .
+                    $self->{'_REQUEST_'}{'FileName'} . "'\n";
+            return undef;   # entry disabled
         }
     }
+    elsif ( $self->{'_REQUEST_'}{'FileName'} =~ m|/default| ) {
+        # special logic for PXE boot files served up via TFTP for baracus
 
-    # if we are serving up the default we need to make sure
-    # that the IP of the requestor is not the same as that
-    # of the 01-<mac> that was 'missing' because it was disabled
+        # if we are serving up the default we need to make sure
+        # that the IP of the requestor is not the same as that
+        # of the 01-<mac> that was 'missing' because it was disabled
 
-    if ( $self->{'_REQUEST_'}{'FileName'} =~ m|/default| ) {
-        if ( defined $disabledips->{ $self->{'_REQUEST_'}{'PeerAddr'} } ) {
+        if ( defined $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} } ) {
             my $pxename = "01-";
-            $pxename .= $disabledips->{ $self->{'_REQUEST_'}{'PeerAddr'} };
-            $pxename =~ s|:|\-|g;
+            $pxename .= $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} };
+            $pxename =~ s|:|-|g;
             $LASTERROR = "Refused  PXE peer " .
                 $self->{'_REQUEST_'}{'PeerAddr'} . " file 'default' as $pxename is disabled\n";
             return undef;

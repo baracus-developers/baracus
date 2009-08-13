@@ -1,17 +1,13 @@
 #!/usr/bin/perl -w
 
 use strict;
-use POSIX qw/strftime/;
-use Config::General;
-use Config::Simple;
-use File::Temp qw/ tempdir /;
-use XML::Simple;
-use DBI;
-use DBD::Pg qw(:pg_types);
 
 use Getopt::Long qw( :config pass_through );
 use AppConfig;
 use Pod::Usage;
+
+use DBI;
+use DBD::Pg qw(:pg_types);
 
 use lib "/usr/share/baracus/perl";
 
@@ -319,6 +315,7 @@ sub add
     }
     if ( $mac ) {
         $mac = &check_mac( $mac );
+        print "MAC: $mac\n" if $debug;
     } else {
         print "Missing  --mac\n";
         &help( $command );
@@ -326,37 +323,61 @@ sub add
 
     # begin loading of hash used for remainder of processing command
 
-    my %profileHash;
+    my %hash;
+    my $href = \%hash;
 
-    my %tmpHash; # subtle but loading of profile might set modules for later use
+    my $tmphref; # subtle but loading of profile might set modules for later use
 
     $profile = "default" unless ($profile);
-    $profileHash{'profile'} = $profile;
-    &load_profile( \%profileHash, \%tmpHash );
+    $hash{'profile'} = $profile;
+    &load_profile( $href, $tmphref );
+
+    if ($debug) {
+        foreach my $key ( sort ( keys %hash )) {
+            print "add post-profile:  $key => $hash{$key}\n";
+        }
+    }
 
     # distro file may be in profile *and* on command line
     # command line wins over profile entry
-    $profileHash{'distro'} = $distro if ($distro);
+    $hash{'distro'} = $distro if ($distro);
 
     die "Need --distro via commandline or distro= in profile.\n"
-        unless ($profileHash{'distro'});
+        unless ($hash{'distro'});
 
-    &load_distro( \%profileHash );
+    &load_distro( $href );
+
+    if ($debug) {
+        foreach my $key ( sort ( keys %hash )) {
+            print "add post-distro:  $key => $hash{$key}\n";
+        }
+    }
 
     # hardware file may be in profile *and* on command line
     # command line wins over profile entry
-    $profileHash{'hardware'}= $hardware if ($hardware);
+    $hash{'hardware'}= $hardware if ($hardware);
 
     die "Need --hardware via commandline or hardware= in profile.\n"
-        unless ($profileHash{'hardware'});
+        unless ($hash{'hardware'});
 
-    &load_hardware( \%profileHash );
+    &load_hardware( $href );
+
+    if ($debug) {
+        foreach my $key ( sort ( keys %hash )) {
+            print "add post-hardware:  $key => $hash{$key}\n";
+        }
+    }
 
     # module file may be in profile *and* on command line
     # command line wins over profile entry
-    $tmpHash{'module'}= $module if ($module);
+    $tmphref->{'module'}= $module if ($module);
 
-    &load_modules( \%profileHash, \%tmpHash );
+    &load_modules( $href, $tmphref );
+    if ($debug) {
+        foreach my $key ( sort ( keys %hash )) {
+            print "add post-modules:  $key => $hash{$key}\n";
+        }
+    }
 
     ## Commandline options
     ##   - comes after reading profile
@@ -366,9 +387,9 @@ sub add
     ## Mandatory: hostname ip mac
     ##
 
-    $profileHash{'type'} = $type if ($type);
-    $profileHash{'buildip'} = $buildip if ($buildip);
-    $profileHash{'yasttemplate'} = $yasttemplate if ($yasttemplate);
+    $hash{'type'} = $type if ($type);
+    $hash{'buildip'} = $buildip if ($buildip);
+    $hash{'yasttemplate'} = $yasttemplate if ($yasttemplate);
 
     ## If passed on command line via vars, then honor those
     ##
@@ -376,43 +397,45 @@ sub add
         my @varray = split(/ /, $vars);
         foreach my $item (@varray) {
             (my $key, my $value) = split(/=/, $item);
-            $profileHash{$key} = $value;
+            $hash{$key} = $value;
         }
     }
 
     # do not want any setting to override these values
 
-    $profileHash{'cmdline'} = $cmdline;
-    $profileHash{'hostname'} = $hostname;
-    $profileHash{'ip'} = $ip;
-    $profileHash{'mac'} = $mac;
-    $profileHash{'uuid'} = &get_uuid;
+    $hash{'cmdline'} = $cmdline;
+    $hash{'hostname'} = $hostname;
+    $hash{'ip'} = $ip;
+    $hash{'mac'} = $mac;
+    $hash{'uuid'} = &get_uuid;
+    $hash{'buildroot'} = $bdir{'builds'};
+    $hash{'autoinst'} = &automac( $mac );
 
     if ($debug) {
         print "profileHash:\n";
-        foreach my $key ( sort ( keys %profileHash )) {
-            print "add:  $key => $profileHash{$key}\n";
+        foreach my $key ( sort keys %hash ) {
+            print "add:  $key => $hash{$key}\n";
         }
     }
 
     # all user input loaded now finish processing
 
-    &add_autoyast( \%profileHash );
-    &add_pxeboot( \%profileHash );
+    &add_pxeboot( $href );
+    &add_autoyast( $href );
 
     # get any existing db entry
     # if none exists add this new
     # if one exists
     #    and it is deleted we overwrite
     #    and it is not deleted we exit
-    my $dbref = &get_db_host_entry( $profileHash{'hostname'} );
+    my $dbref = &get_db_host_entry( $hostname );
     if ( defined $dbref ) {
-        print "Attempt to add over a non-deleted entry for $profileHash{'hostname'}\n";
+        print "Attempt to add over a non-deleted entry for $hostname\n";
         exit 1;
     }
 
-    &add_db_host_entry( \%profileHash );
-    print "Added $profileHash{'hostname'} template \n";
+    &add_db_host_entry( $href );
+    print "Added $hostname template \n";
 
     return 0;
 }
@@ -553,12 +576,17 @@ sub remove() {
         }
     }
 
-    my $bootmac = $dbref->{'mac'};
-    $bootmac =~ s/:/-/g;
-    my $automac = "02-".$bootmac;
-    $bootmac = "01-".$bootmac;
-
     # remove files from sqlfstable for sqltftpd server
+
+    my $bootmac = &bootmac( $dbref->{'mac'} );
+
+    if ( $sqlfsOBJ->find( "$bootmac" ) ) {
+        if ( $sqlfsOBJ->remove( "$bootmac" ) ) {
+            warn "failed to remove $bootmac from sqlfs\n";
+        }
+    }
+
+    my $automac = &automac( $dbref->{'mac'} );
 
     if ( $sqlfsOBJ->find( "$automac" ) ) {
         if ( $sqlfsOBJ->remove( "$automac" ) ) {
@@ -566,11 +594,9 @@ sub remove() {
         }
     }
 
-    if ( $sqlfsOBJ->find( "$bootmac" ) ) {
-        if ( $sqlfsOBJ->remove( "$bootmac" ) ) {
-            warn "failed to remove $bootmac from sqlfs\n";
-        }
-    }
+    # for proper command history update we 'update' to deleted state
+    $dbref->{'state'} = BaracusSql::BA_DELETED;
+    &update_db_host_entry( $dbref );
 
     &remove_db_host_entry( $hostname );
     print "Removed $hostname template\n";
@@ -579,11 +605,13 @@ sub remove() {
 }
 
 
-=head2 list <templates|history> [--hostname <name>] [--verbose]
+=head2 list <templates|history|commands> [--hostname <name>] [--verbose]
 
 List templates shows all the build client templates and their current status.
 
 List history shows a history of all the changes to the build template table.
+
+List commands shows all the command-line invocations resutlting in a db change.
 
 Options
 
@@ -688,6 +716,7 @@ sub list
         while ( $dbref = &db_list_next( $sth ) ) {
             #
             # hostname ip mac uuid state cmdline creation change
+            print "$dbref->{'change'}:  " if $verbose;
             printf "%s\n", join ' ', ( split /::/, $dbref->{'cmdline'} );
         }
     }
@@ -711,10 +740,10 @@ This command will not modify a build template in the 'wipe' state.
 
 =cut
 
-sub enable  { &enable_disable( "enable",  @_ );}
-sub disable { &enable_disable( "disable", @_ );}
+sub enable  { &_enable_disable_( "enable",  @_ );}
+sub disable { &_enable_disable_( "disable", @_ );}
 
-sub enable_disable
+sub _enable_disable_
 {
     my $command = shift;
 
@@ -767,26 +796,27 @@ sub enable_disable
     }
 
     # pxeboot tftp file name
-    my $mac = $dbref->{'mac'};
-    $mac =~ s/:/-/g;
-    $mac = "01-".$mac;
+    my $bootmac = &bootmac( $dbref->{'mac'} );
 
-    if ( $sqlfsOBJ->update( { 'name' => $mac,
+    if ( $sqlfsOBJ->update( { 'name' => $bootmac,
                               'enabled' => $enabled } ) ) {
-        die "Unable to update status for tftp file $mac\n" . $sqlfsOBJ->error();
+        die "Unable to update status for tftp file $bootmac\n" .
+            $sqlfsOBJ->error();
     }
 
     # autoyast tftp file name
-    $mac =~ s|^01-|02-|;
+    my $automac = &automac( $dbref->{'mac'} );
 
-    if ( $sqlfsOBJ->update( { 'name' => $mac,
+    if ( $sqlfsOBJ->update( { 'name' => $automac,
                               'enabled' => $enabled } ) ) {
-        die "Unable to update status for tftp file $mac\n" . $sqlfsOBJ->error();
+        die "Unable to update status for tftp file $automac\n" .
+            $sqlfsOBJ->error();
     }
 
     $dbref->{'state'} = $BaracusSql::baState{ $state };
-
     &update_db_host_entry( $dbref );
+
+    print "State of $hostname template and tftp files now ${command}d \n";
 
     return 0;
 }
@@ -915,7 +945,7 @@ sub add_db_host_entry() {
     $sth->bind_param( 3, $Hash{'mac'}         );
     $sth->bind_param( 4, $Hash{'uuid'}        );
     $sth->bind_param( 5, BaracusSql::BA_READY );
-    $sth->bind_param( 6, $Hash{'cmdline'}     );
+    $sth->bind_param( 6, $cmdline             );
 
     $sth->execute()
         or die "Cannot execute sth: ", $sth->errstr;
@@ -954,6 +984,7 @@ sub update_db_host_entry() {
                     mac=?,
                     uuid=?,
                     state=?,
+                    cmdline=?,
                     change=CURRENT_TIMESTAMP(0)
                 WHERE hostname=? |;
 
@@ -970,7 +1001,8 @@ sub update_db_host_entry() {
     $sth->bind_param( 2,  $Hash{'mac'}       );
     $sth->bind_param( 3,  $Hash{'uuid'}      );
     $sth->bind_param( 4,  $Hash{'state'}     );
-    $sth->bind_param( 5,  $Hash{'hostname'}  );
+    $sth->bind_param( 5,  $cmdline           );
+    $sth->bind_param( 6,  $Hash{'hostname'}  );
 
     $sth->execute()
         or die "Cannot execute sth: ",$sth->errstr;
@@ -1013,14 +1045,14 @@ sub check_mac
     my $mac = shift;
 
     $mac = uc $mac;
-    $mac =~ s|-\.|:|g;
+    $mac =~ s|[-.]|:|g;
     # check for mac format - normalize to %02X: format
     unless ( $mac =~ m|([0-9A-F]{1,2}:?){6}| ) {
         print "Invalid MAC address format or value string.\n";
         exit 1;
     }
-    $mac =~ m|([0-9A-F]{1,2}:?)([0-9A-F]{1,2}:?)([0-9A-F]{1,2}:?)([0-9A-F]{1,2}:?)([0-9A-F]{1,2}:?)([0-9A-F]{1,2}:?)|;
-    $mac = sprintf "%02X:%02X:%02X:%02X:%02X:%02X",$1,$2,$3,$3,$5,$6 ;
+    $mac =~ m|([0-9A-F]{1,2}):([0-9A-F]{1,2}):([0-9A-F]{1,2}):([0-9A-F]{1,2}):([0-9A-F]{1,2}):([0-9A-F]{1,2})|;
+    $mac = sprintf "%02s:%02s:%02s:%02s:%02s:%02s",$1,$2,$3,$4,$5,$6 ;
 }
 
 sub check_command
@@ -1062,6 +1094,36 @@ sub check_subcommand
     }
 }
 
+sub macback {
+    # get mac back from tftp file name
+    &_boot_auto_mac_( "tftp", @_ );
+}
+sub bootmac {
+    &_boot_auto_mac_( "boot", @_ );
+}
+sub automac {
+    &_boot_auto_mac_( "auto", @_ );
+}
+sub _boot_auto_mac_ {
+    my $type = shift;
+    my $mac  = shift;
+
+    if ( $type eq "tftp" ) {
+        $mac =~ s|^0\d-||;
+        $mac =~ s|-|:|g;
+    }
+    else {
+        $mac =~ s|:|-|g;
+        if ($type eq "boot") {
+            $mac = "01-" . $mac;
+        } elsif ($type eq "auto") {
+            $mac = "02-" . $mac;
+        }
+    }
+    print "$mac\n" if $debug;
+    return $mac;
+}
+
 sub get_uuid() {
 
     ## Generate a new UUID
@@ -1074,6 +1136,7 @@ sub get_uuid() {
 }
 
 sub get_rundate() {
+    use POSIX qw/strftime/;
 
     ## Generate timestamp for run
     ##
@@ -1085,14 +1148,16 @@ sub get_rundate() {
 
 sub load_profile
 {
-    my %profileHash = %{$_[0]};
-    my %tmpHash     = %{$_[1]};
+    use Config::General;
+
+    my $href    = shift;
+    my $tmphref = shift;
 
     my $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ $tbl{'profile'} } );
     $sql_cols =~ s/[ \t]*//g;
     my @cols = split(/,/, $sql_cols);
     my $sql = qq|SELECT $sql_cols FROM $tbl{'profile'}
-                 WHERE profileid = '| . $profileHash{'profile'} . qq|'
+                 WHERE profileid = '| . $href->{'profile'} . qq|'
                  ORDER BY version|;
 
     my $sth;
@@ -1109,100 +1174,101 @@ sub load_profile
         $rowcount += 1;
         $sel = $href if ($href->{'status'});
     }
-    die "Unable to find profile entry for $profileHash{'profile'}.\n"
+    die "Unable to find profile entry for $href->{'profile'}.\n"
         unless ( $rowcount );
-    die "Unable to find *enabled* profile entry for $profileHash{'profile'}.\n"
+    die "Unable to find *enabled* profile entry for $href->{'profile'}.\n"
         unless ( defined $sel );
     print $sel . "\n" if $debug;
 
     # getall is a destructive assignment - so use tmp
     my $conf = new Config::General( -String => $sel->{'data'} );
-    %tmpHash = $conf->getall;
+    my %tmpHash = $conf->getall;
+    $tmphref = \%tmpHash;
 
-    while ( my ($key, $value) = each ( %tmpHash ) ) {
+    while ( my ($key, $value) = each ( %$tmphref ) ) {
         if (ref($value) eq "ARRAY") {
             print "$key is an ARRAY\n";
             print "ARRAYs not yet supported\n";
             exit(1);
-            #           foreach my $avalue (@{$profileHash{$key}}){
+            #           foreach my $avalue (@{$href->{$key}}){
             #               print "$avalue\n";
             #           }
             next;
         }
         if (defined $value) {
             print "profile: $key => $value\n" if $debug;
-            $profileHash{$key} = $value;
+            $href->{$key} = $value;
         } else {
             print "profile: $key => ''\n" if $debug;
-            $profileHash{$key} = "";
+            $href->{$key} = "";
         }
     }
 }
 
 sub load_distro
 {
-    my %profileHash = %{$_[0]};
+    my $href = shift;
 
     my $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ $tbl{'distro'} } );
     $sql_cols =~ s/[ \t]*//g;
     my $sql = qq|SELECT $sql_cols FROM $tbl{'distro'}
-                 WHERE distroid = '| . $profileHash{'distro'} . qq|'|;;
+                 WHERE distroid = '| . $href->{'distro'} . qq|'|;;
     my $sel = $dbh->selectrow_hashref( $sql );
-    die "Unable to find distro entry for $profileHash{'distro'}.\n"
+    die "Unable to find distro entry for $href->{'distro'}.\n"
         unless ( defined $sel );
     print $sel . "\n" if $debug;
     while ( my ($key, $value) = each( %$sel ) ) {
         if (defined $value) {
             print "distro: $key => $value\n" if $debug;
-            $profileHash{$key} = $value;
+            $href->{$key} = $value;
         } else {
             print "distro: $key => ''\n" if $debug;
-            $profileHash{$key} = "";
+            $href->{$key} = "";
         }
     }
 }
 
 sub load_hardware
 {
-    my %profileHash = %{$_[0]};
+    my $href = shift;
 
     my $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ $tbl{'hardware'} } );
     $sql_cols =~ s/[ \t]*//g;
     my $sql = qq|SELECT $sql_cols FROM $tbl{'hardware'}
-                 WHERE hardwareid = '| . $profileHash{'hardware'} . qq|'|;
+                 WHERE hardwareid = '| . $href->{'hardware'} . qq|'|;
     my $sel = $dbh->selectrow_hashref( $sql );
-    die "Unable to find hardware entry for $profileHash{'hardware'}.\n"
+    die "Unable to find hardware entry for $href->{'hardware'}.\n"
         unless ( defined $sel );
     print $sel . "\n" if $debug;
     while ( my ($key, $value) = each( %$sel ) ) {
         if (defined $value) {
             print "hware: $key => $value\n" if $debug;
-            $profileHash{$key} = $value;
+            $href->{$key} = $value;
         } else {
             print "hware: $key => ''\n" if $debug;
-            $profileHash{$key} = "";
+            $href->{$key} = "";
         }
     }
 }
 
 sub load_modules
 {
-    my %profileHash = %{$_[0]};
-    my %tmpHash     = %{$_[1]};
+    my $href    = shift;
+    my $tmphref = shift;
 
     # if profileHash{'module'} was set by reading a profile module= line
-    # we need to clear it from %profileHash as that is for the yast xml
-    # the module value should still be in %tmpHash from 'getall' invocation
+    # we need to clear it from $href as that is for the yast xml
+    # the module value should still be in $tmphref from 'getall' invocation
     # in load_profile
 
-    $profileHash{'module'}='';
+    $href->{'module'}='';
 
     my $sth;
     # incorporate any modules passed into autoinstall formated xml
-    if (defined $tmpHash{'module'} && $tmpHash{'module'}) {
+    if (defined $tmphref->{'module'} && $tmphref->{'module'}) {
         my $modulefile;
-#        $profileHash{'module'} = "    <init-scripts config:type="list">\n";
-        foreach my $item (split(/ /, $tmpHash{'module'})) {
+#        $href->{'module'} = "    <init-scripts config:type="list">\n";
+        foreach my $item (split(/ /, $tmphref->{'module'})) {
 
             my $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ $tbl{'module'} } );
             $sql_cols =~ s/[ \t]*//g;
@@ -1217,33 +1283,91 @@ sub load_modules
             }
 
             my $rowcount = 0;
-            my $sel = undef;
-            while ( my $href = $sth->fetchrow_hashref( ) ) {
+            my $found = undef;
+            while ( my $sel = $sth->fetchrow_hashref( ) ) {
                 $rowcount += 1;
-                $sel = $href if ($href->{'status'});
+                $found = $sel if ($sel->{'status'});
             }
             die "Unable to find module entry for $item.\n"
                 unless ( $rowcount );
             die "Unable to find *enabled* module entry for $item.\n"
-                unless ( defined $sel );
-            print $sel . "\n" if $debug;
+                unless ( defined $found );
+            print $found . "\n" if $debug;
 
             $modulefile="<script>
-        <filename>$sel->{'moduleid'}</filename>
+        <filename>$found->{'moduleid'}</filename>
         <source><![CDATA[";
-            $modulefile .= $sel->{'data'};
+            $modulefile .= $found->{'data'};
             $modulefile .="]]>\n        </source>\n      </script>";
-            $profileHash{'module'} .= $modulefile;
+            $href->{'module'} .= $modulefile;
         }
-#        $profileHash{'module'} .= "\n    </init-scripts>"
+#        $href->{'module'} .= "\n    </init-scripts>"
     }
+}
+
+sub add_pxeboot
+{
+    use File::Temp qw/ tempdir /;
+
+    my $href = shift;
+
+    my $pxeTemplate      = join "/", $bdir{ 'templates' }, $href->{'os'}, $href->{'arch'}, "pxetemplates", $href->{'pxetemplate'};
+
+    if ($debug) {
+        print "pxeTemplate = $pxeTemplate\n";
+    }
+
+    if ( ! -f $pxeTemplate ) {
+        print "\nThe base template files for pxe cannot be found here:\n";
+        print "\n$pxeTemplate\n";
+        print "\nPlease refer to the README found in $bdir{ 'templates' }/\n";
+        exit 1;
+    }
+
+    ## Read in pxe template
+    ##
+    open(TEMPLATE, "<$pxeTemplate") or die "Can't open pxeTemplate $pxeTemplate : $!";
+    my $pxefile = join '', <TEMPLATE>;
+    close(TEMPLATE);
+
+    my $bootmac = &bootmac( $href->{'mac'} );
+
+    # add files to sqlfstable for sqltftpd server
+
+    my $tdir = tempdir();
+
+    if ( $sqlfsOBJ->find( "$bootmac" ) ) {
+        print "$bootmac boot file already exists\n";
+    } else {
+        while ( my ($key, $value) = each %$href ) {
+            $key =~ tr/a-z/A-Z/;
+            $key = "__$key\__";
+            $pxefile =~ s/$key/$value/g;
+        }
+        open(FILE, ">$tdir/$bootmac") || die "Cannot open file $bootmac: $!\n";;
+        print FILE $pxefile;
+        close(FILE);
+
+        if ( $sqlfsOBJ->store( "$tdir/$bootmac",
+                               "pxeboot $href->{'os'} $href->{'sp'} $href->{'arch'}" ) ) {
+            warn "failed to store $tdir/$bootmac in sqlfs\n";
+        }
+        unlink "$tdir/$bootmac";
+
+        if ($verbose) {
+            print "Successfully stored $bootmac \n";
+        }
+    }
+    rmdir $tdir;
 }
 
 sub add_autoyast
 {
-    my %profileHash = %{$_[0]};
+    use File::Temp qw/ tempdir /;
 
-    my $autoYastTemplate = join "/", $bdir{ 'templates' }, $profileHash{'os'}, $profileHash{'arch'}, $profileHash{'yasttemplate'};
+    my $href = shift;
+
+    my $autoYastTemplate = join "/", $bdir{ 'templates' }, $href->{'os'}, $href->{'arch'}, $href->{'yasttemplate'};
 
     if ($debug) {
         print "autoYastTemplate = $autoYastTemplate\n";
@@ -1263,12 +1387,7 @@ sub add_autoyast
     close(TEMPLATE);
 
     my $date = &get_rundate();
-    my $automac = $profileHash{'mac'};
-    $automac =~ s/:/-/g;
-    $automac = "02-".$automac;
-
-    my $automackey = "autoinst";
-    $profileHash{ $automackey } = $automac;
+    my $automac = &automac( $href->{'mac'} );
 
     # add files to sqlfstable for sqltftpd server
 
@@ -1277,82 +1396,27 @@ sub add_autoyast
     if ( $sqlfsOBJ->find( $automac ) ) {
         print "$automac already exists\n";
     } else {
-        while ( my ($key, $value) = each(%profileHash) ) {
+        while ( my ($key, $value) = each %$href ) {
             $key =~ tr/a-z/A-Z/;
             $key = "__$key\__";
             $yastfile =~ s/$key/$value/g;
         }
-        open(FILE, ">$tdir/$automac") || die "Cannot open file $automac: $!\n";
+        open(FILE, ">$tdir/$automac") or
+            die "Cannot open file $automac: $!\n";
         print FILE $yastfile;
-        print FILE "<!-- baracus.Hostname: $profileHash{'hostname'} -->\n";
-        print FILE "<!-- baracus.MAC: $profileHash{'mac'}; -->\n";
+        print FILE "<!-- baracus.Hostname: $href->{'hostname'} -->\n";
+        print FILE "<!-- baracus.MAC: $href->{'mac'}; -->\n";
         print FILE "<!-- baracus.Generated: $date -->\n";
         close(FILE);
 
         if ( $sqlfsOBJ->store( "$tdir/$automac",
-                               "autoinst $profileHash{'os'} $profileHash{'sp'} $profileHash{'arch'}" ) ) {
+                               "autoinst $href->{'os'} $href->{'sp'} $href->{'arch'}" ) ) {
             warn "failed to store $tdir/$automac in sqlfs\n";
         }
         unlink "$tdir/$automac";
 
         if ($verbose) {
-            print "Successfully stored $automac \n";
-        }
-    }
-    rmdir $tdir;
-}
-
-sub add_pxeboot
-{
-    my %profileHash = %{$_[0]};
-
-    my $pxeTemplate      = join "/", $bdir{ 'templates' }, $profileHash{'os'}, $profileHash{'arch'}, "pxetemplates", $profileHash{'pxetemplate'};
-
-    if ($debug) {
-        print "pxeTemplate = $pxeTemplate\n";
-    }
-
-    if ( ! -f $pxeTemplate ) {
-        print "\nThe base template files for pxe cannot be found here:\n";
-        print "\n$pxeTemplate\n";
-        print "\nPlease refer to the README found in $bdir{ 'templates' }/\n";
-        exit 1;
-    }
-
-    ## Read in pxe template
-    ##
-    open(TEMPLATE, "<$pxeTemplate") or die "Can't open pxeTemplate $pxeTemplate : $!";
-    my $pxefile = join '', <TEMPLATE>;
-    close(TEMPLATE);
-
-    my $bootmac = $profileHash{'mac'};
-    $bootmac =~ s/:/-/g;
-    $bootmac = "01-".$bootmac;
-
-    # add files to sqlfstable for sqltftpd server
-
-    my $tdir = tempdir();
-
-    if ( $sqlfsOBJ->find( "$bootmac" ) ) {
-        print "$bootmac boot file already exists\n";
-    } else {
-        while ( my ($key, $value) = each(%profileHash) ) {
-            $key =~ tr/a-z/A-Z/;
-            $key = "__$key\__";
-            $pxefile =~ s/$key/$value/g;
-        }
-        open(FILE, ">$tdir/$bootmac") || die "Cannot open file $bootmac: $!\n";;
-        print FILE $pxefile;
-        close(FILE);
-
-        if ( $sqlfsOBJ->store( "$tdir/$bootmac",
-                               "pxeboot $profileHash{'os'} $profileHash{'sp'} $profileHash{'arch'}" ) ) {
-            warn "failed to store $tdir/$bootmac in sqlfs\n";
-        }
-        unlink "$tdir/$bootmac";
-
-        if ($verbose) {
-            print "Successfully stored $bootmac \n";
+            print "Successfully stored $automac\n";
         }
     }
     rmdir $tdir;

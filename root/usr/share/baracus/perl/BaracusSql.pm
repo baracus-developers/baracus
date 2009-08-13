@@ -218,43 +218,23 @@ RETURNS TRIGGER AS $template_state_trigger$
         new_cmdline VARCHAR;
         new_creation TIMESTAMP;
     BEGIN
-    IF (TG_OP='INSERT') THEN
-        INSERT INTO templateidhist ( hostname,
-                                     ip,
-                                     mac,
-                                     uuid,
-                                     state,
-                                     cmdline,
-                                     creation,
-                                     change )
-        VALUES ( NEW.hostname,
-                 NEW.ip,
-                 NEW.mac,
-                 NEW.uuid,
-                 NEW.state,
-                 NEW.cmdline,
-                 NEW.creation,
-                 CURRENT_TIMESTAMP(0) );
-        RETURN NEW;
-    ELSIF (TG_OP='DELETE') THEN
-        INSERT INTO templateidhist ( hostname,
-                                     ip,
-                                     mac,
-                                     uuid,
-                                     state,
-                                     cmdline,
-                                     creation,
-                                     change )
-        VALUES ( OLD.hostname,
-                 OLD.ip,
-                 OLD.mac,
-                 OLD.uuid,
-                 '4',
-                 OLD.cmdline,
-                 OLD.creation,
-                 CURRENT_TIMESTAMP(0) );
-        RETURN OLD;
-    END IF;
+    INSERT INTO templateidhist ( hostname,
+                                 ip,
+                                 mac,
+                                 uuid,
+                                 state,
+                                 cmdline,
+                                 creation,
+                                 change )
+    VALUES ( NEW.hostname,
+             NEW.ip,
+             NEW.mac,
+             NEW.uuid,
+             NEW.state,
+             NEW.cmdline,
+             NEW.creation,
+             CURRENT_TIMESTAMP(0) );
+    RETURN NEW;
     END;
 $template_state_trigger$ LANGUAGE 'plpgsql';
 |;
@@ -302,7 +282,7 @@ $template_state_trigger$ LANGUAGE 'plpgsql';
 
 sub get_baracus_triggers
 {
-    my $trigger_add_delete = q|AFTER INSERT OR DELETE ON templateid
+    my $trigger_add_delete = q|AFTER INSERT ON templateid
 FOR EACH ROW EXECUTE PROCEDURE template_state_add_delete()
 |;
 

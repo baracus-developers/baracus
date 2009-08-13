@@ -7,16 +7,18 @@ use lib "/usr/share/baracus/perl";
 use BaracusDB;
 use BaracusSql;
 
-my $debug = 0;
+my $debug;
 
-if (@ARGV != 3) {
-  print "usage built_updatedb <hostname> <ip> <uuid>\n\n";
+if ( @ARGV < 3) {
+  print "Usage:\n\tverify_client_build <hostname> <ip> <uuid> [mac]\n";
+  print "\n" . scalar @ARGV . " args passed: " . join (" ", @ARGV ) . "\n";
   exit 1;
 }
 
-my $hostname = shift @ARGV;
-my $ip       = shift @ARGV;
-my $uuid     = shift @ARGV;
+my $hostname = shift;
+my $ip       = shift;
+my $uuid     = shift;
+my $mac      = shift;
 
 my $dbname = "baracus";
 my $dbrole = $dbname;
@@ -33,17 +35,22 @@ my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
 die BaracusDB::errstr unless( $dbh );
 
 # get host template entry if any
-my $dbref = &get_db_host_entry( $dbh, $tblname, $hostname );
+my $dbref = &get_db_host_entry( $hostname );
 unless( defined $dbref ) {
-    print "unable to find template for $hostname ip $ip\n";
+    print "unable to find template for $hostname\n";
     exit 1;
 }
 
-# check that ip and uuid match or state is 3:spoofed
+# check mac and uuid (and ip if template not dhcp) match or state is 3:spoofed
 my $state = 2;
 # check for spoofing of url access
 if (( "$uuid" ne "$dbref->{'uuid'}" ) or
-    ( "$ip"   ne "$dbref->{'ip'}"   )) {
+    (( "$ip"  ne "$dbref->{'ip'}"  ) and
+     ( "dhcp" ne "$dbref->{'ip'}"  ))) {
+    $state = 3;
+}
+
+if ( defined $mac and "$mac" ne "$dbref->{'mac'}" ) {
     $state = 3;
 }
 
@@ -70,8 +77,6 @@ exit 0;
 die "does not execute";
 
 sub get_db_host_entry() {
-    my $dbh = shift;
-    my $tblname = shift;
     my $hostname = shift;
 
     my $tablehash = BaracusSql::get_baracus_tables();
