@@ -120,9 +120,16 @@ sub download_iso() {
     }
     return unless @isofilelist;
 
+    my $username="";
+    my $password="";
     my $proxyaddr="";
     my $pusername="";
     my $ppassword="";
+
+    if ($config->{distribution}->{$os}->{autodownload} eq "no") {
+        print "Automatic download not support on: $os\n";
+        exit(1);
+    }
 
     if ($proxy) {
         print "Please enter proxy address: ";
@@ -138,13 +145,15 @@ sub download_iso() {
         print "\n";
     }
 
-    print "Please enter (novell.com) userid: ";
-    chomp(my $username = ReadLine 0);
+    if ($config->{distribution}->{$os}->{autodownload} eq "auth") {
+        print "Please enter (novell.com) userid: ";
+        chomp($username = ReadLine 0);
 
-    print "Please enter (novell.com) password: ";
-    ReadMode 'noecho';
-    chomp(my $password = ReadLine 0);
-    ReadMode 'normal';
+        print "Please enter (novell.com) password: ";
+        ReadMode 'noecho';
+        chomp($password = ReadLine 0);
+        ReadMode 'normal';
+    }
 
     print "\nDownloading: \n";
     foreach $isofile ( @isofilelist ) {
@@ -990,12 +999,12 @@ sub get_iso() {
     my $file="$iarg/$iso";
     my $br;
     my $ua;
+
     $proxyaddr =~ s/http:\/\///;
     $ENV{'HTTP_PROXY'} = "http:\/\/$pusername:$ppassword\@$proxyaddr";
 
     unless(-d $iarg) {
         mkdir $iarg, 0755 || die ("Cannot create directory\n");
-
     }
 
     if ($proxy) {
@@ -1003,8 +1012,10 @@ sub get_iso() {
     } else {
         $ua = LWP::UserAgent->new(keep_alive => 1 ) || die "$!";
     }
-    $ua->cookie_jar({});
-    $ua->credentials('cdn.novell.com:80', 'iChain', "$username",  "$password" );
+    unless ($config->{distribution}->{$os}->{autodownload} eq "open") {
+        $ua->cookie_jar({});
+        $ua->credentials('cdn.novell.com:80', 'iChain', "$username",  "$password" );
+    }
 
     $| = 1;
     open(FILE, ">$file") || die "Can't open $file: $!\n";
