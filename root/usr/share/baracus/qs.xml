@@ -9,6 +9,7 @@
 		<sp>ga</sp>
 		<arch>x86_64</arch>
 		<description>SUSE Linux Enterprise 11 GA 64bit</description>
+		<autodownload>auth</autodownload>
 		<file iso="SLES-11-DVD-x86_64-GM-DVD1.iso">
 			<md5>50a2bd45cd12c3808c3ee48208e2586b</md5>
 			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-x86_64-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=X8FFufxq0nU~&mirror=AkamaiHost&nohost=false]]></url>
@@ -31,6 +32,7 @@
 		<sp>ga</sp>
 		<arch>i586</arch>
 		<description>SUSE Linux Enterprise 11 GA 32bit</description>
+		<autodownload>auth</autodownload>
 		<file iso="SLES-11-DVD-i586-GM-DVD1.iso">
 			<md5>4958d4dde2575666355c8a1c5858bab0</md5>
 			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-i586-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=-lJMHbIN6s8~&mirror=AkamaiHost&nohost=false]]></url>
@@ -53,6 +55,7 @@
 		<sp>2</sp>
 		<arch>x86_64</arch>
 		<description>SUSE Linux Enterprise 10 SP2 64bit</description>
+		<autodownload>auth</autodownload>
 		<file iso="SLES-10-SP2-DVD-x86_64-GM-DVD1.iso">
 			<md5>dab2c4b8fc9939b33535ab2d321f3f2e</md5>
 			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FxWohTS2zkSs%7E%2FSLES-10-SP2-DVD-x86_64-GM-DVD1.iso&buildid=xWohTS2zkSs~&fileid=ymcKKUqgjzY~&mirror=AkamaiHost&nohost=false]]></url>
@@ -75,6 +78,7 @@
 		<sp>2</sp>
 		<arch>i386</arch>
 		<description>SUSE Linux Enterprise 10 SP2 32bit</description>
+		<autodownload>auth</autodownload>
 		<file iso="SLES-10-SP2-DVD-i386-GM-DVD1.iso">
 			<md5>2b91efeb8a62e2824302bf9269080252</md5>
 			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FxWohTS2zkSs%7E%2FSLES-10-SP2-DVD-i386-GM-DVD1.iso&buildid=xWohTS2zkSs~&fileid=6Hjh1FLHxbI~&mirror=AkamaiHost&nohost=false]]></url>
@@ -97,6 +101,7 @@
 		<sp>4</sp>
 		<arch>i386</arch>
 		<description>SUSE Linux Enterprise 9 SP4 32bit</description>
+		<autodownload>auth</autodownload>
 		<file iso="SLES-9-i386-RC5-CD1.iso">
 			<md5>cc419d86f3f5ff99395ca4de9d967600</md5>
 			<path>sles9/i386/SUSE-SLES-Version-9/CD1</path>
@@ -170,6 +175,7 @@
 		<sp>4</sp>
 		<arch>x86_64</arch>
 		<description>SUSE Linux Enterprise 9 SP4 64bit</description>
+		<autodownload>auth</autodownload>
 		<file iso="SLES-9-x86-64-RC5-CD1.iso">
 			<md5>1fb270a7123895abc846a377c3d1dfdd</md5>
 			<path>sles9/x86_64/SUSE-SLES-Version-9/CD1</path>
@@ -249,6 +255,7 @@
 		<sp>2</sp>
 		<arch>x86_64</arch>
 		<description>SUSE Linux Enterprise 10 Real-Time Add-On SP2 64bit</description>
+		<autodownload>auth</autodownload>
 		<file iso="SLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso">
 			<md5>a8601be6ad153a50d811dada3e4c2d61</md5>
 			<path>sles10/sp2/x86_64/slert</path>
@@ -264,6 +271,7 @@
 		<sp>2</sp>
 		<arch>i386</arch>
 		<description>SUSE Linux Enterprise 10 Real-Time Add-On SP2 32bit</description>
+		<autodownload>auth</autodownload>
 		<file iso="SLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso">
 			<md5>a8601be6ad153a50d811dada3e4c2d61</md5>
 			<path>sles10/sp2/i386/slert</path>
@@ -279,6 +287,7 @@
 		<sp>2</sp>
 		<arch>x86_64</arch>
 		<description>SUSE Linux Enterprise 10 SP2 MONO Add-On 64bit</description>
+		<autodownload>auth</autodownload>
 		<file iso="SLES-10-SP2-Mono-GM-DVD1.iso">
 			<md5>63d8936595c7cf9e3f4d648eb2fdff5d</md5>
 			<path>sles10/sp2/x86_64/mono</path>
@@ -294,6 +303,7 @@
 		<sp>ga</sp>
 		<arch>x86_64</arch>
 		<description>SLES 11 GA High Availability Extension 64bit</description>
+		<autodownload>auth</autodownload>
 		<file iso="SLE-11-HAE-x86_64-GM-DVD1.iso">
 			<md5>2af67dcd5ef29bf3faf3cb6fc1bea371</md5>
 			<path>sles11/ga/x86_64/hae</path>
@@ -309,6 +319,7 @@
 		<sp>ga</sp>
 		<arch>i586</arch>
 		<description>SLES 11 GA High Availability Extension 32bit</description>
+		<autodownload>auth</autodownload>
 		<file iso="SLE-11-HAE-i586-GM-DVD1.iso">
 			<md5>3ce1a860336aac4174daab3d9796ca31</md5>
 			<path>sles11/ga/i586/hae</path>
@@ -324,6 +335,7 @@
 		<sp>ga</sp>
 		<arch>x86_64</arch>
 		<description>SUSE Linux Enterprise 11 GA MONO Add-On 64bit</description>
+		<autodownload>auth</autodownload>
 		<file iso="SLES-11-Mono-GM-DVD1.iso">
 			<md5>8d9907df21cb781fd97848aafedd6838</md5>
 			<path>sles11/ga/x86_64/mono</path>
@@ -339,6 +351,7 @@
 		<sp>ga</sp>
 		<arch>i586</arch>
 		<description>SUSE Linux Enterprise 11 GA MONO Add-On 32bit</description>
+		<autodownload>auth</autodownload>
 		<file iso="SLES-11-Mono-GM-DVD1.iso">
 			<md5>8d9907df21cb781fd97848aafedd6838</md5>
 			<path>sles11/ga/i586/mono</path>
@@ -355,6 +368,7 @@
 		<sp>ga</sp>
 		<arch>x86_64</arch>
 		<description>OpenSuSE 11.1 64bit</description>
+		<autodownload>open</autodownload>
 		<file iso="openSUSE-11.1-DVD-x86_64.iso">
 			<md5>2afee1b8a87175e6dee2b8dbbd1ad8e8</md5>
 			<path>opensuse11.1/ga/x86_64/dvd1</path>
@@ -372,6 +386,61 @@
 			<path>opensuse11.1/ga/x86_64/Addon-Lang</path>
 			<addon>new</addon>
 			<url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-Lang-x86_64.iso]]></url>
+		</file>
+	</distribution>
+
+
+	<distribution>
+		<os>opensuse11.1-i586</os>
+		<basepath>opensuse11.1/ga/i586</basepath>
+		<pxepath>dvd1/boot/i586/loader</pxepath>
+		<sp>ga</sp>
+		<autodownload>open</autodownload>
+		<file iso="openSUSE-11.1-DVD-i586.iso">
+			<md5>8f51b278c0415be28c5699e465444bd3</md5>
+			<path>opensuse11.1/ga/i586/dvd1</path>
+			<addon>base</addon>
+			<url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-DVD-i586.iso]]></url>
+		</file>
+		<file iso="openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso">
+			<md5>8d89efb626b510c2adb3ccd8e407dcc4</md5>
+			<path>opensuse11.1/ga/i586/Addon-NonOss-BiArch</path>
+			<addon>new</addon>
+			<url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso]]></url>
+		</file>
+		<file iso="openSUSE-11.1-Addon-Lang-i586.iso">
+			<md5>7b61aaec0bdd3b959ce075b08299ccc9</md5>
+			<path>opensuse11.1/ga/i586/Addon-Lang</path>
+			<addon>new</addon>
+			<url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-Lang-i586.iso]]></url>
+		</file>
+	</distribution>
+
+	<distribution>
+		<os>rhel5.3-x86_64</os>
+		<basepath>rhel5/3/x86_64</basepath>
+		<pxepath>isolinux</pxepath>
+		<sp>3</sp>
+		<autodownload>no</autodownload>
+		<file iso="rhel-server-5.3-x86_64-dvd.iso">
+			<md5>c5ed6b284410f4d8212cafc78fd7a8c5</md5>
+			<path>rhel5/3/x86_64/dvd1</path>
+			<addon>base</addon>
+			<url><![CDATA[]]></url>
+		</file>
+	</distribution>
+
+	<distribution>
+		<os>rhel5.3-i386</os>
+		<basepath>rhel5/3/i386</basepath>
+		<pxepath>isolinux</pxepath>
+		<sp>3</sp>
+		<autodownload>no</autodownload>
+		<file iso="rhel-server-5.3-i386-dvd.iso">
+			<md5></md5>
+			<path>rhel5/3/i386/dvd1</path>
+			<addon>base</addon>
+			<url><![CDATA[]]></url>
 		</file>
 	</distribution>
 
