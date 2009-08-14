@@ -121,7 +121,7 @@ sub listContent()
 {
 	#my $listcmd = "sudo /usr/share/baracus/perl/directSqlFS.pl list linux.sle".$redir;
 	my $listcmd = "sudo create_install_source verify --distro=*";
-	my $retString = $listcmd."\n";
+	#my $retString = $listcmd."\n";
 	my $retString = $retString.execute( $listcmd);
 	return $retString;
 }
@@ -161,7 +161,7 @@ sub addContent()
 		{
 			$cmd = "perl /$BATools::baPath/modules/expectIP add $distro $user $ePass $paddr $puser $pePass";
 			$pCmd = "perl /$BATools::baPath/modules/expectIP add $distro $user $******** $paddr $puser ********";
-			$r = "Command: $pCmd\n\n".background( $cmd);
+			$r = "\n\n".background( $cmd);
 		}
 		else
 		{
@@ -273,7 +273,7 @@ sub refresh()
 sub execute
 {
 	my $cmd = $_[0];	
-	my $retString = "$cmd\n\n";
+	my $retString = "\n\n";
 	$retString = `$cmd`;
 	return $retString;
 }

@@ -6,7 +6,7 @@ use CGI qw(:standard);
 
 print "Content-type: text/html\n\n";
 
-our $rURL = "configProf";
+our $rURL = "config";
 our $ref = "no";
 our $seconds = 1;
 
@@ -55,11 +55,12 @@ sub getContent
 		
 	if( $op eq "prof")
 	{
+		$rURL = $rURL."Prof";
 		my $pData;
 		my $ver;
 		if( $sub eq "add")
 		{
-			$pData = param('pData');
+			$pData = param('data');
 			my $pName = param('nname');
 		
 			my $tFile = "/tmp/".BATools::generate_random_string().".ba";
@@ -67,7 +68,7 @@ sub getContent
 			print TFILE $pData;
 			close TFILE;	
 		
-			if( !pName || $pName eq "")
+			if( !$pName || $pName eq "")
 			{
 				$r = "Invalid Request\n\nPlease enter a profile name";
 			}
@@ -86,7 +87,7 @@ sub getContent
 		}
 		elsif( $sub eq "upd")
 		{
-			$pData = param('pData');
+			$pData = param('data');
 			$pName = param('profile');
 		
 			my $tFile = "/tmp/".BATools::generate_random_string().".ba";
@@ -100,7 +101,7 @@ sub getContent
 			{
 				$r = $pData;
 				$ref = "yes";
-				$rURL = $rURL."U?pname=$pName";
+				$rURL = $rURL."U?name=$pName";
 				$seconds = 3;
 			}
 		}
@@ -156,12 +157,119 @@ sub getContent
 			if( !$r || $r eq "")
 			{
 				$ref = "yes";
-				$rURL = $rURL."S?pname=$pName&ver=$ver";
+				$rURL = $rURL."S?name=$pName&ver=$ver";
 				$r = "Status Change Success";
 			}
 		}
 	}
+	elsif( $op eq "mod")
+	{
+		$rURL = $rURL."Mod";
+		my $Data;
+		my $ver;
+		if( $sub eq "add")
+		{
+			$Data = param('data');
+			my $Name = param('nname');
 		
+			my $tFile = "/tmp/".BATools::generate_random_string().".ba";
+			open( TFILE, "> $tFile");
+			print TFILE $Data;
+			close TFILE;	
+		
+			if( !$Name || $Name eq "")
+			{
+				$r = "Invalid Request\n\nPlease enter a module name";
+			}
+			else
+			{
+				$r = BAdb::addModuleFromFile( $Name, $tFile);
+			}			
+			
+			if( !$r || $r eq "")
+			{
+				$ref = "yes";
+				$rURL = $rURL."A";
+				$seconds = 3;
+				$r = "Add Success: $Name";
+			}
+		}
+		elsif( $sub eq "upd")
+		{
+			$Data = param('data');
+			$Name = param('module');
+		
+			my $tFile = "/tmp/".BATools::generate_random_string().".ba";
+			open( TFILE, "> $tFile");
+			print TFILE $Data;
+			close TFILE;	
+		
+			$r = BAdb::updateModuleFromFile( $Name, $tFile);
+			
+			if( !$r || $r eq "")
+			{
+				$r = $Data;
+				$ref = "yes";
+				$rURL = $rURL."U?name=$Name";
+				$seconds = 3;
+			}
+		}
+		elsif( $sub eq "del")
+		{
+			$Name = param('module');
+			$ver = param('ver') || -1;
+
+			if( $Name)
+			{
+				$r = BAdb::removeModule( $Name, $ver);
+			}
+			else
+			{
+				$r = "Error: No module selected.\n";	
+			}		
+			
+			if( !$r || $r eq "")
+			{
+				$ref = "yes";
+				$rURL = $rURL."D";
+				$r = "Delete Success";
+			}
+		}
+		elsif( $sub eq "sta")
+		{
+		
+			$Name = param('module');
+			$ver = param('ver') || -1;
+			$sta = param('sta') || -1;
+
+			if( $Name)
+			{
+				if( $sta eq 1)
+				{
+					$r = BAdb::disableModule( $Name, $ver);
+				}
+				elsif( $sta < 1)
+				{
+					$r = BAdb::enableModule( $Name, $ver);
+				}
+				else
+				{
+					$r = "Error: Invalid Status: $sta";
+				}
+			}
+			else
+			{
+				$r = "Error: No module selected.\n";	
+			}		
+			
+			if( !$r || $r eq "")
+			{
+				$ref = "yes";
+				$rURL = $rURL."S?name=$Name&ver=$ver";
+				$r = "Status Change Success";
+			}
+		}
+	}
 	return $r; 
 }
 sub getHeader
@@ -178,6 +286,17 @@ sub getHeader
 		elsif( $sub eq "del")
 		{
 			$r = "Deleting: ".param('profile');
+		}
+	}
+	elsif( $op eq "mod")
+	{
+		if( $sub eq "add")
+		{
+			$r = "Adding: ".param('nname');
+		}
+		elsif( $sub eq "del")
+		{
+			$r = "Deleting: ".param('module');
 		}
 	}
 	return $r

@@ -14,7 +14,7 @@ my %tbl = (
            );
 
 ###########################################################################################
-# Get Distributions From Database
+# Distribution Functions
 ###########################################################################################
 
 sub getAllDistros
@@ -156,7 +156,7 @@ sub getAllDistrosFromDB
 }
 
 ###########################################################################################
-# Profile Data From Database
+# Profile Functions
 ###########################################################################################
 
 sub getProfileListFromDB
@@ -306,6 +306,173 @@ sub disableProfile
 	my $cmd = "sudo baconfig update profile --name $name $version --noenable";
 	my $result = `$cmd`;
 	return $result;	
+}
+
+###########################################################################################
+# Module Functions
+###########################################################################################
+
+sub getModule
+{
+	my $name = shift @_;
+	my $ver = shift @_;
+	my $labels = shift @_;
+	if( $labels eq "no")
+	{
+		$labels = "--nolabels";
+	}
+	else
+	{
+		$labels = "";
+	}
+	my $cmd = "sudo baconfig detail module $name $labels";
+	if( $ver ne -1 && $ver ne "" && $ver ne "undefined")
+	{
+		$cmd = $cmd." --version $ver";
+	}
+	my $result = `$cmd`;
+	return $result."\n\n";
+}
+sub addModuleFromFile
+{
+	my $name = shift @_;
+	my $file = shift @_;
+	chomp( $file);
+	chomp( $name);
+	my $cmd = "sudo baconfig add module --name $name --file $file";
+	my $result = `$cmd`;
+	return $result;	
+}
+sub updateModuleFromFile
+{
+	my $name = shift @_;
+	my $file = shift @_;
+	chomp( $file);
+	chomp( $name);
+	my $cmd = "sudo baconfig update module --name $name --file $file";
+	my $result = `$cmd`;
+	return $result;	
+}
+sub removeModule
+{
+	my $name = shift @_;
+	my $ver = shift @_;
+	my $version = "";
+	if( $ver ne -1 && $ver ne "")
+	{
+		$version = "--version $ver";
+	}
+	
+	my $cmd = "sudo baconfig remove module $name $version";
+	my $result = `$cmd`;
+	return $result;	
+}
+
+sub enableModule
+{
+	my $name = shift @_;
+	my $ver = shift @_;
+	my $version = "";
+	if( $ver ne -1 && $ver ne "")
+	{
+		$version = "--version $ver";
+	}
+	
+	my $cmd = "sudo baconfig update module --name $name $version --enable";
+	my $result = `$cmd`;
+	return $result;	
+}
+
+sub disableModule
+{
+	my $name = shift @_;
+	my $ver = shift @_;
+	my $version = "";
+	if( $ver ne -1 && $ver ne "")
+	{
+		$version = "--version $ver";
+	}
+	
+	my $cmd = "sudo baconfig update module --name $name $version --noenable";
+	my $result = `$cmd`;
+	return $result;	
+}
+
+sub getModuleList
+{
+	my $mcmd = "sudo baconfig list module --quiet";
+	
+	my $mstring = `$mcmd`; 
+	my @marray = split("\n", $mstring);
+	foreach( @marray)
+	{
+		$_ = BATools::trim($_);
+	}
+	
+	return @marray;	
+}
+
+sub getModuleListAll
+{
+	my $cmd = "sudo baconfig list module -all --quiet | uniq";
+	my $result = `$cmd`;
+	my @array = split( "\n", $result);
+	
+	foreach( @array)
+	{
+		$_ = BATools::trim($_);
+	}
+	return @array;
+}
+
+sub getModuleVersionList
+{
+	my $name = shift @_;
+	my $enabled = shift @_;
+	my $cmd = "sudo baconfig list module $name --all";
+	my @vArray;
+	my $count = 0;
+	open( RSLT, "$cmd |") || die "Failed: $!\n";
+	
+	while( $line = <RSLT>)
+	{
+		++ $count;	
+		if( $count > 3)
+		{
+			my @items = split( " ", $line);
+			my $pushVer =  @items[1];
+			if( $enabled eq "yes")
+			{
+				$pushVer = @items[1]."/".@items[2];
+			}
+			push( @vArray, $pushVer);
+		}
+	}
+	return @vArray;
+}
+
+###########################################################################################
+# Hardware Functions
+###########################################################################################
+
+sub getHardwareList
+{
+	my $hwcmd = "sudo baconfig list hardware --quiet";
+	
+	my $hwstring = `$hwcmd`; 
+	my @hwarray = split("\n", $hwstring);
+	foreach( @hwarray)
+	{
+		$_ = BATools::trim($_);
+	}
+	
+	return @hwarray;
+}
+sub getHardware
+{
+	my $name = shift @_;
+	$cmd = "sudo baconfig detail hardware $name";
+	return `$cmd`;
 }
 
 1;

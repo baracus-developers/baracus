@@ -59,10 +59,10 @@ print <<HTML1;
 	</head>
 	
 	<body bgcolor="white" onClick="parent_disable();">
-	<div id="title">&nbsp;&nbsp;[ baracus ]</div> 
+	<div id="title"><img src="/baracus/images/balogo.gif" height="65" \></div> 
 	<div id="subtitle">&nbsp;&nbsp;Linux Solutions Group</div> 
 	<div id="line">	<hr size="10" align="left"></div>
-	<div id="logo"><img src="/$BATools::baRoot/images/Geeko_icon_bubble.png"\></div>
+	<div id="logo"></div>
 	<div id="nvlogo"><a href="http://www.novell.com"><img src="/$BATools::baRoot/images/nov_blk.gif"\></a></div>
 
 	<div id='mmenu'>

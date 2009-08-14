@@ -126,7 +126,7 @@ sub getHardwareSelectionList
 
 	$retString = "<select name='hardware' enabled $script>\n";
 
-	@hwarray = getHardware();
+	@hwarray = BAdb::getHardwareList();
 
 	foreach $val (@hwarray)
 	{
@@ -162,20 +162,6 @@ sub getHardwareSelectionList
 	return $retString;	
 }
 
-sub getHardware
-{
-	my $hwcmd = "sudo baconfig list hardware --quiet";
-	
-	my $hwstring = `$hwcmd`; 
-	my @hwarray = split("\n", $hwstring);
-	foreach( @hwarray)
-	{
-		$_ = trim($_);
-	}
-	
-	return @hwarray;
-}
-
 
 ###########################################################################################
 #  Generate Random String              
@@ -202,7 +188,7 @@ sub getModuleSelectionList
 {
 	my $retString = "";
 
-	my @dots = getModuleList();	
+	my @dots = BAdb::getModuleList();	
  
 	foreach (@dots)
 	{
@@ -233,19 +219,7 @@ sub getModuleListFromDir
 	return @filtered;
 }
 
-sub getModuleList
-{
-	my $mcmd = "sudo baconfig list module --quiet";
-	
-	my $mstring = `$mcmd`; 
-	my @marray = split("\n", $mstring);
-	foreach( @marray)
-	{
-		$_ = trim($_);
-	}
-	
-	return @marray;	
-}
+
 
 ###########################################################################################
 #  Get Currently Processing List              

@@ -29,6 +29,6 @@ HTML
 sub getContent
 {
 	
-	my $hostCmd = "sudo create_install_host list templates $verbose $redir";
+	my $hostCmd = "sudo create_install_host list templates $redir";
 	return BATools::execute( $hostCmd);
 }

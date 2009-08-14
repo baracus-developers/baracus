@@ -6,17 +6,15 @@ use BATools qw(:standard);
 use vars qw( %hash @array);
 use CGI qw(:standard);
 
-my $op = param('op') || "Distribution";
+my $op = param('op') || "Hardware";
 my $sub = param('sub') || "";
 my $current = "";
 
-my @tmenu = ( 	"Distribution",
-				"Hardware",
+my @tmenu = ( 	"Hardware",
 				"Module/list/status/update/add/delete",
 				"Profile/list/status/update/add/delete");
 				
-my @tlink = ( 	"configDist",
-				"configHW",
+my @tlink = ( 	"configHW",
 				"configMod/configMod/configModS/configModU/configModA/configModD",
 				"configProf/configProf/configProfS/configProfU/configProfA/configProfD");		
 

@@ -54,7 +54,7 @@ $fileName = $filePath.$fileName;
 $log = $logPath.$log;
 
 chomp($date);
-my $header = "basource $op $distro --iso --proxy ----- $date\n$cmd\n\n";
+my $header = "basource $op $distro --iso --proxy ----- $date\n\n";
 
 open (NEWFILE, ">$fileName") || die "Error: $!";
 print NEWFILE "$header";

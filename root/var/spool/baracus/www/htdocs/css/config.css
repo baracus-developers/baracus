@@ -6,7 +6,7 @@
 	font-size:12pt;
 	color:white;
 }
-#config select.profile
+#config select.name
 {
 	position:absolute;
 	top:25;
@@ -23,7 +23,7 @@
 	width:200;
 	color:#6DB33F;
 } 
-#config font.profile
+#config font.name
 {
 	position:absolute;
 	top:5;

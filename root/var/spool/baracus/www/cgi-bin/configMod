@@ -4,9 +4,13 @@ use lib '/var/spool/baracus/www/modules';
 use BATools qw(:standard);
 use CGI qw(:standard);
 
-my $mods = getContent();
+my $mName = param('name') || "";
+my $nName = param('nname') || "";
+our $ver = param('ver') || -1;
 
-my $ccurl = "";
+my $versions = getVersions( $mName);
+my $items = getItems();
+my $template = getTemplate( $mName);
 
 print "Content-type: text/html\n\n";
 
@@ -15,37 +19,104 @@ print <<HTML0
 <html>
 	<head>
 		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
-		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
-		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
+		<link rel='stylesheet' href='/$BATools::baRoot/css/config.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body background="/baracus/images/bg06.jpg">
-		<div id='f-labels'>
+	<body background="/baracus/images/bg06.jpg" onLoad='selectThis(document.form1.mTemp, "$mName")'>
+		<form action="/baracus/ba/configHandler" name='form1'>
+		<div id='config'>
 		<div id='history'>Module List</div>
-		<div id='block1'>
-		<br><br><h3>&nbsp;Please select for more information</h3>
+		<div id='textEdit'>
+		<font class='name'>Module</font>
+		$items
+		<font class='version'>Version</font>
+		$versions
+		<br><br>
+		<font class='data'>Module Data</font>
+		<textarea name='data' disabled>$template</textarea>
 		</div>
-		<div id='block2'>
-		$mods
+		<input type='hidden' name='op' value='mod'>
+		<input type='hidden' name='sub' value='add'>
 		</div>
-		<div id='status'>
-		<iframe src=\"$ccurl\" scrolling='no' height='100%' width='100%' frameborder='0' id='infoBox' ></iframe>
-		</div>
-		</div>
+		</form>
 	</body>
 </html>
-
 HTML0
 ;
 
-sub getContent
+sub getItems
 {
 	my $r = "";
-	$r = $r."<form name='createAdd'>\n";
-	$r = $r."<select name='module' size='25' onClick='modUpdate()'>";
-	$r = $r.BATools::getModuleSelectionList();
-	$r = $r."</select>";
-	$r = $r."</form>\n";
+	$r = $r."<select class='name' name='mTemp' size='5' onClick='confReload(this.value, \"\", -1)'>";
 	
+	my @modules = BAdb::getModuleListAll();
+	foreach( @modules)
+	{
+		$r = $r."<option value='$_'>$_</option>\n";	
+	}
+	
+	$r = $r."</select>";
+	
+	return $r;
+}
+
+sub getTemplate
+{
+	my $mod = $_[0];
+	if( $mod eq "")
+	{
+		$r = "";
+	}
+	else
+	{
+		$r = BAdb::getModule( $mod, $ver, "yes");
+	}
+	return $r;
+}
+
+sub getVersions
+{
+	my($mName) = @_;
+	my $r = "";
+	my $selected = "";
+	my $count = 0;
+	my @verSplit;
+	
+	$r = $r."<select class='version' size='5' onClick='confReload( \"$mName\", \"\", this.value)'>\n";
+
+	if( $mName ne "")
+	{
+		my @vList = BAdb::getModuleVersionList( $mName, "yes");
+		foreach( @vList)
+		{
+			@verSplit = split( "/", $_);
+			$xVer = @verSplit[0];
+			$xSta = @verSplit[1];
+			$status = $xSta eq  1 ? "enabled" : "disabled";
+			if( $ver eq -1 && $count eq 0)
+			{
+				$selected = "selected";
+				$ver = $xVer;
+				$sta = $xSta;
+			}
+			elsif( $ver ne -1 && $ver eq $xVer)
+			{
+				$selected = "selected";
+				$sta = $xSta;
+			}
+			else
+			{
+				$selected = "";
+			}
+	
+			$r = $r."<option $selected value='$xVer'>version $xVer&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( $status )</option>\n";
+			++ $count;
+		}
+	}
+	
+	$r = $r."</select>\n";
+	$r = $r."<input type='hidden' name='ver' value='$ver'>\n";
+	$r = $r."<input type='hidden' name='sta' value='$sta'>\n";
+
 	return $r;
 }

@@ -7,7 +7,7 @@
     border:2px solid black;
     position:absolute;
     width:240;
-    height:600;
+    height:640;
 	top:150px;
 	left:10px;
 }
@@ -105,8 +105,8 @@
 {
 	width:100;	
 	position:absolute;
-	top:700px;
-	left:120px;
+	top:740px;
+	left:125px;
 	border:none;
 }
 #title
@@ -123,8 +123,8 @@
 	color:6A737B;
 	font-size: 12pt;
 	position:absolute;
-	top:30px;
-	left:770px;
+	top:68px;
+	left:765px;
 }
 #geeko img
 {
@@ -132,6 +132,7 @@
 	position:absolute;
 	left:820;
 	top:700;
+    display:none;
 }
 
 /* OUTPUT */
@@ -207,46 +208,6 @@
 }
 
 /* DEBUG */
-#statusTall
-{
-	width:280;
-	height:450;
-	position:absolute;
-	top:150;
-	left:300px;
-	border:2px dotted #B2D68C;
-}
-#statusTall textarea
-{
-	background-color: E4E5E6;
-	position:absolute;
-	left:0;
-	top:0;
-	font-family:arial;
-	font-size:9pt;
-	width:280;
-	height:450;
-	color:black;
-	padding-left:10px;
-}
-#inStatusTall
-{
-}
-#inStatusTall textarea
-{
-	background-color: E4E5E6;
-	position:absolute;
-	left:0;
-	top:0;
-	font-family:arial;
-	font-size:9pt;
-	width:280;
-	height:450;
-	color:black;
-	padding-left:10px;
-}
-
-/* DEBUG */
 #statusW
 {
 	width:580;
@@ -287,12 +248,7 @@
 	color:black;
 	padding-left:10px;
 }
-#inAbove
-{
-	position:absolute;
-	left:0;
-	top:0;
-}
+
 #inStatusW
 {
 	color:blue;

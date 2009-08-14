@@ -19,7 +19,7 @@ my $cmd = "sudo basource $op --distro $distro 2>&1";
 
 chomp($date);
 open (NEWFILE, ">$fileName") || die "Error: $!";
-print NEWFILE "$op $distro ----- $date\n$cmd\n\n";
+print NEWFILE "$op $distro ----- $date\n\n";
 close (NEWFILE);
 
 

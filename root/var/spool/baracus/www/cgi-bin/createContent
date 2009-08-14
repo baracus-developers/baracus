@@ -83,7 +83,7 @@ sub getContent
 	}
 	elsif( $a eq "template")
 	{
-		$cmd = "sudo bahost verify --hostname $v";
+		$cmd = "sudo bahost list template --host $v --verbose";
 		$r = "Host $v Detail\n\n";
 		$r = $r.`$cmd`."\n\n";
 	}

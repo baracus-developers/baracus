@@ -5,12 +5,11 @@ use BATools qw(:standard);
 use CGI qw(:standard);
 
 my $Name = param('name') || "";
-my $nName = param('nname') || "";
+our $nName = param('nname') || "";
 our $ver = param('ver') || -1;
-our $sta = param('sta') || -1;
 
 my $versions = getVersions( $Name);
-my $profiles = getProfiles();
+my $items = getItems();
 my $template = getTemplate( $Name);
 
 print "Content-type: text/html\n\n";
@@ -23,23 +22,25 @@ print <<HTML0
 		<link rel='stylesheet' href='/$BATools::baRoot/css/config.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body background="/baracus/images/bg06.jpg" onLoad='selectThis(document.form1.profile, "$Name")'>
+	<body background="/baracus/images/bg06.jpg" onLoad='selectThis(document.form1.module, "$Name")'>
 		<form action="/baracus/ba/configHandler" name='form1'>
 		<div id='config'>
-		<div id='history'>Profile Delete</div>
+		<div id='history'>Module Add</div>
 		
 		<div id='textEdit'>
-		<font class='name'>Profile</font>
-		$profiles
+		<font class='name'>Template</font>
+		$items
 		<font class='version'>Version</font>
 		$versions
 		<br><br>
-		<font class='data'>Profile Data</font>
-		<textarea name='data' disabled>$template</textarea>
+		<font class='data'>Module Data</font>
+		<textarea name='data'>$template</textarea>
+		<font class='nname'>Module Name</font>
+		<input class='nname' type='text' name='nname' value="$nName"\>
 		</div>
-		<input class='submit' type='submit' name='submit' value='Delete' onClick='return verifyDelete( this.form.profile.value + " (version " + this.form.versions.value + ")")'/>
-		<input type='hidden' name='op' value='prof'>
-		<input type='hidden' name='sub' value='del'>
+		<input class='submit' type='submit' name='submit' value='Add' onClick='return verify( this.form.nname, \"You must enter a Module Name\")'/>
+		<input type='hidden' name='op' value='mod'>
+		<input type='hidden' name='sub' value='add'>
 		</div>
 		</form>
 	</body>
@@ -47,13 +48,13 @@ print <<HTML0
 HTML0
 ;
 
-sub getProfiles
+sub getItems
 {
 	my $r = "";
-	$r = $r."<select class='name' name='profile' size='5' onClick='confReload(this.value, \"\", -1)'>";
+	$r = $r."<select class='name' name='module' size='5' onClick='confReload(this.value, this.form.nname.value, -1)'>";
 	
-	my @profiles = BAdb::getProfileListAllFromDB();
-	#$r = $r."\n<option value=''>PLEASE SELECT</option>\n";
+	my @profiles = BAdb::getModuleListAll();
+	$r = $r."\n<option value=''>BLANK</option>\n";
 	foreach( @profiles)
 	{
 		$r = $r."<option value='$_'>$_</option>\n";	
@@ -66,14 +67,14 @@ sub getProfiles
 
 sub getTemplate
 {
-	my $prof = $_[0];
-	if( $prof eq "")
+	my $mod = $_[0];
+	if( $mod eq "")
 	{
 		$r = "";
 	}
 	else
 	{
-		$r = BAdb::getProfileFromDB( $prof, $ver, "yes");
+		$r = BAdb::getModule( $mod, $ver, "no");
 	}
 	return $r;
 }
@@ -86,11 +87,11 @@ sub getVersions
 	my $count = 0;
 	my @verSplit;
 	
-	$r = $r."<select class='version' name='versions' size='5' onClick='confReload( \"$Name\", \"\", this.value)'>\n";
+	$r = $r."<select class='version' size='5' onClick='confReload( \"$Name\", \"\", this.value)'>\n";
 
 	if( $Name ne "")
 	{
-		my @vList = BAdb::getPofileVersionList( $Name, "yes");
+		my @vList = BAdb::getModuleVersionList( $Name, "yes");
 		foreach( @vList)
 		{
 			@verSplit = split( "/", $_);
@@ -124,3 +125,4 @@ sub getVersions
 
 	return $r;
 }
+

@@ -81,15 +81,9 @@ function selectThis( s, v)
    	}
 }
 
-function profReload( pname, nname, ver)
+function confReload( name, nname, ver)
 {
-	var url = rURL + "?pname=" + pname + "&nname=" + nname + "&ver=" + ver;
-	refresh( url);
-}
-
-function profReload2( s, n)
-{
-	var url = rURL + "?name=" + n.value + "&temp=" + s.value;
+	var url = rURL + "?name=" + name + "&nname=" + nname + "&ver=" + ver;
 	refresh( url);
 }
 
@@ -150,12 +144,6 @@ function profUpdate( sel, tall, ver)
 {
 	var url = "/baracus/ba/createContent?caller=create&attr=profile&val=" + sel + "&t=" + tall + "&ver=" + ver;
 	document.getElementById("infoBox").src=url;
-}
-
-function profVerUpdate( pName, ver)
-{
-	var url = "/baracus/ba/createContent?caller=create&attr=profile&val=" + pName + "&t=yes" + "&ver=" + ver;
-	refresh( url);
 }
 
 function distUpdate()

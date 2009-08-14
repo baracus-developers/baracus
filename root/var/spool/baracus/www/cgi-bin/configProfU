@@ -4,13 +4,13 @@ use lib '/var/spool/baracus/www/modules';
 use BATools qw(:standard);
 use CGI qw(:standard);
 
-my $pName = param('pname') || "";
+my $Name = param('name') || "";
 our $nName = param('nname') || "";
 our $ver = param('ver') || -1;
 
-my $versions = getVersions( $pName);
+my $versions = getVersions( $Name);
 my $profiles = getProfiles();
-my $template = getTemplate( $pName);
+my $template = getTemplate( $Name);
 
 print "Content-type: text/html\n\n";
 
@@ -22,19 +22,19 @@ print <<HTML0
 		<link rel='stylesheet' href='/$BATools::baRoot/css/config.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body background="/baracus/images/bg06.jpg" onLoad='selectThis(document.form1.profile, "$pName")'>
+	<body background="/baracus/images/bg06.jpg" onLoad='selectThis(document.form1.profile, "$Name")'>
 		<form action="/baracus/ba/configHandler" name='form1'>
 		<div id='config'>
 		<div id='history'>Profile Update</div>
 		
 		<div id='textEdit'>
-		<font class='profile'>Template</font>
+		<font class='name'>Template</font>
 		$profiles
 		<font class='version'>Version</font>
 		$versions
 		<br><br>
 		<font class='data'>Profile Data</font>
-		<textarea name='pData'>$template</textarea>
+		<textarea name='data'>$template</textarea>
 		</div>
 		<input class='submit' type='submit' name='submit' value='Update'/>
 		<input type='hidden' name='op' value='prof'>
@@ -49,7 +49,7 @@ HTML0
 sub getProfiles
 {
 	my $r = "";
-	$r = $r."<select class='profile' name='profile' size='5' onClick='profReload(this.value, \"\", -1)'>";
+	$r = $r."<select class='name' name='profile' size='5' onClick='confReload(this.value, \"\", -1)'>";
 	
 	my @profiles = BAdb::getProfileListAllFromDB();
 	foreach( @profiles)
@@ -78,17 +78,17 @@ sub getTemplate
 
 sub getVersions
 {
-	my($pName) = @_;
+	my($Name) = @_;
 	my $r = "";
 	my $selected = "";
 	my $count = 0;
 	my @verSplit;
 	
-	$r = $r."<select class='version' size='5' onClick='profReload( \"$pName\", \"\", this.value)'>\n";
+	$r = $r."<select class='version' size='5' onClick='confReload( \"$Name\", \"\", this.value)'>\n";
 
-	if( $pName ne "")
+	if( $Name ne "")
 	{
-		my @vList = BAdb::getPofileVersionList( $pName, "yes");
+		my @vList = BAdb::getPofileVersionList( $Name, "yes");
 		foreach( @vList)
 		{
 			@verSplit = split( "/", $_);
