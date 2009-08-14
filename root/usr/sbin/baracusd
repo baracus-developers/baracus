@@ -8,6 +8,7 @@ use AppConfig;
 
 use lib "/usr/share/baracus/perl";
 
+use BaracusSYSLOG;
 use SqlTFTPd qw(%OPCODES);
 use SqlFS;
 
@@ -15,15 +16,20 @@ my $debug = 0;
 
 my $sysconfigfile = '/etc/sysconfig/baracus';
 my $sysconfig = AppConfig->new( {CREATE => 1} );
-$sysconfig->define( 'baracusdir=s' );
-$sysconfig->define( 'baracus_options=s' );
+$sysconfig->define( 'baracusdir=s',
+                    'buildip=s',
+                    'baracus_options=s',
+                    'remote_logging=s',
+                   );
 $sysconfig->file($sysconfigfile);
 my $baracusdir = $sysconfig->get( 'baracusdir' ); # ~baracus is default
 my $baracus_options=$sysconfig->get( 'baracus_options' );
+my $buildip = $sysconfig->get( 'buildip' );
+my $remote_logging = $sysconfig->get( 'remote_logging' );
 
 $debug = 1 if ( defined $baracus_options and $baracus_options =~ m|debug| );
 
-print "\$baracusdir after : $baracusdir EOL\n" if $debug;
+print "\$baracusdir before : $baracusdir EOL\n" if $debug;
 if ( $baracusdir =~ m|^~([^/]*)| ) {
   my $prepath="";
   if ( "$1" eq "" ) {
@@ -73,6 +79,8 @@ my $dopxehookfail = 1;
 our $pxehookpass = "$bdir{'hooks'}/post_pxe_delivery_passed";
 our $pxehookfail = "$bdir{'hooks'}/post_pxe_delivery_failed";
 &checkdopxehook();
+
+&config_syslog();
 
 # get baracus id information
 my $user = "baracus";
@@ -206,6 +214,51 @@ sub checkdopxehook {
     }
 }
 
+sub config_syslog
+{
+    my $logconf="/etc/syslog-ng/syslog-ng.conf";
+    my $armorconf="/etc/apparmor.d/sbin.syslog-ng";
+    my $logpath = "$bdir{'logs'}/YaST2";
+
+    unless ( -d $logpath ) {
+        mkdir "$logpath", 0755
+            or die ("Cannot create: $! \n");
+    }
+
+    if ($remote_logging eq "yes") {
+        print STDOUT "Enabling remote logging support in syslog-ng.conf\n";
+        if ( BaracusSYSLOG::enable_remote_logging( $logpath,
+                                                   $logconf,
+                                                   $buildip )) {
+            system("rcsyslog restart");
+        } else {
+            print BaracusSYSLOG::error();
+        }
+
+        if ( BaracusSYSLOG::enable_apparmor_logging( $logpath,
+                                                     $armorconf ) ) {
+            system("rcapparmor restart");
+        } else {
+            print BaracusSYSLOG::error();
+        }
+    }
+    else {
+        print STDOUT "Disabling remote logging support in syslog-ng.conf\n";
+        if ( BaracusSYSLOG::disable_remote_logging( $logconf ) ) {
+            system("rcsyslog restart");
+        } else {
+            print BaracusSYSLOG::error();
+        }
+
+        if ( BaracusSYSLOG::disable_apparmor_logging( $logpath,
+                                                      $armorconf ) ) {
+            system("rcapparmor restart");
+        } else {
+            print BaracusSYSLOG::error();
+        }
+    }
+}
+
 sub validateURL
 {
     my $request = shift;
@@ -287,6 +340,7 @@ sub deliverPXE {
     }
     return;
 }
+
 
 die "ABSOLUTELY DOES NOT EXECUTE";
 

@@ -72,11 +72,13 @@ my $sysconfig = AppConfig->new( {CREATE => 1} );
 $sysconfig->define( 'baracusdir=s',
                     'buildtype=s',
                     'buildip=s',
+                    'remote_logging=s',
                    );
 $sysconfig->file( $sysconfigfile );
-my $baracusdir = $sysconfig->get( 'baracusdir' ); # ~baracus is default
-my $buildip    = $sysconfig->get( 'buildip'    );
-my $type       = $sysconfig->get( 'buildtype'  );
+my $baracusdir     = $sysconfig->get( 'baracusdir' ); # ~baracus is default
+my $buildip        = $sysconfig->get( 'buildip'    );
+my $type           = $sysconfig->get( 'buildtype'  );
+my $remote_logging = $sysconfig->get( 'remote_logging' );
 
 if ( $baracusdir =~ m|^~([^/]*)| ) {
     my $prepath="";
@@ -155,7 +157,7 @@ die BaracusDB::errstr unless( $dbh );
 my $hashoftbls = BaracusSql::get_baracus_tables();
 
 print "bahost debug=$debug\n" if $debug;
-my $deepdebug = $debug > 1 ? 1 : 0;
+my $deepdebug = $debug > 2 ? 1 : 0;
 my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp",
                            'User' => "baracus",
                            'debug' => $deepdebug )
@@ -184,7 +186,6 @@ sub main
     &check_command( $command );
 
     printf "Executing $command with \"@_\".\n" if $debug;
-    printf "Command-line to be stored:\n\t$cmdline\n" if $debug;
 
     $cmds{ $command }( @_ );
 }
@@ -326,13 +327,10 @@ sub add
     my %hash;
     my $href = \%hash;
 
-    my $tmphref; # subtle but loading of profile might set modules for later use
-
     $profile = "default" unless ($profile);
     $hash{'profile'} = $profile;
-    &load_profile( $href, $tmphref );
-
-    if ($debug) {
+    &load_profile( $href );
+    if ($debug > 1) {
         foreach my $key ( sort ( keys %hash )) {
             print "add post-profile:  $key => $hash{$key}\n";
         }
@@ -346,8 +344,7 @@ sub add
         unless ($hash{'distro'});
 
     &load_distro( $href );
-
-    if ($debug) {
+    if ($debug > 1) {
         foreach my $key ( sort ( keys %hash )) {
             print "add post-distro:  $key => $hash{$key}\n";
         }
@@ -361,19 +358,23 @@ sub add
         unless ($hash{'hardware'});
 
     &load_hardware( $href );
-
-    if ($debug) {
+    if ($debug > 1) {
         foreach my $key ( sort ( keys %hash )) {
             print "add post-hardware:  $key => $hash{$key}\n";
         }
     }
 
-    # module file may be in profile *and* on command line
+    # modules may be specified in profile
+    my $modules_in;
+    $modules_in = $hash{'module'} if ( defined $hash{'module'} );
     # command line wins over profile entry
-    $tmphref->{'module'}= $module if ($module);
-
-    &load_modules( $href, $tmphref );
-    if ($debug) {
+    $modules_in = $module if ($module);
+    print "modules to load: '$modules_in'\n" if ( defined $modules_in && $debug );
+    # modules are optional do notattempt to load if none specified
+    if ( defined $modules_in && $modules_in ne "" ) {
+        &load_modules( $href, $modules_in );
+    }
+    if ($debug > 1) {
         foreach my $key ( sort ( keys %hash )) {
             print "add post-modules:  $key => $hash{$key}\n";
         }
@@ -411,8 +412,14 @@ sub add
     $hash{'buildroot'} = $bdir{'builds'};
     $hash{'autoinst'} = &automac( $mac );
 
+    if ( $remote_logging eq "yes" ) {
+        $hash{'loghost'} = "loghost=$buildip";
+    } else {
+        $hash{'loghost'} = ""
+    }
+
     if ($debug) {
-        print "profileHash:\n";
+        print "settings to use:\n";
         foreach my $key ( sort keys %hash ) {
             print "add:  $key => $hash{$key}\n";
         }
@@ -491,7 +498,7 @@ sub wipe
         return;
     }
 
-    if ( $debug ) {
+    if ( $debug > 1 ) {
         while ( my ($key, $val) = each %{$dbref} ) {
             print "dbref $key => " . $val eq "" ? "" : $val . "\n";
         }
@@ -505,7 +512,7 @@ sub wipe
 
     # print coding example of 'constant' usage if debug
     print "$BaracusSql::baState{ BaracusSql::BA_DISKWIPE } = " .
-        BaracusSql::BA_DISKWIPE . "\n" if $debug;
+        BaracusSql::BA_DISKWIPE . "\n" if ( $debug > 1 );
 
     # if state is already 'wipe' don't do it all again
     if ( $dbref->{'state'} == BaracusSql::BA_DISKWIPE ) {
@@ -570,7 +577,7 @@ sub remove() {
         return;
     }
 
-    if ( $debug ) {
+    if ( $debug > 1 ) {
         while ( my ($key, $val) = each %{$dbref} ) {
             print "dbref $key => " . $val eq "" ? "" : $val . "\n";
         }
@@ -655,23 +662,7 @@ sub list
 
     my $dbref;
 
-    if ( $subcommand eq "history" ) {
-        ## List history filtered by hostname if provided
-        ##
-
-        while ( $dbref = &db_list_next( $sth ) ) {
-            #
-            # hostname ip mac uuid state cmdline creation change
-            printf "%-16s ", $dbref->{'hostname'} ;
-            printf "%-16s ", $dbref->{'ip'} ;
-            printf "%17s ", $dbref->{'mac'} ;
-            printf "%-8s ", $BaracusSql::baState{ $dbref->{'state'} };
-            print "$dbref->{'uuid'} " if $verbose;
-            print "$dbref->{'creation'} " if $verbose;
-            print "$dbref->{'change'}\n";
-        }
-    }
-    elsif ( $subcommand eq "templates" ) {
+    if ( $subcommand eq "templates" ) {
         ## List available build templates filtered by hostname if provided
         ##
 
@@ -683,11 +674,22 @@ sub list
             my $automac = "02-$bootmac";
             $bootmac = "01-$bootmac";
 
-            if ( $sqlfsOBJ->find( $bootmac ) ) {
-                $pxestate = "ok";
+            my $sel;
+            $sel = $sqlfsOBJ->detail( $bootmac );
+            if ( defined $sel ) {
+                if ( $sel->{'enabled'} ) {
+                    $pxestate = "ok";
+                } else {
+                    $pxestate = "disabled";
+                }
             }
-            if ( $sqlfsOBJ->find( $automac ) ) {
-                $autostate = "ok";
+            $sel = $sqlfsOBJ->detail( $automac );
+            if ( defined $sel ) {
+                if ( $sel->{'enabled'} ) {
+                    $autostate = "ok";
+                } else {
+                    $autostate = "disabled";
+                }
             }
 
             # at some point we need logic for the state of the host entry
@@ -698,15 +700,32 @@ sub list
                 printf "%s $pxestate  %s $autostate\n", $bootmac, $automac;
             } else {
                 if ( $pxestate ne "ok" && $autostate ne "ok" ) {
-                    print "error - tftp files missing\n";
+                    print "related tftp files missing or disabled\n";
                 } elsif ( $pxestate ne "ok" ) {
-                    printf "error - %s $pxestate\n", $bootmac;
+                    printf "%s $pxestate\n", $bootmac;
                 } elsif ( $autostate ne "ok" ) {
-                    printf "error - %s $autostate\n", $automac;
+                    printf "%s $autostate\n", $automac;
                 } else {
                     print "verified\n";
                 }
             }
+        }
+    }
+    elsif ( $subcommand eq "history" ) {
+        ## List history filtered by hostname if provided
+        ##
+
+        while ( $dbref = &db_list_next( $sth ) ) {
+            #
+            # hostname ip mac uuid state cmdline creation change
+            print "$dbref->{'change'} ";
+            printf "%-16s ", $dbref->{'hostname'} ;
+            printf "%-15s ", $dbref->{'ip'} ;
+            printf "%17s ", $dbref->{'mac'} ;
+            printf "%-8s ", $BaracusSql::baState{ $dbref->{'state'} };
+            print "$dbref->{'uuid'} " if $verbose;
+            print "$dbref->{'creation'} " if $verbose;
+            print "\n";
         }
     }
     elsif ( $subcommand eq "commands" ) {
@@ -716,7 +735,7 @@ sub list
         while ( $dbref = &db_list_next( $sth ) ) {
             #
             # hostname ip mac uuid state cmdline creation change
-            print "$dbref->{'change'}:  " if $verbose;
+            print "$dbref->{'change'} " if $verbose;
             printf "%s\n", join ' ', ( split /::/, $dbref->{'cmdline'} );
         }
     }
@@ -772,7 +791,7 @@ sub _enable_disable_
         return 1;
     }
 
-    if ( $debug ) {
+    if ( $debug > 1 ) {
         while ( my ($key, $val) = each %{$dbref} ) {
             print "dbref $key => " . $val eq "" ? "" : $val . "\n";
         }
@@ -786,35 +805,47 @@ sub _enable_disable_
     # print coding example of 'constant' usage if debug
     print "$BaracusSql::baState{ $state } = $state\n" if $debug;
 
-    # if state is 'wipe' or same as $state do not continue
+    # if state is 'wipe' or same as $state do not continue - with host entry
     if ( $dbref->{'state'} == BaracusSql::BA_DISKWIPE or
          $dbref->{'state'} == $BaracusSql::baState{ $state } ) {
         print "Build template for $hostname is '" .
             $BaracusSql::baState{ $dbref->{'state'} } .
                 "' and will not be modified\n";
         return 0;
+    } else {
+        $dbref->{'state'} = $BaracusSql::baState{ $state };
+        &update_db_host_entry( $dbref );
     }
+
+    my $sel;
 
     # pxeboot tftp file name
     my $bootmac = &bootmac( $dbref->{'mac'} );
 
-    if ( $sqlfsOBJ->update( { 'name' => $bootmac,
-                              'enabled' => $enabled } ) ) {
-        die "Unable to update status for tftp file $bootmac\n" .
-            $sqlfsOBJ->error();
+    $sel = $sqlfsOBJ->detail( $bootmac );
+    if ( defined $sel && $sel->{'enabled'} != $enabled ) {
+        if ( $sqlfsOBJ->update( { 'name' => $bootmac,
+                                  'enabled' => $enabled,
+                                  'description' => "pxeboot bahost ${command}d",
+                                 } ) ) {
+            die "Unable to update status for tftp file $bootmac\n" .
+                $sqlfsOBJ->error();
+        }
     }
 
     # autoyast tftp file name
     my $automac = &automac( $dbref->{'mac'} );
 
-    if ( $sqlfsOBJ->update( { 'name' => $automac,
-                              'enabled' => $enabled } ) ) {
-        die "Unable to update status for tftp file $automac\n" .
-            $sqlfsOBJ->error();
+    $sel = $sqlfsOBJ->detail( $automac );
+    if ( defined $sel && $sel->{'enabled'} != $enabled ) {
+        if ( $sqlfsOBJ->update( { 'name' => $automac,
+                                  'enabled' => $enabled,
+                                  'description' => "autoinst bahost ${command}d",
+                                 } ) ) {
+            die "Unable to update status for tftp file $automac\n" .
+                $sqlfsOBJ->error();
+        }
     }
-
-    $dbref->{'state'} = $BaracusSql::baState{ $state };
-    &update_db_host_entry( $dbref );
 
     print "State of $hostname template and tftp files now ${command}d \n";
 
@@ -847,11 +878,11 @@ sub multiarg_handler() {
         }
         if (not defined $multiarg{ $option } ){
             # initialize
-            $multiarg{ $option } = "$value ";
+            $multiarg{ $option } = "$value";
         }
         elsif ( $multiarg{ $option } !~ m/$value/ ) {
             # append if not already present
-            $multiarg{ $option } .= "$value ";
+            $multiarg{ $option } .= " $value";
         }
     }
 }
@@ -988,7 +1019,7 @@ sub update_db_host_entry() {
                     change=CURRENT_TIMESTAMP(0)
                 WHERE hostname=? |;
 
-    if ( $debug ) {
+    if ( $debug > 1 ) {
         print "$sql\n";
         while ( my ( $key, $value ) = each %Hash ) {
             print "update db: $key => $value\n";
@@ -1120,7 +1151,7 @@ sub _boot_auto_mac_ {
             $mac = "02-" . $mac;
         }
     }
-    print "$mac\n" if $debug;
+    print "type $type value $mac\n" if $debug;
     return $mac;
 }
 
@@ -1178,7 +1209,7 @@ sub load_profile
         unless ( $rowcount );
     die "Unable to find *enabled* profile entry for $href->{'profile'}.\n"
         unless ( defined $sel );
-    print $sel . "\n" if $debug;
+    print $sel . "\n" if ( $debug > 1 );
 
     # getall is a destructive assignment - so use tmp
     my $conf = new Config::General( -String => $sel->{'data'} );
@@ -1196,12 +1227,11 @@ sub load_profile
             next;
         }
         if (defined $value) {
-            print "profile: $key => $value\n" if $debug;
             $href->{$key} = $value;
         } else {
-            print "profile: $key => ''\n" if $debug;
             $href->{$key} = "";
         }
+        print "profile: $key => $href->{$key}\n" if ( $debug > 1 );
     }
 }
 
@@ -1216,15 +1246,14 @@ sub load_distro
     my $sel = $dbh->selectrow_hashref( $sql );
     die "Unable to find distro entry for $href->{'distro'}.\n"
         unless ( defined $sel );
-    print $sel . "\n" if $debug;
+    print $sel . "\n" if ( $debug > 1 );
     while ( my ($key, $value) = each( %$sel ) ) {
         if (defined $value) {
-            print "distro: $key => $value\n" if $debug;
             $href->{$key} = $value;
         } else {
-            print "distro: $key => ''\n" if $debug;
             $href->{$key} = "";
         }
+        print "distro: $key => $href->{$key}\n" if ( $debug > 1 );
     }
 }
 
@@ -1239,70 +1268,64 @@ sub load_hardware
     my $sel = $dbh->selectrow_hashref( $sql );
     die "Unable to find hardware entry for $href->{'hardware'}.\n"
         unless ( defined $sel );
-    print $sel . "\n" if $debug;
+    print $sel . "\n" if ( $debug > 1 );
     while ( my ($key, $value) = each( %$sel ) ) {
         if (defined $value) {
-            print "hware: $key => $value\n" if $debug;
             $href->{$key} = $value;
         } else {
-            print "hware: $key => ''\n" if $debug;
             $href->{$key} = "";
         }
+        print "hware: $key => $href->{$key}\n" if ( $debug > 1 );
     }
 }
 
 sub load_modules
 {
     my $href    = shift;
-    my $tmphref = shift;
+    my $modules = shift;
 
-    # if profileHash{'module'} was set by reading a profile module= line
+    # if hash{'module'} was set by reading a profile module= line
     # we need to clear it from $href as that is for the yast xml
-    # the module value should still be in $tmphref from 'getall' invocation
-    # in load_profile
 
     $href->{'module'}='';
 
     my $sth;
-    # incorporate any modules passed into autoinstall formated xml
-    if (defined $tmphref->{'module'} && $tmphref->{'module'}) {
-        my $modulefile;
-#        $href->{'module'} = "    <init-scripts config:type="list">\n";
-        foreach my $item (split(/ /, $tmphref->{'module'})) {
+    # incorporate modules passed into autoinstall formated xml
 
-            my $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ $tbl{'module'} } );
-            $sql_cols =~ s/[ \t]*//g;
-            my @cols = split(/,/, $sql_cols);
-            my $sql = qq|SELECT $sql_cols FROM $tbl{'module'}
+#   $href->{'module'} = "    <init-scripts config:type="list">\n";
+    foreach my $item (split(/[,\s*]/, $modules)) {
+
+        my $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ $tbl{'module'} } );
+        $sql_cols =~ s/[ \t]*//g;
+        my @cols = split(/,/, $sql_cols);
+        my $sql = qq|SELECT $sql_cols FROM $tbl{'module'}
                          WHERE moduleid = '| . $item . qq|' ORDER BY version|;
-            unless ( $sth = $dbh->prepare( $sql ) ) {
-                die "Unable to prepare 'module' statement\n" . $dbh->errstr;
-            }
-            unless( $sth->execute( ) ) {
-                die "Unable to execute 'module' statement\n" . $sth->err;
-            }
+        unless ( $sth = $dbh->prepare( $sql ) ) {
+            die "Unable to prepare 'module' statement\n" . $dbh->errstr;
+        }
+        unless( $sth->execute( ) ) {
+            die "Unable to execute 'module' statement\n" . $sth->err;
+        }
 
-            my $rowcount = 0;
-            my $found = undef;
-            while ( my $sel = $sth->fetchrow_hashref( ) ) {
-                $rowcount += 1;
-                $found = $sel if ($sel->{'status'});
-            }
-            die "Unable to find module entry for $item.\n"
-                unless ( $rowcount );
-            die "Unable to find *enabled* module entry for $item.\n"
-                unless ( defined $found );
-            print $found . "\n" if $debug;
+        my $rowcount = 0;
+        my $found = undef;
+        while ( my $sel = $sth->fetchrow_hashref( ) ) {
+            $rowcount += 1;
+            $found = $sel if ($sel->{'status'});
+        }
+        die "Unable to find module entry for $item.\n"
+            unless ( $rowcount );
+        die "Unable to find *enabled* module entry for $item.\n"
+            unless ( defined $found );
+        print $found . "\n" if ($debug > 1);
 
-            $modulefile="<script>
+        $href->{'module'} .="<script>
         <filename>$found->{'moduleid'}</filename>
         <source><![CDATA[";
-            $modulefile .= $found->{'data'};
-            $modulefile .="]]>\n        </source>\n      </script>";
-            $href->{'module'} .= $modulefile;
-        }
-#        $href->{'module'} .= "\n    </init-scripts>"
+        $href->{'module'} .= $found->{'data'};
+        $href->{'module'} .="]]>\n        </source>\n      </script>";
     }
+#   $href->{'module'} .= "\n    </init-scripts>"
 }
 
 sub add_pxeboot
@@ -1311,7 +1334,7 @@ sub add_pxeboot
 
     my $href = shift;
 
-    my $pxeTemplate      = join "/", $bdir{ 'templates' }, $href->{'os'}, $href->{'arch'}, "pxetemplates", $href->{'pxetemplate'};
+    my $pxeTemplate = join "/", $bdir{ 'templates' }, $href->{'os'}, $href->{'arch'}, "pxetemplates", $href->{'pxetemplate'};
 
     if ($debug) {
         print "pxeTemplate = $pxeTemplate\n";

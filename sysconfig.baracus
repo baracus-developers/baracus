@@ -58,3 +58,11 @@ BARACUSD_OPTIONS=
 # This variable is used by baracus hook 'post_pxe_delivery_passed'
 
 AUTODISABLEPXE="no"
+
+## Description:    Have remote hosts log thier builds over the network
+## Type:           yesno
+## Default:        "no"
+## ServiceRestart: baracusd
+#
+REMOTE_LOGGING="no"
+
