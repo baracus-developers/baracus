@@ -469,6 +469,8 @@ Options
 
 sub wipe
 {
+    use File::Temp qw/ tempdir /;
+
     my $command = "wipe";
 
     my $hostname="";
@@ -494,8 +496,8 @@ sub wipe
     my $dbref = &get_db_host_entry( $hostname );
 
     unless ( defined $dbref ) {
-        print "Unable to find template for $hostname\n";
-        return;
+        $LASTERROR = "Unable to find template for $hostname\n";
+        return 1;
     }
 
     if ( $debug > 1 ) {
@@ -504,9 +506,8 @@ sub wipe
         }
     }
 
-    my $mac = $dbref->{'mac'};
-    $mac =~ s/:/-/g;
-    $mac = "01-".$mac;
+    my $bootmac = &bootmac( $dbref->{'mac'} );
+    my $autostring = $autowipe ? "auto" : "";
 
     # copy dban over mac template for host in sqltftpd server
 
@@ -514,31 +515,49 @@ sub wipe
     print "$BaracusSql::baState{ BaracusSql::BA_DISKWIPE } = " .
         BaracusSql::BA_DISKWIPE . "\n" if ( $debug > 1 );
 
-    # if state is already 'wipe' don't do it all again
+    # if state is already 'wipe' and right 'nuke' don't do it all again
     if ( $dbref->{'state'} == BaracusSql::BA_DISKWIPE ) {
-        print "Host entry for $hostname already set to wipe.\n";
-        return;
+        print "Entering check where already in 'diskwipe' state\n" if $debug;
+        my $tdir = tempdir();
+        if ( $sqlfsOBJ->fetch( "$tdir/$bootmac" ) ) {
+            $LASTERROR = $sqlfsOBJ->error();
+            rmdir $tdir;
+            return 1;
+        }
+        my $fh;
+        open ( $fh, "<", "$tdir/$bootmac" ) or die "Unable to open: $!\n";
+        my $tbootmac = join '', <$fh>;
+        close $fh;
+        rmdir $tdir;
+        print $bootmac if ( $debug > 1 );
+        my $isautonuke = ( $tbootmac =~ m|autonuke| ) ? 1 : 0;
+        print "isautonuke: $isautonuke and autowipe $autowipe\n" if $debug;
+        unless( ( $isautonuke && (not $autowipe) ) or
+                ( (not $isautonuke) && $autowipe ) ) {
+            $LASTERROR = "Host entry for $hostname already set to ${autostring}wipe.\n";
+            return 1;
+        }
     }
 
     # noautowipe is the safe default - change only if --autowipe passed.
     my $autofile = "pxetemplate-noautowipe.dban";
     $autofile = "pxetemplate-autowipe.dban" if ( $autowipe );
 
-    if ( $sqlfsOBJ->internalDataCopy( $autofile, $mac ) ) {
+    if ( $sqlfsOBJ->internalDataCopy( $autofile, $bootmac ) ) {
         die "Cannot update host to dban wipe\n" . $sqlfsOBJ->error();
     }
 
-    if ( $sqlfsOBJ->update( { 'name' => $mac,
+    if ( $sqlfsOBJ->update( { 'name' => $bootmac,
                               'enabled' => 1,  # boolean enable/disable
                               'description' =>
-                              "wipe disk on next pxeboot" } ) ) {
+                              "pxeboot dban ${autostring}wipe" } ) ) {
         die "Unable to set status to enable for dban wipe\n" . $sqlfsOBJ->error();
     }
 
     $dbref->{'state'} = BaracusSql::BA_DISKWIPE;
 
     &update_db_host_entry( $dbref );
-    print "Wipe of harddrive for $hostname will occur on next pxeboot\n";
+    print "Next pxeboot harddrive of $hostname will be ${autostring}wiped.\n";
 
     return 0;
 }
@@ -573,8 +592,8 @@ sub remove() {
     my $dbref = &get_db_host_entry( $hostname );
 
     unless ( defined $dbref ) {
-        print "Unable to find template for $hostname\n";
-        return;
+        $LASTERROR = "Unable to find template for $hostname\n";
+        return 1;
     }
 
     if ( $debug > 1 ) {
@@ -656,7 +675,7 @@ sub list
     my $sth = db_list_start ( $subcommand, $hostname );
 
     unless( defined $sth ) {
-        print $LASTERROR;
+        # $LASTERROR returned from db_list_start
         return 1;
     }
 
@@ -1218,8 +1237,8 @@ sub load_profile
 
     while ( my ($key, $value) = each ( %$tmphref ) ) {
         if (ref($value) eq "ARRAY") {
-            print "$key is an ARRAY\n";
-            print "ARRAYs not yet supported\n";
+            print "$key has more than one entry or value specified\n";
+            print "Such ARRAYs are not supported.\n";
             exit(1);
             #           foreach my $avalue (@{$href->{$key}}){
             #               print "$avalue\n";
