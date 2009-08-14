@@ -1,1 +1,2406 @@
-create_install_config
+#!/usr/bin/perl -w
+
+use strict;
+
+use Getopt::Long qw( :config pass_through );
+use Pod::Usage;
+
+use lib "/usr/share/baracus/perl";
+
+use BaracusDB;
+use BaracusSql;
+
+=pod
+
+=head1 NAME
+
+B<baconfig> - baracus tool to manage distro, hardware, module, and profile entries.
+
+=head1 SYNOPSIS
+
+B<baconfig> E<lt>commandE<gt> E<lt>typeE<gt> [options and arguments]
+
+Where E<lt>commandE<gt> is
+
+    list   <type> [match]  List entries in database.
+    add    <type> <...>    Copy to database from specified file.
+    update <type> <...>    Modify module, profile or tftp entry.
+    export <type> <...>    Export data portion of entry to new file.
+    detail <type> <name>   Display file entry in database table.
+    remove <type> <name>   Delete file from database table.
+
+    help      This 'Usage' summary message.
+    man       Detailed man page.
+
+And, where E<lt>typeE<gt> is
+
+    distro    Values related to the distribution.
+    hardware  Values related to the hardware of the build client.
+    module    Postinstall scripts to run on build completion.
+    profile   Network or other variable definitions.
+    tftp      TFTP filesystem database.
+
+And, where <...> indicates additional required arguments. 
+
+Use 'man' or 'help <command> [<type>]' for more details.
+
+=head1 DESCRIPTION
+
+This tool allows files related to distro, hardware, modules or profiles to be
+added to, removed from, detailed, fetched from database tables.  Additionally,
+all the database entries can be listed by type.
+
+=cut
+
+# what DBI schema and database are we using
+my $dbname = "baracus";
+my $dbrole = $dbname;
+
+my $dbtftp = "sqltftp";
+
+our $LASTERROR="";
+
+my $man     = 0;
+my $help    = 0;
+my $debug   = 0;
+my $quiet   = 0;
+my $all     = 0;
+my $verbose = 0;
+my $nolabels = 0;
+
+# max_allowed_packets a mysql specific construct
+my $maxlen = 1048575;
+
+my %tbl = (
+           'distro'   => 'distro_cfg',
+           'hardware' => 'hardware_cfg',
+           'module'   => 'module_cfg',
+           'profile'  => 'profile_cfg',
+           'tftp'     => 'sqlfstable',
+           'oscert'   => 'hardwareid',
+           );
+
+my %cmds = (
+            'list'    => \&list,
+            'add'     => \&add,
+            'update'  => \&update,
+            'export'  => \&export,
+            'detail'  => \&detail,
+            'remove'  => \&remove,
+            'help'    => \&help,
+            'man'     => \&man,
+            );
+
+GetOptions(
+           'help|?'   => \$help,
+           'man'      => \$man,
+           'debug+'   => \$debug,
+           'quiet'    => \$quiet,
+           'all'      => \$all,
+           'verbose+' => \$verbose,
+           'nolabels' => \$nolabels,
+           );
+
+&man()  if $man;
+&help() if $help;
+&help() unless ( scalar @ARGV );
+if ($ARGV[0] eq "man"  ) { &man(); }
+if ($ARGV[0] eq "help" ) { shift @ARGV; &help(@ARGV); }
+
+my $uid = BaracusDB::su_user( $dbrole );
+die BaracusDB::errstr unless ( defined $uid );
+
+my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
+die BaracusDB::errstr unless( $dbh );
+
+my $tftph = BaracusDB::connect_db( $dbtftp, $dbrole );
+die BaracusDB::errstr unless( $tftph );
+
+my $status = &main(@ARGV);
+
+die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+die BaracusDB::errstr unless BaracusDB::disconnect_db( $tftph );
+
+print $LASTERROR if $status;
+
+exit $status;
+
+die "DOES NOT EXECUTE";
+
+###########################################################################
+
+# START - dhb
+#
+# these constructs are duplicates of those in SqlFS.pm
+# at some point want to break out the guts of baconfig
+# into a refreshed pm and clean up our interfaces....
+# bytea_encode
+
+# encode bytestream for VARCHAR storage
+
+#
+
+sub bytea_encode
+{
+    my ($in, $out);
+    $in = shift;
+    $out = pack( 'u', $in);
+    return $out;
+}
+
+# bytea_decode
+
+# decode bytestream for VARCHAR storage
+
+#
+
+sub bytea_decode
+{
+    my ($in,$out);
+    $in = shift;
+    $out = unpack( 'u', $in );
+    return $out;
+}
+#
+# END - dhb
+
+sub main
+{
+    my $command = shift;
+
+    &check_command( $command );
+    $command = lc $command;
+
+    printf "Executing $command with \"@_\".\n" if $debug;
+
+    $cmds{ $command }( @_ );
+}
+
+sub help
+{
+    my $command = shift;
+    my $type = shift;
+
+    unless ( defined $command ) {
+        pod2usage( -verboase => 0,
+                   -exitstatus => 0 );
+    }
+
+    &check_command( $command );
+    $command = lc $command;
+
+    # so far only add and update have valid help for type
+
+    my $execname = $0;
+    $execname = $1 if ( $0 =~ m|^.*/([^/].+)| );
+
+    if ( defined $type and ( $command eq "add" or $command eq "update" ) ) {
+        &check_type( $type );
+        $type = lc $type;
+
+        pod2usage( -msg        => "$execname $command $type ...\n",
+                   -verbose    => 99,
+                   -sections   => "COMMANDS/${command} ${type}.*",
+                   -exitstatus => 0 );
+    } else {
+        pod2usage( -msg        => "$execname $command ...\n",
+                   -verbose    => 99,
+                   -sections   => "COMMANDS/${command}.*",
+                   -exitstatus => 0 );
+    }
+}
+
+sub man
+{
+    pod2usage( -verbose    => 2,
+               -sections   => "NAME|SYNOPSIS|DESCRIPTION",
+               -exitstatus => 0 );
+}
+
+=head1 COMMANDS
+
+=head2 list <type> [--all] [--quiet] [match]
+
+Takes <type> as an argument, (distro, hardware, module, profile).
+Also takes optional string [ match ] to use for partial matching.
+
+Lists enabled entries of type, matching match, in filesystem.
+If --all is specified all versions (if <type> supports versions)
+are listed.
+
+=cut
+
+sub list
+{
+    my $type = shift;
+    my $pattern = shift;
+
+    if ( scalar @_ ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @_);
+        &help();
+    }
+
+    my $tlist = &check_type( $type );
+    $type = lc $type;
+
+    # recursive call to list for all types - one shot whammy
+    if ( $type eq "all" ) {
+        my @ltypes = split( /, /, $tlist);
+        my $status;
+        foreach my $ltype ( @ltypes ) {
+            if ( defined $pattern ) {
+                $status = &list( $ltype, $pattern );
+            } else {
+                $status = &list( $ltype );
+            }
+            return $status if $status;
+        }
+        return 0;
+    }
+
+    $pattern = "" unless( defined $pattern );
+
+    my $sth = &list_start( $type, $pattern );
+
+    unless( defined $sth ) {
+        $LASTERROR .= "Unable to create db stmt handle for search: $pattern\n";
+        return 1;
+    }
+
+    unless ( $quiet || $nolabels ) {
+        print "--------------------------------------------------------------------------------\n";
+        if ( ( $type eq "module" ) || ( $type eq "profile" ) ) {
+            printf "%-32s ver sts description\n", $type;
+        } elsif ( $type eq "tftp" ) {
+            printf "%-32s cnt sts description\n", $type;
+        } else {
+            printf "%-32s description\n", $type;
+        }
+        print "--------------------------------------------------------------------------------\n";
+    }
+    while ( my $href = &list_next( $sth ) ) {
+        if ( ( $type eq "module" ) || ( $type eq "profile" ) ) {
+            next unless ( $all || $href->{'status'} );
+            # name, version, status, description
+            printf "%-32s ", $href->{'name'};
+            unless ( $quiet ) {
+                printf "%-3s %-3s %s",
+                    $href->{'version'}, $href->{'status'},
+                        (defined $href->{'description'}) ?
+                            $href->{'description'} : "";
+            }
+        } elsif ( $type eq "tftp" ) {
+            next unless ( $all || $href->{'enabled'} );
+            # name, count, status, description
+            printf "%-32s ", $href->{'name'};
+            unless ( $quiet ) {
+                printf "%-3s %-3s %s",
+                    $href->{'count'}, $href->{'enabled'},
+                        (defined $href->{'description'}) ?
+                            $href->{'description'} : "";
+            }
+        } else {
+            # name, description
+            printf "%-32s ", $href->{'name'};
+            unless ( $quiet ) {
+                printf "%s",
+                    (defined $href->{'description'}) ?
+                        $href->{'description'} : "";
+            }
+        }
+        print "\n";
+    }
+    &list_finish( $sth );
+
+    return 0;
+}
+
+# add invoke proper add type
+
+sub add
+{
+    my $type = shift;
+    my $status;
+
+    &check_type( $type );
+    $type = lc $type;
+
+    if ( $type eq "distro" ) {
+        $status = &add_distro( @_ );
+    } elsif ( $type eq "hardware" ) {
+        $status = &add_hardware( @_ );
+    } elsif ( $type eq "module" ) {
+        $status = &add_module( @_ );
+    } elsif ( $type eq "profile" ) {
+        $status = &add_profile( @_ );
+    } elsif ( $type eq "tftp" ) {
+        $status = &add_tftp( @_ );
+    }
+
+    return $status;
+}
+
+=head2 add distro <options and args>
+
+Where <options and args> are
+
+  --name id              sles10-x86_64 [ default <os>-<arch> ]
+  --os product           sles10
+  --arch                 x86_64, i386, i586 [ default x86_64 ]
+  --sp release           for example ga, sp2.
+  --description "note"   describe the distribution.
+
+The pxe arguments describe the kernel and initrd a bootp client should load.
+They must be changed to the installed base kernel and initrd for add-ons.
+
+  --pxekernel linux      for example linux.sles10-sp2-x86_64.
+                         [ default linux.<os>-<sp>-<arch> ]
+  --pxeinitrd initrd     for example initrd.sles10-sp-x86_64.
+                         [ default initrd.<os>-<sp>-<arch> ]
+
+These arguments are for describing HAE, MONO, OES, SLERT add-on products
+
+  --addon                If specified this product is an add-on.
+  --baseos base          Add-on requires this distro. [ no default ]
+
+=cut
+
+sub add_distro
+{
+    my %entry = (
+                 'distroid'    => "",
+                 'os'          => "",
+                 'arch'        => "x86_64",
+                 'sp'          => "",
+                 'pxekernel'   => "",
+                 'pxeinitrd'   => "",
+                 'description' => "",
+                 'addon'       => 0,
+                 'base'        => '',
+                 );
+
+    @ARGV = @_;
+    GetOptions(
+               'name=s'        => \$entry{'distroid'},
+               'os=s'          => \$entry{'os'},
+               'arch=s'        => \$entry{'arch'},
+               'sp=s'          => \$entry{'sp'},
+               'pxekernel=s'   => \$entry{'pxekernel'},
+               'pxeinitrd=s'   => \$entry{'pxeinitrd'},
+               'description=s' => \$entry{'description'},
+               'addon'         => \$entry{'addon'},
+               'baseos=s'      => \$entry{'baseos'},
+               );
+
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help() ;
+    }
+
+    &help() unless ( $entry{'os'} );
+    $entry{'distroid'} = "$entry{'os'}-$entry{'arch'}"
+        unless ( $entry{'distroid'} );
+
+    my $findcount = &find( 'distro', $entry{'distroid'} );
+    if ( defined $findcount ) {
+        if ( $findcount ) {
+            $LASTERROR = "Entry already exists:  distro $entry{'distroid'}.\n";
+            return 1;
+        }
+    } else {
+        $LASTERROR .= "Failed in add distro.\n" . $LASTERROR;
+        return 1;
+    }
+
+    my $pxeos;
+
+    if ( $entry{'addon'} ) {
+        $entry{'addon'} = 't';
+        # have to define these if it is an add-on
+        # if we have base we could look up its pxe values
+        &help() unless ( defined $entry{'baseos'} );
+        $pxeos = $entry{'baseos'};
+    }
+    else {
+        $entry{'addon'} = 'f';
+        $pxeos = $entry{'os'};
+    }
+    unless ( $entry{'pxekernel'} ) {
+        $entry{'pxekernel'}  = "linux.${pxeos}";
+        $entry{'pxekernel'} .= "-$entry{'sp'}" if ( $entry{'sp'} );
+        $entry{'pxekernel'} .= "-$entry{'arch'}";
+    }
+    unless ( $entry{'pxeinitrd'} ) {
+        $entry{'pxeinitrd'}  = "initrd.${pxeos}";
+        $entry{'pxeinitrd'} .= "-$entry{'sp'}" if ( $entry{'sp'} );
+        $entry{'pxeinitrd'} .= "-$entry{'arch'}";
+    }
+
+    my $sql_cols = lc get_cols( 'distro' );
+    $sql_cols =~ s/[ \t]*//g;
+    my @cols = split( /,/, $sql_cols );
+    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+    my $sql = qq|INSERT INTO $tbl{ 'distro' }
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+
+    print $sql . "\n" if $debug;
+
+    my $sth;
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'add' distro statement\n" . $dbh->errstr;
+        return 1;
+    }
+
+    my $paramidx = 0;
+    foreach my $col (@cols) {
+        $paramidx += 1;
+        $sth->bind_param( $paramidx, $entry{ $col } );
+    }
+
+    # finished with last entry
+    unless( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'add' distro statement\n" .
+            $sth->err;
+        return 1;
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+=head2 add hardware <options and args>
+
+Where <options and args> are
+
+    --name id              Required unique id, suggest make-model.
+    --bootArgs string      Quoted line of kernel boot arguments.
+    --rootdisk disk        Disk device to install. [ default /dev/sda ]
+    --rootpart part        Root partition. [ default <diskroot> ]
+    --description "note"   Describe this hardware entry.
+
+The following templates are filename only and are expected to be
+located in the directories ~baracus/templates/<os>/<arch>,
+and ~baracus/templates/<os>/<arch>/pxetemplates, where <os> and <arch>
+relate to the distro being used when creating the host entry.
+
+    --pxeTemplate boot     Bootp pxe [ default pxetemplate-auto ]
+    --yastTemplate file    Autoinstall [ default template.xml ]
+
+    --hwdriver             Additional pkgs install for hardware.
+    --oscert               Colon seperated list distros supported.
+
+=cut
+
+sub add_hardware  # TODO - add oscert support
+{
+    my %entry = (
+                 'hardwareid'   => "",
+                 'bootargs'     => "",
+                 'rootdisk'     => "/dev/sda",
+                 'rootpart'     => "",
+                 'pxetemplate'  => "pxetemplate-auto",
+                 'yasttemplate' => "template.xml",
+                 'description'  => "",
+                 'hwdriver'     => "",
+                 'oscert'       => "",
+                 );
+
+    @ARGV = @_;
+    GetOptions(
+               'name=s'         => \$entry{'hardwareid'},
+               'bootargs=s'     => \$entry{'bootargs'},
+               'rootdisk=s'     => \$entry{'rootdisk'},
+               'rootpart=s'     => \$entry{'rootpart'},
+               'pxetemplate=s'  => \$entry{'pxetemplate'},
+               'yasttemplate=s' => \$entry{'yasttemplate'},
+               'description=s'  => \$entry{'description'},
+               'hwdriver=s'     => \$entry{'hwdriver'},
+               'oscert=s'       => \$entry{'oscert'},
+               );
+
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help();
+    }
+
+    &help() unless ( $entry{'hardwareid'} );
+
+    my $findcount = &find( 'hardware', $entry{'hardwareid'} );
+    if ( defined $findcount ) {
+        if ( $findcount ) {
+            $LASTERROR = "Entry already exists:  hardware $entry{'hardwareid'}.\n";
+            return 1;
+        }
+    } else {
+        $LASTERROR .= "Failed in add hardware.\n" . $LASTERROR;
+        return 1;
+    }
+
+    $entry{'rootpart'} = $entry{'rootdisk'} unless ( $entry{'rootpart'} );
+
+    my $sql_cols = lc get_cols( 'hardware' );
+    $sql_cols =~ s/[ \t]*//g;
+    my @cols = split( /,/, $sql_cols );
+    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+    my $sql = qq|INSERT INTO $tbl{ 'hardware' }
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+
+    print $sql . "\n" if $debug;
+
+    my $sth;
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'add' hardware statement\n" .
+            $dbh->errstr;
+        return 1;
+    }
+
+    my $paramidx = 0;
+    foreach my $col (@cols) {
+        $paramidx += 1;
+        $sth->bind_param( $paramidx, $entry{ $col } );
+    }
+
+    # finished with last entry
+    unless( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'add' hardware statement\n" .
+            $sth->err;
+        return 1;
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+=head2 add module <options and args>
+
+Where <options and args> are
+
+    --name id              Required unique id, suggest script name.
+    --enable | --noenable  Enable module for use. [ default enable ]
+    --description "note"   Quoted note describing this script.
+    --file <path/script>   Script to use for this module.
+
+=cut
+
+# thought this was supported from old autoinit documentation
+#
+#  --interpreter value   where value is shell, perl, python  [default shell]
+
+sub add_module
+{
+    my $file = "";
+    my %entry = (
+                 'moduleid'     => "",
+                 'description'  => "",
+                 'interpreter'  => "shell",
+                 'data'         => "",
+                 'status'       => "t",
+                 'version'      => 1,
+                 );
+
+    @ARGV = @_;
+    GetOptions(
+               'name=s'         => \$entry{'moduleid'},
+               'description=s'  => \$entry{'description'},
+#               'interpreter=s'  => \$entry{'interpreter'},
+               'file=s'         => \$file,
+               'enable!'        => \$entry{'status'},
+               );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    &help() unless ( $entry{'moduleid'} );
+
+    my $findcount = &find( 'module', $entry{'moduleid'} );
+    if ( defined $findcount ) {
+        if ( $findcount ) {
+            $LASTERROR = "Entry already exists:  module $entry{'moduleid'}.\n";
+            return 1;
+        }
+    } else {
+        $LASTERROR .= "Failed in add module.\n" . $LASTERROR;
+        return 1;
+    }
+
+    $entry{'interpreter'} = lc $entry{'interpreter'};
+    $entry{'interpreter'} =~ s/[ \t]*//g;
+
+    if ( ($entry{'interpreter'} ne "shell")   &&
+         ($entry{'interpreter'} ne "perl")    &&
+         ($entry{'interpreter'} ne "python" ) ){
+        $LASTERROR = "invalid interpreter specified \'$entry{'interpreter'}\' - should be 'shell' 'perl' or 'python'\n";
+        return 1;
+    }
+
+    if ( $entry{'status'} ne "" ) {
+        if ( $entry{'status'} ) {
+            $entry{'status'} = "t";
+        } else {
+            $entry{'status'} = "f";
+        }
+    }
+
+    unless ( -f $file ) {
+        $LASTERROR = "Need --file <script> to add. Unable to find file: $file.\n";
+        return 1;
+    }
+
+    open (FILE, "<$file") || die "unable to open $file: $!\n";
+    undef $/;
+    $entry{'data'}=<FILE>;  # slurp mode
+    $/ = "\n";
+    close FILE;
+
+    my $sql_cols = lc get_cols( 'module' );
+    $sql_cols =~ s/[ \t]*//g;
+    my @cols = split( /,/, $sql_cols );
+    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+    my $sql = qq|INSERT INTO $tbl{ 'module' }
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+    print $sql . "\n" if $debug;
+
+    my $sth;
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'add' module statement\n" .
+            $dbh->errstr;
+        return 1;
+    }
+
+    my $paramidx = 0;
+    foreach my $col (@cols) {
+        $paramidx += 1;
+        $sth->bind_param( $paramidx, $entry{ $col } );
+    }
+
+    # finished with last entry
+    unless( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'add' module statement\n" .
+            $sth->err;
+        return 1;
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+=head2 add profile <options and args>
+
+Where <options and args> are
+
+    --name id              Required unique id.
+    --enable | --noenable  Enable profile for use. [ default enable ]
+    --description "note"   Quoted note describing this profile.
+    --file <path/prof>     File to use for this profile.
+
+=cut
+
+sub add_profile
+{
+    my $file = "";
+    my %entry = (
+                 'profileid'    => "",
+                 'description'  => "",
+                 'data'         => "",
+                 'status'       => "t",
+                 'version'      => 1,
+                 );
+
+    @ARGV = @_;
+    GetOptions(
+               'name=s'         => \$entry{'profileid'},
+               'description=s'  => \$entry{'description'},
+               'file=s'         => \$file,
+               'enable!'        => \$entry{'status'},
+               );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    &help() unless ( $entry{'profileid'} );
+
+    my $findcount = &find( 'profile', $entry{'profileid'} );
+    if ( defined $findcount ) {
+        if ( $findcount ) {
+            $LASTERROR = "Entry already exists:  profile $entry{'profileid'}.\n";
+            return 1;
+        }
+    } else {
+        $LASTERROR .= "Failed in add profile.\n" . $LASTERROR;
+        return 1;
+    }
+
+    if ( $entry{'status'} ne "" ) {
+        if ( $entry{'status'} ) {
+            $entry{'status'} = "t";
+        } else {
+            $entry{'status'} = "f";
+        }
+    }
+
+    unless ( -f $file ) {
+        $LASTERROR = "Need --file <script> to add. Unable to find file: $file.\n";
+        return 1;
+    }
+
+    open (FILE, "<$file") || die "unable to open $file: $!\n";
+    undef $/;
+    $entry{'data'}=<FILE>;  # slurp mode
+    $/ = "\n";
+    close FILE;
+
+    my $sql_cols = lc get_cols( 'profile' );
+    $sql_cols =~ s/[ \t]*//g;
+    my @cols = split( /,/, $sql_cols );
+    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+    my $sql = qq|INSERT INTO $tbl{ 'profile' }
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+    print $sql . "\n" if $debug;
+
+    my $sth;
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'add' profile statement\n" .
+            $dbh->errstr;
+        return 1;
+    }
+
+    my $paramidx = 0;
+    foreach my $col (@cols) {
+        $paramidx += 1;
+        $sth->bind_param( $paramidx, $entry{ $col } );
+    }
+
+    # finished with last entry
+    unless( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'add' profile statement\n" .
+            $sth->err;
+        return 1;
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+=head2 add tftp <options and args>
+
+Where <options and args> are
+
+    --name id              Required unique id.
+    --enable | --noenable  Enable tftp file for use. [ default enable ]
+    --description "note"   Quoted note describing this file.
+    --file <path/prof>     File to use for this tftp entry.
+
+=cut
+
+sub add_tftp
+{
+    my $file = "";
+    my %entry = (
+                 'name'         => "",
+                 'description'  => "",
+                 'bin'          => "",
+                 'enabled'      => "t",
+                 'insertion'    => "CURRENT_TIMESTAMP",
+                 'change'       => "NULL",
+                 );
+
+    @ARGV = @_;
+    GetOptions(
+               'name=s'         => \$entry{'name'},
+               'description=s'  => \$entry{'description'},
+               'file=s'         => \$file,
+               'enable!'        => \$entry{'enabled'},
+               );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    &help() unless ( $entry{'name'} );
+
+    my $findcount = &find( 'tftp', $entry{'name'} );
+    if ( defined $findcount ) {
+        if ( $findcount ) {
+            $LASTERROR = "Entry already exists:  tftp $entry{'name'}.\n";
+            return 1;
+        }
+    } else {
+        $LASTERROR .= "Failed in add tftp.\n" . $LASTERROR;
+        return 1;
+    }
+
+    if ( $entry{'enabled'} ne "" ) {
+        if ( $entry{'enabled'} ) {
+            $entry{'enabled'} = "1";
+        } else {
+            $entry{'enabled'} = "0";
+        }
+    }
+
+    unless ( -f $file ) {
+        $LASTERROR = "Need --file <path/file> to add. Unable to find file: $file.\n";
+        return 1;
+    }
+
+    my $fh;
+    open ($fh, "<", $file) || die "unable to open $file: $!\n";
+
+    my $sql_cols = lc get_cols( 'tftp' );
+    $sql_cols =~ s/[ \t]*//g;
+    my @cols = split( /,/, $sql_cols );
+
+    $sql_cols = "";
+    my $sql_vals = "";
+    # for the cols we are setting get rid of the autoincrement key
+    foreach my $col( @cols ) {
+        next if ( $col eq "id" );
+        if ( $col eq "bin" ) {
+            $sql_cols .= "$col,";
+            $sql_vals .= "?,";
+            next;
+        }
+        if ( defined $entry{ $col } ) {
+            $sql_cols .= "$col,";
+            if ( $col eq "insertion" or $col eq "change" ) {
+                $sql_vals .= qq|$entry{ $col },|;
+            } else {
+                $sql_vals .= qq|'$entry{ $col }',|;
+            }
+        }
+    }
+    chop $sql_cols;
+    chop $sql_vals;
+
+    my $sql = qq|INSERT INTO $tbl{ 'tftp' }
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+    print $sql . "\n" if $debug;
+
+    my $sth;
+    unless ( $sth = $tftph->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'add' tftp statement\n" .
+            $dbh->errstr;
+        return 1;
+    }
+
+    my $bytes = 1;
+    while ( $bytes ) {
+        read $fh, $bytes, $maxlen;
+        $entry{ 'bin' } = &bytea_encode( $bytes );
+        if ( $bytes ) {
+            unless( $sth->execute( $entry{ 'bin' } ) ) {
+                $LASTERROR = "Unable to execute 'add' tftp statement\n" .
+                    $sth->err;
+                return 1;
+            }
+        }
+    }
+
+    close $fh;
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+# update - invoke proper update type
+
+# this is not exactly straight forward - things to consider
+#   - do we really need the trigger to convert the 'update' to an 'add'?
+#   - highest version
+#   - enabled version
+#   - highest + 1 for new file content ( enabled by default - disable former )
+#   - specified version ( if enabled former enabled version must be disabled )
+
+sub update
+{
+    my $type = shift;
+    my $status;
+
+    &check_type( $type );
+    $type = lc $type;
+
+    if ( $type eq "module" ) {
+        $status = &update_module( @_ );
+    } elsif ( $type eq "profile" ) {
+        $status = &update_profile( @_ );
+    } elsif ( $type eq "tftp" ) {
+        $status = &update_tftp( @_ );
+    } else {
+        $LASTERROR = "Invalid <type> '$type' passed for update.\n";
+        return 1;
+    }
+
+    return $status;
+}
+
+=head2 update module <options and args>
+
+Where <options and args> are
+
+    --name id              Required unique id, suggest script name.
+    --enable | --noenable  Enable module for use. [ no default ]
+    --description "note"   Quoted note describing this script.
+
+you may only specify one of the following
+
+    --file <path/script>   Create a new version with this content.
+    --version <version>    Modify parameters of an existing version.
+
+=cut
+
+# dhb: thought init-scripts would support this but they don't anymore:
+#
+#   --interpreter value   where value is shell, perl, python  [default shell]
+
+sub update_module
+{
+    my $type = 'module';
+    my $file = "";
+
+    my %entry = (
+                 'moduleid'     => "",
+                 'description'  => "",
+                 'interpreter'  => "",
+                 'data'         => "",
+                 'status'       => "",
+                 'version'      => 0,
+                 );
+
+    @ARGV = @_;
+    GetOptions(
+               'name=s'         => \$entry{'moduleid'},
+               'description=s'  => \$entry{'description'},
+#              'interpreter=s'  => \$entry{'interpreter'},
+               'file=s'         => \$file,
+               'enable!'        => \$entry{'status'},
+               'version=i'      => \$entry{'version'},
+               );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    unless ( $entry{'moduleid'} ) {
+        print "Required --name <name> not provided.\n";
+        &help();
+    }
+
+    if ( $entry{'status'} ne "" ) {
+        print "enable or noenable passed: $entry{'status'}\n" if $debug;
+        if ( $entry{'status'} ) {
+            $entry{'status'} = "t";
+        } else {
+            $entry{'status'} = "f";
+        }
+    }
+
+    # fetch needed entries from db
+    my ( $version_href, $highest_href, $enabled_href ) =
+        &get_versions( $type, $entry{'moduleid'}, $entry{'version'});
+
+    unless (defined $highest_href) {
+        unless ( $LASTERROR ) {
+            $LASTERROR =
+                "Unable to update $type, entry '$entry{'moduleid'}' not found\n";
+        }
+        return 1;
+    }
+
+    if ( $entry{'version'} != 0 ) {
+        if ( $file ) {
+            $LASTERROR = "Change of --file content for a version unsupported.\n";
+            return 1;
+        }
+        unless (defined $version_href) {
+            $LASTERROR = "Specified version was not found.\n";
+            return 1;
+        }
+    } elsif ( $file eq "" ) {
+        $LASTERROR = "Require --file <file> or specified --version for update.\n";
+        return 1;
+    } elsif ( ! $file ) {
+        $LASTERROR = "Need --file <file> to add. Unable to find: $file.\n";
+        return 1;
+    } else {
+        open (FILE, "<$file") || die "unable to open $file: $!\n";
+        undef $/;
+        $entry{'data'}=<FILE>;  # slurp mode
+        $/ = "\n";
+        close FILE;
+    }
+
+    # finished processing command line
+
+    if ( $entry{'version'} != 0 ) {
+
+        # true UPDATE for specified version
+        # possibly two UPDATEs this 'status' changes to enable
+
+        if ( defined $enabled_href->{'version'} &&
+             $entry{'version'} != $enabled_href->{'version'} &&
+             $entry{'status'} eq "t" ) {
+
+            # disable enabled version - in preperation to enable specified version
+            return 1 if &change_status( $type, "f", $enabled_href );
+        }
+        if ( $entry{'status'} ne "" ) {
+            return 1 if &change_status( $type, $entry{'status'}, $version_href );
+        }
+
+        # the only other param to modify is description
+        # because we don't support intreperter now
+        # and data modification is not allowed.
+
+        if ( $entry{'description'} ne "" ) {
+            return 1
+                if &change_description( $type,
+                                        $entry{'description'},
+                                        $version_href );
+        }
+
+        # done with the genuine UPDATE of the version specified
+
+    } else {
+
+        # not UPDATE but instead INSERT a new version of <file> (highest ver + 1)
+        # if --enable passed then may need UPDATE to disable earlier entry
+
+        my $new_vers = $highest_href->{'version'} + 1;
+
+        return 1 if (&redundant_data($type, $entry{'moduleid'}, $entry{'data'}));
+
+        if ( defined $enabled_href->{'version'} &&
+             $entry{'status'} eq "t" ) {
+
+            # disable enabled version - in preperation to enable new version
+            return 1 if &change_status( $type, "f", $enabled_href );
+        }
+
+        # use information from enabled version if found
+        # and if not then highest version for all the fields
+        # not provided with the new version of this file
+
+        my $use_href;
+
+        if ( defined $enabled_href->{'version'} ) {
+            $use_href = $enabled_href;
+        } else {
+            $use_href = $highest_href;
+        }
+
+        while ( my ($key, $value) = each %entry ) {
+            # change only what was passed
+            if ( $value ) {
+                $use_href->{ $key } = $value;
+            }
+        }
+
+        if ( $entry{'status'} ne "t" ) {
+            $use_href->{ 'status' } = "f";
+        }
+
+        # and assign the new version
+        $use_href->{'version'} = $new_vers;
+
+        # now add it
+
+        my $sql_cols = lc get_cols( 'module' );
+        $sql_cols =~ s/[ \t]*//g;
+        my @cols = split( /,/, $sql_cols );
+        my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+        my $sql = qq|INSERT INTO $tbl{ 'module' }
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+        print $sql . "\n" if $debug;
+
+        my $sth;
+        unless ( $sth = $dbh->prepare( $sql ) ) {
+            $LASTERROR = "Unable to prepare 'update' module statement\n" .
+                $dbh->errstr;
+            return 1;
+        }
+
+        my $paramidx = 0;
+        foreach my $col (@cols) {
+            $paramidx += 1;
+            $sth->bind_param( $paramidx, $use_href->{ $col } );
+        }
+
+        # finished with last entry
+        unless( $sth->execute( ) ) {
+            $LASTERROR = "Unable to execute 'update' module statement\n" .
+                $sth->err;
+            return 1;
+        }
+
+        $sth->finish;
+        undef $sth;
+
+    }
+
+    return 0;
+}
+
+=head2 update profile <options and args>
+
+Where <options and args> are
+
+    --name id              Required unique id.
+    --enable | --noenable  Enable module for use. [ no default ]
+    --description "note"   Quoted note describing this profile.
+
+you may only specify one of the following
+
+    --file <path/profile>  Create a new version with this content.
+    --version <version>    Modify parameters of an existing version.
+
+=cut
+
+sub update_profile
+{
+    my $type = 'profile';
+    my $file = "";
+
+    my %entry = (
+                 'profileid'    => "",
+                 'description'  => "",
+                 'data'         => "",
+                 'status'       => "",
+                 'version'      => 0,
+                 );
+
+    @ARGV = @_;
+    GetOptions(
+               'name=s'         => \$entry{'profileid'},
+               'description=s'  => \$entry{'description'},
+               'file=s'         => \$file,
+               'enable!'        => \$entry{'status'},
+               'version=i'      => \$entry{'version'},
+               );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    unless ( $entry{'profileid'} ) {
+        print "Required --name <name> not provided.\n";
+        &help();
+    }
+
+    if ( $entry{'status'} ne "" ) {
+        print "enable or noenable passed: $entry{'status'}\n" if $debug;
+        if ( $entry{'status'} ) {
+            $entry{'status'} = "t";
+        } else {
+            $entry{'status'} = "f";
+        }
+    }
+
+    # fetch needed entries from db
+    my ( $version_href, $highest_href, $enabled_href ) =
+        &get_versions( $type, $entry{'profileid'}, $entry{'version'});
+
+    unless (defined $highest_href) {
+        unless ( $LASTERROR ) {
+            $LASTERROR =
+                "Unable to update $type, entry '$entry{'profileid'}' not found\n";
+        }
+        return 1;
+    }
+
+    if ( $entry{'version'} != 0 ) {
+        if ( $file ) {
+            $LASTERROR = "Change of --file content for a version unsupported.\n";
+            return 1;
+        }
+        unless (defined $version_href) {
+            $LASTERROR = "Specified version was not found.\n";
+            return 1;
+        }
+    } elsif ( $file eq "" ) {
+        $LASTERROR = "Require --file <file> or specified --version for update.\n";
+        return 1;
+    } elsif ( ! $file ) {
+        $LASTERROR = "Need --file <file> to add. Unable to find: $file.\n";
+        return 1;
+    } else {
+        open (FILE, "<$file") || die "unable to open $file: $!\n";
+        undef $/;
+        $entry{'data'}=<FILE>;  # slurp mode
+        $/ = "\n";
+        close FILE;
+    }
+
+    # finished processing command line
+
+    if ( $entry{'version'} != 0 ) {
+
+        # true UPDATE for specified version
+        # possibly two UPDATEs this 'status' changes to enable
+
+        if ( defined $enabled_href->{'version'} &&
+             $entry{'version'} != $enabled_href->{'version'} &&
+             $entry{'status'} eq "t" ) {
+
+            # disable enabled version - in preperation to enable specified version
+            return 1 if &change_status( $type, "f", $enabled_href );
+        }
+        if ( $entry{'status'} ne "" ) {
+            return 1 if &change_status( $type, $entry{'status'}, $version_href );
+        }
+
+        # the only other param to modify is description
+        # because we don't support intreperter now
+        # and data modification is not allowed.
+
+        if ( $entry{'description'} ne "" ) {
+            return 1
+                if &change_description( $type,
+                                        $entry{'description'},
+                                        $version_href );
+        }
+
+        # done with the genuine UPDATE of the version specified
+
+    } else {
+
+        # not UPDATE but instead INSERT a new version of <file> (highest ver + 1)
+        # if --enable passed then may need UPDATE to disable earlier entry
+
+        my $new_vers = $highest_href->{'version'} + 1;
+
+        return 1 if (&redundant_data($type, $entry{'profileid'}, $entry{'data'}));
+
+        if ( defined $enabled_href->{'version'} &&
+             $entry{'status'} eq "t" ) {
+
+            # disable enabled version - in preperation to enable new version
+            return 1 if &change_status( $type, "f", $enabled_href );
+        }
+
+        # use information from enabled version if found
+        # and if not then highest version for all the fields
+        # not provided with the new version of this file
+
+        my $use_href;
+
+        if ( defined $enabled_href->{'version'} ) {
+            $use_href = $enabled_href;
+        } else {
+            $use_href = $highest_href;
+        }
+
+        while ( my ($key, $value) = each %entry ) {
+            # change only what was passed
+            if ( $value ) {
+                $use_href->{ $key } = $value;
+            }
+        }
+
+        # if not explicitly enabled we default to disabled
+        if ( $entry{'status'} ne "t" ) {
+            $use_href->{ 'status' } = "f";
+        }
+
+        # and assign the new version
+        $use_href->{'version'} = $new_vers;
+
+        # now add it
+
+        my $sql_cols = lc get_cols( 'profile' );
+        $sql_cols =~ s/[ \t]*//g;
+        my @cols = split( /,/, $sql_cols );
+        my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+        my $sql = qq|INSERT INTO $tbl{ 'profile' }
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+        print $sql . "\n" if $debug;
+
+        my $sth;
+        unless ( $sth = $dbh->prepare( $sql ) ) {
+            $LASTERROR = "Unable to prepare 'update' profile statement\n" .
+                $dbh->errstr;
+            return 1;
+        }
+
+        my $paramidx = 0;
+        foreach my $col (@cols) {
+            $paramidx += 1;
+            $sth->bind_param( $paramidx, $use_href->{ $col } );
+        }
+
+        # finished with last entry
+        unless( $sth->execute( ) ) {
+            $LASTERROR = "Unable to execute 'update' profile statement\n" .
+                $sth->err;
+            return 1;
+        }
+
+        $sth->finish;
+        undef $sth;
+
+    }
+
+    return 0;
+}
+
+=head2 update tftp <options and args>
+
+Where <options and args> are
+
+    --name id              Required unique id, suggest script name.
+    --enable | --noenable  Enable module for use. [ no default ]
+    --description "note"   Quoted note describing this script.
+    --file <path/script>   Create a new version with this content.
+
+There is no support for versioning of these files.
+
+=cut
+
+sub update_tftp
+{
+    my $type = 'tftp';
+    my $file = "";
+
+    my $sth;
+    my $sql;
+    my $href;
+    my %save;
+
+    my %entry = (
+                 'name'         => "",
+                 'description'  => "",
+                 'enabled'      => "",
+                 'insertion'    => "",
+                 'change'       => "CURRENT_TIMESTAMP",
+                 );
+
+    @ARGV = @_;
+    GetOptions(
+               'name=s'         => \$entry{'name'},
+               'description=s'  => \$entry{'description'},
+               'file=s'         => \$file,
+               'enable!'        => \$entry{'enabled'},
+               );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    unless ( $entry{'name'} ) {
+        print "Required --name <name> not provided.\n";
+        &help();
+    }
+
+    # get the current description and enabled states to see if we need to change
+    my $sql_cols = lc get_cols( 'tftp' );
+    $sql_cols =~ s/[ \t]*//g;
+
+    $sql = qq|SELECT $sql_cols
+              FROM $tbl{ $type }
+              WHERE name = ?
+              ORDER BY id|;
+
+    print "$sql\n" if $debug;
+    unless ( $sth = $tftph->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'update' tftp query\n" . $tftph->errstr;
+        return 1;
+    }
+
+    unless ( $sth->execute( $entry{'name'} ) ) {
+        $LASTERROR = "Unable to execute 'update' tftp query\n" . $sth->err;
+        return 1;
+    }
+
+    my $entry_data;
+    my $rowcount = 0;
+    my %id;
+
+    # store off first entry
+    while ( $href = $sth->fetchrow_hashref( ) ) {
+        while ( my ($key, $val) = each %{$href} ) {
+            print "update $rowcount - $href->{'id'} entry:  $key => $val\n" if $debug;
+        }
+        unless ( $rowcount ) {
+            while ( my ($key, $val) = each %{$href} ) {
+                if ( $key ne "bin" ) {
+                    $save{ $key } = $val;
+                    if ( $debug and $val ) {
+                        print "1 entry $href->{'id'}:  $key => $val\n";
+                    } elsif ( $debug ) {
+                        print "2 entry $href->{'id'}:  $key =>\n";
+                    }
+                }
+            }
+        }
+        $rowcount += 1;
+        $id{ $href->{'id'} } = $href->{'id '};
+        $entry_data .= &bytea_decode( $href->{'bin'} );
+    }
+
+    unless ( $rowcount ) {
+        $LASTERROR = "Entry not found for update: tftp $entry{'name'}.\n";
+        return 1;
+    }
+
+    my $desc_needed = 0;
+    my $stat_needed = 0;
+
+    if ( defined $entry{'enabled'} && $entry{'enabled'} ne "" ) {
+        if ( $save{'enabled'} ne $entry{'enabled'} ) {
+            $save{'enabled'} = $entry{'enabled'};
+            $stat_needed = 1;
+        }
+    }
+
+    if ( defined $entry{'description'} && $entry{'description'} ne "" ) {
+        if ( $save{'description'} ne $entry{'description'} ) {
+            $save{'description'} = $entry{'description'};
+            $desc_needed = 1;
+        }
+    }
+
+    # if first change we don't have a value in entry.
+    $save{'change'} = $entry{'change'};
+
+    # determine if updating file now so can remove all entries -
+    # then add data entries - after update status and desc if needed
+
+    if ( $file ne "" ) {
+
+        if ( ! $file ) {
+            $LASTERROR = "Need --file <file> to add. Unable to find: $file.\n";
+            return 1;
+        }
+
+        # grab file content for comparison with current entry 'data'
+        open (FILE, "<$file") || die "unable to open $file: $!\n";
+        undef $/;
+        my $file_data = <FILE>;  # slurp mode
+        $/ = "\n";
+        close FILE;
+
+        # must check first - for refusing to 'update' with duplicate data
+        if ( $file_data eq $entry_data ) {
+            $LASTERROR = "Reject updating file entry with duplicate data\n";
+            return 1;
+        }
+
+        # delete all old entries
+        my $delete = qq|DELETE FROM $tbl{'tftp'} where name = '$entry{'name'}'|;
+        unless ( $sth = $tftph->do( $delete ) ) {
+            $LASTERROR = "Unable to do 'update' tftp removal\n" .
+                $tftph->errstr;
+            return 1;
+        }
+
+        my $sql_cols = lc get_cols( 'tftp' );
+        $sql_cols =~ s/[ \t]*//g;
+        my @cols = split( /,/, $sql_cols );
+
+        my $sql_vals = "";
+        $sql_cols = "";
+
+        foreach my $col ( @cols ) {
+            next if ( $col eq "id" );  # do not include autoincr key in sql
+            if ( $col eq "bin" ) {
+                $sql_cols .= "$col,";
+                $sql_vals .= "?,";
+                next;
+            }
+            if ( $save{ $col } ne "" ) {
+                $sql_cols .= "$col,";
+                if ( $col eq "change" ) {
+                    # do not quote CURRENT_TIMESTAMP or other sql expressions
+                    $sql_vals .= qq|$save{ $col },|;
+                } else {
+                    $sql_vals .= qq|'$save{ $col }',|;
+                }
+            }
+        }
+        chop $sql_cols;
+        chop $sql_vals;
+
+        $sql = qq|INSERT INTO $tbl{ 'tftp' }
+                  ( $sql_cols )
+                  VALUES ( $sql_vals )
+                 |;
+        print $sql . "\n" if $debug;
+
+        unless ( $sth = $dbh->prepare( $sql ) ) {
+            $LASTERROR = "Unable to prepare 'update' tftp statement\n" .
+                $dbh->errstr;
+            return 1;
+        }
+
+        # open the file again to be read in by chunks to store
+        my $fh;
+        open ($fh, "<", $file) || die "unable to open $file: $!\n";
+
+        my $bytes = 1;
+        while ( $bytes ) {
+            read $fh, $bytes, $maxlen;
+            $file_data = &bytea_encode( $bytes );
+            if ( $bytes ) {
+                unless ( $sth->execute( $file_data ) ) {
+                    $LASTERROR = "Unable to execute 'update' tftp statement\n" .
+                        $sth->err;
+                    return 1;
+                }
+            }
+        }
+
+        close $fh;
+
+    } elsif ( $desc_needed == 1 || $stat_needed == 1 ) {
+
+        # no file to play with so only updating the status, description, or both
+        my $sql_cols;
+        my $sql_vals;
+
+        if ( $desc_needed == 1 ) {
+            $sql_cols .= "description";
+            $sql_vals .= "'$save{'description'}'";
+        }
+        if ( $stat_needed == 1 ) {
+            $sql_cols .= "," if ( $sql_cols );
+            $sql_vals .= "," if ( $sql_vals );
+            $sql_cols .= "enabled";
+            $sql_vals .= "'$save{'enabled'}'";
+        }
+        $sql_cols .= ",insertion,change";
+        $sql_vals .= ",'$save{'insertion'}', CURRENT_TIMESTAMP";
+
+        $sql = qq|UPDATE $tbl{ $type }
+                  SET ( $sql_cols ) = ( $sql_vals )
+                  WHERE id = ?|;
+
+        unless ( $sth = $tftph->prepare( $sql ) ) {
+            $LASTERROR = "Unable to prepare 'update' statement\n" .
+                $tftph->errstr;
+            return 1;
+        }
+
+        foreach my $id ( sort keys %id ) {
+            print "update id $id\n" if $debug;
+            unless ( $sth->execute( $id ) ) {
+                $LASTERROR = "Unable to execute 'update' statement\n" .
+                    $sth->err;
+                return 1;
+            }
+        }
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+=head2 export E<lt>typeE<gt> <options and args>
+
+Where <type> may be module, profile, or tftp.  Not hardware or distro.
+
+For similar functionality with hardware and distro types it is suggested to simply redirect the 'detail <type>' output. With these types there is no actual 'data' portion and no related '--file' argument used to add them.
+
+Where <options and args> are
+
+    --name <name>          Data of named entry used. [ default <file> ].
+    --file <path/file>     Create this new flie with db data contents.
+    --version <ver>        Required specifier for module or profile types.
+
+=cut
+
+sub export
+{
+    my $type = shift;
+    my $file = "";
+
+    my %entry = (
+                 'name'         => "",
+                 'version'      => "",  # not used for tftp
+                 'description'  => "",
+                 );
+
+    @ARGV = @_;
+    GetOptions(
+               'name=s'         => \$entry{'name'},
+               'description=s'  => \$entry{'description'},
+               'version=i'      => \$entry{'version'},
+               'file=s'         => \$file,
+               );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    unless ( $file ne "" ) {
+        print "Required --file <path/file> not provided.\n";
+        &help( "export" );
+    }
+
+    if ( -e $file ) {
+        $LASTERROR = "Unwilling to overwrite existing <path/file>: $file.\n";
+        return 1;
+    }
+
+    if ( $entry{'version'} eq "" ) {
+        unless ( $type eq "tftp" ) {
+            print "Required --version <ver> not provided.\n";
+            &help( "export" );
+        }
+    } elsif ( $type eq "tftp" ) {
+        print "Ignoring unsupported --version specifier for type $type\n";
+    }
+
+    if ( $entry{'name'} eq "" ) {
+        $entry{'name'} = $file;
+        $entry{'name'} =~ s|.*/||;       # only the short name for the lookup
+    }
+
+    my $sql;
+    my $db2use = $dbh;
+
+    if ( $type eq "module" ) {
+        $sql = qq|SELECT data
+                  FROM $tbl{ $type }
+                  WHERE moduleid = '| . $entry{'name'} . qq|'
+                  AND version = '| . $entry{'version'} . qq|'|;
+    } elsif ( $type eq "profile" ) {
+        $sql = qq|SELECT data
+                  FROM $tbl{ $type }
+                  WHERE profileid = '| . $entry{'name'} . qq|'
+                  AND version = '| . $entry{'version'} . qq|'|;
+    } elsif ( $type eq "tftp" ) {
+        $sql = qq|SELECT bin as data
+                  FROM $tbl{ $type }
+                  WHERE name = '| . $entry{'name'} . qq|'
+                  ORDER BY id
+                 |;
+        $db2use = $tftph;
+    } else {
+        $LASTERROR = "Unsuported type $type for export command\n";
+        return 1;
+    }
+
+    my $sth;
+    my $href;
+
+    unless ( $sth = $db2use->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'export' statement\n" . $db2use->errstr;
+        return 1;
+    }
+
+    unless( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'export' statement\n" . $sth->err;
+        return 1;
+    }
+
+    open( my $fh, ">", $file ) or die "Unable to open $file: $!\n";
+
+    my $rowcount = 0;
+    my $row;
+    while( $href = $sth->fetchrow_hashref( ) ) {
+        $rowcount += 1;
+        if ( $type ne "tftp" ) {
+            $row = $href->{'data'};
+        } else {
+            $row = &bytea_decode ( $href->{'data'} );
+        }
+        print $fh $row;
+    }
+    close $fh;
+
+    $sth->finish;
+    undef $sth;
+
+    return 0
+}
+
+=head2 detail E<lt>typeE<gt> E<lt>nameE<gt> [ --all | --version <ver> ]
+
+Takes <type> and <name> as arguments.
+
+Fetch and display the details about the entry in the type database.
+
+Only the 'enabled' version is shown unless --all or --version specified. If option --all is used all module or profile versions are displayed.  Also, --version <ver> can be used to display on the desired version.
+
+=cut
+
+sub detail
+{
+    my $type = shift;
+    my $name = shift;
+    my $href;
+    my $version = 0;
+
+    @ARGV=@_;
+    if ( ( $type eq "module" ) || ( $type eq "profile" ) ) {
+        GetOptions(
+                   'version=i'      => \$version,
+                   );
+    }
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    if ( $version && $all ) {
+        $LASTERROR = "Please use either --all _or_ --version <ver>. Not both.\n";
+        return 1;
+    }
+
+    &check_type( $type );
+    $type = lc $type;
+
+    unless ( defined $name) {
+        &help();
+    }
+    $name =~ s|.*/||;           # only the short name for the lookup
+
+    my $sql_cols = lc get_cols( $type );
+    my $sql = qq| SELECT $sql_cols FROM $tbl{ $type } |;
+    my $sql_cert;
+    my $sql_chunks;
+
+    my $db2use = $dbh;
+
+    if ( $type eq "distro" ) {
+        $sql .= "WHERE distroid = ?";
+    } elsif ( $type eq "hardware" ) {
+        $sql .= "WHERE hardwareid = ?";
+
+        $sql_cols = lc get_cols( 'oscert' );
+        $sql_cert = qq|SELECT oscert
+                       FROM $tbl{ 'oscert' }
+                       WHERE hardwareid = '| . $name . qq|'|;
+    } elsif ( $type eq "module" ) {
+        $sql .= "WHERE moduleid = ?";
+        $sql .= " AND version = $version" if ( $version );
+    } elsif ( $type eq "profile" ) {
+        $sql .= "WHERE profileid = ?";
+        $sql .= " AND version = $version" if ( $version );
+    } elsif ( $type eq "tftp" ) {
+        $sql .= "WHERE name = ?";
+        $sql .= " ORDER BY id";
+
+        $sql_chunks = qq|SELECT bin
+                         FROM $tbl{ $type }
+                         WHERE name =  '| . $name .
+                      qq|' ORDER BY id|;
+
+        $db2use = $tftph;
+    }
+
+    my $sth;
+    unless ( $sth = $db2use->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'detail' statement\n" . $db2use->errstr;
+        return 1;
+    }
+
+    unless( $sth->execute( $name ) ) {
+        $LASTERROR = "Unable to execute 'detail' statement\n" . $sth->err;
+        return 1;
+    }
+
+    my $rowcount = 0;
+    my $printcount = 0;
+    my $tftpname = "";
+    my $tftpdata;
+
+    while( $href = $sth->fetchrow_hashref( ) ) {
+        $rowcount += 1;
+        if ( $type eq "module" ) {
+            if ( $all ||
+                 $href->{'status'} ||
+                 $href->{'version'} == $version ) {
+                print "\n# ba #####" if $all;
+                unless ( $nolabels ) {
+                    print  "# ba\n";
+                    printf "# ba module: %s\n",      $href->{'moduleid'};
+                    printf "# ba description: %s\n", $href->{'description'};
+                   #printf "# ba interpreter: %s\n", $href->{'interpreter'};
+                    printf "# ba enabled: %s\n",     $href->{'status'}
+                        if ( $all || $version );
+                    printf "# ba version: %s\n",     $href->{'version'};
+                    print  "# ba\n";
+                }
+                print  $href->{'data'};
+                $printcount += 1;
+            }
+        }
+        if ( $type eq "profile" ) {
+            if ( $all ||
+                 $href->{'status'} ||
+                 $href->{'version'} == $version ) {
+                print "\n# ba #####" if $all;
+                unless ( $nolabels ) {
+                    print  "# ba\n";
+                    printf "# ba profile: %s\n",     $href->{'profileid'};
+                    printf "# ba description: %s\n", $href->{'description'};
+                    printf "# ba enabled: %s\n",     $href->{'status'}
+                        if ( $all || $version );
+                    printf "# ba version: %s\n",     $href->{'version'};
+                    print  "# ba\n";
+                }
+                print  $href->{'data'};
+                $printcount += 1;
+            }
+        }
+        if ( $type eq "distro" ) {
+            printf "[%s]\n",           $href->{'distroid'} unless $nolabels;
+            printf "os=%s\n",          $href->{'os'};
+            printf "sp=%s\n",          $href->{'sp'};
+            printf "description=%s\n", $href->{'description'};
+            printf "arch=%s\n",        $href->{'arch'};
+            printf "pxeKernel=%s\n",   $href->{'pxekernel'};
+            printf "pxeInitrd=%s\n",   $href->{'pxeinitrd'};
+            printf "addon=%s\n",       $href->{'addon'};
+            printf "baseos=%s\n",      $href->{'baseos'}
+                if ( $href->{'baseos'} );
+            $printcount += 1;
+        }
+        if ( $type eq "hardware" ) {
+            printf "[%s]\n",            $href->{'hardwareid'} unless $nolabels;
+            printf "description=%s\n",  $href->{'description'};
+            printf "bootArgs=%s\n",     $href->{'bootargs'};
+            printf "rootDisk=%s\n",     $href->{'rootdisk'};
+            printf "rootPart=%s\n",     $href->{'rootpart'};
+            printf "pxeTemplate=%s\n",  $href->{'pxetemplate'};
+            printf "yastTemplate=%s\n", $href->{'yasttemplate'};
+            printf "hwdriver=%s\n",     $href->{'hwdriver'};
+            $printcount += 1;
+
+            my $oscert = "";
+            my $certs = $db2use->selectall_arrayref( $sql_cert, { slice => {} } );
+            if ( defined $certs ) {
+                foreach my $cert ( @{$certs} ) {
+                    $oscert .= ":" if ( $oscert ne "" );
+                    $oscert .= @{$cert}[0];
+                }
+            }
+            printf "oscert=%s\n", $oscert if ( defined $oscert );
+        }
+        if ( $type eq "tftp" ) {
+            # because tftp file data is stored in chunks
+            # need to collect the chunks before output
+            if ( $tftpname ne $name ) {
+                $tftpname = $name;
+                # first time for 'name' encountered - get chunks
+                my $chunks = $db2use->selectall_arrayref($sql_chunks,{slice=>{}});
+                if ( defined $chunks and ( $all or $href->{'enabled'} ) ) {
+
+                    unless ( $nolabels ) {
+                        print  "# ba\n";
+                        printf "# ba name: %s\n",     $href->{'name'};
+                        printf "# ba description: %s\n", $href->{'description'};
+                        printf "# ba enabled: %s\n",     $href->{'enabled'};
+                        printf "# ba inserted: %s\n",    $href->{'insertion'}
+                            if $verbose;
+                        printf "# ba modified: %s\n",    $href->{'change'}
+                            if ( defined $href->{'change'} && $verbose );
+                        print  "# ba\n";
+                    }
+                    foreach my $chunk ( @{$chunks} ) {
+                        $tftpdata .= &bytea_decode( @{$chunk}[0] );
+                    }
+                    if ( ( length $tftpdata ) < 512 ) {
+                        print $tftpdata;
+                    } else {
+                        print "\n# File content will not be displayed.\n";
+                        print "# file is large and may be binary.\n";
+                        print "# please use the 'export' command.\n";
+                    }
+                    $printcount += 1;
+                }
+            }
+        }
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    if ( $printcount == 0 ) {
+        $LASTERROR = "No $type named $name";
+        $LASTERROR .= " *enabled* entry" if ( $rowcount && ! $version );
+        $LASTERROR .= " version $version" if ( $version );
+        $LASTERROR .= " found in db\n";
+        return 1;
+    }
+
+    return 0;
+}
+
+=head2 remove E<lt>typeE<gt> E<lt>nameE<gt> [--version <ver>]
+
+Takes <type> and <name> as arguments.
+
+Removes all versions of <name> specified from <type> database.
+
+Option --version <ver> can be provided to remove only the version specified.
+
+=cut
+
+sub remove
+{
+    my $type = shift;
+    my $name = shift;
+    my $version;
+
+    &check_type( $type );
+    $type = lc $type;
+
+    unless ( defined $name) {
+        &help();
+    }
+    $name =~ s|.*/||;           # only the short name for the lookup
+
+    @ARGV = @_;
+    if ( ( $type eq "module" ) || ( $type eq "profile" ) ) {
+        GetOptions(
+                   'version=i' => \$version,
+                   );
+    }
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    my $sql;
+
+    my $db2use = $dbh;
+
+    if ( $type eq "distro" ) {
+        $sql = qq|DELETE FROM $tbl{ $type } WHERE distroid = ?|;
+    } elsif ( $type eq "hardware" ) {
+        $sql = qq|DELETE FROM $tbl{ $type } WHERE hardwareid = ?|;
+    } elsif ( $type eq "module" ) {
+        $sql = qq|DELETE FROM $tbl{ $type } WHERE moduleid = ?|;
+    } elsif ( $type eq "profile" ) {
+        $sql = qq|DELETE FROM $tbl{ $type } WHERE profileid = ?|;
+    } elsif ( $type eq "tftp" ) {
+        $sql = qq|DELETE FROM $tbl{ $type } WHERE name = ?|;
+        $db2use = $tftph;
+    }
+
+    if ( defined $version ) {
+        $sql .= " AND version = $version";
+    }
+
+    my $sth;
+    unless ( $sth = $db2use->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'remove' statement\n" . $db2use->errstr;
+        return 1;
+    }
+
+    unless ( $sth->execute( $name ) ) {
+        $LASTERROR = "Unable to execute 'remove' statement\n" . $sth->err;
+        return 1;
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+###########################################################################
+
+sub check_command
+{
+    my $command = shift;
+
+    my $cmd_list = "list, add, detail, remove, update";
+    unless ( defined $command ) {
+        print "requires <command> (e.g. $cmd_list)\n";
+        &help();
+    }
+    $command = lc $command;
+    unless ( defined $cmds{ $command } ) {
+        print "invalid <command> '$command' please use:  $cmd_list\n";
+        exit 1;
+    }
+}
+
+sub check_type
+{
+    my $type = shift;
+    my $type_list = "distro, hardware, module, profile, tftp";
+
+    $type = lc $type;
+    return $type_list if ( $type eq "all" );
+
+    unless ( defined $type ) {
+        print "requires <type> (e.g. $type_list)\n";
+        exit 1;
+    }
+    unless ( defined $tbl{ $type } ) {
+        print "invalid <type> '$type' please use: $type_list\n";
+        exit 1;
+    }
+    return $type;
+}
+
+# find - simple lookup to see if entry already exists
+# return count of entries found or undef on error
+
+sub find
+{
+    my $type = shift;
+    my $name = shift;
+
+    my $sth = &list_start( $type, $name );
+
+    unless( defined $sth ) {
+        $LASTERROR .= "Failed in find\n" . $LASTERROR;
+        return undef;
+    }
+
+    my $rowcount = 0;
+    while ( &list_next( $sth ) ) {
+        $rowcount += 1;
+    }
+    &list_finish( $sth );
+
+    return $rowcount;
+}
+
+sub list_start
+{
+    my $type  = shift;
+    my $name  = shift;
+
+    my $sql;
+
+    my $db2use = $dbh;
+
+    if ( $type eq "distro" ) {
+        $sql = qq|SELECT distroid as name, description
+                  FROM $tbl{ $type }
+                  WHERE distroid LIKE ?
+                 |;
+    } elsif ( $type eq "hardware" ) {
+        $sql = qq|SELECT hardwareid as name, description
+                  FROM $tbl{ $type }
+                  WHERE hardwareid LIKE ?
+                 |;
+    } elsif ( $type eq "module" ) {
+        $sql = qq|SELECT moduleid as name, description, version, status
+                  FROM $tbl{ $type }
+                  WHERE moduleid LIKE ? ORDER BY moduleid, version
+                 |;
+    } elsif ( $type eq "profile" ) {
+        $sql = qq|SELECT profileid as name, description, version, status
+                  FROM $tbl{ $type }
+                  WHERE profileid LIKE ? ORDER BY profileid, version
+                 |;
+    } elsif ( $type eq "tftp" ) {
+        $sql = qq|SELECT name, description, COUNT( id ) as count, enabled
+                  FROM $tbl{ $type }
+                  WHERE name LIKE ?
+                  GROUP BY name, description, enabled
+                  ORDER BY name
+                 |;
+        $db2use = $tftph;
+    }
+
+    my $sth;
+    unless ( $sth = $db2use->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'list' query\n" . $db2use->errstr;
+        return undef;
+    }
+
+    if (defined $name) {
+        $name =~ s|.*/||;       # only the short name for the lookup
+        $name = "%" . $name . "%";
+    } else {
+        $name = "%";
+    }
+
+    unless( $sth->execute( $name ) ) {
+        $LASTERROR = "Unable to execute 'list' query" . $sth->err;
+        return undef;
+    }
+
+    return $sth;
+}
+
+sub list_next
+{
+    my $sth = shift;
+
+    return $sth->fetchrow_hashref();
+}
+
+sub list_finish
+{
+    my $sth = shift;
+    $sth->finish;
+    undef $sth;
+}
+
+sub get_cols
+{
+    my $tbl = shift;
+    my $baracustbls = BaracusSql::get_baracus_tables()->{ $tbl{ $tbl } };
+    my $sqltftptbls = BaracusSql::get_sqltftp_tables()->{ $tbl{ $tbl } };
+    if ( defined $baracustbls ) {
+        return BaracusSql::keys2columns( $baracustbls );
+    }
+    elsif ( defined $sqltftptbls ) {
+        return BaracusSql::keys2columns( $sqltftptbls );
+    }
+    else {
+        die "Internal database table/name usage error.\n";
+    }
+}
+
+# get_versions
+#
+# args: type (module, distro, hardware, profile), $name, $version
+# ret:  hash to entries found to specified, highest, enabled versions on match
+#         or undef on error
+
+sub get_versions
+{
+    my $type = shift;
+    my $name = shift;
+    my $vers = shift;
+
+    my $sth;
+    my $href;
+    my $version_href;
+    my $highest_href;
+    my $enabled_href;
+
+    $vers = 0 unless ( defined $vers );
+
+    my $sql_cols = lc get_cols( $type );
+    my $sql = qq| SELECT $sql_cols FROM $tbl{ $type } |;
+
+    if ( $type eq "module" ) {
+        $sql .= "WHERE moduleid = ?";
+    }
+    elsif ( $type eq "profile" ) {
+        $sql .= "WHERE profileid = ?";
+    }
+    else {
+        print "Expected 'module' or 'profile'\n";
+        exit 1;
+    }
+
+    $sql .= " ORDER BY version;";
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'get_entry' statement\n" . $dbh->errstr;
+        return ( undef, undef, undef );
+    }
+
+    unless( $sth->execute( $name ) ) {
+        $LASTERROR = "Unable to execute 'get_entry' statement\n" . $sth->err;
+        return ( undef, undef, undef );
+    }
+
+    while( $href = $sth->fetchrow_hashref( ) ) {
+        $version_href = $href if ( $href->{'version'} == $vers);
+        $highest_href = $href;
+        $enabled_href = $href if ( $href->{'status'} == 1 );
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return ( $version_href, $highest_href, $enabled_href );
+}
+
+# rendundant_data
+#
+#   when possibly adding a new version we make sure that the
+#   'data' is not already pressent in another entry. if it is
+#   return 1 - with LASTERROR of the version already present.
+
+sub redundant_data
+{
+    my $type = shift;
+    my $name = shift;
+    my $data = shift;
+
+    my $sth;
+    my $href;
+
+    my $sql_cols = lc get_cols( $type );
+    my $sql = qq| SELECT $sql_cols FROM $tbl{ $type } |;
+
+    if ( $type eq "module" ) {
+        $sql .= "WHERE moduleid = ?";
+    }
+    elsif ( $type eq "profile" ) {
+        $sql .= "WHERE profileid = ?";
+    }
+    else {
+        print "Expected 'module' or 'profile'\n";
+        exit 1;
+    }
+
+    $sql .= " ORDER BY version;";
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR =
+            "Unable to prepare 'redundant_data' statement\n" . $dbh->errstr;
+        return 1;
+    }
+
+    unless( $sth->execute( $name ) ) {
+        $LASTERROR =
+            "Unable to execute 'redundant_data' statement\n" . $sth->err;
+        return 1;
+    }
+
+    while( $href = $sth->fetchrow_hashref( ) ) {
+        if ($href->{'data'} eq $data) {
+            $LASTERROR =
+                "Reject adding new version with content identical to this version: $href->{'version'}\n";
+            return 1;
+        }
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+sub change_status
+{
+    my $type = shift;
+    my $stat = shift;
+    my $href = shift;
+
+    unless (defined $href && defined $href->{'status'} ) {
+        $LASTERROR = "Unable to modify status without valid entry\n";
+        return 1;
+    }
+
+    # don't change to what we already are
+    return 0 if ( $href->{'status'} eq $stat );
+
+    my $id;
+
+    if ( $type eq "module" ) {
+        $id = 'moduleid';
+    } elsif ( $type eq "profile" ) {
+        $id = 'profileid';
+    } else {
+        print "Expected 'module' or 'profile'\n";
+        exit 1;
+    }
+
+    my $sql = qq|UPDATE $tbl{ $type }
+                 SET status = '$stat'
+                 WHERE $id = '$href->{ $id }'
+                 AND version = '$href->{'version'}'
+                |;
+    print $sql . "\n" if $debug;
+
+    # update specified version
+    my $sth;
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'change_status' statement\n" .
+            $dbh->errstr;
+        return 1;
+    }
+    unless ( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'change_status' statement\n" .
+            $sth->err;
+        return 1;
+    }
+    return 0;
+}
+
+sub change_description
+{
+    my $type = shift;
+    my $desc = shift;
+    my $href = shift;
+
+    unless (defined $href && defined $href->{'description'} ) {
+        $LASTERROR = "Unable to modify description without valid entry\n";
+        return 1;
+    }
+
+    # don't change to what we already are
+    return 0 if ( $href->{'description'} eq $desc );
+
+    my $id;
+
+    if ( $type eq "module" ) {
+        $id = 'moduleid';
+    } elsif ( $type eq "profile" ) {
+        $id = 'profileid';
+    } else {
+        print "Expected 'module' or 'profile'\n";
+        exit 1;
+    }
+
+    my $sql = qq|UPDATE $tbl{ $type }
+                 SET description = '$desc'
+                 WHERE $id = '$href->{ $id }'
+                 AND version = '$href->{'version'}'
+                |;
+    print $sql . "\n" if $debug;
+
+    # update specified version
+    my $sth;
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'change_status' statement\n" .
+            $dbh->errstr;
+        return 1;
+    }
+    unless ( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'change_status' statement\n" .
+            $sth->err;
+        return 1;
+    }
+    return 0;
+}
+
+die "ABSOLUTELY DOES NOT EXECUTE";
+
+__END__
+
