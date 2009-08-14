@@ -1,8 +1,12 @@
 /********************************************************************/
 /* Tab Pages 														*/
 /********************************************************************/
+body
+{ 
+	behavior:url("/baracus/script/csshover3.htc");
+}
 
-ul#menu
+div.menu ul
 { 
 	position: absolute;
 	top: 0px;
@@ -17,34 +21,60 @@ ul#menu
 	padding: 0;
 }
 
-ul#menu li
+div.menu li
 {
-	display: block;
 	float: left;
 	margin: 0 0 0 5px;
 }
 
-ul#menu li a
+div.menu li a.outer
 { 
-	height: 43px;
+	height: 23px;
 	color: #777;
 	text-decoration: none;
 	display: block;
 	float: left;
 	line-height: 200%;
-	padding: 8px 15px 0;
+	padding: 10px 15px;
 }
 
-ul#menu li a:hover
+div.menu ul li a.current
+{ 
+	height: 23px;
+	text-decoration: none;
+	display: block;
+	float: left;
+	line-height: 200%;
+	color: #FFF;
+	padding: 10px 15px;
+	background-color:red;
+	background: #FFF url("/baracus/images/current-bg.gif") top left repeat-x;
+}
+
+div.menu ul li a:hover
 { 
 	color: #333;
 }
 
-ul#menu li a.current
+div.menu div.submenu
+{
+    display:none;
+    margin-top:42px;
+	background-color:#88ba3d;
+	padding-bottom:10px;
+	padding-top:5px;
+	border:1px solid #d8d8d8;
+}
+div.menu div.submenu a
+{
+	color: white;
+	text-decoration: none;
+	display:block;
+	margin:10px;
+}
+div.menu li:hover div.submenu
 { 
-	color: #FFF;
-	background: #FFF url("/baracus/images/current-bg.gif") top left repeat-x;
-	padding: 5px 15px 0;
+	display:block;
 }
 
 iframe#tabContent

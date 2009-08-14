@@ -130,8 +130,8 @@
 {
 	width:150;
 	position:absolute;
-	left:800;
-	top:650;
+	left:820;
+	top:700;
 }
 
 /* OUTPUT */
@@ -207,13 +207,53 @@
 }
 
 /* DEBUG */
+#statusTall
+{
+	width:280;
+	height:450;
+	position:absolute;
+	top:150;
+	left:300px;
+	border:2px dotted #B2D68C;
+}
+#statusTall textarea
+{
+	background-color: E4E5E6;
+	position:absolute;
+	left:0;
+	top:0;
+	font-family:arial;
+	font-size:9pt;
+	width:280;
+	height:450;
+	color:black;
+	padding-left:10px;
+}
+#inStatusTall
+{
+}
+#inStatusTall textarea
+{
+	background-color: E4E5E6;
+	position:absolute;
+	left:0;
+	top:0;
+	font-family:arial;
+	font-size:9pt;
+	width:280;
+	height:450;
+	color:black;
+	padding-left:10px;
+}
+
+/* DEBUG */
 #statusW
 {
 	width:580;
 	height:280;
 	position:absolute;
 	top:320px;
-	left:0px;
+	left:10px;
 	border:2px dotted black;
 }
 #statusW textarea
@@ -246,6 +286,12 @@
 	height:290;
 	color:black;
 	padding-left:10px;
+}
+#inAbove
+{
+	position:absolute;
+	left:0;
+	top:0;
 }
 #inStatusW
 {

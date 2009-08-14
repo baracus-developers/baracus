@@ -1,0 +1,94 @@
+#config #history
+{
+	position:absolute;
+	top:10;
+	left:12;	
+	font-size:12pt;
+	color:white;
+}
+#config select.profile
+{
+	position:absolute;
+	top:25;
+	left:20;
+	width:200;
+	color:#6DB33F;
+} 
+
+#config select.version
+{
+	position:absolute;
+	top:25;
+	left:240;
+	width:200;
+	color:#6DB33F;
+} 
+#config font.profile
+{
+	position:absolute;
+	top:5;
+	left:20;
+}
+#config font.version
+{
+	position:absolute;
+	top:5;
+	left:240;
+}
+#config font.data
+{
+	position:absolute;
+	top:130;
+	left:20;
+}
+#config font.nname
+{
+	position:absolute;
+	top:130;
+	left:170;
+}
+#config input.nname
+{
+	position:absolute;
+	top:130;
+	left:240;
+	width:330;
+	background-color:B2D68C;
+}
+#config font
+{
+	font-size:9pt;
+}
+
+#config input.submit
+{
+	position:absolute;
+	left:465px;
+	top:130px;
+	padding-right:10;
+	color:green;
+	width: 100px;
+}
+#textEdit
+{
+	width:580;
+	height:530;
+	position:absolute;
+	top:40px;
+	left:10px;
+	padding-top:10;
+	border:2px solid #B2D68C;
+}
+#textEdit textarea
+{
+	position:absolute;
+	left:20;
+	top:150;
+	width: 550;
+	height: 370;
+	background-color: white;
+	color:black;
+	padding:5;
+}
+
+

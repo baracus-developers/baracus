@@ -61,7 +61,7 @@ initProfileOptions();
 createProfileVars();
 
 $distroList = BATools::getDistroSelectionList( $distro, $distroD, "onClick='distUpdate()'", "current");
-$hardwareList = BATools::getHardwareSelectionList( $hardware, $hardwareD, "onClick='hwUpdate()'");
+$hardwareList = BATools::getHardwareSelectionList( $hardware, $hardwareD, "onClick='hwUpdate( this)'");
 
 getAndCheckModules();
 $createContent = infoWindow();
@@ -162,7 +162,7 @@ sub createProfileVars
 	my $name;
 	my $val;
 	
-	$profile = BAdb::getProfileFromDB( $prof);
+	$profile = BAdb::getProfileFromDB( $prof, -1, "yes");
 	my @profileLines = split( "\n", $profile);
 	foreach $record ( @profileLines)
    	{
@@ -271,7 +271,7 @@ sub getAndCheckModules
 sub infoWindow
 {
 	my $cc = "";
-	my $ccurl = "/$BATools::baCGI/createContent?caller=create&attr=prof&val=$prof";
+	my $ccurl = "/$BATools::baCGI/createContent?caller=create&attr=profile&val=$prof";
 	
 	if( !scalar( @errors))
 	{

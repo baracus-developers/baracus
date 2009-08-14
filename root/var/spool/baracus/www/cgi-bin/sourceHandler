@@ -82,7 +82,7 @@ $content = $content."\n\n\n";
 
 if( $ref eq "yes")
 {
-	$refresh = "onLoad=\"doLoad( '$rURL', '$qStr')\"";
+	$refresh = "onLoad=\"doLoad( '$rURL', '$qStr', 5)\"";
 	$proc = "Processing";
 }
 

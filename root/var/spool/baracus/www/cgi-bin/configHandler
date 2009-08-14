@@ -1,0 +1,184 @@
+#!/usr/bin/perl
+
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+use CGI qw(:standard);
+
+print "Content-type: text/html\n\n";
+
+our $rURL = "configProf";
+our $ref = "no";
+our $seconds = 1;
+
+my $op = param('op');
+my $sub = param('sub');
+my $content = getContent( $op, $sub);
+my $header = getHeader( $op, $sub);
+my $proc;
+
+my $refresh = "";
+
+if( $ref eq "yes")
+{
+	$refresh = "onLoad=\"doLoad( '$rURL', '$qStr', $seconds)\"";
+}
+
+print <<HTML0
+
+<html>
+	<head>
+		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
+		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
+	</head>
+	<div id='output'>
+	<body background="/baracus/images/bg-grad.jpg" $refresh>
+	<pre>$content</pre>
+	<h1>$header</h1>
+	<h3>$proc</h3>
+	<body>
+	</div>
+</html>
+
+HTML0
+;
+
+########################################################################################################
+#  
+########################################################################################################
+
+sub getContent
+{
+	my $r = "Not Implemented";
+	my $op = shift @_;
+	my $sub = shift @_;
+		
+	if( $op eq "prof")
+	{
+		my $pData;
+		my $ver;
+		if( $sub eq "add")
+		{
+			$pData = param('pData');
+			my $pName = param('nname');
+		
+			my $tFile = "/tmp/".BATools::generate_random_string().".ba";
+			open( TFILE, "> $tFile");
+			print TFILE $pData;
+			close TFILE;	
+		
+			if( !pName || $pName eq "")
+			{
+				$r = "Invalid Request\n\nPlease enter a profile name";
+			}
+			else
+			{
+				$r = BAdb::addProfileFromFile( $pName, $tFile);
+			}			
+			
+			if( !$r || $r eq "")
+			{
+				$ref = "yes";
+				$rURL = $rURL."A";
+				$seconds = 3;
+				$r = "Add Success: $pName";
+			}
+		}
+		elsif( $sub eq "upd")
+		{
+			$pData = param('pData');
+			$pName = param('profile');
+		
+			my $tFile = "/tmp/".BATools::generate_random_string().".ba";
+			open( TFILE, "> $tFile");
+			print TFILE $pData;
+			close TFILE;	
+		
+			$r = BAdb::updateProfileFromFile( $pName, $tFile);
+			
+			if( !$r || $r eq "")
+			{
+				$r = $pData;
+				$ref = "yes";
+				$rURL = $rURL."U?pname=$pName";
+				$seconds = 3;
+			}
+		}
+		
+		elsif( $sub eq "del")
+		{
+			$pName = param('profile');
+			$ver = param('ver') || -1;
+
+			if( $pName)
+			{
+				$r = BAdb::removeProfileFromDB( $pName, $ver);
+			}
+			else
+			{
+				$r = "Error: No profile selected.\n";	
+			}		
+			
+			if( !$r || $r eq "")
+			{
+				$ref = "yes";
+				$rURL = $rURL."D";
+				$r = "Delete Success";
+			}
+		}
+		elsif( $sub eq "sta")
+		{
+		
+			$pName = param('profile');
+			$ver = param('ver') || -1;
+			$sta = param('sta') || -1;
+
+			if( $pName)
+			{
+				if( $sta eq 1)
+				{
+					$r = BAdb::disableProfile( $pName, $ver);
+				}
+				elsif( $sta < 1)
+				{
+					$r = BAdb::enableProfile( $pName, $ver);
+				}
+				else
+				{
+					$r = "Error: Invalid Status: $sta";
+				}
+			}
+			else
+			{
+				$r = "Error: No profile selected.\n";	
+			}		
+			
+			if( !$r || $r eq "")
+			{
+				$ref = "yes";
+				$rURL = $rURL."S?pname=$pName&ver=$ver";
+				$r = "Status Change Success";
+			}
+		}
+	}
+		
+	return $r; 
+}
+sub getHeader
+{
+	my $op = shift @_;
+	my $sub = shift @_;
+	my $r = "";
+	if( $op eq "prof")
+	{
+		if( $sub eq "add")
+		{
+			$r = "Adding: ".param('nname');
+		}
+		elsif( $sub eq "del")
+		{
+			$r = "Deleting: ".param('profile');
+		}
+	}
+	return $r
+}

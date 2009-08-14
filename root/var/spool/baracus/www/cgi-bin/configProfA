@@ -5,7 +5,7 @@ use BATools qw(:standard);
 use CGI qw(:standard);
 
 my $pName = param('pname') || "";
-my $nName = param('nname') || "";
+our $nName = param('nname') || "";
 our $ver = param('ver') || -1;
 
 my $versions = getVersions( $pName);
@@ -22,19 +22,23 @@ print <<HTML0
 		<link rel='stylesheet' href='/$BATools::baRoot/css/config.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body background="/baracus/images/bg06.jpg" onLoad='selectThis(document.form1.pTemp, "$pName")'>
+	<body background="/baracus/images/bg06.jpg" onLoad='selectThis(document.form1.profile, "$pName")'>
 		<form action="/baracus/ba/configHandler" name='form1'>
 		<div id='config'>
-		<div id='history'>Profile List</div>
+		<div id='history'>Profile Add</div>
+		
 		<div id='textEdit'>
-		<font class='profile'>Profile</font>
+		<font class='profile'>Template</font>
 		$profiles
 		<font class='version'>Version</font>
 		$versions
 		<br><br>
 		<font class='data'>Profile Data</font>
-		<textarea name='pData' disabled>$template</textarea>
+		<textarea name='pData'>$template</textarea>
+		<font class='nname'>Profile Name</font>
+		<input class='nname' type='text' name='nname' value="$nName"\>
 		</div>
+		<input class='submit' type='submit' name='submit' value='Add' onClick='return verify( this.form.nname, \"You must enter a Profile Name\")'/>
 		<input type='hidden' name='op' value='prof'>
 		<input type='hidden' name='sub' value='add'>
 		</div>
@@ -47,10 +51,10 @@ HTML0
 sub getProfiles
 {
 	my $r = "";
-	$r = $r."<select class='profile' name='pTemp' size='5' onClick='profReload(this.value, \"\", -1)'>";
+	$r = $r."<select class='profile' name='profile' size='5' onClick='profReload(this.value, this.form.nname.value, -1)'>";
 	
 	my @profiles = BAdb::getProfileListAllFromDB();
-	#$r = $r."\n<option value=''>PLEASE SELECT</option>\n";
+	$r = $r."\n<option value=''>BLANK</option>\n";
 	foreach( @profiles)
 	{
 		$r = $r."<option value='$_'>$_</option>\n";	
@@ -70,7 +74,7 @@ sub getTemplate
 	}
 	else
 	{
-		$r = BAdb::getProfileFromDB( $prof, $ver, "yes");
+		$r = BAdb::getProfileFromDB( $prof, $ver, "no");
 	}
 	return $r;
 }
@@ -121,3 +125,43 @@ sub getVersions
 
 	return $r;
 }
+
+sub getVersions2
+{
+	my($pName) = @_;
+	my $r = "";
+	my $selected = "";
+	my $count = 0;
+
+	$r = $r."<select class='version' size='5' onClick='profReload( \"$pName\", this.form.nname.value, this.value)'>\n";
+
+	if( $pName ne "")
+	{
+		my @vList = BAdb::getPofileVersionList( $pName, "no");
+		foreach( @vList)
+		{
+			if( $ver eq -1 && $count eq 0)
+			{
+				$selected = "selected";
+				$ver = $_;
+			}
+			elsif( $ver ne -1 && $ver eq $_)
+			{
+				$selected = "selected";
+			}
+			else
+			{
+				$selected = "";
+			}
+	
+			$r = $r."<option $selected value='$_'>version $_</option>\n";
+			++ $count;
+		}
+	}
+	
+	$r = $r."</select>\n";
+	$r = $r."<input type='hidden' name='ver' value='$ver'>\n";
+
+	return $r;
+}
+

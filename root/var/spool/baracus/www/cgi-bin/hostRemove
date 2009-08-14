@@ -33,7 +33,7 @@ print <<HTML0;
 			$content
 			<br>
 			<input type="hidden" name="sub" value="del">
-			<input class="button" type="submit" value="Delete" onClick="return verifyDelete( this.form.selValue)">
+			<input class="button" type="submit" value="Delete" onClick="return verifyDelete( this.form.selValue.value)">
 		</form>
 	</div>
 

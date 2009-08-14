@@ -172,12 +172,140 @@ sub getProfileListFromDB
 	return @array;
 }
 
+
+sub getProfileListAllFromDB
+{
+	my $cmd = "sudo baconfig list profile -all --quiet | uniq";
+	my $result = `$cmd`;
+	my @array = split( "\n", $result);
+	
+	foreach( @array)
+	{
+		$_ = BATools::trim($_);
+	}
+	return @array;
+}
+
+sub getPofileVersionCount
+{
+	my $name = shift @_;
+	my $cmd = "sudo baconfig list profile $name --all --quiet";
+	my $result = `$cmd`;
+	my $count = split( "\n", $result);
+	return $count;
+}
+
+#Retrieve an array of versions for profile $name.  If $enabled return version/enabled
+sub getPofileVersionList
+{
+	my $name = shift @_;
+	my $enabled = shift @_;
+	my $cmd = "sudo baconfig list profile $name --all";
+	my @vArray;
+	my $count = 0;
+	open( RSLT, "$cmd |") || die "Failed: $!\n";
+	
+	while( $line = <RSLT>)
+	{
+		++ $count;	
+		if( $count > 3)
+		{
+			my @items = split( " ", $line);
+			my $pushVer =  @items[1];
+			if( $enabled eq "yes")
+			{
+				$pushVer = @items[1]."/".@items[2];
+			}
+			push( @vArray, $pushVer);
+		}
+	}
+	return @vArray;
+}
+
 sub getProfileFromDB
 {
 	my $name = shift @_;
-	my $cmd = "sudo baconfig detail profile $name";
+	my $ver = shift @_;
+	my $labels = shift @_;
+	if( $labels eq "no")
+	{
+		$labels = "--nolabels";
+	}
+	else
+	{
+		$labels = "";
+	}
+	my $cmd = "sudo baconfig detail profile $name $labels";
+	if( $ver ne -1 && $ver ne "" && $ver ne "undefined")
+	{
+		$cmd = $cmd." --version $ver";
+	}
 	my $result = `$cmd`;
-	return $result;
+	return $result."\n\n";
+}
+sub addProfileFromFile
+{
+	my $name = shift @_;
+	my $file = shift @_;
+	chomp( $file);
+	chomp( $name);
+	my $cmd = "sudo baconfig add profile --name $name --file $file";
+	my $result = `$cmd`;
+	return $result;	
+}
+sub updateProfileFromFile
+{
+	my $name = shift @_;
+	my $file = shift @_;
+	chomp( $file);
+	chomp( $name);
+	my $cmd = "sudo baconfig update profile --name $name --file $file";
+	my $result = `$cmd`;
+	return $result;	
+}
+sub removeProfileFromDB
+{
+	my $name = shift @_;
+	my $ver = shift @_;
+	my $version = "";
+	if( $ver ne -1 && $ver ne "")
+	{
+		$version = "--version $ver";
+	}
+	
+	my $cmd = "sudo baconfig remove profile $name $version";
+	my $result = `$cmd`;
+	return $result;	
+}
+
+sub enableProfile
+{
+	my $name = shift @_;
+	my $ver = shift @_;
+	my $version = "";
+	if( $ver ne -1 && $ver ne "")
+	{
+		$version = "--version $ver";
+	}
+	
+	my $cmd = "sudo baconfig update profile --name $name $version --enable";
+	my $result = `$cmd`;
+	return $result;	
+}
+
+sub disableProfile
+{
+	my $name = shift @_;
+	my $ver = shift @_;
+	my $version = "";
+	if( $ver ne -1 && $ver ne "")
+	{
+		$version = "--version $ver";
+	}
+	
+	my $cmd = "sudo baconfig update profile --name $name $version --noenable";
+	my $result = `$cmd`;
+	return $result;	
 }
 
 1;

@@ -26,14 +26,14 @@ $op = param('op') || '<i>(No input)</i>';
 $data = param('data');
 
 @menunames = ("Home",
-			  "Information",
+			  "Configuration",
 			  "Host Entries",
 			  "Source Entries",
 			  "Processing",
 			  "About");
 
 @menucmd = ("home.html", 
-		"/$BATools::baCGI/info.iframe",
+		"/$BATools::baCGI/config.iframe",
 		"/$BATools::baCGI/host.iframe", 
 		"/$BATools::baCGI/source.iframe",
 		"/$BATools::baCGI/procHandler.iframe",

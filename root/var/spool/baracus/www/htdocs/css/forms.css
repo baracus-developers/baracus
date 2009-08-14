@@ -82,7 +82,6 @@
 {
 	margin-left:20pt;
 }
-
 #radio
 {
 	width:200px;
@@ -108,6 +107,12 @@
 	border-top:1px dashed gray;
 	background-color: #B2D68C;
 	padding-top:10;
+}
+#block1 input
+{
+	margin-top:40;
+	margin-left:150;
+	width:100;
 }
 
 #block2
@@ -245,10 +250,10 @@
 	height:250;
 	position:absolute;
 	top:50px;
-	left:0px;
+	left:10px;
 	border-bottom:1px dashed gray;
 	border-top:1px dashed gray;
-	background-color: 455560;
+	background-color: #B2D68C;
 	padding-top:10;
 }
 #blockW select
@@ -291,4 +296,3 @@
 	color:6A737B;
 	font-size:20pt;
 }
-

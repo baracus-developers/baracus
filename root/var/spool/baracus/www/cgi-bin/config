@@ -7,12 +7,20 @@ use vars qw( %hash @array);
 use CGI qw(:standard);
 
 my $op = param('op') || "Distribution";
+my $sub = param('sub') || "";
 my $current = "";
 
-my @tmenu = ( "Distribution", "Hardware", "Module", "Profile");
-my @tlink = ( "configDist", "configHW", "configMod", "configProf");		
+my @tmenu = ( 	"Distribution",
+				"Hardware",
+				"Module/list/status/update/add/delete",
+				"Profile/list/status/update/add/delete");
+				
+my @tlink = ( 	"configDist",
+				"configHW",
+				"configMod/configMod/configModS/configModU/configModA/configModD",
+				"configProf/configProf/configProfS/configProfU/configProfA/configProfD");		
 
-my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, "config");
+my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, $sub, "config");
 		 
 print "Content-type: text/html\n\n";
 

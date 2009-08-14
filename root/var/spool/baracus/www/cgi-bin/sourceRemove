@@ -40,7 +40,7 @@ print <<HTML0;
 			<br>
 			<input type="hidden" name="sub" value="del">
 			<input type="hidden" name="ref" value="yes">
-			<input class="button" type="submit" value="Delete">
+			<input class="button" type="submit" value="Delete" onClick="return verifyDelete( this.form.distro.value)">
 		</form>
 	</div>
 

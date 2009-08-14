@@ -17,7 +17,6 @@ sub hello_message
 {
    return "Hello, World!";
 }
-
 ###########################################################################################
 # return an array of distributions
 ###########################################################################################
@@ -359,33 +358,69 @@ sub execute
 ########################################################################################################
 sub getTabs(@@$$)
 {
-	my ($menu, $link, $cur, $reload) = @_;
+	my ($menu, $link, $cur, $sub, $reload) = @_;
 				
 	my $r = "";
 	my $class = "";
 	my $count = 0;
 	my $found = 0;
 	my $ifSrc = "";
+	my $mitem = "";
+	my $mcount = 0;
+	my $tmpLink = "";
+	my @marray;
+	my @larray;
 	
-	$r = $r."<ul id='menu'>\n";
+	$r = $r."<div class='menu'>\n";
+	$r = $r."<ul>\n";
 	
 	foreach( @ {$menu})
 	{
-		if( $_ eq $cur)
+		@marray = split( "/", $_);
+		$mitem = @marray[0];
+			
+		if( $mitem eq $cur)
 		{
 			$class = "current";
 			$found = 1;
-			$ifSrc = (@ {$link})[$count];
+			$tmpLink = (@ {$link})[$count];
+			@larray = split( "/", $tmpLink);
+			$ifSrc = @larray[0];
 		}
 		else
 		{
-			$class = "";
+			$class = "outer";
 		}
 			
-		$r = $r."<li><a href='$reload?op=$_' title='' class='$class'>$_</a></li>\n";
+		$r = $r."<li>\n";
+		$r = $r."<a href='$reload?op=$mitem' title='' class='$class'>$mitem</a>\n";
+
+		if( @marray > 1)
+		{
+			$r = $r."<div class='submenu'>\n";
+			$mcount = 0;
+			foreach( @marray)
+			{
+				if( !($mcount))
+				{
+					++ $mcount;
+					next;
+				}
+				if( $_ eq $sub)
+				{
+					$ifSrc = @larray[$mcount];
+				}
+				$r = $r."<a href='$reload?op=$mitem&sub=$_'>$_</a>\n";
+				++ $mcount;
+			}
+			$r = $r."</div>\n";
+		}
+		$r = $r."</li>\n";
+
 		++ $count;
 	}
 	$r = $r."</ul>\n";
+	$r = $r."</div>\n";
 	
 	if( $found > -1)
 	{
@@ -396,8 +431,7 @@ sub getTabs(@@$$)
 		$ifSrc = "/$BATools::baRoot/uc.html";
 	}
 
-	$r = $r."<iframe src=$ifSrc id='tabContent' frameborder='0' scrolling='auto'>\n</iframe>\n";
-
+	$r = "<iframe src=$ifSrc id='tabContent' frameborder='0' scrolling='auto'>\n</iframe>\n.$r";
 	return $r;
 }
 

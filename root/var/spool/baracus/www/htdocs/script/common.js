@@ -1,12 +1,23 @@
 var sURL = unescape(window.location.pathname+window.location.search);
+var rURL = unescape(window.location.pathname);
 
 function verifyDelete( selVal)
 {
-	var agree=confirm("Confirm Delete of: " + selVal.value);
+	var agree=confirm("Confirm Delete of: " + selVal);
 	if (agree)
 		return true ;
 	else
 		return false ;
+}
+
+function verify( item, msg)
+{
+	if( !item.value || item.value == "" || item.value == "undefined")
+	{
+		alert( msg);
+		return false;
+	}
+	return true;
 }
 
 function enableISO( box)
@@ -54,6 +65,34 @@ function enableProxy( box)
 	}
 }
 
+function selectZero( s)
+{
+	s[0].selected = "1";
+}
+
+function selectThis( s, v)
+{
+	for(index = 0; index < s.length; index++)
+	{
+   		if( s[index].value == v)
+   		{
+   			s.selectedIndex = index;
+   		}
+   	}
+}
+
+function profReload( pname, nname, ver)
+{
+	var url = rURL + "?pname=" + pname + "&nname=" + nname + "&ver=" + ver;
+	refresh( url);
+}
+
+function profReload2( s, n)
+{
+	var url = rURL + "?name=" + n.value + "&temp=" + s.value;
+	refresh( url);
+}
+
 function clearText( text)
 {
 	text.value = "";
@@ -68,7 +107,7 @@ function scrollDown()
 {
 	e = document.getElementById("tscroll");
 	e.scrollTop = e.scrollHeight;
-	doLoad("", "");
+	doLoad("", "", 5);
 }
 
 function toggleRefresh()
@@ -100,11 +139,23 @@ function profileChange()
  	window.location.href = sURL;
 }
 
-function profUpdate()
+function hwUpdate( sel)
 {
-	var selection = document.profList.profile.value;
-	var url = "/baracus/ba/createContent?caller=create&attr=profile&val=" + selection;
+	var selection = sel.value;
+	var url = "/baracus/ba/createContent?caller=create&attr=hardware&val=" + selection;
 	document.getElementById("infoBox").src=url;
+}
+
+function profUpdate( sel, tall, ver)
+{
+	var url = "/baracus/ba/createContent?caller=create&attr=profile&val=" + sel + "&t=" + tall + "&ver=" + ver;
+	document.getElementById("infoBox").src=url;
+}
+
+function profVerUpdate( pName, ver)
+{
+	var url = "/baracus/ba/createContent?caller=create&attr=profile&val=" + pName + "&t=yes" + "&ver=" + ver;
+	refresh( url);
 }
 
 function distUpdate()
@@ -137,13 +188,7 @@ function modUpdate()
 	document.getElementById("infoBox").src=url;
 }
 
-function hwUpdate( sel)
-{
-	var selection = sel.value;
-	var url = "/baracus/ba/createContent?caller=create&attr=hardware&val=" + selection;
-	document.getElementById("infoBox").src=url;
-}
-function doLoad( rURL, qString)
+function doLoad( rURL, qString, sec)
 {
 	var myURL;
 	
@@ -157,7 +202,7 @@ function doLoad( rURL, qString)
 	} 
     myURL = myURL + qString;
     rfunc = "refresh( '" + myURL + "')";
-    setTimeout( rfunc, 5*1000 );
+    setTimeout( rfunc, sec*1000 );
 }
 
 function refresh( newURL)

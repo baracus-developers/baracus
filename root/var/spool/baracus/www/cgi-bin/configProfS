@@ -7,6 +7,7 @@ use CGI qw(:standard);
 my $pName = param('pname') || "";
 my $nName = param('nname') || "";
 our $ver = param('ver') || -1;
+our $sta = param('sta') || -1;
 
 my $versions = getVersions( $pName);
 my $profiles = getProfiles();
@@ -22,21 +23,23 @@ print <<HTML0
 		<link rel='stylesheet' href='/$BATools::baRoot/css/config.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body background="/baracus/images/bg06.jpg" onLoad='selectThis(document.form1.pTemp, "$pName")'>
+	<body background="/baracus/images/bg06.jpg" onLoad='selectThis(document.form1.profile, "$pName")'>
 		<form action="/baracus/ba/configHandler" name='form1'>
 		<div id='config'>
-		<div id='history'>Profile List</div>
+		<div id='history'>Profile Status</div>
+		
 		<div id='textEdit'>
-		<font class='profile'>Profile</font>
+		<font class='profile'>Profile Name</font><br>
 		$profiles
-		<font class='version'>Version</font>
+		<font class='version'>Version</font><br>
 		$versions
 		<br><br>
 		<font class='data'>Profile Data</font>
 		<textarea name='pData' disabled>$template</textarea>
 		</div>
+		<input class='submit' type='submit' name='submit' value='Toggle Status'/>
 		<input type='hidden' name='op' value='prof'>
-		<input type='hidden' name='sub' value='add'>
+		<input type='hidden' name='sub' value='sta'>
 		</div>
 		</form>
 	</body>
@@ -47,7 +50,7 @@ HTML0
 sub getProfiles
 {
 	my $r = "";
-	$r = $r."<select class='profile' name='pTemp' size='5' onClick='profReload(this.value, \"\", -1)'>";
+	$r = $r."<select class='profile' name='profile' size='5' onClick='profReload(this.value, \"\", -1)'>";
 	
 	my @profiles = BAdb::getProfileListAllFromDB();
 	#$r = $r."\n<option value=''>PLEASE SELECT</option>\n";
@@ -121,3 +124,4 @@ sub getVersions
 
 	return $r;
 }
+
