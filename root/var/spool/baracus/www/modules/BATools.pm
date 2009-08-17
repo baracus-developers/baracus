@@ -296,6 +296,8 @@ sub trim($)
 	my $string = shift;
 	$string =~ s/^\s+//;
 	$string =~ s/\s+$//;
+	$string =~ s/\r|\n//g;
+	
 	return $string;
 }
 

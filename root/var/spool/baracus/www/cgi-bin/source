@@ -6,11 +6,11 @@ use BATools qw(:standard);
 use vars qw( %hash @array);
 use CGI qw(:standard);
 
-my $op = param('op') || "List";
+my $op = param('op') || "Verify";
 my $current = "";
 
-my @tmenu = ( "List", "Add", "Remove", "Enable", "Disable", "Verify");
-my @tlink = ( "sourceHandler?sub=list", "sourceAdd", "sourceRemove", "sourceEna", "sourceDis", "sourceVer");		
+my @tmenu = ( "Verify", "Add", "Remove", "Enable", "Disable");
+my @tlink = ( "sourceVer", "sourceAdd", "sourceRemove", "sourceEna", "sourceDis");		
 
 my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, "source");
 		 

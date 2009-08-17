@@ -60,6 +60,7 @@ chomp($distro);
 initProfileOptions();
 createProfileVars();
 
+debugPrint( "-----$distro-----");
 $distroList = BATools::getDistroSelectionList( $distro, $distroD, "onClick='distUpdate()'", "current");
 $hardwareList = BATools::getHardwareSelectionList( $hardware, $hardwareD, "onClick='hwUpdate( this)'");
 
@@ -94,9 +95,6 @@ print <<HTML0;
 	<br><br>
 	<h1>Profile:</h1><br>
 	
-	<!--
-	<select name='profile' onChange='location.href=(this.options[this.selectedIndex].value)'>
-	-->
 	<select name='profile' onChange='profileChange()'>
 	
 	$profiles
@@ -172,8 +170,8 @@ sub createProfileVars
     		{
     			@pair = split( "=", $record, 2);
     			
-    			$name = @pair[0];
-    			$val = @pair[1];
+    			$name = BATools::trim(@pair[0]);
+    			$val = BATools::trim(@pair[1]);
     			
     			$$_ = $val;
 				
@@ -235,10 +233,8 @@ sub getAndCheckModules
 			foreach $pMod( @profModules)
 			{
 				$found = 0;
-				foreach $fMod( BATools::getModuleList())
+				foreach $fMod( BAdb::getModuleList())
 				{
-						chomp($fMod);
-						chomp( $pMod);
 						if( $pMod eq $fMod)
 						{
 							$moduleList = $moduleList."<option>$pMod</option>\n";
