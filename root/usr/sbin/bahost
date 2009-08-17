@@ -824,18 +824,6 @@ sub _enable_disable_
     # print coding example of 'constant' usage if debug
     print "$BaracusSql::baState{ $state } = $state\n" if $debug;
 
-    # if state is 'wipe' or same as $state do not continue - with host entry
-    if ( $dbref->{'state'} == BaracusSql::BA_DISKWIPE or
-         $dbref->{'state'} == $BaracusSql::baState{ $state } ) {
-        print "Build template for $hostname is '" .
-            $BaracusSql::baState{ $dbref->{'state'} } .
-                "' and will not be modified\n";
-        return 0;
-    } else {
-        $dbref->{'state'} = $BaracusSql::baState{ $state };
-        &update_db_host_entry( $dbref );
-    }
-
     my $sel;
 
     # pxeboot tftp file name
@@ -864,6 +852,18 @@ sub _enable_disable_
             die "Unable to update status for tftp file $automac\n" .
                 $sqlfsOBJ->error();
         }
+    }
+
+    # if state is 'wipe' or same as $state do not continue - with host entry
+    if ( $dbref->{'state'} == BaracusSql::BA_DISKWIPE or
+         $dbref->{'state'} == $BaracusSql::baState{ $state } ) {
+        print "Build template for $hostname is '" .
+            $BaracusSql::baState{ $dbref->{'state'} } .
+                "' and will not be modified\n";
+        return 0;
+    } else {
+        $dbref->{'state'} = $BaracusSql::baState{ $state };
+        &update_db_host_entry( $dbref );
     }
 
     print "State of $hostname template and tftp files now ${command}d \n";

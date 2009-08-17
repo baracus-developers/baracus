@@ -2,6 +2,6 @@ Baracus
 
 Within this template area are pxe and autoyast files for your desired builds.
 
-pxetemplate-auto.example and template.xml.example are ment to be reffered to
+pxetemplate-auto.example and template.xml.example are meant to be referred to
 only as examples for you to construct your own site specific "golden" templates
 named pxetemplate-auto and template.xml.

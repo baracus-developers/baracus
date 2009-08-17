@@ -2,136 +2,432 @@
 
 use strict;
 use Getopt::Long qw( :config pass_through );
+use AppConfig;
+use Pod::Usage;
 
 use lib "/usr/share/baracus/perl";
+
 use BaracusREPO;
 
-my $man     = 0;
-my $help    = 0;
-my $debug   = 0;
-my $verbose = 0;
-my $repopath = "/var/spool/baracus/byum/";
+=pod
+
+=head1 NAME
+
+B<barepo> - baracus tools to manage user created YUM repositories
+
+=head1 SYNOPSIS
+ 
+B<barepo> E<lt>commandE<gt> [options]
+
+Where E<lt>commandE<gt> is
+
+    create  <name> <rpmlist>  Create new repo.
+    add     <name> <rpmlist>  Add more packages to repo.
+    update  <name>            Regenerate metafiles after add.
+    remove  <name>            Remove repo.
+    verify  <name>            Run some checks on repo health.
+
+    help                      This 'Usage' summary message.
+    man                       Detailed man page.
+
+Use 'man' or 'help <command>' for more details.
+
+=head1 DESCRIPTION
+
+This tool provides assistance to users wanting to create their own network install sources in  YUM software repositories.  These repos make included RPMs available for install/update over the network.
+
+=head1 OPTIONS
+
+=over 4
+
+=item -v --verbose  Be verbose with output
+
+=item -q --quiet  Be as quiet as possible
+
+=item -n --nolabels  Do not print headers/footers
+
+=back
+
+=cut
+
+# get the sysconfig option settings
+my $sysconfigfile = '/etc/sysconfig/baracus';
+my $sysconfig = AppConfig->new( {CREATE => 1} );
+$sysconfig->define( 'baracusdir=s' );
+$sysconfig->file( $sysconfigfile );
+my $baracusdir     = $sysconfig->get( 'baracusdir' ); # ~baracus is default
+
+if ( $baracusdir =~ m|^~([^/]*)| ) {
+    my $prepath="";
+    if ( "$1" eq "" ) {
+        $prepath = $ENV{HOME}
+    } else {
+        unless ($prepath = (getpwnam($1))[7]) {
+            die "BARACUSDIR has bad use of ~ or non-existent user in $sysconfigfile\n";
+        }
+    }
+    $baracusdir =~ s|^~([^/]*)|$prepath|;
+}
+# remove trailing slash or spaces
+$baracusdir =~ s|/*\s*$||;
+
+# store baracus well know directories in global hash 'bdir'
+my @bdirs = qw( builds isos templates modules hooks logs byum );
+my %bdir = (
+            'root' => "$baracusdir",
+            'conf' => "/etc/baracus.d",
+            'data' => "/usr/share/baracus",
+            );
+foreach my $bd (@bdirs) {
+    $bdir{ $bd } = "$baracusdir/$bd";
+}
+
+our $LASTERROR="";
+
+my $man      = 0;
+my $help     = 0;
+my $debug    = 0;
+my $verbose  = 0;
+my $quiet    = 0;
+my $nolabels = 0;
 
 my %cmds = (
             'create'   => \&create,
-            'update'   => \&update,
             'add'      => \&add,
+            'update'   => \&update,
             'remove'   => \&remove,
+            'verify'   => \&verify,
+            'list'     => \&list,
+            'detail'   => \&detail,
             'help'     => \&help,
             'man'      => \&man,
             );
 
+my $cmdlist = join ', ', keys %cmds;
+
 GetOptions(
            'help|?'         => \$help,
+           'man'            => \$man,
            'debug'          => \$debug,
            'verbose'        => \$verbose,
+           'quiet'          => \$quiet,
+           'nolabels'       => \$nolabels,
            );
 
 &man()  if $man;
 &help() if $help;
-if ( scalar @ARGV ) {
-    &help() if ($ARGV[0] eq "help" );
-}
-else {
-    &help();
-}
+&help() unless ( scalar @ARGV );
+if ($ARGV[0] eq "man"  ) { &man(); }
+if ($ARGV[0] eq "help" ) { shift @ARGV; &help(@ARGV); }
 
+my $command;
 my $status = &main(@ARGV);
+
+print $LASTERROR if $status;
 
 exit $status;
 
+die "DOES NOT EXECUTE";
+
 ###############################################################################
+#
+# command subroutines
+#
 
 sub main
 {
-    my $command = shift;
+    $command = shift;
 
     $command = lc $command;
-
-    if ( not defined $cmds{ $command } ) {
-        &help();
-    }
+    &check_command( $command );
 
     printf "Executing $command with \"@_\".\n" if $debug;
 
     $cmds{ $command }( @_ );
-
-    &restart_service();
 }
 
 sub help() {
+    my $command = shift;
 
-print <<MARKER1;
-Usage:
-    barepo command [options]
+    unless ( defined $command ) {
+        pod2usage( -verboase => 0,
+                   -exitstatus => 0 );
+    }
 
-Where command is one of
+    $command = lc $command;
+    &check_command( $command );
 
-    create  <repo name> <rpm1 rpm2 rpm3> [etc.]    : create a new repo
-    remove  <repo name>                            : remove a repo
-    add     <repo name> <rpm1 rpm2 rpm3> [etc.]    : add additional packages to a repo
-    update  <repo name>                            : regenerate repo metafiles after adding packages
+    my $execname = $0;
+    $execname = $1 if ( $0 =~ m|^.*/([^/].+)| );
 
-Options are
-
-    -v|--verbose                    : verbose output
-    -h|--help                       : this (help) message
-
-MARKER1
-
-    exit 1;
-
+    pod2usage( -msg        => "$execname $command ...\n",
+               -verbose    => 99,
+               -sections   => "COMMANDS/${command}.*",
+               -exitstatus => 0 );
 }
+
+sub man
+{
+    pod2usage( -verbose    => 2,
+               -sections   => "NAME|SYNOPSIS|DESCRIPTION|OPTIONS|COMMANDS",
+               -exitstatus => 0 );
+}
+
+=head1 COMMANDS
+
+=head2 create <name> [rpm_list]
+
+Creates the repository with <name> and populates it with any rpms listed provided in space seperated [rpm_list]
+
+=cut
+
+sub create() {
+    my $repo = shift;
+    my @packages = @_;
+
+    unless ( defined $repo and $repo !~ m|\.rpm|) {
+        printf "\nMissing reponame <name>\n";
+        &help( $command );
+    }
+
+    $repo = "$bdir{'byum'}/$repo";
+    unless ( -d $bdir{'byum'}) {
+        mkdir $bdir{'byum'}, 0755 || die ("Cannot create directory\n");
+    }
+    if ($verbose) { print "Creating $repo \n"; }
+    my $status = BaracusREPO::create_repo($repo, @packages);
+    if ( $status ) {
+        $LASTERROR = BaracusREPO::error();
+        return 1;
+    }
+
+    return &restart_service();
+}
+
+=head2 add <name> [rpm_list]
+
+Add the rpms listed in space seperated [rpm_list] to the repository with <name> and updates the repo metadata.
+
+=cut
 
 sub add() {
     my $repo = shift;
     my @packages = @_;
 
-    $repo = "$repopath/$repo";
-    my $status = BaracusREPO::add_packages($repo, @packages);
-    if ($verbose) { print "Adding packages to $repo \n"; }
-
-    return $status;
-}
-
-sub create() {
-    my $repo = shift;
-    my @packages = @_;
-    my $yumpath = "/var/spool/baracus/byum";
-
-    $repo = "$repopath/$repo";
-    unless ( -d $yumpath) {
-        mkdir $yumpath, 0755 || die ("Cannot create directory\n");
+    unless ( defined $repo ) {
+        printf "\nMissing reponame <name>\n";
+        &help( $command );
     }
-    my $status = BaracusREPO::create_repo($repo, @packages);
-    if ($verbose) { print "Creating $repo \n"; }
-
-    return $status;
+    $repo = "$bdir{'byum'}/$repo";
+    if ($verbose) { print "Adding packages to $repo \n"; }
+    my $status = BaracusREPO::add_packages($repo, @packages);
+    if ( $status ) {
+        $LASTERROR = BaracusREPO::error();
+        return $status;
+    }
 }
+
+=head2 update <name>
+
+Regenerate repodata and sign.
+
+=cut
+
 
 sub update() {
     my $repo = shift;
-    
-    $repo = "$repopath/$repo";
-    my $status = BaracusREPO::update_repo($repo);
+
+    unless ( defined $repo ) {
+        printf "\nMissing reponame <name>\n";
+        &help( $command );
+    }
+
+    $repo = "$bdir{'byum'}/$repo";
     if ($verbose) { print "Updating $repo \n"; }
+    my $status = BaracusREPO::update_repo($repo);
+    if ( $status ) {
+        $LASTERROR = BaracusREPO::error();
+        return $status;
+    }
 
     return $status;
 }
+
+=head2 remove <name>
+
+Remove the repo directory and all related contents.
+
+=cut
 
 sub remove() {
     my $repo = shift;
 
-    $repo="$repopath/$repo";
-    my $status = BaracusREPO::remove_repo($repo);
-    if ($verbose) { print "Removing $repo \n"; }
+    unless ( defined $repo ) {
+        printf "\nMissing reponame <name>\n";
+        &help( $command );
+    }
 
-    return $status;
+    $repo="$bdir{'byum'}/$repo";
+    if ($verbose) { print "Removing $repo \n"; }
+    my $status = BaracusREPO::remove_repo($repo);
+    if ( $status ) {
+        $LASTERROR = BaracusREPO::error();
+        return $status;
+    }
+
+    return &restart_service();
 }
+
+=head2 verify <name>
+
+Sanity check some repo files and states.
+
+=cut
+
+sub verify {
+    my $repo = shift @_;
+    my $status;
+
+    unless ( defined $repo ) {
+        printf "\nMissing reponame <name>\n";
+        &help( $command );
+    }
+
+    $repo = "$bdir{'byum'}/$repo";
+
+    # barepo create related issues
+    print "Verify directory and apache config... ";
+    $status = &BaracusREPO::verify_repo_creation( $repo );
+    if ( $status ) {
+        $LASTERROR = BaracusREPO::error();
+        return $status;
+    }
+    print "good.\n";
+    # barepo update related issues
+    print "Verify metadata present... ";
+    $status = &BaracusREPO::verify_repo_repodata( $repo );
+    if ( $status ) {
+        $LASTERROR = BaracusREPO::error();
+        return $status;
+    }
+    print "good.\n";
+    # barepo keysign related issues
+    print "Verify repodata gpg signed...\n";
+    $status = &BaracusREPO::verify_repo_sign( $repo );
+    if ( $status ) {
+        $LASTERROR = BaracusREPO::error();
+        return $status;
+    }
+
+    return 0;
+}
+
+=head2 list [match]
+
+list available repositories
+
+=cut
+
+sub list {
+    my $repo = shift;
+
+    printf "List repositories %s\n",
+        defined $repo ? "matching $repo" : "" if ($verbose);
+
+    if (defined $repo) {
+        # shell to regex modification - if '*' passed prefix with '.'
+        $repo =~ s|\*|.*|g;
+    } else {
+        $repo = "";
+    }
+    print "repo $repo\n" if ( $debug );
+
+    unless ( $quiet || $nolabels ) {
+        print "--------------------------------------------------------------------------------\n";
+        printf "%-32s conf repo verify checks\n", "repository";
+        print "--------------------------------------------------------------------------------\n";
+    }
+
+    # no repos is not really an error
+    unless (-d $bdir{'byum'}) {
+        return 0;
+    }
+
+    my ($create, $data, $repodir);
+    opendir(DIR, $bdir{'byum'});
+    foreach my $mydir ( grep(/\b$repo\b/o, grep(!/^\.+$/, readdir(DIR))) ) {
+        $repodir = "$bdir{'byum'}/$mydir";
+        $create = BaracusREPO::verify_repo_creation( $repodir );
+        $data   = BaracusREPO::verify_repo_repodata( $repodir );
+        print "repo $mydir create $create data $data\n" if ($debug);
+        printf "%-32s ", $mydir;
+        unless ( $quiet ) {
+            printf "%-4s %-4s", $create ? 0 : 1, $data ? 0 : 1;
+        }
+        print "\n";
+    }
+
+    return 0;
+}
+
+=head2 detail <name>
+
+Display detailed information about the named repo
+
+=cut
+
+sub detail {
+    my $repo = shift;
+
+    unless ( defined $repo ) {
+        printf "\nMissing reponame <name>\n";
+        &help( $command );
+    }
+
+    my $repodir = "$bdir{'byum'}/$repo";
+
+    unless ( -d $bdir{'byum'} && -d $repodir ) {
+        $LASTERROR = "Unable to find repo named $repo\n";
+        return 1;
+    }
+
+    unless ( $quiet || $nolabels ) {
+        print "--------------------------------------------------------------------------------\n";
+        print "File listing for repo '$repo'\n";
+        print "--------------------------------------------------------------------------------\n";
+    }
+
+    opendir(DIR, $repodir);
+    foreach my $rfile ( grep(!/^\.+$|^repodata$/, readdir(DIR)) ) {
+        print "$rfile\n";
+    }
+    closedir DIR;
+
+    return 0;
+}
+
+
+###########################################################################
+#
+# helper subroutines
+#
 
 sub restart_service() {
-      
-    my $status = system("/etc/init.d/apache2 reload 2>&1 >/dev/null");
 
+    my $status = system("/etc/init.d/apache2 reload &> /dev/null");
+    $LASTERROR = "Unable to restart repo network service\n" if ($status);
     return $status;
 }
+
+sub check_command {
+    my $command = shift;
+
+    unless ( defined $cmds{ $command } ) {
+        print "invalid <command> '$command' please use:  $cmdlist\n";
+        exit 1;
+    }
+}
+
+die "ABSOLUTELY DOES NOT EXECUTE";
+
+__END__

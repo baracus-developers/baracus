@@ -6,157 +6,230 @@ use File::Copy;
 use File::Basename;
 use File::Path;
 
-sub sign_repo {
+our $LASTERROR="";
 
-    my $repo = shift;
-
-     unless ( &verify_repo($repo) == 0) {
-        print "$repo does not exist\n";
-        return 1;
-    }
-
-    ## Sign $filename
-    ##
-    system("gpg", "--homedir=/usr/share/baracus/gpghome/.gnupg", "-a", "--detach-sign", "--default-key=C685894B", "$repo/repodata/repomd.xml");
-    
-    ## Install key into repo
-    ## 
-    unless (-f "$repo/repodata/repomd.xml.key") {
-       copy("/usr/share/baracus/gpghome/.gnupg/my-key.gpg", "$repo/repodata/repomd.xml.key");
-    } 
-
-    return 0;
-
-}
-
-sub update_repo {
-    my $repo = shift @_;
-
-    unless ( &verify_repo($repo) == 0) {
-        print "$repo does not exist\n";
-        return 1;
-    }
-
-    if (-f "$repo/repodata/repomd.xml.asc") {
-        unlink("$repo/repodata/repomd.xml.asc");
-    }
-    system("/usr/bin/createrepo", "-q",  "$repo");
-
-    return 0;
-}
-
-sub add_packages {
-    my $repo = shift;
-    my @packages = @_;
-
-    unless ( &verify_repo($repo) == 0) {
-        print "$repo does not exist\n";
-        return 1;
-    }
-
-    foreach my $package (@packages) {
-        if (-f $package) {
-            copy($package, $repo);
-        }
-        else {
-            print "package: $package does not exist, skipping \n";
-        }
-    }
-
-    &update_repo($repo);
-    &sign_repo($repo);
-
-    return 0;
+sub error {
+    return $LASTERROR;
 }
 
 sub create_repo {
     my $repo = shift;
     my @packages = @_;
-    
+    my $base = basename ( $repo );
+    my $status;
+
+    ## Create Apache repo configuration
+    ##
+    unless ( -f "/etc/apache2/conf.d/$base.conf" ) {
+        open(TEMPLATE, "</usr/share/baracus/templates/byum.conf.template") or
+            die "Unable to open barepo apache template. $!\n";
+        my $byumrepo = join '', <TEMPLATE>;
+        close(TEMPLATE);
+        $byumrepo =~ s/%REPO%/$base/g;
+        open(CONFIG, ">/etc/apache2/conf.d/$base.conf") or
+            die "Unable to open $base.conf $!\n";
+        print CONFIG $byumrepo;
+        close(CONFIG);
+    }
+
     ## Soft test to see if Repo exists
     ##
     if (-d "$repo/repodata") {
         opendir(DIR, "$repo/repodata");
-        unless(scalar(grep(!/^\.?$/, readdir(DIR)) == 0)) {
-            print "error: repodata contains repo data \n";
-            exit(1);
+        unless(scalar(grep(!/^\.+$/, readdir(DIR)) == 0)) {
+            $LASTERROR = "Create stop. Found existing repodata for '$base'.\n";
+            return 1;
         }
+        close(DIR);
     }
-    close(DIR);
-
-    ## Create Apache repo configuration
-    ##
-    open(TEMPLATE, "</usr/share/baracus/templates/byum.conf.template");
-    my $byumrepo = join '', <TEMPLATE>;
-    close(TEMPLATE);
-
-    my $reponame = basename("$repo");
-    $byumrepo =~ s/%REPO%/$reponame/g;
-    open(CONFIG, ">/etc/apache2/conf.d/$reponame.conf");
-    print CONFIG $byumrepo;
-    close(CONFIG);
 
     ## Create repo directory and repo files
     ##
-    unless (-d "$repo") {
-        mkdir $repo, 0755 || die ("Cannot create $repo directory\n");
+    unless ( -d "$repo" or mkdir $repo, 0755 ) {
+        $LASTERROR ="Unable create directory $repo $!\n";
+        return 1;
     }
 
     foreach my $package (@packages) {
-        if (-f $package) {
-            copy($package, $repo);
+        unless (-e $package) {
+            print "Skipping non-existing $package\n";
+            next;
         }
-        else {
-            print "package: $package does not exist, skipping \n";
+        unless (-f $package) {
+            print "Skipping non-file $package\n";
+            next;
+        }
+        unless ( $package =~ m|\.rpm| ) {
+            print "Skipping non-rpm $package\n";
+        }
+        copy($package, $repo);
+    }
+
+    system("/usr/bin/createrepo -q $repo &> /dev/null");
+
+    return sign_repo($repo);
+}
+
+sub add_packages {
+    my $repo = shift;
+    my @packages = @_;
+    my $status;
+
+    unless( scalar @packages ) {
+        $LASTERROR = "Attempt to add without providing any rpm file arguments.\n";
+        return 1;
+    }
+
+    # verify repopath and apache conf - from create
+    return 1 if ( &verify_repo_creation( $repo ) );
+
+    foreach my $package (@packages) {
+        if (-f $package) {
+            if ( $package =~ m|\.rpm| ) {
+                copy($package, $repo);
+            } else {
+                print "Skipping add of non-rpm $package\n";
+            }
+        } else {
+            print "Skipping non-existing $package\n";
         }
     }
 
-    system("/usr/bin/createrepo", "-q",  "$repo");
+    return $status if ( $status = &update_repo($repo) );
 
-    #sign_repo($repo);
+    return &sign_repo($repo);
+}
 
-    return 0;
+sub update_repo {
+    my $repo = shift @_;
+    my $status;
+
+    # verify repopath and apache conf - from create
+    return 1 if ( &verify_repo_creation( $repo ) );
+
+    if (-f "$repo/repodata/repomd.xml.asc") {
+        unlink("$repo/repodata/repomd.xml.asc");
+    }
+
+    system("/usr/bin/createrepo -q $repo &> /dev/null");
+
+    return &sign_repo($repo);
 }
 
 sub remove_repo {
     my $repo = shift @_;
-    
-    unless ( &verify_repo($repo) == 0) {
-        $repo = basename($repo);
-        print "$repo repo does not exist\n";
+    my $base =  basename("$repo");
+
+    # verify only that the name is a dir under the byum directory
+    unless ( $repo =~ m|byum| and -d $repo ) {
+        $LASTERROR = "Unable to remove non-byum or non-directory $base\n";
         return 1;
     }
-
     rmtree($repo);
-    $repo =  basename("$repo");
-    unlink("/etc/apache2/conf.d/$repo.conf");
+    unlink("/etc/apache2/conf.d/$base.conf");
 
     return 0;
 }
 
-sub verify_repo {
-    my $repo = shift @_;
-    my $repopath = "$repo/repodata";
 
-    ## Verify directory exists and repo files are present
+sub sign_repo {
+
+    my $repo = shift;
+
+    return 1 if ( &verify_repo_creation( $repo ) );
+
+    my $status;
+    my $gpghome = "/usr/share/baracus/gpghome";
+
+    ## Sign $filename
     ##
-    unless (-d $repopath) {
-        print "error: base repo dir missing \n";
+    if (-f "$repo/repodata/repomd.xml.asc") {
+        unlink("$repo/repodata/repomd.xml.asc");
+    }
+    system("gpg", "--homedir=$gpghome/.gnupg",
+           "-a", "--detach-sign", "--default-key=C685894B",
+           "$repo/repodata/repomd.xml");
+
+    ## Install key into repo
+    ##
+    unless (-f "$repo/repodata/repomd.xml.key") {
+       copy("$gpghome/.gnupg/my-key.gpg", "$repo/repodata/repomd.xml.key");
+    }
+
+    return 0;
+}
+
+sub verify_repo_creation {
+    my $repo = shift;
+    my $repopath = "$repo/repodata";
+    my $base = basename( $repo );
+
+    $LASTERROR = "Missing repo dir $repopath\n"
+        unless (-d $repopath);
+
+    $LASTERROR .= "Missing apache repo config for $base.\n"
+        unless (-f "/etc/apache2/conf.d/$base.conf");
+
+    if ( $LASTERROR ne "" ) {
+        $LASTERROR .= "Recommend 'barepo create $base'.\n";
         return 1;
     }
-    my @repofiles = ("filelists.xml.gz", "primary.xml.gz", "repomd.xml", "other.xml.gz");
+
+    return 0;
+}
+
+sub verify_repo_repodata {
+    my $repo = shift @_;
+    my $repopath = "$repo/repodata";
+    my $base = basename( $repo );
+
+    my @repofiles = qw| filelists.xml.gz
+                        primary.xml.gz
+                        repomd.xml
+                        other.xml.gz
+                      |;
+
     foreach my $file (@repofiles) {
         unless (-f "$repopath/$file" ) {
-            print "error: repo missing $file \n";
-            return 1;
+            $LASTERROR .= "Missing repo file $file\n";
         }
     }
 
-    ## Check Apache repo configuration
-    ##
-    $repo =  basename("$repo");
-    unless (-f "/etc/apache2/conf.d/$repo.conf") {
-        print "error: apache repo config missing \n";
+    if ( $LASTERROR ne "" ) {
+        $LASTERROR .= "Recommend 'barepo update $base' to regenerate.\n";
+        return 1;
+    }
+
+    return 0;
+}
+
+sub verify_repo_sign {
+    my $repo = shift @_;
+    my $repopath = "$repo/repodata";
+    my $base = basename( $repo );
+
+    my @repofiles = qw| repomd.xml.asc
+                        repomd.xml.key
+                      |;
+
+    foreach my $file (@repofiles) {
+        unless (-f "$repopath/$file" ) {
+            $LASTERROR .= "Missing repo sig file $file\n";
+        }
+    }
+
+    if ( $LASTERROR ne "" ) {
+        $LASTERROR .= "Recommend 'barepo update $base' to sign.\n";
+        return 1;
+    }
+
+    my $gpghome = "/usr/share/baracus/gpghome";
+
+    my $status = system("gpg2", "--homedir=$gpghome/.gnupg/",
+                        "--verify", "$repopath/repomd.xml.asc" );
+
+    if ( $status ) {
+        $LASTERROR = "Failed gpg sig check. Recommend 'barepo update $base'\n";
         return 1;
     }
 

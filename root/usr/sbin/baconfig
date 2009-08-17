@@ -40,7 +40,7 @@ And, where E<lt>typeE<gt> is
     profile   Network or other variable definitions.
     tftp      TFTP filesystem database.
 
-And, where <...> indicates additional required arguments. 
+And, where <...> indicates additional required arguments.
 
 Use 'man' or 'help <command> [<type>]' for more details.
 
@@ -49,6 +49,20 @@ Use 'man' or 'help <command> [<type>]' for more details.
 This tool allows files related to distro, hardware, modules or profiles to be
 added to, removed from, detailed, fetched from database tables.  Additionally,
 all the database entries can be listed by type.
+
+=head1 OPTIONS
+
+=over 4
+
+=item -v --verbose  Be verbose with output
+
+=item -q --quiet  Be as quiet as possible
+
+=item -n --nolabels  Do not print headers/footers
+
+=item -a --all  For versioned files, show disabled too
+
+=back
 
 =cut
 
@@ -615,6 +629,7 @@ sub add_module
 #               'interpreter=s'  => \$entry{'interpreter'},
                'file=s'         => \$file,
                'enable!'        => \$entry{'status'},
+               'disable'        => sub { $entry{'status'} = 0 },
                );
 
     if ( scalar @ARGV ) {
@@ -653,8 +668,13 @@ sub add_module
         }
     }
 
-    unless ( -f $file ) {
-        $LASTERROR = "Need --file <script> to add. Unable to find file: $file.\n";
+    unless ( $file ne "" ) {
+        print "Need --file <file>.\n";
+        &help( "add", "module" );
+    }
+
+    unless ( -f $file and -r $file ) {
+        $LASTERROR = "Unable to find or read file: $file.\n";
         return 1;
     }
 
@@ -729,6 +749,7 @@ sub add_profile
                'description=s'  => \$entry{'description'},
                'file=s'         => \$file,
                'enable!'        => \$entry{'status'},
+               'disable'        => sub { $entry{'status'} = 0 },
                );
 
     if ( scalar @ARGV ) {
@@ -757,8 +778,13 @@ sub add_profile
         }
     }
 
-    unless ( -f $file ) {
-        $LASTERROR = "Need --file <script> to add. Unable to find file: $file.\n";
+    unless ( $file ne "" ) {
+        print "Need --file <file>.\n";
+        &help( "add", "profile" );
+    }
+
+    unless ( -f $file and -r $file ) {
+        $LASTERROR = "Unable to find or read file: $file.\n";
         return 1;
     }
 
@@ -834,6 +860,7 @@ sub add_tftp
                'description=s'  => \$entry{'description'},
                'file=s'         => \$file,
                'enable!'        => \$entry{'enabled'},
+               'disable'        => sub { $entry{'enabled'} = 0 },
                );
 
     if ( scalar @ARGV ) {
@@ -862,8 +889,13 @@ sub add_tftp
         }
     }
 
-    unless ( -f $file ) {
-        $LASTERROR = "Need --file <path/file> to add. Unable to find file: $file.\n";
+    unless ( $file ne "" ) {
+        print "Need --file <file>.\n";
+        &help( "add", "tftp" );
+    }
+
+    unless ( -f $file and -r $file ) {
+        $LASTERROR = "Unable to find or read file: $file.\n";
         return 1;
     }
 
@@ -1001,6 +1033,7 @@ sub update_module
 #              'interpreter=s'  => \$entry{'interpreter'},
                'file=s'         => \$file,
                'enable!'        => \$entry{'status'},
+               'disable'        => sub { $entry{'status'} = 0 },
                'version=i'      => \$entry{'version'},
                );
 
@@ -1206,6 +1239,7 @@ sub update_profile
                'description=s'  => \$entry{'description'},
                'file=s'         => \$file,
                'enable!'        => \$entry{'status'},
+               'disable'        => sub { $entry{'status'} = 0 },
                'version=i'      => \$entry{'version'},
                );
 
@@ -1415,6 +1449,7 @@ sub update_tftp
                'description=s'  => \$entry{'description'},
                'file=s'         => \$file,
                'enable!'        => \$entry{'enabled'},
+               'disable'        => sub { $entry{'enabled'} = 0 },
                );
 
     if ( scalar @ARGV ) {
@@ -1682,8 +1717,8 @@ sub export
 
     if ( $entry{'version'} eq "" ) {
         unless ( $type eq "tftp" ) {
-            print "Required --version <ver> not provided.\n";
-            &help( "export" );
+            $LASTERROR = "Required --version <ver> not provided.\n";
+            return 1;
         }
     } elsif ( $type eq "tftp" ) {
         print "Ignoring unsupported --version specifier for type $type\n";
