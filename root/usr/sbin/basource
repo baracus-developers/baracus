@@ -531,6 +531,18 @@ sub create_sle10_build() {
         if ( $baseos eq $os ) { return; }
     }
 
+    ## Fix for bad REQUIRES tag in SLERT10-sp2 content file
+    ##
+    if ($os =~ /slert10/) {
+        open(FILE, "<$troot/$config->{distribution}->{$os}->{basepath}/slert/content");
+        my $cfile = join '', <FILE>;
+        close(FILE);
+        $cfile =~ s/pattern:slert-base//g;
+        open(FILE, ">$troot/$config->{distribution}->{$os}->{basepath}/slert/content");
+        print FILE $cfile;
+        close(FILE);
+    }
+
     ## Setup add_on_products
     ##
     foreach my $isofile (keys (%{$config->{distribution}->{$baseos}->{file}})) {
