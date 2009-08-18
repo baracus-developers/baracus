@@ -36,12 +36,6 @@ Where E<lt>commandE<gt> is one of
   list templates                list host templates
   list history                  list build client template history
 
-Where E<lt>optionsE<gt> are
-
-  -v|--verbose                  verbose output
-  -h|--help                     This 'Usage' summary message
-  -m|--man                      Detailed man page.
-
 And, where <...> indicates additional required arguments.
 
 Use 'man' or 'help <command> [<type>]' for more details.
@@ -49,6 +43,18 @@ Use 'man' or 'help <command> [<type>]' for more details.
 =head1 DESCRIPTION
 
 This tool allows administrators to maintain a collection of build templates for rapid PXE network installs.  These build client templates collect inforation from the basource and baconfig tools together to completely describe the desired host build.
+
+=head1 OPTIONS
+
+=over 4
+
+=item -v --verbose  Be verbose with output
+
+=item -q --quiet Be as quiet as possible
+
+=item -n --nolabels  Do not print headers/footers
+
+=back
 
 =cut
 
@@ -59,10 +65,12 @@ my $dbtftp = "sqltftp";
 
 our $LASTERROR;
 
-my $verbose;
-my $debug = 0;
-my $man;
-my $help;
+my $verbose  = 0;
+my $debug    = 0;
+my $man      = 0;
+my $help     = 0;
+my $quiet    = 0;
+my $nolabels = 0;
 
 my %multiarg; # used for processing repeatable getoptions
 
@@ -131,6 +139,8 @@ my %cmds = (
 
 GetOptions(
            'verbose'   => \$verbose,
+           'quiet'     => \$quiet,
+           'nolabels'  => \$nolabels,
            'debug+'    => \$debug,
            'man'       => \$man,
            'help|?'    => \$help,
@@ -685,6 +695,12 @@ sub list
         ## List available build templates filtered by hostname if provided
         ##
 
+        unless ( $quiet || $nolabels ) {
+            print "--------------------------------------------------------------------------------\n";
+            printf "%-16s %-8s  tftp files\n", "hostname", "sts";
+            print "--------------------------------------------------------------------------------\n";
+        }
+
         while ( $dbref = &db_list_next( $sth ) ) {
             my $autostate = "missing";
             my $pxestate  = "missing";
@@ -713,21 +729,24 @@ sub list
 
             # at some point we need logic for the state of the host entry
             # and the state of the related tftp files for 'verified' reporting.
-            printf "%-16s %-8s  ", $dbref->{'hostname'},
-                $BaracusSql::baState{ $dbref->{'state'} };
-            if ( $verbose ) {
-                printf "%s $pxestate  %s $autostate\n", $bootmac, $automac;
-            } else {
-                if ( $pxestate ne "ok" && $autostate ne "ok" ) {
-                    print "related tftp files missing or disabled\n";
-                } elsif ( $pxestate ne "ok" ) {
-                    printf "%s $pxestate\n", $bootmac;
-                } elsif ( $autostate ne "ok" ) {
-                    printf "%s $autostate\n", $automac;
+            printf "%-16s ", $dbref->{'hostname'};
+            unless ( $quiet ) {
+                printf "%-8s  ", $BaracusSql::baState{ $dbref->{'state'} };
+                if ( $verbose ) {
+                    printf "%s $pxestate  %s $autostate", $bootmac, $automac;
                 } else {
-                    print "verified\n";
+                    if ( $pxestate ne "ok" && $autostate ne "ok" ) {
+                        print "related tftp files missing or disabled";
+                    } elsif ( $pxestate ne "ok" ) {
+                        printf "%s $pxestate", $bootmac;
+                    } elsif ( $autostate ne "ok" ) {
+                        printf "%s $autostate", $automac;
+                    } else {
+                        print "verified";
+                    }
                 }
             }
+            print "\n";
         }
     }
     elsif ( $subcommand eq "history" ) {
