@@ -3,6 +3,8 @@
 use strict;
 use XML::Simple;
 
+my $debug = 0;
+
 my $xml = new XML::Simple;
 my $config = $xml->XMLin( "/usr/share/baracus/qs.xml",
                           forcearray => [ 'distribution', 'file' ],
@@ -31,6 +33,7 @@ foreach my $os (keys %{$config->{'distribution'}} ) {
     } else {
         $addon = 0;
     }
+    print "os $os sp $sp\n" if $debug;
     $desc = $config->{'distribution'}->{$os}->{'description'};
 
     my $cmd = "baconfig add distro --name $os";

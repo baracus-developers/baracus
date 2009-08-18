@@ -67,7 +67,7 @@
 			<url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FeRAdQttrkeA%7E%2FSLE-10-SP2-SDK-DVD-x86_64-GM-DVD1.iso&buildid=eRAdQttrkeA~&fileid=MHiLlQ3CVls~&mirror=AkamaiHost&nohost=false]]></url>
 			<path>sles10/sp2/x86_64/sdk</path>
 			<addon>yes</addon>
-`		</file>
+		</file>
 	</distribution>
 
 	<distribution>
@@ -394,7 +394,10 @@
 		<os>opensuse11.1-i586</os>
 		<basepath>opensuse11.1/ga/i586</basepath>
 		<pxepath>dvd1/boot/i586/loader</pxepath>
+		<pxeid>opensuse11.1-i586</pxeid>
 		<sp>ga</sp>
+		<arch>i586</arch>
+		<description>OpenSuSE 11.1 32bit</description>
 		<autodownload>open</autodownload>
 		<file iso="openSUSE-11.1-DVD-i586.iso">
 			<md5>8f51b278c0415be28c5699e465444bd3</md5>
@@ -420,7 +423,10 @@
 		<os>rhel5.3-x86_64</os>
 		<basepath>rhel5/3/x86_64</basepath>
 		<pxepath>isolinux</pxepath>
+		<pxeid>rhel5.3-x86_64</pxeid>
 		<sp>3</sp>
+		<arch>x86_64</arch>
+		<description>RedHat Enterprise Linux 5.3 64bit</description>
 		<autodownload>no</autodownload>
 		<file iso="rhel-server-5.3-x86_64-dvd.iso">
 			<md5>c5ed6b284410f4d8212cafc78fd7a8c5</md5>
@@ -434,7 +440,10 @@
 		<os>rhel5.3-i386</os>
 		<basepath>rhel5/3/i386</basepath>
 		<pxepath>isolinux</pxepath>
+		<pxeid>rhel5.3-i386</pxeid>
 		<sp>3</sp>
+		<arch>i386</arch>
+		<description>RedHat Enterprise Linux 5.3 32bit</description>
 		<autodownload>no</autodownload>
 		<file iso="rhel-server-5.3-i386-dvd.iso">
 			<md5></md5>
