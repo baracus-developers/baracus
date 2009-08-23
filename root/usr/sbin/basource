@@ -381,7 +381,11 @@ sub add_build() {
 
     if ($distro eq "sles9") {
         &create_sle9_build($os,$troot,$type,$ip,@isoarray);
-    } else {
+    }
+    elsif ($distro =~ /rhel/) {
+        &create_rhel_build($os,$troot,@isoarray);
+    }
+    else {
         &create_sle10_build($os,$troot,$type,$ip,@isoarray);
     }
 
@@ -665,6 +669,15 @@ sub create_sle10_build() {
     }
 }
 
+sub create_rhel_build() {
+
+    my ($os,$troot,@isoarray) = @_;
+
+    my $ret = &make_paths($troot,$os,@isoarray);
+
+}
+    
+
 sub create_sle9_build() {
 
     my ($os,$troot,$type,$ip,@isoarray) = @_;
@@ -947,14 +960,14 @@ sub pxe_config() {
     mkdir $tdir, 0755 || die ("Cannot create directory\n");
 
     unless( $sqlfsOBJ->find( "linux.$pxeid" ) ) {
-        copy("$troot/$config->{distribution}->{$os}->{basepath}/$config->{distribution}->{$os}->{pxepath}/linux","$tdir/linux.$pxeid") or die "Copy failed: $!";
+        copy("$troot/$config->{distribution}->{$os}->{basepath}/$config->{distribution}->{$os}->{pxekernel}","$tdir/linux.$pxeid") or die "Copy failed: $!";
         if ( $sqlfsOBJ->store( "$tdir/linux.$pxeid" ) ) {
             warn "failed to store linux.$pxeid in sqlfs\n";
         }
         unlink ( "$tdir/linux.$pxeid" );
     }
     unless( $sqlfsOBJ->find( "initrd.$pxeid" ) ) {
-        copy("$troot/$config->{distribution}->{$os}->{basepath}/$config->{distribution}->{$os}->{pxepath}/initrd","$tdir/initrd.gz") or die "Copy failed: $!";
+        copy("$troot/$config->{distribution}->{$os}->{basepath}/$config->{distribution}->{$os}->{pxeinitrd}","$tdir/initrd.gz") or die "Copy failed: $!";
         if ( $os =~ /sles11/ ) {
             system("gunzip", "$tdir/initrd.gz");
             $>=$oldid;          # annoying permissions on gpghome
