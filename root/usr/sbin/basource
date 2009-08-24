@@ -261,10 +261,10 @@ sub addon_product() {
     my $baseprod;
     my $baseos = $config->{distribution}->{$os}->{requires};
 
-    print "Verifying base SLES product\n";
+    print "Verifying base product\n";
     foreach my $isofile (keys (%{$config->{distribution}->{$baseos}->{file}})) {
         if ( ! -d "$troot/$config->{distribution}->{$baseos}->{file}->{$isofile}->{path}" ) {
-            print "Cannot verify required SLES base installation at $troot\n";
+            print "Cannot verify required base installation at $troot\n";
             exit(1);
         }
         if ($config->{distribution}->{$baseos}->{file}->{$isofile}->{addon} eq "base") {
