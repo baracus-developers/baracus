@@ -55,7 +55,7 @@
 		<os>sles10-x86_64</os>
 		<basepath>sles10/sp2/x86_64</basepath>
 		<pxekernel>dvd1/boot/x86_64/loader/linux</pxekernel>
-		<pxeinitrd>dvd1/boot/x86_64/loader/kernel</pxeinitrd>
+		<pxeinitrd>dvd1/boot/x86_64/loader/initrd</pxeinitrd>
 		<pxeid>sles10-sp2-x86_64</pxeid>
 		<sp>2</sp>
 		<arch>x86_64</arch>
@@ -475,5 +475,78 @@
 			<url><![CDATA[]]></url>
 		</file>
 	</distribution>
+
+	<distribution>
+		<os>rhel5-mrg-1.1-i386</os>
+		<basepath>rhel5-mrg/1.1/i386</basepath>
+		<pxekernel>dvd1/isolinux/vmlinuz</pxekernel>
+		<pxeinitrd>dvd1/isolinux/initrd.img</pxeinitrd>
+		<pxeid>rhel5-mrg-1.1-i386</pxeid>
+		<sp>1</sp>
+		<arch>i386</arch>
+		<description>RedHat Enterprise Linux 5 MRG 1.1 32bit</description>
+		<autodownload>no</autodownload>
+		<file iso="rhel-5-mrg-1.1-i386.iso">
+			<md5>723e96222900f39404fb0df8692d30dc</md5>
+			<path>rhel5-mrg/1.1/i386/dvd1</path>
+			<addon>base</addon>
+			<url><![CDATA[]]></url>
+		</file>
+	</distribution>
+
+	<distribution>
+		<os>rhel5-mrg-1.1-x86_64</os>
+		<basepath>rhel5-mrg/1.1/x86_64</basepath>
+		<pxekernel>dvd1/isolinux/vmlinuz</pxekernel>
+		<pxeinitrd>dvd1/isolinux/initrd.img</pxeinitrd>
+		<pxeid>rhel5-mrg-1.1-x86_64</pxeid>
+		<sp>1</sp>
+		<arch>x86_64</arch>
+		<description>RedHat Enterprise Linux 5 MRG 1.1 64bit</description>
+		<autodownload>no</autodownload>
+		<file iso="rhel-5-mrg-1.1-i386.iso">
+			<md5>d8914a71f91c43ec8c7781007ed0f4cb</md5>
+			<path>rhel5-mrg/1.1/x86_64/dvd1</path>
+			<addon>base</addon>
+			<url><![CDATA[]]></url>
+		</file>
+	</distribution>
+
+	<distribution>
+		<os>fedora11-x86_64</os>
+		<basepath>fedora11/ga/x86_64</basepath>
+		<pxekernel>dvd1/isolinux/vmlinuz</pxekernel>
+		<pxeinitrd>dvd1/isolinux/initrd.img</pxeinitrd>
+		<pxeid>fedora11-x86_64</pxeid>
+		<sp>ga</sp>
+		<arch>x86_64</arch>
+		<description>Fedora 11 64bit</description>
+		<autodownload>open</autodownload>
+		<file iso="Fedora-11-x86_64-DVD.iso">
+			<md5>9d419844adeb93120215fe7505c9bce8</md5>
+			<path>fedora11/ga/x86_64/dvd1</path>
+			<addon>base</addon>
+			<url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/11/Fedora/x86_64/iso/Fedora-11-x86_64-DVD.iso]]></url>
+		</file>
+	</distribution>
+
+	<distribution>
+		<os>fedora11-i386</os>
+		<basepath>fedora11/ga/i386</basepath>
+		<pxekernel>dvd1/isolinux/vmlinuz</pxekernel>
+		<pxeinitrd>dvd1/isolinux/initrd.img</pxeinitrd>
+		<pxeid>fedora11-i386</pxeid>
+		<sp>ga</sp>
+		<arch>i386</arch>
+		<description>Fedora 11 32bit</description>
+		<autodownload>open</autodownload>
+		<file iso="Fedora-11-i386-DVD.iso">
+			<md5>2c2440df98f1673803d10f17a5a71954</md5>
+			<path>fedora11/ga/i386/dvd1</path>
+			<addon>base</addon>
+			<url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/11/Fedora/i386/iso/Fedora-11-i386-DVD.iso]]></url>
+		</file>
+	</distribution>
+	
 
 </config>
