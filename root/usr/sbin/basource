@@ -239,11 +239,11 @@ sub verify_build() {
     foreach(@$dbref) {
         if (! defined $_->[6]) { $_->[6] = "na" }
         my $distro = (split /-/, $_->[0])[0];
-
+	$distro = (split /\./, $distro)[0];
         unless ( -d "$_->[2]\/$distro" ) {
             print "Build tree does not appear to exist\n";
             print "$_->[2]\/$_->[0] \n";
-           exit(1);
+        #   exit(1);
         }
         print "Target:\t\t$_->[0] \n";
         print "Path:\t\t$_->[2]\/$distro\n";
