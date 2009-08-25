@@ -1,0 +1,45 @@
+install
+nfs --server=__BUILDIP__ --dir=__BUILDROOT__/__OS__/__SP__/__ARCH__/dvd1
+key --skip
+lang en_US.UTF-8
+keyboard us
+network --device eth0 --bootproto static --ip __IP__ --netmask __NETMASK__ --gateway __GATEWAY__ --nameserver __DNSDOMAIN__ --hostname __HOSTNAME__
+rootpw --iscrypted $1$YqLMO/I4$iUnVf0135/iHkvAT4JD0G1
+firewall --enabled --port=22:tcp
+authconfig --enableshadow --enablemd5
+selinux --enforcing
+timezone --utc __TIMEZONE__
+bootloader --location=mbr --driveorder=__ROOTDISK__ --append="rhgb quiet"
+# The following is the partition information you requested
+# Note that any partitions you deleted are not expressed
+# here so unless you clear all partitions first, this is
+# not guaranteed to work
+clearpart --linux
+part / --fstype ext3 --size=8092 --asprimary
+part swap --size=1 --grow --asprimary
+
+%packages
+@editors
+@text-internet
+@gnome-desktop
+@dialup
+@core
+@base
+@java
+@legacy-software-support
+@base-x
+@sound-and-video
+@admin-tools
+@development-tools
+emacs
+kexec-tools
+fipscheck
+device-mapper-multipath
+xorg-x11-utils
+xorg-x11-server-Xnest
+xorg-x11-server-Xvfb
+imake
+
+%post
+tftp -m binary __BUILDIP__ -c get /baracus/uuid/__UUID__?__HOSTNAME__
+__MODULE__

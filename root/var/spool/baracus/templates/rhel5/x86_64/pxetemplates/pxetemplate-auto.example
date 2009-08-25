@@ -1,0 +1,7 @@
+DEFAULT install
+PROMPT 0
+TIMEOUT 0
+
+LABEL install
+        kernel __PXEKERNEL__
+        append __BOOTARGS__ initrd=__PXEINITRD__ ks=tftp://__BUILDIP__/__AUTOINST__ text __LOGHOST__

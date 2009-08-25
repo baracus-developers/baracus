@@ -478,36 +478,34 @@
 
 	<distribution>
 		<os>rhel5-mrg-1.1-i386</os>
-		<basepath>rhel5-mrg/1.1/i386</basepath>
-		<pxekernel>dvd1/isolinux/vmlinuz</pxekernel>
-		<pxeinitrd>dvd1/isolinux/initrd.img</pxeinitrd>
+		<basepath>rhel5/3/i386/mrg/1.1</basepath>
 		<pxeid>rhel5-mrg-1.1-i386</pxeid>
 		<sp>1</sp>
 		<arch>i386</arch>
+		<requires>rhel5.3-i386</requires>
 		<description>RedHat Enterprise Linux 5 MRG 1.1 32bit</description>
 		<autodownload>no</autodownload>
 		<file iso="rhel-5-mrg-1.1-i386.iso">
 			<md5>723e96222900f39404fb0df8692d30dc</md5>
-			<path>rhel5-mrg/1.1/i386/dvd1</path>
-			<addon>base</addon>
+			<path>rhel5/3/x86_64/mrg/1.1/dvd1</path>
+			<addon>rhel</addon>
 			<url><![CDATA[]]></url>
 		</file>
 	</distribution>
 
 	<distribution>
 		<os>rhel5-mrg-1.1-x86_64</os>
-		<basepath>rhel5-mrg/1.1/x86_64</basepath>
-		<pxekernel>dvd1/isolinux/vmlinuz</pxekernel>
-		<pxeinitrd>dvd1/isolinux/initrd.img</pxeinitrd>
+		<basepath>rhel5/3/x86_64/mrg/1.1</basepath>
 		<pxeid>rhel5-mrg-1.1-x86_64</pxeid>
 		<sp>1</sp>
 		<arch>x86_64</arch>
+		<requires>rhel5.3-x86_64</requires>
 		<description>RedHat Enterprise Linux 5 MRG 1.1 64bit</description>
 		<autodownload>no</autodownload>
 		<file iso="rhel-5-mrg-1.1-i386.iso">
 			<md5>d8914a71f91c43ec8c7781007ed0f4cb</md5>
-			<path>rhel5-mrg/1.1/x86_64/dvd1</path>
-			<addon>base</addon>
+			<path>rhel5/3/x86_64/mrg/1.1/dvd1</path>
+			<addon>rhel</addon>
 			<url><![CDATA[]]></url>
 		</file>
 	</distribution>
