@@ -16,11 +16,10 @@ print <<HTML0
 <html>
 	<head>
 		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
-		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
 		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body background="/baracus/images/bg06.jpg">
+	<body>
 		<div id='f-labels'>
 		<div id='history'>Distribution List</div>
 		<div id='block1'>
@@ -42,8 +41,8 @@ HTML0
 sub getContent
 {
 	my $r = "";
-	$r = $r."<form name='createAdd'>\n";
-	$r = $r.BATools::getDistroSelectionList( "0", "", "size='25' onClick='distUpdate()'");
+	$r = $r."<form name='form1'>\n";
+	$r = $r.BATools::getDistroSelectionList( "0", "", "size='25' onClick='distUpdate(document.form1.distro.value)'");
 	$r = $r."</form>\n";
 	
 	return $r;

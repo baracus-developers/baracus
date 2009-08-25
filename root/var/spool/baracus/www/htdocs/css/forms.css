@@ -1,11 +1,23 @@
 /********************************************************************/
 /* Forms															*/
 /********************************************************************/
+body
+{
+	background-image: url("/baracus/images/bg06.jpg");
+}
+#f-labels font.history
+{
+	position:absolute;
+	top:10;
+	left:12;	
+	font-size:12pt;
+	color:white;
+}
 
 #f-labels h1
 {
 	color:black;
-    font-size: 11pt;
+    font-size: 10pt;
     font-weight:bold;
     display:inline;
     margin-left:10;
@@ -13,7 +25,7 @@
 #f-labels h1.disabled
 {
 	color:grey;
-    font-size: 11pt;
+    font-size: 10pt;
     font-weight:bold;
     display:inline;
     margin-left:10;
@@ -100,12 +112,11 @@
 #block1
 {
 	width:260;
-	height:150;
+	height:125;
 	position:absolute;
-	top:0px;
+	top:10px;
 	left:20px;
-	border-top:1px dashed gray;
-	background-color: #B2D68C;
+	border:2px solid #B2D68C;
 	padding-top:10;
 }
 #block1 input
@@ -118,32 +129,29 @@
 #block2
 {
 	width:260;
-	height:450;
+	height:430;
 	position:absolute;
-	top:150px;
+	top:160px;
 	left:20px;
-	border-bottom:1px dashed gray;
-	border-top:1px dashed gray;
-	background-color: #B2D68C;
+	border:2px solid #B2D68C;
 	padding-top:10;
 }
 #block2 input.button
 {
 	width:100px;
 	position:absolute;
-	left: 130px;
-	top: 415px;
+	left: 120px;
+	top: 400px;
 }
 
 #block3
 {
 	width:260;
-	height:250;
+	height:220;
 	position:absolute;
-	top:0px;
+	top:10px;
 	left:320px;
-	border-top:1px dashed gray;
-	background-color: #B2D68C;
+	border:2px solid #B2D68C;
 	padding-top:10;
 }
 #block3 input.button
@@ -157,14 +165,12 @@
 #block4
 {
 	width:260;
-	height:45;
+	height:30;
 	position:absolute;
-	top:250px;
+	top:255px;
 	left:320px;
 	text-align:bottom;
-	border-bottom:1px dashed gray;
-	border-top:1px dashed gray;
-	background-color: #B2D68C;
+	border:2px solid #B2D68C;
 	padding-top:10;
 }
 #block4 input
@@ -172,8 +178,7 @@
 	color:green;
 	width:100;
 	position:absolute;
-	left:140;
-	top:45%;
+	left:130;
 }
 #block4 input.clear
 {
@@ -181,37 +186,34 @@
 	width:100;
 	position:absolute;
 	left:20;
-	top:45%;
 }
 
 #blockb
 {
 	width:260;
-	height:150;
+	height:125;
 	position:absolute;
-	top:150px;
+	top:160px;
 	left:20px;
-	border-top:1px dashed gray;
-	background-color: #B2D68C;
+	border:2px solid #B2D68C;
 	padding-top:10;
 }
 #blockb input.button
 {
 	width:100px;
 	position:absolute;
-	left: 130px;
+	left: 125px;
 	top: 115px;
 }
 
 #blockc
 {
 	width:260;
-	height:150;
+	height:125;
 	position:absolute;
-	top:300px;
+	top:310px;
 	left:20px;
-	border-top:1px dashed gray;
-	background-color: #B2D68C;
+	border:2px solid #B2D68C;
 	padding-top:10;
 }
 #blockc input.button
@@ -224,12 +226,11 @@
 #blockd
 {
 	width:260;
-	height:150;
+	height:125;
 	position:absolute;
-	top:450px;
+	top:460px;
 	left:20px;
-	border-top:1px dashed gray;
-	background-color: #B2D68C;
+	border:2px solid #B2D68C;
 	padding-top:10;
 }
 
@@ -240,7 +241,6 @@
 	position:absolute;
 	top:150px;
 	left:320px;
-	border-top:1px dashed gray;
 	background-color: #B2D68C;
 	padding-top:10;
 }
@@ -248,13 +248,11 @@
 {
 	width:580;
 	height:250;
-	position:absolute;
-	top:50px;
-	left:10px;
-	border-bottom:1px dashed gray;
-	border-top:1px dashed gray;
-	background-color: #B2D68C;
+    margin-left: auto;
+    margin-right: auto;
+	border:2px solid #B2D68C;
 	padding-top:10;
+	margin-top:50px
 }
 #blockW select
 {
@@ -296,3 +294,4 @@
 	color:6A737B;
 	font-size:20pt;
 }
+

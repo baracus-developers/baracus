@@ -6,15 +6,14 @@ use CGI qw(:standard);
 
 print "Content-type: text/html\n\n";
 
-my $sub = param('sub');			# subfunction
-my $selValue = param('selValue'); 	# selected value
+my $sub = param('sub');				# subfunction
 my $content = "";
 
 my $headError = "<font class='error'>Error</font>";
 
 if( $sub eq "del")
 {
-	$content = $content.delContent( $selValue);
+	$content = $content.delContent( param('host'));
 	$header = delHeader();
 }
 else

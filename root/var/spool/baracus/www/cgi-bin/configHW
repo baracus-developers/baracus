@@ -19,7 +19,7 @@ print <<HTML0
 		<link rel='stylesheet' href='/$BATools::baRoot/css/config.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body background="/baracus/images/bg06.jpg" onLoad='selectThis(document.form1.item, "$Name")'>
+	<body onLoad='selectThis(document.form1.item, "$Name")'>
 		<form name='form1'>
 		<div id='config'>
 		<div id='history'>Hardware List</div>
@@ -28,7 +28,7 @@ print <<HTML0
 		$items
 		<br><br>
 		<font class='data'>Hardware Data</font>
-		<textarea name='data' disabled>$content</textarea>
+		<textarea name='data' readonly>$content</textarea>
 		</div>
 		</div>
 		</form>

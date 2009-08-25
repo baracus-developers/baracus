@@ -1,6 +1,11 @@
 var sURL = unescape(window.location.pathname+window.location.search);
 var rURL = unescape(window.location.pathname);
 
+function doSubmit( item)
+{
+	item.form.submit();
+}
+
 function verifyDelete( selVal)
 {
 	var agree=confirm("Confirm Delete of: " + selVal);
@@ -80,10 +85,36 @@ function selectThis( s, v)
    		}
    	}
 }
+function hostRemoveEnterKey(e)
+{
+     var key;
 
+     if(window.event)
+     {
+          key = window.event.keyCode;   //IE
+     }
+     else
+     {
+          key = e.which;     			//firefox
+     }
+     if(key == 13)
+     {
+          hostReload( document.form1.host.value, document.form1.filter.value)
+          return false;
+     }
+     else
+     {
+          return true;
+     }
+}
 function confReload( name, nname, ver)
 {
 	var url = rURL + "?name=" + name + "&nname=" + nname + "&ver=" + ver;
+	refresh( url);
+}
+function hostReload( host, filter)
+{
+	var url = rURL + "?host=" + host + "&filter=" + filter;
 	refresh( url);
 }
 
@@ -146,9 +177,8 @@ function profUpdate( sel, tall, ver)
 	document.getElementById("infoBox").src=url;
 }
 
-function distUpdate()
+function distUpdate( selection)
 {
-	var selection = document.createAdd.distro.value;
 	var url = "/baracus/ba/createContent?caller=create&attr=distro&val=" + selection;
 	document.getElementById("infoBox").src=url;
 }

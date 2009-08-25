@@ -21,9 +21,9 @@ print <<HTML0
 		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body>
+	<body">
 		<div id='f-labels'>
-			<h1 class='label'>$title</h1>		
+			<font class='history'>Currently Processing</font>	
 			<div id='blockW'>
 			<form name='form1'>
 			$current

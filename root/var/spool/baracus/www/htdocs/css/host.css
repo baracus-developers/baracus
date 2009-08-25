@@ -1,0 +1,93 @@
+body
+{
+	background-image: url("/baracus/images/bg06.jpg");
+}
+#textEdit
+{
+	width:580;
+	height:530;
+	position:absolute;
+	top:40px;
+	left:10px;
+	padding-top:10;
+	border:2px solid #B2D68C;
+}
+#textEdit textarea.short
+{
+	position:absolute;
+	left:20;
+	top:350;
+	width: 550;
+	height: 170;
+	background-color: white;
+	color:black;
+	padding:5;
+}
+#config input.filter
+{
+	position:absolute;
+	left:320;
+	top:20;
+	width:230;
+	height:20;
+	border:none;
+	background-color:white;
+}
+#config input.submit
+{
+	position:absolute;
+	left:470px;
+	top:315px;
+	padding-right:10;
+	color:green;
+	width: 100px;
+}
+#config img.sweep
+{
+	position:absolute;
+	left:548;
+	top:20;
+	height:20;
+	background-color:white;
+}
+#config img.search
+{
+	position:absolute;
+	left:300;
+	top:20;
+	height:20;
+	background-color:white;
+}
+
+#config #history
+{
+	position:absolute;
+	top:10;
+	left:12;	
+	font-size:12pt;
+	color:white;
+}
+#config select.nameWide
+{
+	position:absolute;
+	top:45;
+	left:20;
+	width:550;
+	color:#6DB33F;
+} 
+#config font.name
+{
+	position:absolute;
+	top:25;
+	left:20;
+}
+#config font.dataShort
+{
+	position:absolute;
+	top:330;
+	left:20;
+}
+#config font
+{
+	font-size:9pt;
+}

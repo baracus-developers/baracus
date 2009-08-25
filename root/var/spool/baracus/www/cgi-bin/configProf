@@ -22,7 +22,7 @@ print <<HTML0
 		<link rel='stylesheet' href='/$BATools::baRoot/css/config.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body background="/baracus/images/bg06.jpg" onLoad='selectThis(document.form1.pTemp, "$Name")'>
+	<body onLoad='selectThis(document.form1.pTemp, "$Name")'>
 		<form action="/baracus/ba/configHandler" name='form1'>
 		<div id='config'>
 		<div id='history'>Profile List</div>
@@ -33,7 +33,7 @@ print <<HTML0
 		$versions
 		<br><br>
 		<font class='data'>Profile Data</font>
-		<textarea name='data' disabled>$template</textarea>
+		<textarea name='data' readonly>$template</textarea>
 		</div>
 		<input type='hidden' name='op' value='prof'>
 		<input type='hidden' name='sub' value='add'>

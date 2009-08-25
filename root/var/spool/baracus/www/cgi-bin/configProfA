@@ -22,7 +22,7 @@ print <<HTML0
 		<link rel='stylesheet' href='/$BATools::baRoot/css/config.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body background="/baracus/images/bg06.jpg" onLoad='selectThis(document.form1.profile, "$Name")'>
+	<body onLoad='selectThis(document.form1.profile, "$Name")'>
 		<form action="/baracus/ba/configHandler" name='form1'>
 		<div id='config'>
 		<div id='history'>Profile Add</div>

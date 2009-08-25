@@ -20,10 +20,9 @@ my @tlink = ( 	"configHW",
 
 my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, $sub, "config");
 		 
-print "Content-type: text/html\n\n";
+print header();
 
 print <<HTML;
-
 <html>
 <head>
 	<link rel='stylesheet' href='/baracus/css/tabs.css' type='text/css' >

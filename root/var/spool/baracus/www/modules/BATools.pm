@@ -301,6 +301,13 @@ sub trim($)
 	return $string;
 }
 
+sub removeQuotes($)
+{
+	my $string = shift;
+	$string =~ s/"//g;
+	return $string;
+}
+
 ###########################################################################################
 #  Return File As String              
 ###########################################################################################
@@ -407,7 +414,7 @@ sub getTabs(@@$$)
 		$ifSrc = "/$BATools::baRoot/uc.html";
 	}
 
-	$r = "<iframe src=$ifSrc id='tabContent' frameborder='0' scrolling='auto'>\n</iframe>\n.$r";
+	$r = "<iframe frameborder='0' border='0' src=$ifSrc id='tabContent'></iframe>\n.$r";
 	return $r;
 }
 

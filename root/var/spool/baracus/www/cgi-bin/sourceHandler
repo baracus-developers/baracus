@@ -167,14 +167,14 @@ sub addContent()
 		{
 			$cmd = "perl /$BATools::baPath/modules/expectI add $distro $user $ePass";
 			$pCmd = "perl /$BATools::baPath/modules/expectI add $distro $user ********";
-			$r = "Command: $pCmd\n\n".background( $cmd);
+			$r = "\n\n".background( $cmd);
 		}
 	}
 	else
 	{
 		$cmd = "perl /$BATools::baPath/modules/execute add $distro $verbose";
 		$pCmd = $cmd;
-		$r = "Command: $pCmd\n\n".background( $cmd);
+		$r = "\n\n".background( $cmd);
 	}
 	
 	return $r;	

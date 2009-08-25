@@ -61,7 +61,7 @@ initProfileOptions();
 createProfileVars();
 
 debugPrint( "-----$distro-----");
-$distroList = BATools::getDistroSelectionList( $distro, $distroD, "onClick='distUpdate()'", "current");
+$distroList = BATools::getDistroSelectionList( $distro, $distroD, "onClick='distUpdate(document.createAdd.distro.value)'", "current");
 $hardwareList = BATools::getHardwareSelectionList( $hardware, $hardwareD, "onClick='hwUpdate( this)'");
 
 getAndCheckModules();
@@ -80,7 +80,7 @@ print <<HTML0;
 		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body background="/baracus/images/bg06.jpg">
+	<body>
 
 	<div id='f-labels'>
 	<form method="post" name="createAdd" action="/$BATools::baCGI/createHandler">
@@ -188,7 +188,12 @@ sub createProfileVars
 					
 					if( $_ eq "module")
 					{
-						push( @profModules, $val);
+						$val = BATools::removeQuotes( $val);
+						@vals = split( " ", $val);
+						foreach $v1 ( @vals)
+						{
+							push( @profModules, $v1);
+						}
 					}
 				}
 	    	}
@@ -243,7 +248,6 @@ sub getAndCheckModules
 				}
 				if( !$found)
 				{
-					# $moduleList = $moduleList."<option class='bad'>ERROR: $pMod</option>\n";
 					debugPrint( "Module \"$pMod\" in \"$prof\" NOT found\n(non critical).\n");
 				}
 			}

@@ -1,65 +1,88 @@
 #!/usr/bin/perl
 
-use strict;
 use lib '/var/spool/baracus/www/modules';
 use BATools qw(:standard);
-	
-my $content = getContent();
-my $ccurl = "";
+use CGI qw(:standard);
+
+my $name = param('host') || "";
+my $filter = param('filter') || "";
+
+my $items = getItems( $name, $filter);
+my $content;
+
+if( $items =~ m/selected/)
+{
+	$content = getContent( $name);
+}
 
 print "Content-type: text/html\n\n";
 
-print <<HTML0;
+print <<HTML0
+
 
 <html>
 	<head>
 		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
-		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
-		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
+		<link rel='stylesheet' href='/$BATools::baRoot/css/host.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body background="/baracus/images/bg06b.jpg">
-	<div id='f-labels'>
-	<div id='block1'>
-	<h1>Delete Host Template</h1>
-	</div>
+	<body onLoad='selectThis(document.form1.host, "$name");document.form1.host.focus()'>
+		<form method="POST" name='form1' action="/$BATools::baCGI/hostHandler">
+		<div id='config'>
+		<div id='history'>Host Template List</div>
+		<div id='textEdit'>
+		<img class='search' src='/$BATools::baRoot/images/searchI.gif' onClick='hostReload( document.form1.host.value, document.form1.filter.value)'/>
+		<img class='sweep' src='/$BATools::baRoot/images/sweepI.gif' onClick='document.form1.filter.value="";hostReload( document.form1.host.value, document.form1.filter.value);'/>
+		<input type='text' class='filter' name='filter' value='$filter' onKeyPress='return hostRemoveEnterKey(event)'>
 
-	<div id='block2'>
+		<input type="hidden" name="sub" value="del">
+		<input class="submit" name="submit" type="submit" value="Delete" onClick='return verifyDelete( this.form.host.value)'>
+		
+		<font class='name'>Host Name</font><br>
+		$items
 		<br><br>
-		<form name="del" action="/$BATools::baCGI/hostHandler">
-			<br>
-			<br>
-			<h3>Templates</h3>
-			$content
-			<br>
-			<input type="hidden" name="sub" value="del">
-			<input class="button" type="submit" value="Delete" onClick="return verifyDelete( this.form.selValue.value)">
+		<font class='dataShort'>Host Data</font>
+		<textarea class='short' name='data' readonly>$content</textarea>
+		</div>
+		</div>
 		</form>
-	</div>
-
-	<div id='status'>
-		<iframe src=\"$ccurl\" scrolling='no' height='100%' width='100%' frameborder='0' id='infoBox' ></iframe>
-	</div>
-	
-	</div>
-	</div>
-	<body>
-	</html>
-
+	</body>
+</html>
 HTML0
+;
+
+sub getItems
+{
+	my $name = $_[0];
+	my $filter = $_[1];
+	my $r = "";
+	my $selected;
+	
+	$r = $r."<select class='nameWide' name='host' size='16' onChange='hostReload( document.form1.host.value, document.form1.filter.value)'>";
+	
+	my @items = BAdb::getHostTemplates( $filter);
+	foreach( @items)
+	{
+		$selected = $_ eq $name ? "selected" : "";
+		$r = $r."<option value='$_' $selected>$_</option>\n";	
+	}
+	
+	$r = $r."</select>";
+	
+	return $r;	
+}
 
 sub getContent
 {
-	my $r = "";
-	my $hostCmd = "sudo bahost list templates";
-	my $result = BATools::execute( $hostCmd);
-	my @array = split( "\n", $result);
-	$r = "<select name='selValue' size='18' onClick='templateUpdate(this)'>";
-	foreach ( @array)
+	my $name = $_[0];
+	if( $name eq "")
 	{
-		my @words = split( " ", $_);
-		$r = $r."<option>@words[0]</option>";		
+		$r = "";
 	}
-	$r = $r."</select>";
+	else
+	{
+		$r = BAdb::getHostTemplate( $name);
+	}
 	return $r;
 }
+

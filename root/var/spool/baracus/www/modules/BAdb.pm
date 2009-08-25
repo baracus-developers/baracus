@@ -475,4 +475,26 @@ sub getHardware
 	return `$cmd`;
 }
 
+sub getHostTemplates
+{
+	my $filter = shift @_;
+	$filter = $filter eq "" ? "" : "--host='*$filter*'";
+	my @hostArray;
+	my $hostCmd = "sudo bahost list templates $filter --quiet";
+	my $hosts = BATools::execute( $hostCmd);
+	@hostArray = split("\n", $hosts);
+	foreach( @hostArray)
+	{
+		$_ = BATools::trim($_);
+	}
+	return @hostArray;
+}
+sub getHostTemplate
+{
+	my $name = shift @_;
+	my $hostCmd = "sudo bahost list templates --hostname='$name' --nolabels";
+	my $data = BATools::execute( $hostCmd);
+	return $data;
+}
+
 1;

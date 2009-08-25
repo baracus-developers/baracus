@@ -22,7 +22,7 @@ print <<HTML0
 		<link rel='stylesheet' href='/$BATools::baRoot/css/config.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body background="/baracus/images/bg06.jpg" onLoad='selectThis(document.form1.mTemp, "$mName")'>
+	<body onLoad='selectThis(document.form1.mTemp, "$mName")'>
 		<form action="/baracus/ba/configHandler" name='form1'>
 		<div id='config'>
 		<div id='history'>Module List</div>
@@ -33,7 +33,7 @@ print <<HTML0
 		$versions
 		<br><br>
 		<font class='data'>Module Data</font>
-		<textarea name='data' disabled>$template</textarea>
+		<textarea name='data' readonly>$template</textarea>
 		</div>
 		<input type='hidden' name='op' value='mod'>
 		<input type='hidden' name='sub' value='add'>

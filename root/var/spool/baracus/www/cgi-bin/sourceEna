@@ -6,7 +6,7 @@ use CGI qw(:standard);
 
 my $source_help = "$BATools::baPath/htdocs/help/source.hlp";
 
-my $dselect = BATools::getDistroSelectionList("", "", "size='10'", "disabled");
+my $dselect = BATools::getDistroSelectionList("", "", "size='22' onClick='distUpdate(document.ena.distro.value)'", "disabled");
 my $help = print_help();
 
 ########################################################################################################
@@ -24,17 +24,14 @@ print <<HTML0;
 		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body background="/baracus/images/bg06b.jpg">
+	<body>
 	<div id='f-labels'>
 	<div id='block1'>
-	<h1>Enable Source Entries</h1>
+	<font class='history'>Enable Source Entries</font>
 	</div>
 
 	<div id='block2'>
-		<br><br>
-		<form name="add" action="/$BATools::baCGI/sourceHandler">
-			<br>
-			<br>
+		<form name="ena" action="/$BATools::baCGI/sourceHandler">
 			<h3>Distributions</h3>
 			$dselect
 			<br>
@@ -45,7 +42,7 @@ print <<HTML0;
 	</div>
 
 	<div id='status'>
-	<textarea name="comments" class="tbox" readonly="yes">$help</textarea>
+	<iframe src=\"$ccurl\" scrolling='no' height='100%' width='100%' frameborder='0' id='infoBox' ></iframe>
 	</div>
 	</div>
 	<body>
