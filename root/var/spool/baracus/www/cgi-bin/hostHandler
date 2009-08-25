@@ -4,9 +4,17 @@ use lib '/var/spool/baracus/www/modules';
 use BATools qw(:standard);
 use CGI qw(:standard);
 
+our $rURL = "host";
+our $ref = "yes";
+our $seconds = 3;
+our $qStr = "";
+
+my $refresh = "";
+
+
 print "Content-type: text/html\n\n";
 
-my $sub = param('sub');				# subfunction
+my $sub = param('sub');	# subfunction
 my $content = "";
 
 my $headError = "<font class='error'>Error</font>";
@@ -16,10 +24,20 @@ if( $sub eq "del")
 	$content = $content.delContent( param('host'));
 	$header = delHeader();
 }
+elsif( $sub eq "sta")
+{
+	$content = $content.staContent( param('host'), param('submit'));
+	$header = staHeader();
+}
 else
 {
 	$content = $content."Invalid Subfunction: $sub";
 	$header = $headError;
+}
+
+if( $ref eq "yes")
+{
+	$refresh = "onLoad=\"doLoad( '$rURL', '$qStr', $seconds)\"";
 }
 
 $content = $content."\n\n\n";
@@ -55,7 +73,24 @@ sub delHeader()
 
 sub delContent($)
 {
+	$rURL = $rURL."Remove";
 	my $cmd = "sudo bahost remove --hostname $_[0]";
+	my $r = `$cmd`;
+	return $r;
+}
+
+sub staHeader()
+{
+	return "Host Status Change";
+}
+
+sub staContent($$)
+{
+	my $host = $_[0];
+	my $operation = $_[1];
+	$rURL = $rURL."Status";
+	$qStr = "?host=$host&filter=".param('filter');
+	my $cmd = "sudo bahost $operation --hostname $host";
 	my $r = `$cmd`;
 	return $r;
 }

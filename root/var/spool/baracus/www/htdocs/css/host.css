@@ -35,10 +35,10 @@ body
 }
 #config input.submit
 {
-	position:absolute;
-	left:470px;
-	top:315px;
-	padding-right:10;
+	float:right;
+	margin-top:305;
+	margin-right:10px;
+	padding-right:10;	padding-right:10;
 	color:green;
 	width: 100px;
 }

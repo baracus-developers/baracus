@@ -29,14 +29,15 @@ print <<HTML0
 	<body onLoad='selectThis(document.form1.host, "$name");document.form1.host.focus()'>
 		<form method="POST" name='form1' action="/$BATools::baCGI/hostHandler">
 		<div id='config'>
-		<div id='history'>Host Remove</div>
+		<div id='history'>Host Status</div>
 		<div id='textEdit'>
 		<img class='search' src='/$BATools::baRoot/images/searchI.gif' onClick='hostReload( document.form1.host.value, document.form1.filter.value)'/>
 		<img class='sweep' src='/$BATools::baRoot/images/sweepI.gif' onClick='document.form1.filter.value="";hostReload( document.form1.host.value, document.form1.filter.value);'/>
 		<input type='text' class='filter' name='filter' value='$filter' onKeyPress='return hostRemoveEnterKey(event)'>
 
-		<input type="hidden" name="sub" value="del">
-		<input class="submit" name="submit" type="submit" value="Remove" onClick='return verifyDelete( this.form.host.value)'>
+		<input type="hidden" name="sub" value="sta">
+		<input class="submit" name="submit" type="submit" value="Enable")'>
+		<input class="submit" name="submit" type="submit" value="Disable")'>
 		
 		<font class='name'>Host Name</font><br>
 		$items
