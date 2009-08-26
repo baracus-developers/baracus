@@ -283,8 +283,10 @@ sub list
 
     unless ( $quiet || $nolabels ) {
         print "--------------------------------------------------------------------------------\n";
-        if ( ( $type eq "module" ) || ( $type eq "profile" ) ) {
+        if ( $type eq "profile" ) {
             printf "%-32s ver sts description\n", $type;
+        } elsif ( $type eq "module") {
+             printf "%-32s cnt sts mty description\n", $type;
         } elsif ( $type eq "tftp" ) {
             printf "%-32s cnt sts description\n", $type;
         } else {
@@ -293,7 +295,7 @@ sub list
         print "--------------------------------------------------------------------------------\n";
     }
     while ( my $href = &list_next( $sth ) ) {
-        if ( ( $type eq "module" ) || ( $type eq "profile" ) ) {
+        if ( $type eq "profile" ) {
             next unless ( $all || $href->{'status'} );
             # name, version, status, description
             printf "%-32s ", $href->{'name'};
@@ -302,6 +304,16 @@ sub list
                     $href->{'version'}, $href->{'status'},
                         (defined $href->{'description'}) ?
                             $href->{'description'} : "";
+            }
+        }  elsif ( $type eq "module" ) {
+               next unless ( $all || $href->{'status'} );
+               # name, version, status, mandatory, description
+               printf "%-32s ", $href->{'name'};
+               unless ( $quiet ) {
+                   printf "%-3s %-3s %-3s %s",
+                       $href->{'version'}, $href->{'status'}, $href->{'mandatory'},
+                           (defined $href->{'description'}) ?
+                               $href->{'description'} : "";
             }
         } elsif ( $type eq "tftp" ) {
             next unless ( $all || $href->{'enabled'} );
@@ -619,6 +631,7 @@ sub add_module
                  'interpreter'  => "shell",
                  'data'         => "",
                  'status'       => "t",
+                 'mandatory'    => "f",
                  'version'      => 1,
                  );
 
@@ -626,10 +639,12 @@ sub add_module
     GetOptions(
                'name=s'         => \$entry{'moduleid'},
                'description=s'  => \$entry{'description'},
-#               'interpreter=s'  => \$entry{'interpreter'},
+#              'interpreter=s'  => \$entry{'interpreter'},
                'file=s'         => \$file,
                'enable!'        => \$entry{'status'},
                'disable'        => sub { $entry{'status'} = 0 },
+               'mandatory!'     => \$entry{'mandatory'},
+               'optional'       => sub { $entry{'mandatory'} = 'f' },
                );
 
     if ( scalar @ARGV ) {
@@ -1023,6 +1038,7 @@ sub update_module
                  'interpreter'  => "",
                  'data'         => "",
                  'status'       => "",
+                 'mandatory'    => "",
                  'version'      => 0,
                  );
 
@@ -1034,6 +1050,8 @@ sub update_module
                'file=s'         => \$file,
                'enable!'        => \$entry{'status'},
                'disable'        => sub { $entry{'status'} = 0 },
+               'mandatory!'     => \$entry{'mandatory'},
+               'optional'       => sub { $entry{'mandatory'} = 0},
                'version=i'      => \$entry{'version'},
                );
 
@@ -1109,11 +1127,30 @@ sub update_module
             return 1 if &change_status( $type, $entry{'status'}, $version_href );
         }
 
+        # changing the mandatory flag
+
+        if ( $entry{'mandatory'} ne "" ) {
+            if ( $entry{'mandatory'} ) {
+                $entry{'mandatory'} = "t";
+            } else {
+                $entry{'mandatory'} = "f";
+            }
+            ## Check to make sure that at least one version is enabled
+            ##
+            unless ( &check_enabled( $entry{'moduleid'} ) ) {
+                $LASTERROR = "At least one version must be enabled to set to mandatory.\n";
+                return 1;
+            }
+            return 1
+                if &change_mandatory( $entry{'mandatory'},
+                                      $version_href );
+        }
+
         # the only other param to modify is description
         # because we don't support intreperter now
         # and data modification is not allowed.
 
-        if ( $entry{'description'} ne "" ) {
+        elsif ( $entry{'description'} ne "" ) {
             return 1
                 if &change_description( $type,
                                         $entry{'description'},
@@ -2156,7 +2193,7 @@ sub list_start
                   WHERE hardwareid LIKE ?
                  |;
     } elsif ( $type eq "module" ) {
-        $sql = qq|SELECT moduleid as name, description, version, status
+        $sql = qq|SELECT moduleid as name, description, version, mandatory, status
                   FROM $tbl{ $type }
                   WHERE moduleid LIKE ? ORDER BY moduleid, version
                  |;
@@ -2284,6 +2321,82 @@ sub get_versions
     return ( $version_href, $highest_href, $enabled_href );
 }
 
+sub check_enabled
+{
+    my $moduleid = shift;
+
+    my $sth;
+    my $href;
+
+    my $sql = qq| SELECT status
+                  FROM $tbl{ module }
+                  WHERE moduleid = ?
+                  AND version >= 1
+                |;
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR =
+            "Unable to prepare 'check_enabled' statement\n" . $dbh->errstr;
+        return 1;
+    }
+
+    unless( $sth->execute( $moduleid ) ) {
+        $LASTERROR =
+            "Unable to execute 'check_enabled' statement\n" . $sth->err;
+        return 1;
+    }
+
+    while( $href = $sth->fetchrow_hashref( ) ) {
+        if ($href->{'status'}) {
+            return 1;
+        }
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+sub check_mandatory
+{
+    my $moduleid = shift;
+
+    my $sth;
+    my $href;
+
+    my $sql = qq| SELECT mandatory
+                  FROM $tbl{ module }
+                  WHERE moduleid = ?
+                  AND version >= 1
+                |;
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR =
+            "Unable to prepare 'check_mandatory' statement\n" . $dbh->errstr;
+        return 1;
+    }
+
+    unless( $sth->execute( $moduleid ) ) {
+        $LASTERROR =
+            "Unable to execute 'check_mandatory' statement\n" . $sth->err;
+        return 1;
+    }
+
+    while( $href = $sth->fetchrow_hashref( ) ) {
+        if ($href->{'mandatory'}) {
+            return 1;
+        }
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+
+
+}
+
 # rendundant_data
 #
 #   when possibly adding a new version we make sure that the
@@ -2358,7 +2471,14 @@ sub change_status
     my $id;
 
     if ( $type eq "module" ) {
-        $id = 'moduleid';
+        $id = 'moduleid';       
+        if ( $stat eq "f") {
+            ## Verify that the module is not mandatory
+            unless ( &check_mandatory( $href->{ '$id' } ) ) {
+                $LASTERROR = "Unable to disable module set for mandatory.\n";
+                return 1;
+             } 
+        }
     } elsif ( $type eq "profile" ) {
         $id = 'profileid';
     } else {
@@ -2382,6 +2502,41 @@ sub change_status
     }
     unless ( $sth->execute( ) ) {
         $LASTERROR = "Unable to execute 'change_status' statement\n" .
+            $sth->err;
+        return 1;
+    }
+    return 0;
+}
+
+sub change_mandatory
+{
+    my $mandatory = shift;
+    my $href = shift;
+
+    unless (defined $href && defined $href->{'mandatory'} ) {
+        $LASTERROR = "Unable to modify mandatory without valid entry\n";
+        return 1;
+    }
+
+    # don't change to what we already are
+    return 0 if ( $href->{'mandatory'} eq $mandatory );
+
+    my $sql = qq|UPDATE $tbl{ module }
+                 SET mandatory = '$mandatory'
+                 WHERE moduleid = '$href->{ moduleid }'
+                 AND version >= '1'
+                |;
+    print $sql . "\n" if $debug;
+
+    # update specified version
+    my $sth;
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'change_mandatory' statement\n" .
+            $dbh->errstr;
+        return 1;
+    }
+    unless ( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'change_mandatory' statement\n" .
             $sth->err;
         return 1;
     }
