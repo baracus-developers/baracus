@@ -7,31 +7,37 @@ use warnings;
 
 use Tie::IxHash;
 
+
+use constant BA_READY    => 1;
+use constant BA_BUILT    => 2;
+use constant BA_SPOOFED  => 3;
+use constant BA_DELETED  => 4;
+use constant BA_UPDATED  => 5;
+use constant BA_DISKWIPE => 6;
+use constant BA_DISABLED => 7;
+
 =item baState
 
 here we define some state constants and a hash to make easy use of them
 
 =cut
 
-use constant BA_ADDED   => 1;
-use constant BA_BUILT   => 2;
-use constant BA_SPOOFED => 3;
-use constant BA_DELETED => 4;
-use constant BA_UPDATED => 5;
-
-my %baState = (
-	1         => 'added',
-	2         => 'built',
-	3         => 'spoofed',
-	4         => 'deleted',
-	5         => 'updated',
-	'added'   => BA_ADDED,
-	'built'   => BA_BUILT,
-	'spoofed' => BA_SPOOFED,
-	'deleted' => BA_DELETED,
-	'updated' => BA_UPDATED,
-);
-
+our %baState = (
+                1          => 'ready',
+                2          => 'built',
+                3          => 'spoofed',
+                4          => 'deleted',
+                5          => 'updated',
+                6          => 'diskwipe',
+                7          => 'disabled',
+                'ready'    => BA_READY,
+                'built'    => BA_BUILT,
+                'spoofed'  => BA_SPOOFED,
+                'deleted'  => BA_DELETED,
+                'updated'  => BA_UPDATED,
+                'diskwipe' => BA_DISKWIPE,
+                'disabled' => BA_DISABLED,
+                );
 
 =item keys2columns
 
@@ -114,7 +120,6 @@ sub get_baracus_tables
     my %tbl_templateid_columns = (
                                   'hostname' => 'VARCHAR(32) PRIMARY KEY',
                                   'ip'       => 'VARCHAR(15)',
-                                  'iphex'    => 'VARCHAR(9)',
                                   'mac'      => 'VARCHAR(17)',
                                   'uuid'     => 'VARCHAR(37)',
                                   'state'    => 'INTEGER',
@@ -127,11 +132,9 @@ sub get_baracus_tables
     my %tbl_templateidhist_comlumns = (
                                        'hostname' => 'VARCHAR(32)',
                                        'ip'       => 'VARCHAR(15)',
-                                       'iphex'    => 'VARCHAR(9)',
                                        'mac'      => 'VARCHAR(17)',
                                        'uuid'     => 'VARCHAR(37)',
                                        'state'    => 'INTEGER',
-                                       'stateOLD' => 'INTEGER',
                                        'cmdline'  => 'VARCHAR(255)',
                                        'creation' => 'TIMESTAMP',
                                        'change'   => 'TIMESTAMP',
@@ -174,10 +177,21 @@ sub get_baracus_tables
                                    'moduleid'    => 'VARCHAR(32) NOT NULL',
                                    'version'     => 'INTEGER',
                                    'description' => 'VARCHAR(64)',
+                                   'interpreter' => 'VARCHAR(8)',
                                    'data'        => 'VARCHAR',
                                    'status'      => 'BOOLEAN',
                                    'mandatory'   => 'BOOLEAN',
                                    'CONSTRAINT'  => 'module_cfg_pk PRIMARY KEY (moduleid, version)',
+                                  );
+
+    my $tbl_profile_cfg = "profile_cfg";
+    my %tbl_profile_cfg_comlumns = (
+                                   'profileid'   => 'VARCHAR(32) NOT NULL',
+                                   'version'     => 'INTEGER',
+                                   'description' => 'VARCHAR(64)',
+                                   'data'        => 'VARCHAR',
+                                   'status'      => 'BOOLEAN',
+                                   'CONSTRAINT'  => 'proflie_cfg_pk PRIMARY KEY (profileid, version)',
                                   );
 
     tie( my %baracus_tbls, 'Tie::IxHash',
@@ -187,6 +201,7 @@ sub get_baracus_tables
          $tbl_hardwareid     => \%tbl_hardwareid_columns,
          $tbl_distro_cfg     => \%tbl_distro_cfg_comlumns,
          $tbl_module_cfg     => \%tbl_module_cfg_comlumns,
+         $tbl_profile_cfg    => \%tbl_profile_cfg_comlumns,
         );
     return \%baracus_tbls;
 }
@@ -198,58 +213,29 @@ RETURNS TRIGGER AS $template_state_trigger$
     DECLARE
         new_hostname VARCHAR;
         new_ip VARCHAR;
-        new_iphex VARCHAR;
         new_mac VARCHAR;
         new_uuid VARCHAR;
         new_state INTEGER;
         new_cmdline VARCHAR;
         new_creation TIMESTAMP;
     BEGIN
-    IF (TG_OP='INSERT') THEN
-        INSERT INTO templateidhist ( hostname,
-                                     ip,
-                                     iphex,
-                                     mac,
-                                     uuid,
-                                     state,
-                                     stateOLD,
-                                     cmdline,
-                                     creation,
-                                     change )
-        VALUES ( NEW.hostname,
-                 NEW.ip,
-                 NEW.iphex,
-                 NEW.mac,
-                 NEW.uuid,
-                 '1',
-                 NEW.state,
-                 NEW.cmdline,
-                 NEW.creation,
-                 CURRENT_TIMESTAMP(2) );
-        RETURN NEW;
-    ELSIF (TG_OP='DELETE') THEN
-        INSERT INTO templateidhist ( hostname,
-                                     ip,
-                                     iphex,
-                                     mac,
-                                     uuid,
-                                     state,
-                                     stateOLD,
-                                     cmdline,
-                                     creation,
-                                     change )
-        VALUES ( OLD.hostname,
-                 OLD.ip,
-                 OLD.iphex,
-                 OLD.mac,
-                 OLD.uuid,
-                 '4',
-                 OLD.state,
-                 OLD.cmdline,
-                 OLD.creation,
-                 CURRENT_TIMESTAMP(2) );
-        RETURN OLD;
-    END IF;
+    INSERT INTO templateidhist ( hostname,
+                                 ip,
+                                 mac,
+                                 uuid,
+                                 state,
+                                 cmdline,
+                                 creation,
+                                 change )
+    VALUES ( NEW.hostname,
+             NEW.ip,
+             NEW.mac,
+             NEW.uuid,
+             NEW.state,
+             NEW.cmdline,
+             NEW.creation,
+             CURRENT_TIMESTAMP(0) );
+    RETURN NEW;
     END;
 $template_state_trigger$ LANGUAGE 'plpgsql';
 |;
@@ -259,7 +245,6 @@ RETURNS TRIGGER AS $template_state_trigger$
     DECLARE
         new_hostname VARCHAR;
         new_ip VARCHAR;
-        new_iphex VARCHAR;
         new_mac VARCHAR;
         new_uuid VARCHAR;
         new_state INTEGER;
@@ -268,59 +253,29 @@ RETURNS TRIGGER AS $template_state_trigger$
     BEGIN
     INSERT INTO templateidhist ( hostname,
                                  ip,
-                                 iphex,
                                  mac,
                                  uuid,
                                  state,
-                                 stateOLD,
                                  cmdline,
                                  creation,
                                  change )
     VALUES ( NEW.hostname,
              NEW.ip,
-             NEW.iphex,
              NEW.mac,
              NEW.uuid,
-             '2',
              NEW.state,
              NEW.cmdline,
              NEW.creation,
-             CURRENT_TIMESTAMP(2) );
+             CURRENT_TIMESTAMP(0) );
     RETURN NEW;
     END;
 $template_state_trigger$ LANGUAGE 'plpgsql';
 |;
 
-    my $func_module_update = q|
-RETURNS TRIGGER AS $module_increment_trigger$
-    DECLARE
-        new_moduleid VARCHAR;
-        new_version INTEGER;
-        new_description VARCHAR;
-        new_data VARCHAR;
-        new_status BOOLEAN;
-    BEGIN
-    INSERT INTO module_cfg ( moduleid,
-                             version,
-                             description,
-                             data,
-                             status
-                           )
-    VALUES ( NEW.moduleid,
-             (NEW.version+1),
-             NEW.description,
-             NEW.data,
-             NEW.status
-           );
-    RETURN NEW;
-    END;
-$module_increment_trigger$  LANGUAGE 'plpgsql';
-|;
 
     my %baracus_functions = (
         'template_state_add_delete()' => $func_add_delete,
         'template_state_update()'     => $func_update,
-        'module_increment_trigger()'  => $func_module_update,
                             );
 
     return \%baracus_functions;
@@ -328,16 +283,12 @@ $module_increment_trigger$  LANGUAGE 'plpgsql';
 
 sub get_baracus_triggers
 {
-    my $trigger_add_delete = q|AFTER INSERT OR DELETE ON templateid
+    my $trigger_add_delete = q|AFTER INSERT ON templateid
 FOR EACH ROW EXECUTE PROCEDURE template_state_add_delete()
 |;
 
     my $trigger_update = q|AFTER UPDATE ON templateid
 FOR EACH ROW EXECUTE PROCEDURE template_state_update()
-|;
-
-    my $module_increment = q|AFTER UPDATE OF data ON module_cfg
-FOR EACH STATEMENT EXECUTE PROCEDURE module_increment_trigger()
 |;
 
     my %baracus_triggers = (
@@ -349,6 +300,7 @@ FOR EACH STATEMENT EXECUTE PROCEDURE module_increment_trigger()
 }
 
 1;
+
 __END__
 
 
