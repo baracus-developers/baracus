@@ -379,6 +379,15 @@ sub add
     $modules_in = $hash{'module'} if ( defined $hash{'module'} );
     # command line wins over profile entry
     $modules_in = $module if ($module);
+
+    # Check for and add mandatory modules
+    my $mandatory_in = &db_get_mandatory;
+    if ($modules_in) {
+        $modules_in = $modules_in . " $mandatory_in";
+    }
+    else {
+        $modules_in = $mandatory_in;
+    }
     print "modules to load: '$modules_in'\n" if ( defined $modules_in && $debug );
     # modules are optional do notattempt to load if none specified
     if ( defined $modules_in && $modules_in ne "" ) {
@@ -987,6 +996,43 @@ sub db_list_finish
     my $sth = shift;
     $sth->finish;
     undef $sth;
+}
+
+sub db_get_mandatory
+{
+    my $sql;
+    my $sth;
+    my $m_modules;
+    my @modarray;
+
+    $sql = qq|SELECT moduleid
+              FROM $tbl{ module }
+              WHERE mandatory = 't'
+             |;
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR =
+            "Unable to prepare 'mandatory' statement\n" . $dbh->errstr;
+        return 1;
+    }
+
+    unless( $sth->execute() ) {
+        $LASTERROR =
+            "Unable to execute 'mandatory' statement\n" . $sth->err;
+        return 1;
+    }
+
+
+
+    while( my $href = $sth->fetchrow_hashref( ) ) {
+        push(@modarray, $href->{'moduleid'});
+    }
+    $m_modules = join " ", @modarray;
+
+    $sth->finish;
+    undef $sth;
+
+    return $m_modules;
 }
 
 # These _db_ entry routines collect the host template db table interface
