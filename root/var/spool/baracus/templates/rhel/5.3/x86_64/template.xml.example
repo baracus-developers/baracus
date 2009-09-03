@@ -1,5 +1,5 @@
 install
-nfs --server=__BUILDIP__ --dir=__BUILDROOT__/__OS__/__SP__/__ARCH__/dvd1
+nfs --server=__BUILDIP__ --dir=__BUILDROOT__/__OS__/__RELEASE__/__ARCH__/dvd
 key --skip
 lang en_US.UTF-8
 keyboard us

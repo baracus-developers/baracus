@@ -6,9 +6,6 @@ use Getopt::Long qw( :config pass_through );
 use AppConfig;
 use Pod::Usage;
 
-use DBI;
-use DBD::Pg qw(:pg_types);
-
 use lib "/usr/share/baracus/perl";
 
 use SqlFS;
@@ -58,19 +55,14 @@ This tool allows administrators to maintain a collection of build templates for 
 
 =cut
 
-my $dbname = "baracus";
-my $dbrole = $dbname;
-
-my $dbtftp = "sqltftp";
-
 our $LASTERROR;
 
 my $verbose  = 0;
+my $quiet    = 0;
+my $nolabels = 0;
 my $debug    = 0;
 my $man      = 0;
 my $help     = 0;
-my $quiet    = 0;
-my $nolabels = 0;
 
 my %multiarg; # used for processing repeatable getoptions
 
@@ -103,10 +95,9 @@ if ( $baracusdir =~ m|^~([^/]*)| ) {
 $baracusdir =~ s|/*\s*$||;
 
 # store baracus well know directories in global hash 'bdir'
-my @bdirs = qw( builds isos templates modules hooks logs );
+my @bdirs = qw( builds isos templates hooks logs );
 my %bdir = (
             'root' => "$baracusdir",
-            'conf' => "/etc/baracus.d",
             'data' => "/usr/share/baracus",
             );
 foreach my $bd (@bdirs) {
@@ -157,6 +148,11 @@ unless ($buildip) {
     print "Please edit /etc/sysconfig/baracus and set BUILDIP=<server>\n";
     exit 1;
 }
+
+my $dbname = "baracus";
+my $dbrole = $dbname;
+
+my $dbtftp = "sqltftp";
 
 my $uid = BaracusDB::su_user( $dbrole );
 die BaracusDB::errstr unless ( defined $uid );
@@ -246,7 +242,7 @@ A profile can be used to accumlate all the other parameters for a similar collec
 
 Other required parameters, which may be specified on the command-line or in a profile are:
 
-  --distro <base-arch>     Operating system to install on build client.
+  --distro <os-rev-arch>   Operating system to install on build client.
                            To be sure network install server has distro
                            specified availiable for use
                              > basource add --distro <base-arch>
@@ -430,6 +426,8 @@ sub add
     $hash{'uuid'} = &get_uuid;
     $hash{'buildroot'} = $bdir{'builds'};
     $hash{'autoinst'} = &automac( $mac );
+    $hash{'initrd'} = "initrd.$hash{'distro'}";
+    $hash{'kernel'} = "linux.$hash{'distro'}";
 
     if ( $remote_logging eq "yes" ) {
         $hash{'loghost'} = "loghost=$buildip";
@@ -1174,7 +1172,7 @@ sub check_command
 {
     my $command = shift;
 
-    my $cmd_list = join ', ', (keys %cmds);
+    my $cmd_list = join ', ', (sort keys %cmds);
     unless ( defined $command ) {
         print "Requires <command> (e.g. $cmd_list)\n";
         &help();
@@ -1418,7 +1416,7 @@ sub add_pxeboot
 
     my $href = shift;
 
-    my $pxeTemplate = join "/", $bdir{ 'templates' }, $href->{'os'}, $href->{'arch'}, "pxetemplates", $href->{'pxetemplate'};
+    my $pxeTemplate = join "/", $bdir{ 'templates' }, $href->{'os'}, $href->{'release'}, $href->{'arch'}, "pxetemplates", $href->{'pxetemplate'};
 
     if ($debug) {
         print "pxeTemplate = $pxeTemplate\n";
@@ -1456,7 +1454,7 @@ sub add_pxeboot
         close(FILE);
 
         if ( $sqlfsOBJ->store( "$tdir/$bootmac",
-                               "pxeboot $href->{'os'} $href->{'sp'} $href->{'arch'}" ) ) {
+                               "pxeboot $href->{'os'} $href->{'release'} $href->{'arch'}" ) ) {
             warn "failed to store $tdir/$bootmac in sqlfs\n";
         }
         unlink "$tdir/$bootmac";
@@ -1474,7 +1472,7 @@ sub add_autoyast
 
     my $href = shift;
 
-    my $autoYastTemplate = join "/", $bdir{ 'templates' }, $href->{'os'}, $href->{'arch'}, $href->{'yasttemplate'};
+    my $autoYastTemplate = join "/", $bdir{ 'templates' }, $href->{'os'}, $href->{'release'}, $href->{'arch'}, $href->{'yasttemplate'};
 
     if ($debug) {
         print "autoYastTemplate = $autoYastTemplate\n";
@@ -1517,7 +1515,7 @@ sub add_autoyast
         close(FILE);
 
         if ( $sqlfsOBJ->store( "$tdir/$automac",
-                               "autoinst $href->{'os'} $href->{'sp'} $href->{'arch'}" ) ) {
+                               "autoinst $href->{'os'} $href->{'release'} $href->{'arch'}" ) ) {
             warn "failed to store $tdir/$automac in sqlfs\n";
         }
         unlink "$tdir/$automac";
@@ -1528,3 +1526,7 @@ sub add_autoyast
     }
     rmdir $tdir;
 }
+
+die "ABSOLUTELY DOES NOT EXECUTE";
+
+__END__

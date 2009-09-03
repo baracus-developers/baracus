@@ -1,7 +1,7 @@
-DEFAULT install
+DEFAULT __HOSTNAME__
 PROMPT 0
 TIMEOUT 0
 
-LABEL install
-        kernel __PXEKERNEL__
-        append __BOOTARGS__ initrd=__PXEINITRD__ install=__TYPE__://__BUILDIP__/__BUILDROOT__/__BASEOS__/__SP__/__ARCH__/dvd1 autoyast=tftp://__BUILDIP__/__AUTOINST__ textmode=1
+LABEL __HOSTNAME__
+        kernel __KERNEL__
+        append __BOOTARGS__ initrd=__INITRD__ install=__TYPE__://__BUILDIP__/__BUILDROOT__/__OS__/__RELEASE__/__ARCH__/dvd autoyast=tftp://__BUILDIP__/__AUTOINST__ textmode=1 __LOGHOST__

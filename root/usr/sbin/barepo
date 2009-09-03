@@ -26,6 +26,8 @@ Where E<lt>commandE<gt> is
     update  <name>            Regenerate metafiles after add.
     remove  <name>            Remove repo.
     verify  <name>            Run some checks on repo health.
+    list    [match]           List all, or matching, repos.
+    detail  <name>            List the files in named repo.
 
     help                      This 'Usage' summary message.
     man                       Detailed man page.
@@ -102,8 +104,6 @@ my %cmds = (
             'help'     => \&help,
             'man'      => \&man,
             );
-
-my $cmdlist = join ', ', keys %cmds;
 
 GetOptions(
            'help|?'         => \$help,
@@ -422,8 +422,14 @@ sub restart_service() {
 sub check_command {
     my $command = shift;
 
+    my $cmd_list = join ', ', (sort keys %cmds);
+    unless ( defined $command ) {
+        print "Requires <command> (e.g. $cmd_list)\n";
+        &help();
+    }
+
     unless ( defined $cmds{ $command } ) {
-        print "invalid <command> '$command' please use:  $cmdlist\n";
+        print "Invalid <command> '$command' please use:  $cmd_list\n";
         exit 1;
     }
 }

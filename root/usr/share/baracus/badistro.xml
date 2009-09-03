@@ -1,0 +1,714 @@
+<?xml version='1.0'?>
+<config>
+
+  <!--                    2009-08-26               PLEASE READ 
+
+      many distribution attributes here were becoming redundant
+      leading to mixed or poorly updated entries where not all
+      attributes were in agreement.
+
+      the unique ID of an installable distribution is 'distro'.
+
+      'distro' is composed like so:
+      
+        'os'-'release'-'arch' 
+
+      where 'release'itself is composed of major.minor but we don't
+      bother to break down major and minor here. also note no text
+      like SP or GA is part of release numbers.
+
+      GA has no .# and SP# maps to .# to keep it clean and easy
+
+      the 'distro' name for an add on has format:
+
+        'os'-'release'-'addos'['-addrel']-'arch'
+
+      where non-'base' addon types have attribs 'addos', maybe
+      'addrel,' and 'requires'. where 'requires' is a flag indicating
+      this add-on augments 'os'-'release'-'arch'.
+
+      basepath os/release/arch, is no longer explicitly here in xml.
+      for creation of network install sources the isos are dropped in
+      basepath followed by 'product' name and then adds any per-iso
+      'path'
+
+        os/release/arch/product[/per-iso path]
+
+      addon 'base' type is fundamentally not an add-on and is used to
+      mark the 'product' that has an iso entry with 'kernel' and
+      'initrd' attributes to use.  the suffix for kernel and initrd
+      files is now 'distro' (was pxeid) when adding to the tftp db.
+      other true, non-'base', addons do not have related 'kernel' or
+      'initrd' attribs.
+
+      further, true add-ons are like non-base 'product' (e.g. sdk ) in
+      that they have a subdir in their related 'requires' basepath
+      area.
+
+        os/release/arch/addos[/addrel]/product[/per-iso path]
+
+      for now host autoinst and pxeboot templates follow 'distro'
+      naming for their directory structures thus they look like so:
+
+        ~baracus/templates/os-release-arch
+
+      and
+
+        ~baracus/templates/os-release-addos[-addrel]-arch
+
+      eventually the templates will be carved up, rolled into the db
+      and generated on request. then this dir struct will be removed.
+
+
+                          2009-08-26               PLEASE READ -->
+
+
+  <!-- SLES 11 -->
+
+  <distro name="sles-11-x86_64">
+	<os>sles</os>
+	<release>11</release>
+	<arch>x86_64</arch>
+	<description>SUSE Linux Enterprise Server 11 64bit</description>
+	<autodownload>auth</autodownload>
+
+    <product name="dvd">
+	  <addon>base</addon>
+	  <iso name="SLES-11-DVD-x86_64-GM-DVD1.iso">
+	    <path/>
+	    <kernel>boot/x86_64/loader/linux</kernel>
+	    <initrd>boot/x86_64/loader/initrd</initrd>
+	    <md5>50a2bd45cd12c3808c3ee48208e2586b</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-x86_64-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=X8FFufxq0nU~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+
+    <product name="sdk">
+	  <addon>signed</addon>
+	  <iso name="SLE-11-SDK-DVD-x86_64-GM-Media1.iso">
+	    <path/>
+	    <md5>d36ec61c33f3c2771835eb16e16a6097</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FfQKpDcAhPVY%7E%2FSLE-11-SDK-DVD-x86_64-GM-Media1.iso&buildid=fQKpDcAhPVY~&fileid=ypy97U_hIsk~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-11-i586">
+    <os>sles</os>
+	<release>11</release>
+	<arch>i586</arch>
+	<description>SUSE Linux Enterprise Server 11 32bit</description>
+	<autodownload>auth</autodownload>
+
+    <product name="dvd">
+	  <addon>base</addon>
+	  <iso name="SLES-11-DVD-i586-GM-DVD1.iso">
+	    <path/>
+	    <kernel>boot/i586/loader/linux</kernel>
+	    <initrd>boot/i586/loader/initrd</initrd>
+	    <md5>4958d4dde2575666355c8a1c5858bab0</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-i586-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=-lJMHbIN6s8~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+
+    <product name="sdk">
+	  <addon>signed</addon>
+	  <iso name="SLE-11-SDK-DVD-i586-GM-Media1.iso">
+	    <path/>
+	    <md5>00493a6e1b410f82cb55bee7f4bbcdf7</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FfQKpDcAhPVY%7E%2FSLE-11-SDK-DVD-i586-GM-Media1.iso&buildid=fQKpDcAhPVY~&fileid=rGCeRIQi57g~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+
+  <!-- SLES 10.2 -->
+
+  <distro name="sles-10.2-x86_64">
+	<os>sles</os>
+	<release>10.2</release>
+	<arch>x86_64</arch>
+	<description>SUSE Linux Enterprise Server 10.2 64bit</description>
+	<autodownload>auth</autodownload>
+
+    <product name="dvd">
+	  <addon>base</addon>
+	  <iso name="SLES-10-SP2-DVD-x86_64-GM-DVD1.iso">
+	    <path/>
+	    <kernel>boot/x86_64/loader/linux</kernel>
+	    <initrd>boot/x86_64/loader/initrd</initrd>
+	    <md5>dab2c4b8fc9939b33535ab2d321f3f2e</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FxWohTS2zkSs%7E%2FSLES-10-SP2-DVD-x86_64-GM-DVD1.iso&buildid=xWohTS2zkSs~&fileid=ymcKKUqgjzY~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+
+    <product name="sdk">
+	  <addon>flat</addon>
+	  <iso name="SLE-10-SP2-SDK-DVD-x86_64-GM-DVD1.iso">
+	    <path/>
+	    <md5>b94f022deb50d6aa79d4fcba0caf6de9</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FeRAdQttrkeA%7E%2FSLE-10-SP2-SDK-DVD-x86_64-GM-DVD1.iso&buildid=eRAdQttrkeA~&fileid=MHiLlQ3CVls~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.2-i386">
+	<os>sles</os>
+	<release>10.2</release>
+	<arch>i386</arch>
+	<description>SUSE Linux Enterprise Server 10.2 32bit</description>
+	<autodownload>auth</autodownload>
+
+    <product name="dvd">
+	  <addon>base</addon>
+	  <iso name="SLES-10-SP2-DVD-i386-GM-DVD1.iso">
+	    <path/>
+	    <kernel>boot/i386/loader/linux</kernel>
+	    <initrd>boot/i386/loader/kernel</initrd>
+	    <md5>2b91efeb8a62e2824302bf9269080252</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FxWohTS2zkSs%7E%2FSLES-10-SP2-DVD-i386-GM-DVD1.iso&buildid=xWohTS2zkSs~&fileid=6Hjh1FLHxbI~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+
+    <product name="sdk">
+	  <addon>flat</addon>
+	  <iso name="SLE-10-SP2-SDK-DVD-i386-GM-DVD1.iso">
+	    <path/>
+	    <md5>24ff4387f1f2f6c830e48f2bf04c69f3</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FeRAdQttrkeA%7E%2FSLE-10-SP2-SDK-DVD-i386-GM-DVD1.iso&buildid=eRAdQttrkeA~&fileid=QGCEXAwuCIE~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+
+  <!-- SLES 9.4 -->
+
+  <distro name="sles-9.4-x86_64">
+	<os>sles</os>
+	<release>9.4</release>
+	<arch>x86_64</arch>
+	<description>SUSE Linux Enterprise Server 9.4 64bit</description>
+	<autodownload>auth</autodownload>
+
+    <product name="SUSE-SLES-Version-9">
+	  <iso name="SLES-9-x86-64-RC5-CD1.iso">
+	    <path>CD1</path>
+	    <md5>1fb270a7123895abc846a377c3d1dfdd</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD1.iso&buildid=1HYSkGYIYow~&fileid=ZNNOE1Oc9tM~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-SLES-Version-9</product> -->
+<!--	    <order>2</order> -->
+	  </iso>
+    </product>
+
+    <product name="SUSE-CORE-Version-9">
+	  <iso name="SLES-9-x86-64-RC5-CD2.iso">
+	    <path>CD1</path>
+	    <md5>1579c82c85fe71b4cc68685d638c883d</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD2.iso&buildid=1HYSkGYIYow~&fileid=vaOYguJ9wKM~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-CORE-Version-9</product> -->
+<!--	    <order>3</order> -->
+	  </iso>
+	  <iso name="SLES-9-x86-64-RC5-CD3.iso">
+	    <path>CD2</path>
+	    <md5>5330a150eb51542d378dbe281f2315a2</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD3.iso&buildid=1HYSkGYIYow~&fileid=KAKtiXWbing~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-CORE-Version-9</product> -->
+<!--	    <order>3</order> -->
+	  </iso>
+	  <iso name="SLES-9-x86-64-RC5-CD4.iso">
+	    <path>CD3</path>
+	    <md5>a9d5b0dddd45f378f97ea9bca2b12b11</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD4.iso&buildid=1HYSkGYIYow~&fileid=IXHQ1ksNFjE~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-CORE-Version-9</product> -->
+<!--	    <order>3</order> -->
+	  </iso>
+	  <iso name="SLES-9-x86-64-RC5-CD5.iso">
+	    <path>CD4</path>
+	    <md5>dc6de0d488e4dbf6aef322f7aadba7dd</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD5.iso&buildid=1HYSkGYIYow~&fileid=yo-bi-8mYWg~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-CORE-Version-9</product> -->
+<!--	    <order>3</order> -->
+	  </iso>
+	  <iso name="SLES-9-x86-64-RC5-CD6.iso">
+	    <path>CD5</path>
+	    <md5>2324e164faab72df89e4078b6a7c1aec</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD6.iso&buildid=1HYSkGYIYow~&fileid=hqLUkaIVhVw~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-CORE-Version-9</product> -->
+<!--	    <order>3</order> -->
+	  </iso>
+    </product>
+
+    <product name="SUSE-SLES-9-Service-Pack-Version-4">
+	  <addon>base</addon>
+	  <iso name="SLES-9-SP4-CD-x86_64-GM-CD1.iso">
+	    <path>CD1</path>
+	    <kernel>boot/loader/linux</kernel>
+	    <initrd>boot/loader/initrd</initrd>
+	    <md5>45afad1ce28037736d104adfd99a2fd6</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FMDhnIu6tHOk%7E%2FSLES-9-SP4-CD-x86_64-GM-CD1.iso&buildid=MDhnIu6tHOk~&fileid=mqbybi7N0SQ~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
+<!--	    <order>1</order> -->
+	  </iso>
+	  <iso name="SLES-9-SP4-CD-x86_64-GM-CD2.iso">
+	    <path>CD2</path>
+	    <md5>14fa18cbf05d82343849469bd4c0e6d1</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FMDhnIu6tHOk%7E%2FSLES-9-SP4-CD-x86_64-GM-CD2.iso&buildid=MDhnIu6tHOk~&fileid=29aiUMZosnA~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
+<!--	    <order>1</order> -->
+	  </iso>
+	  <iso name="SLES-9-SP4-CD-x86_64-GM-CD3.iso">
+	    <path>CD3</path>
+	    <md5>0a2b65a44b97fe563cafad62c1b4e473</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FMDhnIu6tHOk%7E%2FSLES-9-SP4-CD-x86_64-GM-CD3.iso&buildid=MDhnIu6tHOk~&fileid=DPY5zSthiY8~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
+<!--	    <order>1</order> -->
+	  </iso>
+	  <iso name="SLES-9-SP4-CD-x86_64-GM-CD4.iso">
+	    <path>CD4</path>
+	    <md5>19b7189b847c1e68e16bd8f1d0afff4f</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FMDhnIu6tHOk%7E%2FSLES-9-SP4-CD-x86_64-GM-CD4.iso&buildid=MDhnIu6tHOk~&fileid=AcmXCFkFiC0~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
+<!--	    <order>1</order> -->
+	  </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-9.4-i386">
+	<os>sles</os>
+	<release>9.4</release>
+	<arch>i386</arch>
+	<description>SUSE Linux Enterprise Server 9.4 32bit</description>
+	<autodownload>auth</autodownload>
+
+    <product name="SUSE-SLES-Version-9">
+	  <iso name="SLES-9-i386-RC5-CD1.iso">
+	    <path>CD1</path>
+	    <md5>cc419d86f3f5ff99395ca4de9d967600</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD1.iso&buildid=1HYSkGYIYow~&fileid=ifVmcyYyHI8~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-SLES-Version-9</product> -->
+<!--	    <order>2</order> -->
+	  </iso>
+    </product>
+
+    <product name="SUSE-CORE-Version-9">
+	  <iso name="SLES-9-i386-RC5-CD2.iso">
+	    <path>CD1</path>
+	    <md5>86e97184aae42ba6013ea7460372ffe5</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD2.iso&buildid=1HYSkGYIYow~&fileid=ggZLuF8gzBk~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--	  <product>SUSE-CORE-Version-9</product> -->
+        <!--	  <order>3</order> -->
+	  </iso>
+	  <iso name="SLES-9-i386-RC5-CD3.iso">
+	    <path>CD2</path>
+	    <md5>f880b3ba92fc43add18259c9437f648d</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD3.iso&buildid=1HYSkGYIYow~&fileid=UdUk3-pqQX8~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-CORE-Version-9</product> -->
+<!--	    <order>3</order> -->
+	  </iso>
+	  <iso name="SLES-9-i386-RC5-CD4.iso">
+	    <path>CD3</path>
+	    <md5>bc7b88f34a8142bacbdd4d1fddd3fc50</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD4.iso&buildid=1HYSkGYIYow~&fileid=QqQh7kju3bc~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-CORE-Version-9</product> -->
+<!--	    <order>3</order> -->
+	  </iso>
+	  <iso name="SLES-9-i386-RC5-CD5.iso">
+	    <path>CD4</path>
+	    <md5>7844c76fc9f39a2af9ef6751ec18af60</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD5.iso&buildid=1HYSkGYIYow~&fileid=GwZ8-ENEJSo~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-CORE-Version-9</product> -->
+<!--	    <order>3</order> -->
+	  </iso>
+    </product>
+
+    <product name="SUSE-SLES-9-Service-Pack-Version-4">
+	  <addon>base</addon>
+	  <iso name="SLES-9-SP4-CD-i386-GM-CD1.iso">
+	    <path>CD1</path>
+	    <kernel>boot/loader/linux</kernel>
+	    <initrd>boot/loader/initrd</initrd>
+	    <md5>864c50512100f9bee15a7fdb2c63bf1c</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FH9EGDY9GAn8%7E%2FSLES-9-SP4-CD-i386-GM-CD1.iso&buildid=H9EGDY9GAn8~&fileid=fuS7imDVfzY~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
+<!--	    <order>1</order> -->
+	  </iso>
+	  <iso name="SLES-9-SP4-CD-i386-GM-CD2.iso">
+	    <path>CD2</path>
+	    <md5>f3741e2bada1f8d6bda2083bc4d1b7ba</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FH9EGDY9GAn8%7E%2FSLES-9-SP4-CD-i386-GM-CD2.iso&buildid=H9EGDY9GAn8~&fileid=0rxrxZa2O74~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
+<!--	    <order>1</order> -->
+	  </iso>
+	  <iso name="SLES-9-SP4-CD-i386-GM-CD3.iso">
+	    <path>CD3</path>
+	    <md5>8a573afbd7ec0204556d9d8d4f93d2cf</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FH9EGDY9GAn8%7E%2FSLES-9-SP4-CD-i386-GM-CD3.iso&buildid=H9EGDY9GAn8~&fileid=2MmSSSaTtfU~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
+<!--	    <order>1</order> -->
+	  </iso>
+	  <iso name="SLES-9-SP4-CD-i386-GM-CD4.iso">
+	    <path>CD4</path>
+	    <md5>569978236827c65306fb07716db09b2e</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FH9EGDY9GAn8%7E%2FSLES-9-SP4-CD-i386-GM-CD4.iso&buildid=H9EGDY9GAn8~&fileid=KU4VXici924~&mirror=AkamaiHost&nohost=false]]></url>
+<!--	    <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
+<!--	    <order>1</order> -->
+	  </iso>
+    </product>
+  </distro>
+
+
+  <!-- SLES 10.2 RT -->
+
+  <distro name="sles-10.2-rt-x86_64">
+	<os>sles</os>
+	<release>10.2</release>
+    <addos>rt</addos>
+    <addrel/>
+	<arch>x86_64</arch>
+	<requires>sles-10.2-x86_64</requires> <!-- flag! content ignored -->
+	<description>SLES 10.2 Real-Time Add-On 64bit</description>
+	<autodownload>auth</autodownload>
+    <product name="dvd">
+	  <addon>flat</addon>
+	  <iso name="SLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso">
+	    <path/>
+	    <md5>a8601be6ad153a50d811dada3e4c2d61</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FsDXgx7pyw0Q%7E%2FSLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso&buildid=sDXgx7pyw0Q~&fileid=EZOK0eJ6_sU~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.2-rt-i386">
+	<os>sles</os>
+	<release>10.2</release>
+    <addos>rt</addos>
+    <addrel/>
+	<arch>i386</arch>
+	<requires>sles-10.2-i386</requires> <!-- flag! content ignored -->
+	<description>SLES 10.2 Real-Time Add-On 32bit</description>
+	<autodownload>auth</autodownload>
+    <product name="dvd">
+	  <addon>flat</addon>
+	  <iso name="SLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso">
+	    <path/>
+	    <md5>a8601be6ad153a50d811dada3e4c2d61</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FsDXgx7pyw0Q%7E%2FSLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso&buildid=sDXgx7pyw0Q~&fileid=EZOK0eJ6_sU~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+
+  <!-- SLES 10.2 MONO -->
+
+  <distro name="sles-10.2-mono-x86_64">
+	<os>sles</os>
+	<release>10.2</release>
+    <addos>mono</addos>
+    <addrel/>
+	<arch>x86_64</arch>
+	<requires>sles-10.2-x86_64</requires> <!-- flag! content ignored -->
+	<description>SLES 10.2 Mono Add-On 64bit</description>
+	<autodownload>auth</autodownload>
+    <product name="dvd">
+	  <addon>flat</addon>
+	  <iso name="SLES-10-SP2-Mono-GM-DVD1.iso">
+	    <path/>
+	    <md5>63d8936595c7cf9e3f4d648eb2fdff5d</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2Fi25FHB-8OPg%7E%2FSLES-10-SP2-Mono-GM-DVD1.iso&buildid=i25FHB-8OPg~&fileid=t-CYENBIMHA~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.2-mono-i386">
+	<os>sles</os>
+	<release>10.2</release>
+    <addos>mono</addos>
+    <addrel/>
+	<arch>i386</arch>
+	<requires>sles-10.2-i386</requires> <!-- flag! content ignored -->
+	<description>SLES 10.2 Mono Add-On 32bit</description>
+	<autodownload>auth</autodownload>
+    <product name="dvd">
+	  <addon>flat</addon>
+	  <iso name="SLES-10-SP2-Mono-GM-DVD1.iso">
+	    <path/>
+	    <md5>63d8936595c7cf9e3f4d648eb2fdff5d</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2Fi25FHB-8OPg%7E%2FSLES-10-SP2-Mono-GM-DVD1.iso&buildid=i25FHB-8OPg~&fileid=t-CYENBIMHA~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+
+  <!-- SLES 11 MONO -->
+
+  <distro name="sles-11-mono-x86_64">
+	<os>sles</os>
+	<release>11</release>
+    <addos>mono</addos>
+    <addrel/>
+	<arch>x86_64</arch>
+	<requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
+	<description>SLES 11 Mono Add-On 64bit</description>
+	<autodownload>auth</autodownload>
+    <product name="dvd">
+	  <addon>signed</addon>
+	  <iso name="SLES-11-Mono-GM-DVD1.iso">
+	    <path/>
+	    <md5>8d9907df21cb781fd97848aafedd6838</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2Fi25FHB-8OPg%7E%2FSLES-11-Mono-GM-DVD1.iso&buildid=i25FHB-8OPg~&fileid=RZlSORQK3yE~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-11-mono-i586">
+	<os>sles</os>
+	<release>11</release>
+    <addos>mono</addos>
+    <addrel/>
+	<arch>i586</arch>
+	<requires>sles-11-i586</requires> <!-- flag! content ignored -->
+	<description>SLES 11 Mono Add-On 32bit</description>
+	<autodownload>auth</autodownload>
+    <product name="dvd">
+	  <addon>signed</addon>
+	  <iso name="SLES-11-Mono-GM-DVD1.iso">
+	    <path/>
+	    <md5>8d9907df21cb781fd97848aafedd6838</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2Fi25FHB-8OPg%7E%2FSLES-11-Mono-GM-DVD1.iso&buildid=i25FHB-8OPg~&fileid=RZlSORQK3yE~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+
+  <!-- SLES 11 HAE -->
+
+  <distro name="sles-11-hae-x86_64">
+	<os>sles</os>
+	<release>11</release>
+    <addos>hae</addos>
+    <addrel/>
+	<arch>x86_64</arch>
+	<requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
+	<description>SLES 11 High Availability Extension 64bit</description>
+	<autodownload>auth</autodownload>
+    <product name="dvd">
+	  <addon>signed</addon>
+	  <iso name="SLE-11-HAE-x86_64-GM-DVD1.iso">
+	    <path/>
+	    <md5>2af67dcd5ef29bf3faf3cb6fc1bea371</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FjC1wpkedb7A%7E%2FSLE-11-HAE-x86_64-GM-DVD1.iso&buildid=jC1wpkedb7A~&fileid=uovFxax5D4k~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-11-hae-i586">
+	<os>sles</os>
+	<release>11</release>
+    <addos>hae</addos>
+    <addrel/>
+	<arch>i586</arch>
+	<requires>sles-11-i586</requires> <!-- flag! content ignored -->
+	<description>SLES 11 High Availability Extension 32bit</description>
+	<autodownload>auth</autodownload>
+    <product name="dvd">
+	  <addon>signed</addon>
+	  <iso name="SLE-11-HAE-i586-GM-DVD1.iso">
+	    <path/>
+	    <md5>3ce1a860336aac4174daab3d9796ca31</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FjC1wpkedb7A%7E%2FSLE-11-HAE-i586-GM-DVD1.iso&buildid=jC1wpkedb7A~&fileid=AxNQl3SmqPU~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+
+  <!-- openSuSE 11.1 HAE -->
+
+  <distro name="opensuse-11.1-x86_64">
+	<os>opensuse</os>
+	<release>11.1</release>
+	<arch>x86_64</arch>
+	<description>OpenSuSE 11.1 64bit</description>
+	<autodownload>open</autodownload>
+    <product name="dvd">
+      <addon>base</addon>
+	  <iso name="openSUSE-11.1-DVD-x86_64.iso">
+	    <path/>
+	    <kernel>boot/x86_64/loader/linux</kernel>
+	    <initrd>boot/x86_64/loader/initrd</initrd>
+	    <md5>2afee1b8a87175e6dee2b8dbbd1ad8e8</md5>
+	    <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-DVD-x86_64.iso]]></url>
+	  </iso>
+    </product>
+    <product name="nonoss">
+	  <addon>signed</addon>
+	  <iso name="openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso">
+	    <path/>
+	    <md5>8d89efb626b510c2adb3ccd8e407dcc4</md5>
+	    <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso]]></url>
+	  </iso>
+    </product>
+    <product name="lang">
+	  <addon>signed</addon>
+	  <iso name="openSUSE-11.1-Addon-Lang-x86_64.iso">
+	    <path/>
+	    <md5>dc53defad6bd08ea120376cc9e412f1c</md5>
+	    <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-Lang-x86_64.iso]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+
+  <distro name="opensuse-11.1-i586">
+	<os>opensuse</os>
+	<release>11.1</release>
+	<arch>i586</arch>
+	<description>OpenSuSE 11.1 32bit</description>
+	<autodownload>open</autodownload>
+    <product name="dvd">
+	  <addon>base</addon>
+	  <iso name="openSUSE-11.1-DVD-i586.iso">
+	    <path/>
+	    <kernel>boot/i586/loader/linux</kernel>
+	    <initrd>boot/i586/loader/initrd</initrd>
+	    <md5>8f51b278c0415be28c5699e465444bd3</md5>
+	    <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-DVD-i586.iso]]></url>
+	  </iso>
+    </product>
+    <product name="nonoss">
+	  <addon>signed</addon>
+	  <iso name="openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso">
+	    <path/>
+	    <md5>8d89efb626b510c2adb3ccd8e407dcc4</md5>
+	    <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso]]></url>
+	  </iso>
+    </product>
+    <product name="lang">
+	  <addon>signed</addon>
+	  <iso name="openSUSE-11.1-Addon-Lang-i586.iso">
+	    <path/>
+	    <md5>7b61aaec0bdd3b959ce075b08299ccc9</md5>
+	    <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-Lang-i586.iso]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+
+  <!-- RHEL 5.3 -->
+
+  <distro name="rhel-5.3-x86_64">
+	<os>rhel</os>
+	<release>5.3</release>
+	<arch>x86_64</arch>
+	<description>RedHat Enterprise Linux 5.3 64bit</description>
+	<autodownload>no</autodownload>
+    <product name="dvd">
+	  <addon>base</addon>
+	  <iso name="rhel-server-5.3-x86_64-dvd.iso">
+	    <path/>
+	    <kernel>isolinux/vmlinuz</kernel>
+	    <initrd>isolinux/initrd.img</initrd>
+	    <md5>c5ed6b284410f4d8212cafc78fd7a8c5</md5>
+	    <url><![CDATA[]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+  <distro name="rhel-5.3-i386">
+	<os>rhel</os>
+	<release>5.3</release>
+	<arch>i386</arch>
+	<description>RedHat Enterprise Linux 5.3 32bit</description>
+	<autodownload>no</autodownload>
+    <product name="dvd">
+	  <addon>base</addon>
+	  <iso name="rhel-server-5.3-i386-dvd.iso">
+	    <path/>
+	    <kernel>isolinux/vmlinuz</kernel>
+	    <initrd>isolinux/initrd.img</initrd>
+	    <md5></md5>
+	    <url><![CDATA[]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+
+  <!-- RHEL 5.3 MRG 1.1 -->
+
+  <distro name="rhel-5.3-mrg-1.1-x86_64">
+	<os>rhel</os>
+	<release>5.3</release>
+    <addos>mrg</addos>
+    <addrel>1.1</addrel>
+	<arch>x86_64</arch>
+    <requires>rhel-5.3-x86_64</requires> <!-- flag! content ignored -->
+	<description>RHEL 5 Messaging Real-Time Grid 1.1 64bit</description>
+	<autodownload>no</autodownload>
+    <product name="dvd">
+	  <addon>yum</addon>
+	  <iso name="rhel-5-mrg-1.1-x86_64.iso">
+	    <path/>
+	    <md5>d8914a71f91c43ec8c7781007ed0f4cb</md5>
+	    <url><![CDATA[]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+  <distro name="rhel-5.3-mrg-1.1-i386">
+	<os>rhel</os>
+	<release>5.3</release>
+    <addos>mrg</addos>
+    <addrel>1.1</addrel>
+	<arch>i386</arch>
+    <requires>rhel-5.3-i386</requires> <!-- flag! content ignored -->
+	<description>RHEL 5 Messaging Real-Time Grid 1.1 32bit</description>
+	<autodownload>no</autodownload>
+    <product name="dvd">
+	  <addon>yum</addon>
+	  <iso name="rhel-5-mrg-1.1-i386.iso">
+	  <path/>
+	  <md5>723e96222900f39404fb0df8692d30dc</md5>
+	  <url><![CDATA[]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+
+  <!-- fedora 11 -->
+
+  <distro name="fedora-11-x86_64">
+	<os>fedora</os>
+	<release>11</release>
+	<arch>x86_64</arch>
+	<description>Fedora 11 64bit</description>
+	<autodownload>open</autodownload>
+    <product name="dvd">
+	  <addon>base</addon>
+	  <iso name="Fedora-11-x86_64-DVD.iso">
+	    <path/>
+	    <kernel>isolinux/vmlinuz</kernel>
+	    <initrd>isolinux/initrd.img</initrd>
+	    <md5>9d419844adeb93120215fe7505c9bce8</md5>
+	    <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/11/Fedora/x86_64/iso/Fedora-11-x86_64-DVD.iso]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+  <distro name="fedora-11-i386">
+	<os>fedora</os>
+	<release>11</release>
+	<arch>i386</arch>
+	<description>Fedora 11 32bit</description>
+	<autodownload>open</autodownload>
+    <product name="dvd">
+	  <addon>base</addon>
+	  <iso name="Fedora-11-i386-DVD.iso">
+	    <path/>
+	    <kernel>isolinux/vmlinuz</kernel>
+	    <initrd>isolinux/initrd.img</initrd>
+	    <md5>2c2440df98f1673803d10f17a5a71954</md5>
+	    <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/11/Fedora/i386/iso/Fedora-11-i386-DVD.iso]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+</config>

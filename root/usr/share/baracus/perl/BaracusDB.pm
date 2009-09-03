@@ -37,7 +37,8 @@ return id on success or undef on fail
 
 sub su_user {
     my $user  = shift;
-    my $uid = $>;
+    my $olduid = $>;
+    my $uid;
 
     unless( defined $user ) {
         $LASTERROR = "Invalid su_user usage: username is required\n";
@@ -52,7 +53,7 @@ sub su_user {
     $> = $uid;
     print "\$uid now $uid\n" if $debug;
 
-    return $uid;
+    return $olduid;
 }
 
 =item connect_db

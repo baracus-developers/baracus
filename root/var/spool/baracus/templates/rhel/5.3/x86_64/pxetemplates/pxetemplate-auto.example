@@ -1,7 +1,7 @@
-DEFAULT install
+DEFAULT __HOSTNAME__
 PROMPT 0
 TIMEOUT 0
 
-LABEL install
-        kernel __PXEKERNEL__
-        append __BOOTARGS__ initrd=__PXEINITRD__ ks=tftp://__BUILDIP__/__AUTOINST__ text __LOGHOST__
+LABEL __HOSTNAME__
+        kernel __KERNEL__
+        append __BOOTARGS__ initrd=__INITRD__ ks=tftp://__BUILDIP__/__AUTOINST__ text __LOGHOST__

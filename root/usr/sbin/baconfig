@@ -148,6 +148,7 @@ die "DOES NOT EXECUTE";
 # these constructs are duplicates of those in SqlFS.pm
 # at some point want to break out the guts of baconfig
 # into a refreshed pm and clean up our interfaces....
+
 # bytea_encode
 
 # encode bytestream for VARCHAR storage
@@ -182,8 +183,8 @@ sub main
 {
     my $command = shift;
 
-    &check_command( $command );
     $command = lc $command;
+    &check_command( $command );
 
     printf "Executing $command with \"@_\".\n" if $debug;
 
@@ -200,8 +201,8 @@ sub help
                    -exitstatus => 0 );
     }
 
-    &check_command( $command );
     $command = lc $command;
+    &check_command( $command );
 
     # so far only add and update have valid help for type
 
@@ -370,24 +371,20 @@ sub add
 
 Where <options and args> are
 
-  --name id              sles10-x86_64 [ default <os>-<arch> ]
-  --os product           sles10
-  --arch                 x86_64, i386, i586 [ default x86_64 ]
-  --sp release           for example ga, sp2.
+  --name id              full id: os-release[-<addos>[-<addrel>]]-arch
+                         e.g.,  sles-10.2-x86_64, opensuse-11.1-x86_64
+                                sles-10.2-rt-x86_64, sles-11-hae-x86_64
+                                sles-11-mono-i586
+  --os base_product      e.g.,  sles, opensuse - not an add-on name
+  --release release      e.g.,  9.4, 10.2, 11, 11.1
+  --arch                 e.g.,  x86_64, i386, i586 [ default x86_64 ]
   --description "note"   describe the distribution.
 
-The pxe arguments describe the kernel and initrd a bootp client should load.
-They must be changed to the installed base kernel and initrd for add-ons.
-
-  --pxekernel linux      for example linux.sles10-sp2-x86_64.
-                         [ default linux.<os>-<sp>-<arch> ]
-  --pxeinitrd initrd     for example initrd.sles10-sp-x86_64.
-                         [ default initrd.<os>-<sp>-<arch> ]
-
-These arguments are for describing HAE, MONO, OES, SLERT add-on products
+These arguments are for describing HAE, MONO, OES, RT add-on products
 
   --addon                If specified this product is an add-on.
-  --baseos base          Add-on requires this distro. [ no default ]
+  --addos  aos           name of the addon, e.g., rt, mono, hae, oes
+  --addrel arel          addon version for itself if it has one
 
 =cut
 
@@ -396,26 +393,24 @@ sub add_distro
     my %entry = (
                  'distroid'    => "",
                  'os'          => "",
+                 'release'     => "",
                  'arch'        => "x86_64",
-                 'sp'          => "",
-                 'pxekernel'   => "",
-                 'pxeinitrd'   => "",
                  'description' => "",
                  'addon'       => 0,
-                 'base'        => '',
+                 'addos'       => "",
+                 'addrel'      => "",
                  );
 
     @ARGV = @_;
     GetOptions(
                'name=s'        => \$entry{'distroid'},
                'os=s'          => \$entry{'os'},
+               'release=s'     => \$entry{'release'},
                'arch=s'        => \$entry{'arch'},
-               'sp=s'          => \$entry{'sp'},
-               'pxekernel=s'   => \$entry{'pxekernel'},
-               'pxeinitrd=s'   => \$entry{'pxeinitrd'},
                'description=s' => \$entry{'description'},
                'addon'         => \$entry{'addon'},
-               'baseos=s'      => \$entry{'baseos'},
+               'addos=s'       => \$entry{'addos'},
+               'addrel=s'      => \$entry{'addrel'},
                );
 
     if ( scalar @ARGV ) {
@@ -423,9 +418,30 @@ sub add_distro
         &help() ;
     }
 
-    &help() unless ( $entry{'os'} );
-    $entry{'distroid'} = "$entry{'os'}-$entry{'arch'}"
-        unless ( $entry{'distroid'} );
+    unless ( $entry{'os'} and
+             $entry{'release'} and
+             $entry{'arch'}
+            ) {
+        &help( 'add', 'distro' );
+    }
+
+    $entry{'distroid'} = "$entry{'os'}-$entry{'release'}-";
+
+    if ( $entry{'addon'} ) {
+        $entry{'addon'} = 't';
+        unless ( $entry{'addos'} ) {
+            print "Required --addos <add> not provided with --addon.\n";
+            &help( 'add', 'distro' );
+        }
+
+        $entry{'distroid'} .= "$entry{'addos'}-";
+        $entry{'distroid'} .= "$entry{'addrel'}-" if ( $entry{'addrel'} );
+    }
+    else {
+        $entry{'addon'} = 'f';
+    }
+
+    $entry{'distroid'} .= "$entry{'arch'}";
 
     my $findcount = &find( 'distro', $entry{'distroid'} );
     if ( defined $findcount ) {
@@ -436,30 +452,6 @@ sub add_distro
     } else {
         $LASTERROR .= "Failed in add distro.\n" . $LASTERROR;
         return 1;
-    }
-
-    my $pxeos;
-
-    if ( $entry{'addon'} ) {
-        $entry{'addon'} = 't';
-        # have to define these if it is an add-on
-        # if we have base we could look up its pxe values
-        &help() unless ( defined $entry{'baseos'} );
-        $pxeos = $entry{'baseos'};
-    }
-    else {
-        $entry{'addon'} = 'f';
-        $pxeos = $entry{'os'};
-    }
-    unless ( $entry{'pxekernel'} ) {
-        $entry{'pxekernel'}  = "linux.${pxeos}";
-        $entry{'pxekernel'} .= "-$entry{'sp'}" if ( $entry{'sp'} );
-        $entry{'pxekernel'} .= "-$entry{'arch'}";
-    }
-    unless ( $entry{'pxeinitrd'} ) {
-        $entry{'pxeinitrd'}  = "initrd.${pxeos}";
-        $entry{'pxeinitrd'} .= "-$entry{'sp'}" if ( $entry{'sp'} );
-        $entry{'pxeinitrd'} .= "-$entry{'arch'}";
     }
 
     my $sql_cols = lc get_cols( 'distro' );
@@ -1861,7 +1853,7 @@ sub export
     }
 
     if ( -e $file ) {
-        $LASTERROR = "Unwilling to overwrite existing <path/file>: $file.\n";
+        $LASTERROR = "Unwilling to overwrite existing <path/file>: $file\n";
         return 1;
     }
 
@@ -2071,14 +2063,15 @@ sub detail
         if ( $type eq "distro" ) {
             printf "[%s]\n",           $href->{'distroid'} unless $nolabels;
             printf "os=%s\n",          $href->{'os'};
-            printf "sp=%s\n",          $href->{'sp'};
+            printf "release=%s\n",     $href->{'release'};
             printf "description=%s\n", $href->{'description'};
             printf "arch=%s\n",        $href->{'arch'};
-            printf "pxeKernel=%s\n",   $href->{'pxekernel'};
-            printf "pxeInitrd=%s\n",   $href->{'pxeinitrd'};
             printf "addon=%s\n",       $href->{'addon'};
-            printf "baseos=%s\n",      $href->{'baseos'}
-                if ( $href->{'baseos'} );
+            if ( $href->{'addon'} ) {
+                printf "addos=%s\n",       $href->{'addos'};
+                printf "addrel=%s\n",      $href->{'addrel'}
+                    if ( $href->{'addrel'} );
+            }
             $printcount += 1;
         }
         if ( $type eq "hardware" ) {
@@ -2231,14 +2224,14 @@ sub check_command
 {
     my $command = shift;
 
-    my $cmd_list = "list, add, detail, remove, update";
+    my $cmd_list = join ', ', (sort keys %cmds);
     unless ( defined $command ) {
-        print "requires <command> (e.g. $cmd_list)\n";
+        print "Requires <command> (e.g. $cmd_list)\n";
         &help();
     }
-    $command = lc $command;
+
     unless ( defined $cmds{ $command } ) {
-        print "invalid <command> '$command' please use:  $cmd_list\n";
+        print "Invalid <command> '$command' please use:  $cmd_list\n";
         exit 1;
     }
 }
@@ -2296,14 +2289,16 @@ sub list_start
     my $db2use = $dbh;
 
     if ( $type eq "distro" ) {
-        $sql = qq|SELECT distroid as name, description
+        $sql = qq|SELECT distroid as name, description, os, release, arch, addos
                   FROM $tbl{ $type }
                   WHERE distroid LIKE ?
+                  ORDER BY os DESC, CAST(release AS FLOAT) + 0 DESC, addos, arch
                  |;
     } elsif ( $type eq "hardware" ) {
         $sql = qq|SELECT hardwareid as name, description
                   FROM $tbl{ $type }
                   WHERE hardwareid LIKE ?
+                  ORDER BY name
                  |;
     } elsif ( $type eq "module" ) {
         $sql = qq|SELECT moduleid as name, description, version, mandatory, status
