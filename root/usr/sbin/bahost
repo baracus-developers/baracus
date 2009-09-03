@@ -117,6 +117,7 @@ my %tbl = (
            'hardware'  => 'hardware_cfg',
            'module'    => 'module_cfg',
            'history'   => 'templateidhist',
+           'oscert'    => 'hardwareid',
            );
 
 my %cmds = (
@@ -440,6 +441,14 @@ sub add
         foreach my $key ( sort keys %hash ) {
             print "add:  $key => $hash{$key}\n";
         }
+    }
+
+    ## Test to see if oscert approved
+    ##
+    
+    unless ( &check_cert( $hash{'hardware'}, $hash{'distro'} ) ) {
+        print "$hash{'hardware'} not certified for $hash{'distro'}\n";
+        exit 1;
     }
 
     # all user input loaded now finish processing
@@ -994,6 +1003,44 @@ sub db_list_finish
     my $sth = shift;
     $sth->finish;
     undef $sth;
+}
+
+sub check_cert
+{
+    my $hardwareid = shift;
+    my $cert = shift;
+
+    my $sth;
+    my $href;
+
+    my $sql = qq| SELECT oscert
+                  FROM $tbl{'oscert'}
+                  WHERE hardwareid = '$hardwareid'
+                  AND oscert = '$cert'
+                |;
+
+     unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR =
+            "Unable to prepare 'check_cert' query\n" . $dbh->errstr;
+        return 1;
+    }
+
+    unless( $sth->execute(  ) ) {
+        $LASTERROR =
+            "Unable to execute 'check_cert' query\n" . $sth->err;
+        return 1;
+    }
+
+    while( $href = $sth->fetchrow_hashref( ) ) {
+        if ($href->{'oscert'}) {
+            return 1;
+        }
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
 }
 
 sub db_get_mandatory
