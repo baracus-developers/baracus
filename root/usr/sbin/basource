@@ -1020,7 +1020,8 @@ sub make_paths() {
 
     ## Create /tmp/directory to mount iso files for copy
     ##
-    my $tdir = tempdir( "baracus.XXXXXX" );
+    my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
+    print "using tempdir $tdir\n" if ($debug > 1);
     mkdir $tdir, 0755 || die ("Cannot create directory\n");
     chmod 0777, $tdir || die "$!\n";
 
@@ -1041,6 +1042,7 @@ sub make_paths() {
         }
     }
 
+    print "removing tempdir $tdir\n" if ($debug > 1);
     rmdir $tdir;
 
     return 0;
@@ -1347,8 +1349,8 @@ sub expunge_addon
                     }
                     next unless ( $found );
 
-                    open(PRODUCTS, ">>$addonfile") || die ("Cannot open $addonfile: $!\n");
-                    $products =~ s|^$addonline$||;
+                    $products =~ s|$addonline\s*\n||;
+                    open(PRODUCTS, ">$addonfile") || die ("Cannot open $addonfile: $!\n");
                     print PRODUCTS $products;
                     close PRODUCTS;
 
@@ -1445,7 +1447,7 @@ sub streamline_install
             open(INFILE, "<$dyast/directory.yast") || die ("Cannot open file\n");
             my $contents = join '', <INFILE>;
             close(INFILE);
-            $contents =~ s|^$licensefile||g;
+            $contents =~ s|$licensefile\s*\n||;
             open(OUTFILE, ">$dyast/directory.yast") || die ("Cannot open file\n");
             print OUTFILE $contents;
             close(OUTFILE);
@@ -1461,7 +1463,8 @@ sub add_bootloader_files() {
 
     my $distro = shift;
 
-    my $tdir = tempdir( "baracus.XXXXXX" );
+    my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
+    print "using tempdir $tdir\n" if ($debug > 1);
     mkdir $tdir, 0755 || die ("Cannot create directory\n");
     chmod 0777, $tdir || die "$!\n";
 
@@ -1492,6 +1495,7 @@ sub add_bootloader_files() {
         unlink( "$tdir/initrd.$distro" );
     }
 
+    print "removing tempdir $tdir\n" if ($debug > 1);
     rmdir $tdir;
 
     ## Create example pxelinux.cfg boot file
@@ -1755,7 +1759,7 @@ sub sqlfs_store
     $uid = BaracusDB::su_user( $dbrole );
     $status = $sqlfsOBJ->store( $file );
     if ( $status ) {
-        die "Store failed to store $file in sqlfs\n";
+        warn "Store failed to store $file in sqlfs\n";
     }
     print "setting uid back to $uid\n" if ($debug > 1);
     $> = $uid;

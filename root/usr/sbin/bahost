@@ -427,8 +427,9 @@ sub add
     $hash{'uuid'} = &get_uuid;
     $hash{'buildroot'} = $bdir{'builds'};
     $hash{'autoinst'} = &automac( $mac );
-    $hash{'initrd'} = "initrd.$hash{'distro'}";
-    $hash{'kernel'} = "linux.$hash{'distro'}";
+    $hash{'basedist'} = "$href->{'os'}-$href->{'release'}-$href->{'arch'}";
+    $hash{'initrd'} = "initrd.$hash{'basedist'}";
+    $hash{'kernel'} = "linux.$hash{'basedist'}";
 
     if ( $remote_logging eq "yes" ) {
         $hash{'loghost'} = "loghost=$buildip";
@@ -445,7 +446,7 @@ sub add
 
     ## Test to see if oscert approved
     ##
-    
+
     unless ( &check_cert( $hash{'hardware'}, $hash{'distro'} ) ) {
         print "$hash{'hardware'} not certified for $hash{'distro'}\n";
         exit 1;
@@ -544,7 +545,8 @@ sub wipe
     # if state is already 'wipe' and right 'nuke' don't do it all again
     if ( $dbref->{'state'} == BaracusSql::BA_DISKWIPE ) {
         print "Entering check where already in 'diskwipe' state\n" if $debug;
-        my $tdir = tempdir();
+        my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
+        print "using tempdir $tdir\n" if ($debug > 1);
         if ( $sqlfsOBJ->fetch( "$tdir/$bootmac" ) ) {
             $LASTERROR = $sqlfsOBJ->error();
             rmdir $tdir;
@@ -554,6 +556,7 @@ sub wipe
         open ( $fh, "<", "$tdir/$bootmac" ) or die "Unable to open: $!\n";
         my $tbootmac = join '', <$fh>;
         close $fh;
+        print "removing tempdir $tdir\n" if ($debug > 1);
         rmdir $tdir;
         print $bootmac if ( $debug > 1 );
         my $isautonuke = ( $tbootmac =~ m|autonuke| ) ? 1 : 0;
@@ -926,6 +929,7 @@ sub multiarg_handler() {
         return;
     }
     foreach $value (@values) {
+        print "multiarg value $value\n" if ($debug > 1);
         if ( $option eq "vars" ) {
             # special check for key=value assignment syntax
             die("FINISH") if ( $value !~ m/=/ );
@@ -1486,7 +1490,8 @@ sub add_pxeboot
 
     # add files to sqlfstable for sqltftpd server
 
-    my $tdir = tempdir();
+    my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
+    print "using tempdir $tdir\n" if ($debug > 1);
 
     if ( $sqlfsOBJ->find( "$bootmac" ) ) {
         print "$bootmac boot file already exists\n";
@@ -1501,7 +1506,7 @@ sub add_pxeboot
         close(FILE);
 
         if ( $sqlfsOBJ->store( "$tdir/$bootmac",
-                               "pxeboot $href->{'os'} $href->{'release'} $href->{'arch'}" ) ) {
+                               "pxeboot $href->{'basedist'}" ) ) {
             warn "failed to store $tdir/$bootmac in sqlfs\n";
         }
         unlink "$tdir/$bootmac";
@@ -1510,6 +1515,7 @@ sub add_pxeboot
             print "Successfully stored $bootmac \n";
         }
     }
+    print "removing tempdir $tdir\n" if ($debug > 1);
     rmdir $tdir;
 }
 
@@ -1543,7 +1549,8 @@ sub add_autoyast
 
     # add files to sqlfstable for sqltftpd server
 
-    my $tdir = tempdir();
+    my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
+    print "using tempdir $tdir\n" if ($debug > 1);
 
     if ( $sqlfsOBJ->find( $automac ) ) {
         print "$automac already exists\n";
@@ -1562,7 +1569,7 @@ sub add_autoyast
         close(FILE);
 
         if ( $sqlfsOBJ->store( "$tdir/$automac",
-                               "autoinst $href->{'os'} $href->{'release'} $href->{'arch'}" ) ) {
+                               "autoinst $href->{'basedist'}" ) ) {
             warn "failed to store $tdir/$automac in sqlfs\n";
         }
         unlink "$tdir/$automac";
@@ -1571,6 +1578,7 @@ sub add_autoyast
             print "Successfully stored $automac\n";
         }
     }
+    print "removing tempdir $tdir\n" if ($debug > 1);
     rmdir $tdir;
 }
 
