@@ -1742,14 +1742,16 @@ sub update_hardware
     my %entry = (
                  'hardwareid'  => "",
                  'hwdriver'    => "",
-                 'oscert'      => "",
+                 'addcert'     => "",
+                 'rmcert'      => "",
                  );
 
     @ARGV = @_;
     GetOptions(
                'name=s'         => \$entry{'hardwareid'},
              # 'hwdriver=s'     => \&multiarg_handler,
-               'oscert=s'       => \&multiarg_handler,
+               'addcert=s'      => \&multiarg_handler,
+               'rmcert=s'       => \&multiarg_handler,
                );
 
     if ( scalar @ARGV ) {
@@ -1757,12 +1759,15 @@ sub update_hardware
         return 1;
     }
 
-    # multiarg creates hash entry with a space seperated list of unique values
+  # multiarg creates hash entry with a space seperated list of unique values
 
   # $entry{'hwdriver'} =
   #     $multiarg{ 'hwdriver' } if (defined $multiarg{ 'hwdriver' });
-    $entry{'oscert'}   =
-        $multiarg{ 'oscert'   } if (defined $multiarg{ 'oscert'   });
+    $entry{'addcert'} =
+        $multiarg{ 'addcert' } if (defined $multiarg{ 'addcert' });
+
+    $entry{'rmcert'} =
+        $multiarg{ 'rmcert' } if (defined $multiarg{ 'rmcert' });
 
     unless ( $entry{'hardwareid'} ) {
         print "Required --name <name> not provided.\n";
@@ -1774,56 +1779,89 @@ sub update_hardware
         return 1;
     }
 
-    my @cert_data = split( /\s/, $entry{ oscert });
-    foreach my $cert_in ( @cert_data ) {
-        unless ( &check_cert( $entry{'hardwareid'}, $cert_in ) ) {
-            $LASTERROR = "Unable to update hardware, $cert_in already exists\n";
+    if (defined $entry{ 'addcert' }) {
+        my @cert_add = split( /\s/, $entry{ addcert });
+        foreach my $cert_in ( @cert_add ) {
+            unless ( &check_cert( $entry{'hardwareid'}, $cert_in ) ) {
+                $LASTERROR = "Unable to update hardware, $cert_in already exists\n";
+                  return 1;
+            }
+        }
+
+        foreach my $cert_in ( @cert_add ) {
+            unless ( &check_distroid($cert_in) ) {
+              $LASTERROR = "Unable to update hardware, distro: $cert_in does not exist\n";
+                return 1;
+            }
+        }
+
+        my $sql_cols = lc get_cols( 'oscert' );
+        $sql_cols =~ s/[ \t]*//g;
+        my @cols = split( /,/, $sql_cols );
+        my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+        my $add_sql = qq|INSERT INTO $tbl{ 'oscert' }
+                         ( $sql_cols )
+                         VALUES ( $sql_vals )
+                        |;
+
+        my $sth;
+        unless ( $sth = $dbh->prepare( $add_sql ) ) {
+            $LASTERROR = "Unable to prepare 'update' hardware statement\n" .
+                $dbh->errstr;
             return 1;
         }
-    }
 
-    foreach my $cert_in ( @cert_data ) {
-        unless ( &check_distroid($cert_in) ) {
-          $LASTERROR = "Unable to update hardware, distro: $cert_in does not exist\n";
+        my $success = 1;
+        foreach my $cert_in (@cert_add) {
+            $sth->bind_param( "1", $cert_in );
+            $sth->bind_param( "2", $entry{'hardwareid'} );
+            $success &&= $sth->execute( );
+        }
+
+        unless ($success) {
+            die "Unable to execute 'add' hardware oscert statement\n" .
+                $sth->errstr;
             return 1;
         }
+
+        $sth->finish;
+        undef $sth;
     }
 
-    my $sql_cols = lc get_cols( 'oscert' );
-    $sql_cols =~ s/[ \t]*//g;
-    my @cols = split( /,/, $sql_cols );
-    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+    if (defined $entry{ 'rmcert' }) {
 
-    my $sql = qq|INSERT INTO $tbl{ 'oscert' }
-                ( $sql_cols )
-                VALUES ( $sql_vals )
-                |;
+        my $rm_sql = qq|DELETE FROM $tbl{ 'oscert' }
+                         WHERE oscert = ?
+                        |;
 
-    my $sth;
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $LASTERROR = "Unable to prepare 'update' hardware statement\n" .
-            $dbh->errstr;
-        return 1;
+        my @cert_rm = split( /\s/, $entry{ rmcert });
+
+        my $sth;
+        unless ( $sth = $dbh->prepare( $rm_sql ) ) {
+            $LASTERROR = "Unable to prepare 'update' hardware statement\n" .
+                $dbh->errstr;
+            return 1;
+        }
+
+        my $success = 1;
+        foreach my $cert_out (@cert_rm) {
+            $success &&= $sth->execute( $cert_out );
+        }
+
+         unless ($success) {
+            die "Unable to execute 'remove' hardware oscert statement\n" .
+                $sth->errstr;
+            return 1;
+        }
+
+        $sth->finish;
+        undef $sth;
     }
-
-    my $success = 1;
-    foreach my $cert_in (@cert_data) {
-        $sth->bind_param( "1", $cert_in );
-        $sth->bind_param( "2", $entry{'hardwareid'} );
-        $success &&= $sth->execute( );
-    }
-
-    unless ($success) {
-        die "Unable to execute 'add' hardware oscert statement\n" .
-            $sth->errstr;
-        return 1;
-    }
-
-    $sth->finish;
-    undef $sth;
 
     return 0;
 }
+
 
 
 =head2 export E<lt>typeE<gt> <options and args>
