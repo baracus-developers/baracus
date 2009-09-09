@@ -265,6 +265,15 @@ And further <...> optional parameters include
                            available with
                              > baconfig list module
 
+  --usevnc                 allow vnc build access
+  --vncpass                defines vnc password for remote access
+
+  --usessh                 allow ssh build access
+  --sshpass                defines ssh password for remote access
+
+  --serialtty              configure serial tty for remote access
+  --serialbaud             configure serial line rate for remote access
+
   --vars <variable=value>  Method to specify a command-line parameter
                            that will override those found in the
                            config files.  You can specify this option
@@ -284,6 +293,12 @@ sub add
     my $module="";
     my $profile="";
     my $yasttemplate="";
+    my $usevnc="";
+    my $vncpass="";
+    my $usessh="";
+    my $sshpass="";
+    my $serialtty="";
+    my $serialbaud="";
     my $vars;
 
     @ARGV = @_;
@@ -296,6 +311,13 @@ sub add
                'hardware=s'     => \$hardware,
                'yasttemplate=s' => \$yasttemplate,
                'profile=s'      => \$profile,
+               'profile=s'      => \$profile,
+               'usevnc!'        => \$usevnc,
+               'vncpass=s'      => \$vncpass,
+               'usessh!'        => \$usessh,
+               'sshpass=s'      => \$sshpass,
+               'serialtty=s'    => \$serialtty,
+               'serialbaud=s'   => \$serialbaud,
                'module=s'       => \&multiarg_handler,
                'vars=s'         => \&multiarg_handler,
                );
@@ -370,6 +392,56 @@ sub add
             print "add post-hardware:  $key => $hash{$key}\n";
         }
     }
+
+    # Remote Access configurations
+    my @raccess;
+    # vnc remote access may be specified in profile *and* on command line
+    # command line wins over profile entry
+    if (($vncpass) && !($usevnc)) {
+        die "--vncpass requires --usevnc\n"
+    }
+    if ($usevnc) {
+        if ($vncpass) {
+          $vncpass =~ s/$vncpass/vncpassword=$vncpass/;
+          push(@raccess, "vnc=1", $vncpass);
+        }
+        else {
+            die "--vncaddr requires --vncpass\n";
+        }
+    }
+
+    # ssh remote access may be specified in profile *and* on command line
+    # command line wins over profile entry
+    if (($sshpass) && !($usessh)) {
+        die "--sshpass requires --usessh\n"
+    }
+    if ($usessh) {
+        if ($sshpass) {
+            $sshpass =~ s/$sshpass/sshpassword=$sshpass/;
+            push(@raccess, "usessh=1", $sshpass);
+        }
+        else {
+            die "--sshaddr requires --sshpass\n";
+        }
+    }
+
+    # serial remote access may be specified in profile *and* on command line
+    # command line wins over profile entry
+    if (($serialbaud) && !($serialtty)) {
+        die "--serialbaud requires --serialtty\n"
+    }
+    if ($serialtty) {
+        if ($serialbaud) {
+            my $serialopts = "console=$serialtty console=$serialtty,$serialbaud";
+            push(@raccess, $serialopts);
+        }
+        else {
+            die "--serialtty requires --serialbaud\n";
+        }
+    }
+
+    # Join all raccess args
+    $hash{'raccess'} = join " ", @raccess;
 
     # modules may be specified in profile
     my $modules_in;
