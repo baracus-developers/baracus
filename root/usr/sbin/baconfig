@@ -289,7 +289,7 @@ sub list
         if ( $type eq "profile" ) {
             printf "%-32s ver sts description\n", $type;
         } elsif ( $type eq "module") {
-             printf "%-32s cnt sts mty description\n", $type;
+             printf "%-32s ver sts mty description\n", $type;
         } elsif ( $type eq "tftp" ) {
             printf "%-32s cnt sts description\n", $type;
         } else {
@@ -512,7 +512,8 @@ relate to the distro being used when creating the host entry.
     --yastTemplate file    Autoinstall [ default template.xml ]
 
     --hwdriver             Additional pkgs install for hardware.
-    --oscert               Colon seperated list distros supported.
+    --oscert <distro>      A list of supported distros, for this
+                           hardware. May be spcified multiple times.
 
 =cut
 
@@ -1734,6 +1735,19 @@ sub update_tftp
 
     return 0;
 }
+
+=head2 update hardware <options and args>
+
+Where <options and args> are
+
+    --name id              Required unique id.
+
+    --addcert <distro>     Supported distros for this hardware
+    --rmcert  <distro>     List of distros no longer supported
+
+The cert options may be specified multiple times.
+
+=cut
 
 sub update_hardware
 {

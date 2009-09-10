@@ -38,7 +38,7 @@ Where command is one of
     verify  --distro <x>  Verify build source for distribution <x>
     details --distro <x>  Display specifics about a distribution
 
-    list    <type> --distro <x>  List known sources, isos, builds
+    list   [--distro <x>] List known distros
 
     service --start       Start defaults [ BUILDTYPE and dhcpd ]
     service --stop        Stop defaults [ BUILDTYPE and dhcpd ]
@@ -58,7 +58,7 @@ This tool assists with the downloading of distribution iso files, the creation o
 
 =over 4
 
-=item -v --verbose Ber verbose with output
+=item -v --verbose Be verbose with output
 
 =back
 
@@ -150,26 +150,31 @@ unless ($buildip) {
 
 my $xml = &baxml_load( "$bdir{'data'}/badistro.xml" );
 
-my $dbname = "sqltftp";
+my $dbname = "baracus";
 my $dbrole = "baracus";
 
-print "setting uid to $dbrole\n" if ($debug > 1);
+my $dbtftp = "sqltftp";
+
+print "setting uid to $dbrole\n" if ($debug > 2);
+
 my $uid = BaracusDB::su_user( $dbrole );
 die BaracusDB::errstr unless ( defined $uid );
 
 my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
 die BaracusDB::errstr unless( $dbh );
 
-print "basource debug=$debug\n" if $debug;
+my $hashoftbls = BaracusSql::get_baracus_tables();
+
+print "bahost debug=$debug\n" if $debug;
 my $deepdebug = $debug > 2 ? 1 : 0;
-my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbname",
+my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp",
                            'User' => "baracus",
                            'debug' => $deepdebug )
     or die "Unable to create new instance of SqlFS\n";
 
 # connected as baracus - continue as root
 # and swithc to baracus as needed in subroutines
-print "setting uid back to $uid\n" if ($debug > 1);
+print "setting uid back to $uid\n" if ($debug > 2);
 $> = $uid;
 
 my $status = &main(@ARGV);
@@ -239,21 +244,94 @@ sub check_command
     }
 }
 
+sub check_either
+{
+    my $distro = shift;
+
+    unless ( $distro ) {
+        print "\nMissing arg: <distro>\n";
+        &help();
+    }
+
+    unless ( &baxml_distro_gethash( $distro ) ) {
+        print "Unknown distribution or addon specified: $distro\n";
+        print "Please use one of the following:\n";
+        foreach my $dist ( reverse sort &baxml_distros_getlist() ) {
+            my $href = &baxml_distro_gethash( $dist );
+            print "\t" . $dist . "\n" unless ( $href->{requires} );
+        }
+        exit 1;
+    }
+}
+
 sub check_distro
 {
     my $distro = shift;
 
     unless ( $distro ) {
-        print "\nMissing arg: --distro <name>\n";
+        print "\nMissing arg: <distro>\n";
         &help();
     }
 
-    unless ( &baxml_distro_gethash( $distro ) ) {
+    my $dh = &baxml_distro_gethash( $distro );
+
+    unless ( $dh ) {
         print "Unknown distribution specified: $distro\n";
         print "Please use one of the following:\n";
-        foreach ( reverse sort &baxml_distros_getlist() ) {
-            print "\t" . $_ . "\n";
+        foreach my $dist ( reverse sort &baxml_distros_getlist() ) {
+            my $href = &baxml_distro_gethash( $dist );
+            print "\t" . $dist . "\n" unless ( $href->{requires} );
         }
+        exit 1;
+    }
+
+    if ( $dh->{requires} ) {
+        print "Non-base distribution passed as base $distro\n";
+        print "Perhaps try:\n\t\t--distro $dh->{basedist} --addon $distro\n";
+        exit 1;
+    }
+}
+
+sub check_addons
+{
+    my $distro = shift;
+    my $addons = shift;
+
+    my $dh = &baxml_distro_gethash( $distro );
+
+    # verify all addons passed are intended for given distro as base
+    foreach my $addon ( split /\s+/, $addons ) {
+
+        &check_addon( $addon );
+
+        my $ah = &baxml_distro_gethash( $addon  );
+
+        unless ( $ah->{basedisthash} eq $dh ) {
+            print "Base passed $distro instead of $dh->{basedist} for $addon\n";
+            print "Perhaps try\n\t\t--distro $ah->{basedist} --addon $addon\n";
+            exit 1;
+        }
+    }
+}
+
+sub check_addon
+{
+    my $addon = shift;
+
+    my $dh = &baxml_distro_gethash( $addon );
+
+    unless ( $dh ) {
+        print "Unknown addon specified: $addon\n";
+        print "Please use one of the following:\n";
+        foreach my $ao ( reverse sort &baxml_distros_getlist() ) {
+            my $ah = &baxml_distro_gethash( $ao );
+            print "\t" . $ao . "\n" if ( $ah->{requires} );
+        }
+        exit 1;
+    }
+
+    unless ( defined $dh->{requires} ) {
+        print "Base distro passed as value for --addon $addon\n";
         exit 1;
     }
 }
@@ -261,13 +339,16 @@ sub check_distro
 
 =head1 COMMANDS
 
-=head2 add --distro <name> [--check|--isos [--proxy]]
+=head2 add --distro <name> [--addon <addos> [--addon ...]] [--check|--isos [--proxy]]
 
 Where
 
-  --distro <name>  specifies the full name of the distribution to
-                   use, e.g., sles-11-x86_64, sles-10.2-rt-x86_64,
-                   opensuse-11.1-i586, sles-11-hae-i586
+  --distro <name>  specifies the full name of the base distribution
+                   to use, e.g., sles-11-x86_64, sles-10.2-x86_64,
+                   opensuse-11.1-i586
+
+  --addon <name>   specifies any addon(s) to layer over the base
+                   distribution sles-10.2-rt-x86_64, sles-11-hae-i586
 
   --check          Force check of the ISOs already present
   --isos           Download missing ISO files
@@ -279,6 +360,7 @@ sub add() {
 
     my $command = 'add';
     my $distro;
+    my $addons = "";
     my $proxy;
     my $check;
     my $isos;
@@ -287,6 +369,7 @@ sub add() {
 
     GetOptions(
                'distro=s'  => \$distro,
+               'addons=s'  => \&multiarg_handler,
                'proxy'     => \$proxy,
                'check'     => \$check,
                'isos|i'    => \$isos,
@@ -297,58 +380,71 @@ sub add() {
         &help( $command );
     }
 
+    $addons = $multiarg{ 'addons' } if (defined $multiarg{ 'addons' });
+
     ## Test if selection is valid
     ##
     $distro = lc $distro;
     &check_distro( $distro );
 
-    my $dh = &baxml_distro_gethash( $distro );
-
-    ## Check if add-on, ie. sles-10.2-rt-<arch>, sles-11-hae-<arch>
-    ##
-    if ( defined $dh->{requires} ) {
-        return 1 if ( &addon_product( $distro ) );
+    if ( $addons ) {
+        print "Calling routine to verify addon(s) passed\n";
+        return 1 if &check_addons( $distro, $addons );
     }
 
+    my $sdk = get_distro_sdk( $distro );
+    # do we have an sdk for this base
+    if ( defined $sdk ) {
+        if ( not $addons ) {
+            # no other addons specified
+            $addons = $sdk;
+        }
+        elsif ( not $addons =~ m/$sdk/ ) {
+            # add sdk not specified in addons
+            $addons = "$sdk " . $addons;
+        }
+    }
     if ( $isos ) {
-        return 1 if &download_iso( $distro, $proxy );
+        return 1 if &download_iso( $distro, $addons, $proxy );
     }
 
     print "Calling routine to locate ISO files\n";
 
-    # iso on disk hash reference
-    my $iodhref = &verify_iso( $distro, $isos, $check );
+    my $daisohr = &verify_iso( $distro, $addons, $isos, $check );
 
-    print "Calling routine to generate build tree\n";
+    print "Calling routines to generate build tree\n";
 
-    &make_paths( $distro, $iodhref);
+    &make_paths( $distro, $addons, $daisohr);
 
-    &create_build( $distro, $iodhref );
-
-    # update addon info
-    # maybe for product containing <addon>base
-    # and no 'requires' attrib for sdks or like
-    &insert_addon( $distro );
+    &create_build( $distro );
 
     &streamline_install( $distro );
 
-    unless ( defined $dh->{requires} ) {
-        print "Calling routine to configure bootloader\n";
-        &add_bootloader_files( $distro );
-        print "Calling routine to configure $buildtype\n";
-        &add_build_service( $distro );
-    }
+    print "Calling routine to configure $buildtype\n";
 
-    &source_register($command, $distro);
+    &add_build_service( $distro, $addons );
+
+    print "Calling routine to configure bootloader\n";
+    &add_bootloader_files( $distro );
+
+    &source_register($command, $distro, $addons);
 }
 
-=head2 remove --distro <name>
+
+=head2 remove --distro <name> [--addon <addos> [--addon ...]] [ --all ]
 
 Where
 
-  --distro <name>  specifies the full name of the distribution to
-                   use, e.g., sles-11-x86_64, sles-10.2-rt-x86_64,
-                   opensuse-11.1-i586, sles-11-hae-i586
+  --distro <name>  specifies the full name of the base distribution
+                   to remove, e.g., sles-11-x86_64, sles-10.2-x86_64,
+                   opensuse-11.1-i586
+
+  --addon <name>   specifies the addon(s) to be removed. like these
+                   distributions sles-10.2-rt-x86_64, sles-11-hae-i586
+
+  --all            remove all the addons and the base distro.
+
+Without specifying --all, remove will not remove the base distro if it has any addons present so that a two step remove process must be used to first remove all the addons listed for the base distro and then another invocation with the base --distro alone.
 
 =cut
 
@@ -356,57 +452,104 @@ sub remove() {
 
     my $command = 'remove';
     my $distro;
+    my $addons = "";
+    my @addons;
+    my $share;
 
     @ARGV = @_;
 
-    GetOptions('distro=s'  => \$distro,);
+    GetOptions(
+               'distro=s'  => \$distro,
+               'addons=s'  => \&multiarg_handler,
+               );
 
     if ( scalar @ARGV ) {
         printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
         &help( $command );
     }
 
+    $addons = $multiarg{ 'addons' } if (defined $multiarg{ 'addons' });
+
     ## Test if selection is valid
     ##
     $distro = lc $distro;
     &check_distro( $distro );
 
-    my $dh = &baxml_distro_gethash( $distro );
+    #
+    # tempting - but don't put sdk in $addons here or it will be
+    # removed even if only a different addon was to be removed leaving
+    # the base and maybe other addons in place
+    #
 
-    print "Removing $distro\n";
+    if ( $all and $addons ) {
+        $LASTERROR = "Unsafe mix of --all and --addon <addon> usage\n";
+        return 1;
+    }
 
-    if ($dh->{requires}) {
-        my $isoinfohref = &baxml_distro_getisospathshashes( $distro );
-        foreach my $isofile ( keys %{$isoinfohref} ) {
-            print "$isoinfohref->{$isofile}->{path} ... removing\n" if $verbose;
-            rmtree($isoinfohref->{$isofile}->{path});
-        }
-        &expunge_addon( $distro );
+    if ( $all ) {
+        my $dh =  &baxml_distro_gethash( $distro );
+        @addons = @{$dh->{basedisthash}->{addons}};
+        $addons = join " ", @addons;
+        print "working with 'all': $addons\n" if $debug;
     } else {
+        @addons = split( /\s+/, $addons );
+
+        # only check addons passed if not removing all
+        if ( scalar @addons ) {
+            print "Calling routine to verify addon(s) passed\n";
+            return 1 if &check_addons( $distro, $addons );
+        }
+    }
+
+    if ( scalar @addons ) {
+        foreach my $addon ( @addons ) {
+            my @shares;
+            print "Removing addon $addon\n";
+            ($share, undef) = &get_distro_share( $addon );
+            print "$share ... removing\n" if $verbose;
+            rmtree($share);
+        }
+        &remove_build_service("",$addons);
+        &source_register($command,"",$addons);
+    }
+
+    # only remove base if no addons specified or --all passed
+    if ( not scalar @addons or $all ) {
+        my $dh = &baxml_distro_gethash( $distro );
+
         # need to check if removing base which has dependent add-ons
         my @addons = &list_installed_addons( $distro );
-        if ( scalar @addons ) {
-            $LASTERROR = "Before removing $distro these addons must be removed:\n\t" . join ("\n\t", @addons ) . "\n";
+
+        # handle default 'unspecified' sdk as transparent member of base
+        my $sdk = &get_distro_sdk( $distro );
+
+        if ( ( scalar @addons > 1 ) or
+             ( scalar @addons and not defined $sdk ) or
+             ( scalar @addons and $addons[0] ne $sdk ) ) {
+            $LASTERROR = "Remove these addons before removing $distro (or use --all)\n\t" . join ("\n\t", @addons ) . "\n";
             return 1;
         }
-        my ($base, $bh, $share) = &baxml_basedist_keyhash( $distro );
+        if ( scalar @addons and defined $sdk and $addons[0] eq $sdk ) {
+            ($share,undef) = &get_distro_share( $sdk );
+            print "$share ... removing\n" if $verbose;
+            rmtree($share);
+        }
+        ($share,undef) = &get_distro_share( $distro );
         print "$share ... removing\n" if $verbose;
         rmtree($share);
 
-        &remove_build_service($distro);
         &remove_bootloader_files($distro);
+        &remove_build_service($distro,$addons);
+        &source_register($command,$distro,$addons);
     }
-
-    &source_register($command,$distro);
+    return 0;
 }
 
-=head2 enable --distro <name>
+=head2 enable { --distro <name> | --addon <name> }
 
 Where
 
   --distro <name>  specifies the full name of the distribution to use
-
-Note that enable is not supported at the add-on product level.
 
 =cut
 
@@ -417,7 +560,10 @@ sub enable() {
 
     @ARGV = @_;
 
-    GetOptions('distro=s'  => \$distro,);
+    GetOptions(
+               'distro=s'  => \$distro,
+               'addon=s'   => \$distro,
+               );
 
     if ( scalar @ARGV ) {
         printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
@@ -425,11 +571,21 @@ sub enable() {
     }
 
     $distro = lc $distro;
-    &check_distro( $distro );
+    &check_either( $distro );
 
-    my $dh = &baxml_distro_gethash( $distro );
-    if ($dh->{requires}) {
-        $LASTERROR = "Enable of add-on $distro not supported\n";
+    my $dbref = &get_db_source_entry( $distro );
+    unless ( defined $dbref->{distroid} and
+             ( $dbref->{distroid} eq $distro ) ) {
+        $LASTERROR = "Unable to find entry for $distro to enable\n";
+        return 1;
+    }
+    unless ( defined $dbref->{status} and
+             ( $dbref->{status} != BaracusSql::BA_DELETED ) ) {
+        $LASTERROR = "Unable to enable $distro not yet added.\n";
+        return 1;
+    }
+    if ( $dbref->{status} != BaracusSql::BA_DISABLED ) {
+        $LASTERROR = "Unable to enable $distro not disabled.\n";
         return 1;
     }
 
@@ -441,15 +597,13 @@ sub enable() {
     &source_register($command,$distro);
 }
 
-=head2 disable --distro <name>
+=head2 disable { --distro <name> | --addon <name> }
 
 Where
 
   --distro <name>  specifies the full name of the distribution to
                    use, e.g., sles-11-x86_64, sles-10.2-rt-x86_64,
                    opensuse-11.1-i586, sles-11-hae-i586
-
-Note that disable is not supported at the add-on product level.
 
 =cut
 
@@ -460,7 +614,10 @@ sub disable() {
 
     @ARGV = @_;
 
-    GetOptions('distro=s'  => \$distro,);
+    GetOptions(
+               'distro=s'  => \$distro,
+               'addon=s'   => \$distro,
+               );
 
     if ( scalar @ARGV ) {
         printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
@@ -468,11 +625,21 @@ sub disable() {
     }
 
     $distro = lc $distro;
-    &check_distro( $distro );
+    &check_either( $distro );
 
-    my $dh = &baxml_distro_gethash( $distro );
-    if ($dh->{requires}) {
-        $LASTERROR = "Disable of add-on $distro not supported\n";
+    my $dbref = &get_db_source_entry( $distro );
+    unless ( defined $dbref->{distroid} and
+             ( $dbref->{distroid} eq $distro ) ) {
+        $LASTERROR = "Unable to find entry for $distro to enable\n";
+        return 1;
+    }
+    unless ( defined $dbref->{status} and
+             ( $dbref->{status} != BaracusSql::BA_DELETED ) ) {
+        $LASTERROR = "Unable to disable $distro not yet added.\n";
+        return 1;
+    }
+    if ( $dbref->{status} != BaracusSql::BA_READY ) {
+        $LASTERROR = "Unable to disable $distro not enabled.\n";
         return 1;
     }
 
@@ -484,9 +651,9 @@ sub disable() {
     &source_register($command,$distro);
 }
 
-=head2 verify --distro <name>
+=head2 verify { --distro <name> | --addon <name> }
 
-Verify some details for the distro specified
+Verify some details for the distro or addon specified
 
 =cut
 
@@ -497,7 +664,10 @@ sub verify() {
 
     @ARGV = @_;
 
-    GetOptions('distro=s'  => \$distro,);
+    GetOptions(
+               'distro=s'  => \$distro,
+               'addon=s'   => \$distro,
+               );
 
     if ( scalar @ARGV ) {
         printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
@@ -505,20 +675,23 @@ sub verify() {
     }
 
     $distro = lc $distro;
-    &check_distro( $distro );
+    &check_either( $distro );
 
     my $dbref = &get_db_source_entry($distro);
 
-    unless ( defined $dbref ) {
+    unless ( defined $dbref and
+             $dbref->{status} and
+             $dbref->{status} != BaracusSql::BA_DELETED ) {
         $LASTERROR = "No entry found for $distro\n";
         return 1;
     }
 
-    my ($base, $bh, $share) = &baxml_basedist_keyhash( $distro );
-
-    print "Target:\t\t$dbref->{distro}\n";
-    print "Created:\t$dbref->{create_date}\n";
-    print "Modified:\t$dbref->{modify_date}\n" if defined $dbref->{modify_date};
+    while ( my ($key, $val) = each %{$dbref} ) {
+        print "dbref $key => $val\n";
+    }
+    print "Target:\t\t$dbref->{distroid}\n";
+    print "Created:\t$dbref->{creation}\n";
+    print "Modified:\t$dbref->{change}\n" if defined $dbref->{change};
     print "Status:\t\t$BaracusSql::baState{ $dbref->{status}}\n";
     print "Service:\t$dbref->{type}";
     if ( &check_service( $dbref->{type} ) ) {
@@ -528,24 +701,35 @@ sub verify() {
     }
     print "\n";
 
-    my ($netcfg, $state) = &check_serviceconfig( $distro, $dbref->{type} );
-    print "Share:\t\t$netcfg";
-    if ( not $state ) {
-         print " missing";
-    } elsif ( $verbose ) {
-        print " ok";
-    }
-    print "\n";
+    my $oldshare = "";
+    foreach my $prod ( &baxml_products_getlist( $distro ) ) {
+        my ($netcfg, $share, $state) = &check_service_product( $distro, $prod, $dbref->{type} );
 
-    print "Path:\t\t$dbref->{basepath}";
-    if ( not -d $dbref->{basepath} ) {
-        print " missing";
-    } elsif ( $verbose ) {
-        print " ok";
-    }
-    print "\n";
+        if ( $oldshare ne $share ) {
+            $oldshare = $share;
 
-    $state = &sqlfs_getstate( "linux.$base" );
+            print "Share:\t\t$netcfg";
+            if ( not $state ) {
+                print " missing";
+            } elsif ( $verbose ) {
+                print " ok";
+            }
+            print "\n";
+
+            print "Path:\t\t$share";
+            if ( not -d $share ) {
+                print " missing";
+            } elsif ( $verbose ) {
+                print " ok";
+            }
+            print "\n";
+        }
+    }
+
+    my $dh = &baxml_distro_gethash( $distro );
+    my $base = $dh->{basedist};
+
+    my $state = &sqlfs_getstate( "linux.$base" );
     print "kernel:\t\tlinux.$base";
     if ( not $state ) {
         print " missing";
@@ -572,7 +756,7 @@ sub verify() {
     print "\n";
 }
 
-=head2 detail --distro <name>
+=head2 detail { --distro <name> | --addon <name> }
 
 Displays many details for the distribution specified
 
@@ -585,7 +769,10 @@ sub detail() {
 
     @ARGV = @_;
 
-    GetOptions('distro=s'  => \$distro,);
+    GetOptions(
+               'distro=s'  => \$distro,
+               'addon=s'   => \$distro,
+               );
 
     if ( scalar @ARGV ) {
         printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
@@ -593,19 +780,20 @@ sub detail() {
     }
 
     $distro = lc $distro;
-    &check_distro( $distro );
+    &check_either( $distro );
 
     my $dbref = &get_db_source_entry($distro);
-    if ( defined $dbref ) {
+    if ( defined $dbref and
+         defined $dbref->{status} and
+         $dbref->{status} != BaracusSql::BA_DELETED ) {
         $status = $BaracusSql::baState{ $dbref->{status} };
     } else {
         $status = $BaracusSql::baState{ BaracusSql::BA_DELETED };
     }
 
     my $dh = &baxml_distro_gethash( $distro );
-    my ($base, $bh, $share) = &baxml_basedist_keyhash( $distro );
-    my $bihol = &baxml_baseaddons_gethol();
-    my $iphref = &baxml_distro_getisospathshashes( $distro );
+    my $bh = $dh->{basedisthash};
+
     my %iodhash;
 
     find ( { wanted =>
@@ -619,12 +807,12 @@ sub detail() {
     print "\nDetails for $distro\n";
     print "With current status '$status'\n";
     if ($dh->{requires}) {
-        print "Add-on product extending $base\n";
+        print "Add-on product extending $dh->{basedist}\n";
     } else {
         print "Base product";
-        if ( $bihol->{$base} and scalar @{$bihol->{$base}} ) {
+        if ( $bh->{addons} and scalar @{$bh->{addons}} ) {
             print " supporting extension(s):  " .
-                join (", ", (sort @{$bihol->{$base}} ) );
+                join (", ", (sort @{$bh->{addons}} ) );
         }
         print "\n";
     }
@@ -640,20 +828,21 @@ sub detail() {
         else {
             print "\n";
         }
-        foreach my $isofile ( sort &baxml_isos_getlist( $distro, $product ) ) {
-            my $builds = $iphref->{$isofile}->{path};
+        foreach my $iso ( sort &baxml_isos_getlist( $distro, $product ) ) {
+            my $ih = &baxml_iso_gethash( $distro, $product, $iso );
+            my $builds = $ih->{isopath};
             my $isoexist = "-";
             my $direxist = "-";
-            $isoexist = "+" if ( $iodhash{$isofile} );
+            $isoexist = "+" if ( $iodhash{$iso} );
             $direxist = "+" if ( -d $builds );
 
             $builds =~ s|$bdir{builds}/||og;
-            printf "  %s $isofile  =>  %s $builds\n", $isoexist, $direxist;
+            printf "  %s $iso  =>  %s $builds\n", $isoexist, $direxist;
         }
     }
 }
 
-=head2 list [--distro <name>] [--all]
+=head2 list [ --distro <name> | --addon <name> ] [--all]
 
   List distribution state.
 
@@ -675,7 +864,10 @@ sub list() {
 
     @ARGV = @_;
 
-    GetOptions('distro=s'  => \$distro,);
+    GetOptions(
+               'distro=s'  => \$distro,
+               'addon=s'   => \$distro,
+               );
 
     if ( scalar @ARGV ) {
         printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
@@ -699,7 +891,7 @@ sub list() {
 
     unless ( $quiet || $nolabels ) {
         print "--------------------------------------------------------------------------------\n";
-        printf "%-32s  status\n", "distro";
+        printf "%-32s status\n", "distro";
         print "--------------------------------------------------------------------------------\n";
     }
 
@@ -714,15 +906,17 @@ sub list() {
         my $dbref = &get_db_source_entry($adistro);
         my $status;
 
-        if ( defined $dbref ) {
-            printf "%-32s  ", $adistro;
+        if ( defined $dbref and
+             $dbref->{status} and
+             $dbref->{status} != BaracusSql::BA_DELETED ) {
+            printf "%-32s ", $adistro;
             $status = $BaracusSql::baState{ $dbref->{status} };
             unless ( $quiet ) {
                 printf "$status";
             }
             print "\n";
         } elsif ( $all ) {
-            printf "%-32s  ", $adistro;
+            printf "%-32s ", $adistro;
             $status = $BaracusSql::baState{ BaracusSql::BA_DELETED };
             unless ( $quiet ) {
                 printf "$status";
@@ -791,57 +985,61 @@ sub service() {
 ###########################################################################
 # finished with primary commands - helpers follow
 
-sub addon_product
-{
-    print "+++++ addon_product\n" if ( $debug > 1 );
-    my $distro = shift;
-
-    # verify the directories of the base distro
-    my $isoinfohref = &baxml_base_getisospathshashes( $distro );
-    foreach my $iso ( keys %{$isoinfohref} ) {
-        unless ( -d $isoinfohref->{$iso}->{path} ) {
-            $LASTERROR = "Unable to verify all base product directories for addon\n";
-            return 1;
-        }
-    }
-    return 0;
-}
-
 sub download_iso() {
 
     print "+++++ download_iso\n" if ( $debug > 1 );
+
     use Term::ReadKey;
 
-    my @isofilelist;
     my $distro = shift;
-    my $proxy = shift;
+    my $addons = shift;
+    my $proxy  = shift;
+
+    my @dalist;
+
+    push @dalist, $distro if $distro;
+    push @dalist, split( /\s+/, $addons) if ( $addons );
+
+    my $daisohr = {};
+    my @isofilelist;
+    my $found = 0;
 
     ## create directory for iso files if not present
     if (! -d $bdir{builds}) {
         mkpath "$bdir{builds}" or die ("Cannot create ~baracus/isos directory\n");
     }
 
-    my $dh = &baxml_distro_gethash( $distro );
-    my $isoinfohref = &baxml_distro_getisospathshashes( $distro );
-
-    my $found = 0;
-    my $skip = 0;
-    foreach my $isofile ( keys %{$isoinfohref} ) {
-        find ( { wanted =>
-                 sub {
-                     if ($_ eq $isofile) {
-                         print "found $File::Find::name\n" if $debug;
-                         $found=1;
-                         $skip=1;
-                     }
-                 },
-                 follow => 1
-                },
-               $bdir{isos} );
-        unless ( $skip ) {
-            push @isofilelist, $isofile;
-            $skip = 0;
+    print "Searching for iso files needing download ...\n" if ($verbose);
+    foreach my $da ( @dalist ) {
+        my @distisolist = ();
+        my $distisoinfo = {};
+        my $skip = 0;
+        foreach my $prod ( &baxml_products_getlist( $da ) ) {
+            foreach my $isofile ( &baxml_isos_getlist( $da, $prod ) ) {
+                my $ih = &baxml_isos_getlist( $da, $prod, $isofile );
+                $distisoinfo->{$isofile}->{path} = $ih->{isopath};
+                $distisoinfo->{$isofile}->{hash} = $ih;
+                find ( { wanted =>
+                         sub {
+                             if ($_ eq $isofile) {
+                                 print "found $File::Find::name\n" if $debug;
+                                 $found=1;
+                                 $skip=1;
+                             }
+                         },
+                         follow => 1
+                        },
+                       $bdir{isos} );
+                unless ( $skip ) {
+                    push @distisolist, $isofile;
+                    $skip = 0;
+                }
+            }
         }
+        $daisohr->{ $da }->{info} = $distisoinfo;
+        push @{$daisohr->{ $da }->{list}}, @distisolist;
+        push @isofilelist, @distisolist;
+
     }
     if ($found) {
         print "ISO download requested and files were already found. If checksum\n";
@@ -856,9 +1054,21 @@ sub download_iso() {
     my $pusername="";
     my $ppassword="";
 
+    my $dh = &baxml_distro_gethash( $distro );
+
     if ($dh->{autodownload} eq "no") {
         $LASTERROR = "Baracus assisted download not supported for $distro\n";
         return 1;
+    }
+
+    if ($dh->{autodownload} eq "auth") {
+        print "Please enter (novell.com) userid: ";
+        chomp($username = ReadLine 0);
+
+        print "Please enter (novell.com) password: ";
+        ReadMode 'noecho';
+        chomp($password = ReadLine 0);
+        ReadMode 'normal';
     }
 
     if ($proxy) {
@@ -875,20 +1085,13 @@ sub download_iso() {
         print "\n";
     }
 
-    if ($dh->{autodownload} eq "auth") {
-        print "Please enter (novell.com) userid: ";
-        chomp($username = ReadLine 0);
-
-        print "Please enter (novell.com) password: ";
-        ReadMode 'noecho';
-        chomp($password = ReadLine 0);
-        ReadMode 'normal';
-    }
-
     print "\nDownloading: \n";
-    foreach my $isofile ( sort @isofilelist ) {
-        my $url = $isoinfohref->{$isofile}->{hash}->{url};
-        &get_iso($distro,$url,$isofile,$username,$password,$proxy,$pusername,$ppassword,$proxyaddr);
+    foreach my $da ( @dalist ) {
+        foreach my $isofile ( sort @{$daisohr->{ $da }->{list}} ) {
+            # here isofile has no path info just the filename
+            my $url = $daisohr->{$da}->{info}->{$isofile}->{hash}->{url};
+            &get_iso($distro,$url,$isofile,$username,$password,$proxy,$pusername,$ppassword,$proxyaddr);
+        }
     }
 }
 
@@ -945,16 +1148,22 @@ sub get_iso() {
 sub verify_iso() {
 
     print "+++++ verify_iso\n" if ( $debug > 1 );
+
     use Digest::MD5 qw(md5 md5_hex md5_base64);
+    use File::Basename;
 
     my $distro = shift;
-    my $iarg   = shift;
+    my $addons = shift;
+    my $isos   = shift;
     my $check  = shift;
 
-    my $isoinfohref = &baxml_distro_getisospathshashes( $distro );
+    my @dalist;
 
-    my $bad=0;
-    my %ihash;
+    push @dalist, $distro if $distro;
+    push @dalist, split( /\s+/, $addons) if ( $addons );
+
+    my $halt = 0;
+    my $daisohr = {};
 
     ## test directory for iso files
     if (! -d $bdir{builds}) {
@@ -962,61 +1171,111 @@ sub verify_iso() {
         exit(1);
     }
 
-    ## Verify all iso files are present
-    ##
     print "Searching for required iso files ...\n" if ($verbose);
-    foreach my $isofile ( keys %{$isoinfohref} ) {
-        $bad=0;
-        find ({ wanted =>
-                sub {
-                    if ($_ eq $isofile) {
-                        if ($verbose) {
-                            print "found $File::Find::name\n" if $debug;
-                        }
-                        $ihash{$isofile} = "$File::Find::name";
-                        $bad=1;
-                    }
-                },
-                follow => 1 }, $bdir{isos});
-        if ($bad == 0) {
-            print "failed: missing $isofile file\n"; exit(1);
+    foreach my $da ( @dalist ) {
+        print "verify working dist $da\n" if ($debug > 1);
+        my @distisolist = ();
+        my $distisoinfo = {};
+        my $missing;
+        foreach my $prod ( &baxml_products_getlist( $da ) ) {
+            foreach my $isofile ( &baxml_isos_getlist( $da, $prod ) ) {
+                print "dist $da prod $prod iso $isofile\n";
+                my $ih = &baxml_iso_gethash( $da, $prod, $isofile );
+                $distisoinfo->{$isofile}->{'hash'} = $ih;
+                $distisoinfo->{$isofile}->{'path'} = $ih->{'isopath'};
+                $missing=1;
+                find ({ wanted =>
+                        sub {
+                            if ($_ eq $isofile) {
+                                print "found $File::Find::name\n" if $debug;
+                                push @distisolist, "$File::Find::name";
+                                $missing=0;
+                            }
+                        },
+                        follow => 1
+                       },
+                      $bdir{isos});
+                if ($missing == 1) {
+                    $missing = 0;
+                    $halt = 1;
+                    print "Missing required file $isofile\n";
+                }
+            }
         }
+        $daisohr->{ $da }->{info} = $distisoinfo;
+        push @{$daisohr->{ $da }->{list}}, @distisolist;
+        print "verify:\n" . join( "\n", @distisolist ) . "\n" if ($debug > 1);
     }
 
-    if (($iarg) || ($check)) {
-        ## Verify md5sum of each iso
-        ##
-        print "Verifing iso checksums\n";
-        $bad = 0;
-        foreach my $iname ( keys %ihash ) {
-            print $ihash{$iname} . " checksum in progress\n" if $debug;
-            open(FILE, $ihash{$iname}) or
-                die "Can't open '$ihash{$iname}': $!";
+    if ( $halt ) {
+        print "Please use --isos to download missing files.\n";
+        exit 1;
+    }
+
+    unless (($isos) || ($check)) {
+        return $daisohr;
+    }
+
+    $halt = 0;
+    foreach my $da ( @dalist ) {
+        print "Verifing iso checksums for $da ...\n";            # print LONG
+        foreach my $isofile ( @{$daisohr->{ $da }->{list}} ) {
+            my $isoshort = $isofile;
+            $isoshort =~ s|$bdir{isos}||;
+            print $isoshort . " checksum in progress\n" if $debug;
+            open(FILE, $isofile) or
+                die "Can't open '$isofile': $!";
             binmode(FILE);
             my $md5 = Digest::MD5->new->addfile(*FILE)->hexdigest;
             chomp($md5);
-            my $storedmd5 = $isoinfohref->{$iname}->{hash}->{md5};
-            if ($verbose) {
-                print "$ihash{$iname}:  $md5 => $storedmd5\n";
-            }
+            my $iname = basename( $isofile );
+            my $storedmd5 = $daisohr->{$da}->{info}->{$iname}->{hash}->{md5};
+            print "$isoshort : $md5 == $storedmd5 ?\n" if ($debug);
             if ( $md5 ne $storedmd5 ) {
-                print "Bad md5 for $ihash{$iname} : verify source, remove, retry\n";
-                $bad=1;
+                print "Bad md5sum for $isoshort\n";
+                $halt=1;
+            } elsif ( $verbose ) {
+                print "Good md5sum for $isoshort\n";
             }
         }
-        exit 1 if ( $bad );
+    }
+    if ( $halt ) {
+        print  "Please remove file(s) with bad checksum and retry --isos\n";
+        exit 1;
     }
 
-    return \%ihash;
+    return $daisohr;
 }
 
 sub make_paths() {
 
     print "+++++ make_paths\n" if ( $debug > 1 );
 
-    my ($distro, $iodhref) = @_;
+    use File::Basename;
 
-    my $isoinfohref = &baxml_distro_getisospathshashes( $distro );
+    my $distro  = shift;
+    my $addons  = shift;
+    my $daisohr = shift;
+
+    #
+    # $daisohr
+    #   -> { $distro }                   # distro or addon name
+    #     -> { 'list' } = @{$isofiles}   # isos found with complete pathing
+    #     -> { 'info' }
+    #       -> { $isoname }
+    #         -> { 'path' } = "fulldir"  # where to extract isos and share
+    #         -> { 'hash' }              # href to xml data
+    #           -> { 'md5' } = md5sum
+    #           -> { 'url' } = url
+    #                                    # and for distro product base
+    #           -> { 'kernel' } = linux  # relative path to loader
+    #           -> { 'initrd' } = initrd
+    #
+
+    my @dalist;
+
+    push @dalist, $distro if $distro;
+    push @dalist, split( /\s+/, $addons) if ( $addons );
 
     ## Create /tmp/directory to mount iso files for copy
     ##
@@ -1025,20 +1284,30 @@ sub make_paths() {
     mkdir $tdir, 0755 || die ("Cannot create directory\n");
     chmod 0777, $tdir || die "$!\n";
 
-    foreach my $isofile ( keys %{$isoinfohref} ) {
-        if ( -d $isoinfohref->{$isofile}->{path} ) {
-            print "$isoinfohref->{$isofile}->{path} directory exists \n" if $debug;
-        } else {
-            if ($verbose) {
-                print "Creating Build Path $isoinfohref->{$isofile}->{path}\n";
+    print "dalist: " . join( ' ', @dalist ) . "\n" if ( $debug > 1 );
+    foreach my $da ( @dalist ) {
+        foreach my $isofile ( @{$daisohr->{ $da }->{list}} ) {
+            my $iname = basename( $isofile );
+            print "$isofile and $iname\n" if ( $debug > 1 );
+            my $idir  = $daisohr->{ $da }->{info}->{$iname}->{path};
+            if ( -d $idir ) {
+                print "$idir directory exists \n" if $debug;
+            } else {
+                if ($verbose) {
+                    print "Creating Build Path $idir\n";
+                }
+                unless ( mkpath $idir ) {
+                    $LASTERROR = "Unable to create directory\n$!";
+                    return 1;
+                }
+                my ($isoshort, $idirshort) = ($isofile, $idir);
+                $isoshort  =~ s|$bdir{isos}||;
+                $idirshort =~ s|$bdir{isos}||;
+                print "Extraction $isoshort to $idirshort\n";    # print LONG
+                system( "mount -o loop $isofile $tdir" );
+                system( "/usr/bin/rsync -azHl $tdir/* $idir" );
+                system( "umount $tdir" );
             }
-            mkpath $isoinfohref->{$isofile}->{path} or
-                die ("Cannot create directory\n");
-
-            print "Mounting $iodhref->{$isofile}\n" if $debug;
-            system("mount -o loop $iodhref->{$isofile} $tdir");
-            dircp($tdir, $isoinfohref->{$isofile}->{path});
-            system( "umount $tdir" );
         }
     }
 
@@ -1048,89 +1317,78 @@ sub make_paths() {
     return 0;
 }
 
-sub dircp {
-
-    print "+++++ dircp\n" if ( $debug > 1 );
-    my ($source, $target) = @_;
-    if ($verbose) {
-        print "Importing Source: $target\n";
-    }
-
-    system( "/usr/bin/rsync -azHl $source/* $target");
-}
-
 ###########################################################################
 
 sub create_build
 {
     print "+++++ create_build\n" if ( $debug > 1 );
 
-    my $distro = shift;
-    my $iodhref = shift;
-    my $dh = &baxml_distro_gethash( $distro );
-    my ($base, $bh, $share) = &baxml_basedist_keyhash( $distro );
-    my $idistdirhref = &baxml_distro_getisospathshashes( $distro );
-    my $loadhref = &baxml_bootloader_gethash( $distro );
-    my $baseprod = $loadhref->{base};  # location of install boot loader
+    my $distro  = shift;
 
-    ## Fix for bad REQUIRES tag in SLERT10-sp2 content file
-    ##
-    if ($distro =~ /sles-10\.2-rt/) {
-        print "Fixing REQUIRES tag for sles-10.2-rt content\n" if $debug;
-        my $content;
-        # distro iso hash
-        foreach my $isofile ( keys %{$idistdirhref} ) {
-            if ( -f "$idistdirhref->{$isofile}->{path}/content" ) {
-                $content = "$idistdirhref->{$isofile}->{path}/content";
-                last;
-            }
-        }
-        die print "Unable to locate slert content file\n" unless ($content);
-        open(FILE, "<$content") or die "Uable to open slert content file $!";
-        my $cfile = join '', <FILE>;
-        close(FILE);
-        $cfile =~ s/pattern:slert-base//g;
-        open(FILE, ">$content");
-        print FILE $cfile;
-        close(FILE);
-    }
+    my $dh = &baxml_distro_gethash( $distro );
+    my $bh = $dh->{basedisthash};
+
+    my $share = $bh->{basedistpath};
+
+    return unless ( $distro eq $dh->{basedist} );
 
     # driverupdate fix for the aytoyast tftp last ACK
     # for i586/x86_64 sles10.2-11 - bnc 507086
 
     if ($distro =~ /sles-10\.2/ or $distro =~ /sles-11/) {
-        print "Installing driverupdate for sles 10.2 - 11\n" if $debug;
         my $driverupdate_in = "$bdir{'data'}/driverupdate";
-        my $driverupdate_out = "$baseprod/driverupdate";
+        my $driverupdate_out = "$bh->{baseisopath}/driverupdate";
+        if ( $debug ) {
+            print "Installing driverupdate for sles 10.2 - 11\n";
+            print "from $driverupdate_in\n";
+            print "to $driverupdate_out\n";
+        }
 
-        my $addonstyle;
+        my $addonstyle = "";
+
+        # we are base - find any product with non-base addon style
+        # and if that fails then addon then product then addon style
         foreach my $prod ( &baxml_products_getlist( $distro ) ) {
             my $ph = &baxml_product_gethash( $distro, $prod );
             if ( defined $ph->{'addon'} and $ph->{'addon'} ne "base" ) {
                 $addonstyle = $ph->{'addon'};
             }
         }
-        print "addon style is found to be: $addonstyle\n" if ( $debug > 1 );
-
-        if ($addonstyle eq "flat") {
-            if ( -f $driverupdate_out ) {
-                print "driverupdate already installed\n" if $verbose;
-            } else {
-                copy( $driverupdate_in, $driverupdate_out );
+        if ( not $addonstyle and $bh->{addons} ) {
+            foreach my $addon ( @{$bh->{addons}} ) {
+                foreach my $prod ( &baxml_products_getlist( $addon ) ) {
+                    my $ph = &baxml_product_gethash( $addon, $prod );
+                    if ( defined $ph->{'addon'} and $ph->{'addon'} ne "base" ) {
+                        $addonstyle = $ph->{'addon'};
+                    }
+                }
             }
-        } elsif ($addonstyle eq "signed") {
+        }
 
-            use IO::File;
-            # TODO - fix this for smoother sle11 installs - dhb
+        if ( $addonstyle ) {
+            print "addon style is found to be: $addonstyle\n" if ( $debug > 1 );
 
-            # copy, sign, add to directory.yast list
-            # copy( $driverupdate_in, $driverupdate_out );
+            if ($addonstyle eq "flat") {
+                if ( -f $driverupdate_out ) {
+                    print "driverupdate already installed\n" if $verbose;
+                } else {
+                    print "$driverupdate_in => $driverupdate_out\n" if ( $debug );
+                    copy( $driverupdate_in, $driverupdate_out );
+                }
+            } elsif ($addonstyle eq "signed") {
 
-            # $io = IO::File->new( "$driverupdate_out", 'r' );
-            # $sha1->addfile($io);
-            # $io->close;
-            # print FILE $sha1->hexdigest, "  driverupdate\n";
-            ;
+                use IO::File;
+                # TODO - fix this for smoother sle11 installs - dhb
+
+                # copy, sign, add to directory.yast list
+                # copy( $driverupdate_in, $driverupdate_out );
+
+                # $io = IO::File->new( "$driverupdate_out", 'r' );
+                # $sha1->addfile($io);
+                # $io->close;
+                # print FILE $sha1->hexdigest, "  driverupdate\n";
+                ;
+            }
         }
     }
 
@@ -1194,218 +1452,6 @@ sub create_build
     }
 }
 
-sub insert_addon
-{
-    print "+++++ insert_addon\n" if ( $debug > 1 );
-    my $distro = shift;
-
-    my $isoinfohref = &baxml_distro_getisospathshashes( $distro );
-    my $loadhref = &baxml_bootloader_gethash( $distro );
-    my $baseprod = $loadhref->{base};
-
-    # might be working with a distro that has no requires
-    # yet has an <addon>base and <addon>'non-base' for sdk or such
-
-    my $addonstyle;
-    my $addonfile;
-
-    foreach my $prod ( &baxml_products_getlist( $distro ) ) {
-        my $ph = &baxml_product_gethash( $distro, $prod );
-        if ( defined $ph->{'addon'} ) {
-            next if ( $ph->{'addon'} eq "base" );
-            $addonstyle = $ph->{'addon'};
-            print "addon style is found to be: $addonstyle\n" if ( $debug > 1 );
-            foreach my $isofile ( keys %{$isoinfohref} ) {
-
-                if ($addonstyle eq "flat") {
-
-                    $addonfile = "$baseprod/add_on_products";
-                    print "working with $addonfile and $isofile\n" if ( $debug > 1 );
-                    next if $baseprod eq "$isoinfohref->{$isofile}->{path}";
-                    my $addonline = "$buildtype://$buildip$isoinfohref->{$isofile}->{path}";
-                    my $skip = 0;
-                    if ( -f $addonfile ) {
-                        open(PRODUCTS, "<$addonfile") || die ("Cannot open $addonfile: $!\n");
-                        while (<PRODUCTS>) {
-                            if (m|$addonline|) {
-                                print "add_on_products entry already exists\n";
-                                $skip = 1;
-                            }
-                        }
-                        close(PRODUCTS);
-                    }
-                    unless ( $skip ) {
-                        open(PRODUCTS, ">>$addonfile") || die ("Cannot open $addonfile: $!\n");
-                        print PRODUCTS "$addonline\n";
-                        close(PRODUCTS);
-                    }
-                } elsif ($addonstyle eq "signed") {
-
-                    $addonfile = "$baseprod/add_on_products.xml";
-                    print "working with $addonfile and $isofile\n" if ( $debug > 1 );
-                    next if $baseprod eq "$isoinfohref->{$isofile}->{path}";
-                    my $description = $isofile;
-                    $description =~ s/\.iso//;
-
-                    if ( -f $addonfile ) {
-                        open(IN, "<$addonfile") || die ("Cannot open $addonfile: $!\n");
-                        my @xml = <IN>;
-                        close(IN);
-                        if ( grep { /$description/i } @xml ) {
-                            print "Skip $description already in $addonfile\n" if $verbose;
-                            next;
-                        }
-                        # chop off closing lines of xml so we can extend with new addons
-                        @xml = grep { !/product_items>/i } @xml;
-                        @xml = grep { !/add_on_products>/i } @xml;
-                        unlink($addonfile);
-                        open(OUT, ">>$addonfile") || die ("Cannot open $addonfile: $!\n");
-                        print OUT @xml;
-                    } else {
-                        open(OUT, ">$addonfile");
-                        print OUT  "<?xml version=\"1.0\"?>\n";
-                        print OUT  "<add_on_products xmlns=\"http://www.suse.com/1.0/yast2ns\" xmlns:config=\"http://www.suse.com/1.0/configns\">\n";
-                        print OUT  "    <product_items config:type=\"list\">\n";
-                    }
-
-                    #
-                    #  PLEASE KEEP ORDER \s*<product_item>\s+<name>$description
-                    #
-                    print OUT  "        <product_item>\n";
-                    print OUT  "            <name>$description</name>\n";
-                    print OUT  "            <url>$buildtype://$buildip$isoinfohref->{$isofile}->{path}</url>\n";
-                    print OUT  "            <path>/</path>\n";
-                    print OUT  "            <ask_user config:type=\"boolean\">false</ask_user>\n";
-                    print OUT  "            <selected config:type=\"boolean\">true</selected>\n";
-                    print OUT  "        </product_item>\n";
-                    print OUT "    </product_items>\n";
-                    print OUT  "</add_on_products>\n";
-                    close(OUT);
-
-                    ## Create SHA1SUMS file
-                    ##
-                    unlink("$baseprod/SHA1SUMS", "$baseprod/SHA1SUMS.asc");
-                    open(FILE, ">$baseprod/SHA1SUMS") || die ("Cannot open $baseprod/SHA1SUMS");
-                    use IO::File;
-                    use Digest::SHA1 qw(sha1 sha1_hex sha1_base64);
-                    my $io = IO::File->new( "$addonfile", 'r' );
-                    my $sha1 = Digest::SHA1->new;
-                    $sha1->addfile($io);
-                    $io->close;
-                    print FILE $sha1->hexdigest, "  add_on_products.xml\n";
-                    close(FILE);
-
-                    ## Sign SHA1SUMS
-                    ##
-                    system("gpg", "--homedir=$bdir{data}/gpghome/.gnupg", "-b", "--sign", "--default-key=C685894B", "--armor", "$baseprod/SHA1SUMS");
-                    copy("$bdir{data}/gpghome/.gnupg/my-key.gpg", "$baseprod/SHA1SUMS.key");
-                    system("ls $baseprod > $baseprod/directory.yast");
-                }
-            }
-        }
-    }
-}
-
-sub expunge_addon
-{
-    print "+++++ expunge_addon\n" if ( $debug > 1 );
-    my $distro = shift;
-
-    my $isoinfohref = &baxml_distro_getisospathshashes( $distro );
-    my $loadhref = &baxml_bootloader_gethash( $distro );
-    my $baseprod = $loadhref->{base};
-
-    # might be working with a distro that has no requires
-    # yet has an <addon>base and <addon>'non-base' for sdk or such
-
-    my $addonstyle;
-    my $addonfile;
-
-    foreach my $prod ( &baxml_products_getlist( $distro ) ) {
-        my $ph = &baxml_product_gethash( $distro, $prod );
-        if ( defined $ph->{'addon'} ) {
-            next if ( $ph->{'addon'} eq "base" );
-            $addonstyle = $ph->{'addon'};
-            print "addon style is found to be: $addonstyle\n" if ( $debug > 1 );
-            foreach my $isofile ( keys %{$isoinfohref} ) {
-
-                my $found = 0;
-                my $products;
-                if ($addonstyle eq "flat") {
-
-                    next if $baseprod eq "$isoinfohref->{$isofile}->{path}";
-                    $addonfile = "$baseprod/add_on_products";
-                    print "working with $addonfile and $isofile\n" if ( $debug > 1 );
-                    my $addonline = "$buildtype://$buildip$isoinfohref->{$isofile}->{path}";
-                    if ( -f $addonfile ) {
-                        open(PRODUCTS, "<$addonfile") || die ("Cannot open $addonfile: $!\n");
-                        $products = join '', <PRODUCTS>;
-                        close PRODUCTS;
-
-                        if ( $products =~ m|$addonline|) {
-                            print "Found entry in $addonfile - $addonline\n" if $verbose;
-                            $found = 1;
-                        }
-                    }
-                    next unless ( $found );
-
-                    $products =~ s|$addonline\s*\n||;
-                    open(PRODUCTS, ">$addonfile") || die ("Cannot open $addonfile: $!\n");
-                    print PRODUCTS $products;
-                    close PRODUCTS;
-
-                } elsif ($addonstyle eq "signed") {
-
-                    next if $baseprod eq "$isoinfohref->{$isofile}->{path}";
-                    $addonfile = "$baseprod/add_on_products.xml";
-                    print "working with $addonfile and $isofile\n" if ( $debug > 1 );
-                    my $description = $isofile;
-                    $description =~ s/\.iso//;
-
-                    if ( -f $addonfile ) {
-
-                        open(PRODUCTS, "<$addonfile") || die ("Cannot open $addonfile: $!\n");
-                        $products = join '', <PRODUCTS>;
-                        close PRODUCTS;
-
-                        $description = qr|$description|o;
-                        if ( $products =~ m|$description| ) {
-                            print "Found entry in $addonfile - $description\n" if $verbose;
-                            $found = 1;
-                            $products =~ s|\s*<product_item>\s+<name>$description</name>.*?</product_item>||gs ;
-                        }
-                    }
-                    next unless ( $found );
-
-                    open(PRODUCTS, ">$addonfile");
-                    print PRODUCTS $products;
-                    close PRODUCTS;
-
-                    ## Create SHA1SUMS file
-                    ##
-                    unlink("$baseprod/SHA1SUMS", "$baseprod/SHA1SUMS.asc");
-                    open(FILE, ">$baseprod/SHA1SUMS") || die ("Cannot open $baseprod/SHA1SUMS");
-                    use IO::File;
-                    use Digest::SHA1 qw(sha1 sha1_hex sha1_base64);
-                    my $io = IO::File->new( "$addonfile", 'r' );
-                    my $sha1 = Digest::SHA1->new;
-                    $sha1->addfile($io);
-                    $io->close;
-                    print FILE $sha1->hexdigest, "  add_on_products.xml\n";
-                    close(FILE);
-
-                    ## Sign SHA1SUMS
-                    ##
-                    system("gpg", "--homedir=$bdir{data}/gpghome/.gnupg", "-b", "--sign", "--default-key=C685894B", "--armor", "$baseprod/SHA1SUMS");
-                    copy("$bdir{data}/gpghome/.gnupg/my-key.gpg", "$baseprod/SHA1SUMS.key");
-                    system("ls $baseprod > $baseprod/directory.yast");
-
-                }
-            }
-        }
-    }
-}
-
 sub streamline_install
 {
     print "+++++ streamline_install\n" if ( $debug > 1 );
@@ -1430,7 +1476,9 @@ sub streamline_install
     }
 
     if ( $remove ) {
-        my ($base, $bh, $share) = &baxml_basedist_keyhash( $distro );
+        my $dh = &baxml_distro_gethash( $distro );
+        print "streamline_install calling get_distro_share($distro)\n";
+        my ($share,undef) = &get_distro_share( $distro );
 
         my @dyast;
         find ( { wanted =>
@@ -1468,18 +1516,21 @@ sub add_bootloader_files() {
     mkdir $tdir, 0755 || die ("Cannot create directory\n");
     chmod 0777, $tdir || die "$!\n";
 
-    my $files = &baxml_bootloader_gethash( $distro );
+    my $dh = &baxml_distro_gethash( $distro );
+    my $bh = $dh->{basedisthash};
+
+    my $basedist = $dh->{basedist};
     if ( &sqlfs_getstate( "linux.$distro" ) ) {
-        print "found bootloader linux.$distro in tftp database\n" if $verbose;
+        print "found bootloader linux.$basedist in tftp database\n" if $verbose;
     } else {
-        copy($files->{kernel},"$tdir/linux.$distro") or die "Copy failed: $!";
-        &sqlfs_store( "$tdir/linux.$distro" );
-        unlink ( "$tdir/linux.$distro" );
+        copy($bh->{baselinux},"$tdir/linux.$basedist") or die "Copy failed: $!";
+        &sqlfs_store( "$tdir/linux.$basedist" );
+        unlink ( "$tdir/linux.$basedist" );
     }
-    if( &sqlfs_getstate( "initrd.$distro" ) ) {
-        print "found bootloader initrd.$distro in tftp database\n" if $verbose;
+    if( &sqlfs_getstate( "initrd.$basedist" ) ) {
+        print "found bootloader initrd.$basedist in tftp database\n" if $verbose;
     } else {
-        copy($files->{initrd},"$tdir/initrd.gz") or die "Copy failed: $!";
+        copy($bh->{baseinitrd},"$tdir/initrd.gz") or die "Copy failed: $!";
         if ( $distro =~ /sles-11/ ) {
             system("gunzip", "$tdir/initrd.gz");
             copy("$bdir{data}/gpghome/.gnupg/my-key.gpg", "$tdir/my-key.gpg") or
@@ -1488,11 +1539,12 @@ sub add_bootloader_files() {
             unlink( "$tdir/my-key.gpg" );
             system("gzip", "$tdir/initrd");
         }
-        copy("$tdir/initrd.gz", "$tdir/initrd.$distro") or die "Copy failed: $!";
+        copy("$tdir/initrd.gz", "$tdir/initrd.$basedist") or
+            die "Copy failed: $!";
         unlink( "$tdir/initrd.gz" );
 
-        &sqlfs_store( "$tdir/initrd.$distro" );
-        unlink( "$tdir/initrd.$distro" );
+        &sqlfs_store( "$tdir/initrd.$basedist" );
+        unlink( "$tdir/initrd.$basedist" );
     }
 
     print "removing tempdir $tdir\n" if ($debug > 1);
@@ -1505,29 +1557,25 @@ sub add_bootloader_files() {
     my $pxe = join '', <PXEFILE>;
     close(PXEFILE);
 
-    my $dh = &baxml_distro_gethash( $distro );
-    my $basepath = join '/',
-        $bdir{'builds'}, $dh->{os}, $dh->{release}, $dh->{arch};
-
     $pxe =~ s/%PXEID%/$distro/g;
     $pxe =~ s/%TYPE%/$buildtype/g;
     $pxe =~ s/%IP%/$buildip/g;
     if ( $distro =~ /sles-9/ ) {
-        $pxe =~ s|%PATH%|$basepath/|g;
+        $pxe =~ s|%PATH%|$bh->{distpath}/|g;
     } else {
-        $pxe =~ s|%PATH%|$basepath/dvd/|g;
+        $pxe =~ s|%PATH%|$bh->{baseprodpath}/|g;
     }
 
     # store won't overwrite ( $name, \$contentref, [ description ] )
-    if ( &sqlfs_getstate( "template.$buildtype.$distro" ) ) {
-        print "found bootloader template.$buildtype.$distro in tftp database\n" if $verbose;
+    if ( &sqlfs_getstate( "template.$buildtype.$basedist" ) ) {
+        print "found bootloader template.$buildtype.$basedist in tftp database\n" if $verbose;
     } else {
-        &sqlfs_storeScalar( "template.$buildtype.$distro", \$pxe );
+        &sqlfs_storeScalar( "template.$buildtype.$basedist", \$pxe );
     }
     # TODO:  perhaps create a menu of install sources to choose from
     # NOTE:  SqlFS is 'flat' so 'default' is only used for lookup match here
     unless ( &sqlfs_getstate( "default" ) ) {
-        &sqlfs_storeScalar( "default", \$pxe, "template.$buildtype.$distro" );
+        &sqlfs_storeScalar( "default", \$pxe, "template.$buildtype.$basedist" );
     }
 }
 
@@ -1537,18 +1585,20 @@ sub remove_bootloader_files() {
 
     my $distro = shift;
 
-    my $files = &baxml_bootloader_gethash( $distro );
+    my $dh = &baxml_distro_gethash( $distro );
+    my $bh = $dh->{basehash};
+    my $basedist = $dh->{basedist};
 
-    if ( &sqlfs_getstate( "linux.$distro" ) ) {
-        &sqlfs_remove( "linux.$distro" );
+    if ( &sqlfs_getstate( "linux.$basedist" ) ) {
+        &sqlfs_remove( "linux.$basedist" );
     }
-    if ( &sqlfs_getstate( "initrd.$distro" ) ) {
-        &sqlfs_remove( "initrd.$distro" );
+    if ( &sqlfs_getstate( "initrd.$basedist" ) ) {
+        &sqlfs_remove( "initrd.$basedist" );
     }
 
     foreach my $type ( "http", "nfs" ) {
-        if ( &sqlfs_getstate( "template.$type.$distro" ) ) {
-            &sqlfs_remove( "template.$type.$distro" );
+        if ( &sqlfs_getstate( "template.$type.$basedist" ) ) {
+            &sqlfs_remove( "template.$type.$basedist" );
         }
     }
 }
@@ -1561,44 +1611,63 @@ sub add_build_service
 {
     print "+++++ add_build_service\n" if ( $debug > 1 );
     my $distro = shift;
+    my $addons = shift;
 
-    my $dh = &baxml_distro_gethash( $distro );
-    my $basepath = join '/',
-        $bdir{'builds'}, $dh->{os}, $dh->{release}, $dh->{arch};
+    my @dalist;
 
-    my ($file, $state) = &check_serviceconfig( $distro, $buildtype );
+    push @dalist, $distro if $distro;
+    push @dalist, split( /\s+/, $addons) if ( $addons );
 
-    if ( $state ) {
-        print "$buildtype file $file already modified for $distro\n" if $verbose;
-        return 0;
-    }
+    my $restartservice = 0;
+    foreach my $da ( @dalist ) {
 
-    if ($buildtype eq "nfs") {
-        open(FILE, ">>$file") || die ("Cannot open $file\n$!");
-        print FILE "$basepath\t*(ro,root_squash,insecure,sync,no_subtree_check)\n";
-        close(FILE);
-        system("/usr/sbin/exportfs -r");
-    }
+        foreach my $prod ( &baxml_products_getlist( $da ) ) {
 
-    if ($buildtype eq "http") {
-        open(FILE, "<$bdir{'data'}/templates/inst_server.conf.in") or
-            die ("Cannot open file\n");
-        my $httpdconf = join '', <FILE>;
-        close(FILE);
+            my ($file, $share, $state) =
+                &check_service_product( $da, $prod, $buildtype );
 
-        unless ( -d "/etc/apache2/conf.d/") {
-            mkpath "/etc/apache2/conf.d/" || die ("Cannot create directory\n");
+            if ( $state ) {
+                print "$buildtype file $file found added for $da\n" if $verbose;
+            }
+            else {
+                print "modifying $file adding $share\n" if ( $debug );
+
+                $restartservice = 1;
+
+                if ($buildtype eq "nfs") {
+                    open(FILE, ">>$file") || die ("Cannot open $file\n$!");
+                    print FILE "$share\t*(ro,root_squash,insecure,sync,no_subtree_check)\n";
+                    close(FILE);
+                }
+
+                if ($buildtype eq "http") {
+                    open(FILE, "<$bdir{'data'}/templates/inst_server.conf.in") or
+                        die ("Cannot open file\n");
+                    my $httpdconf = join '', <FILE>;
+                    close(FILE);
+
+                    unless ( -d "/etc/apache2/conf.d/") {
+                        mkpath "/etc/apache2/conf.d/" || die ("Cannot create directory\n");
+                    }
+
+                    open(FILE, ">$file") || die ("Cannot open $file\n");
+                    $httpdconf =~ s|%OS%|$da|g;
+                    $httpdconf =~ s|%ALIAS%|/install/$da/|g;
+                    $httpdconf =~ s|%SERVERDIR%|$share/|g;
+                    print FILE $httpdconf;
+                    close(FILE);
+
+                }
+            }
         }
-
-        open(FILE, ">$file") || die ("Cannot open $file\n");
-        $httpdconf =~ s/%OS%/$distro/g;
-        $httpdconf =~ s|%ALIAS%|/install/$distro/|g;
-        $httpdconf =~ s|%SERVERDIR%|$basepath/|g;
-        print FILE $httpdconf;
-        close(FILE);
-
-        system("/etc/init.d/apache2 reload");
-
+    }
+    if ( $restartservice ) {
+        if ($buildtype eq "nfs") {
+            system("/usr/sbin/exportfs -r");
+        }
+        if ($buildtype eq "http") {
+            system("/etc/init.d/apache2 reload");
+        }
     }
 }
 
@@ -1607,106 +1676,74 @@ sub remove_build_service
 {
     print "+++++ remove_build_service\n" if ( $debug > 1 );
     my $distro = shift;
+    my $addons = shift;
 
-    my $dh = &baxml_distro_gethash( $distro );
-    my $basepath = join '/',
-        $bdir{'builds'}, $dh->{os}, $dh->{release}, $dh->{arch};
+    my @dalist;
 
-    if ($buildtype eq "nfs") {
+    push @dalist, $distro if $distro;
+    push @dalist, split( /\s+/, $addons) if ( $addons );
 
-        my $found = 0;
-        if ( -f "/etc/exports" ) {
-            open(FILE, "</etc/exports") || die ("Cannot open file\n");
-            while (<FILE>) {
-                if (m|$basepath|) {
-                    $found = 1;
+    my $restartservice = 0;
+    foreach my $da ( @dalist ) {
+
+        foreach my $prod ( &baxml_products_getlist( $da ) ) {
+
+            my ($file, $share, $state) =
+                &check_service_product( $da, $prod, $buildtype );
+
+            if ( not $state ) {
+                print "$buildtype file $file found removed for $da\n" if $verbose;
+            } else {
+                print "modifying $file removing $share\n" if ( $debug );
+
+                $restartservice = 1;
+
+                if ($buildtype eq "nfs") {
+                    copy("/etc/exports", "/etc/exports.bak");
+                    open(OUTFILE, ">/etc/exports") || die ("Cannot open file\n");
+                    open(INFILE, "</etc/exports.bak") || die ("Cannot open file\n");
+                    while (<INFILE>) {
+                        unless (m|$share|) {
+                            print OUTFILE $_;
+                        }
+                    }
+                    close(INFILE);
+                    close(OUTFILE);
+                    unlink("/etc/exports.bak");
+                }
+
+                if ($buildtype eq "http") {
+                    unlink( $file );
                 }
             }
-            close(FILE);
         }
-        if ( not $found ) {
-            print "NFS export already removed\n";
-        }
-        else {
-            copy("/etc/exports", "/etc/exports.bak");
-            open(OUTFILE, ">/etc/exports") || die ("Cannot open file\n");
-            open(INFILE, "</etc/exports.bak") || die ("Cannot open file\n");
-            while (<INFILE>) {
-                unless (m|$basepath|) {
-                    print OUTFILE $_;
-                }
-            }
-            close(INFILE);
-            close(OUTFILE);
-            unlink("/etc/exports.bak");
-
+    }
+    if ( $restartservice ) {
+        if ($buildtype eq "nfs") {
             system("/usr/sbin/exportfs -r");
         }
-    }
-
-    if ($buildtype eq "http") {
-
-        if ( -f "/etc/apache2/conf.d/$distro\_server.conf") {
-            unlink("/etc/apache2/conf.d/$distro\_server.conf");
+        if ($buildtype eq "http") {
             system("/etc/init.d/apache2 reload");
-
-        } else {
-            print "HTTP ${distro}_server.config already removed\n";
         }
     }
-}
-
-sub enable_service() {
-
-    print "+++++ enable_service\n" if ( $debug > 1 );
-    my $buildtype = shift @_;
-
-    if ($verbose) {
-        print "Enabling $buildtype ... \n";
-    }
-    $buildtype =~ s/http/apache2/;
-    $buildtype =~ s/nfs/nfsserver/;
-    system("chkconfig $buildtype on");
-    system("/etc/init.d/$buildtype start")
-}
-
-sub disable_service() {
-
-    print "+++++ disable_service\n" if ( $debug > 1 );
-    my $buildtype = shift @_;
-
-    ## Disable service
-    ##
-    if ($verbose) {
-        print "Disabling $buildtype ... \n";
-    }
-    $buildtype =~ s/http/apache2/;
-    $buildtype =~ s/nfs/nfsserver/;
-    system("chkconfig $buildtype off");
-    system("/etc/init.d/$buildtype stop");
-}
-
-# status returns 0 if enabled
-sub check_service() {
-    print "+++++ check_service\n" if ( $debug > 1 );
-    my $buildtype = shift @_;
-
-    $buildtype =~ s/http/apache2/;
-    $buildtype =~ s/nfs/nfsserver/;
-    system("/etc/init.d/$buildtype status >& /dev/null");
 }
 
 # return filename and state 0-missing 1-found for service config mods
-sub check_serviceconfig() {
+sub check_service_product
+{
     print "+++++ check_serviceconfig\n" if ( $debug > 1 );
     my $distro    = shift;
-    my $buildtype = shift;
+    my $product   = shift;
+    my $type      = shift;
 
-    my ($base, $bh, $share) = &baxml_basedist_keyhash( $distro );
+    my $dh = &baxml_distro_gethash( $distro );
+
+    my ($share, $name) = &get_distro_share( $distro );
 
     my $file;
     my $state = 0;
-    if ($buildtype eq "nfs") {
+
+    if ($type eq "nfs") {
         $file = "/etc/exports";
         if ( -f $file ) {
             open(FILE, "<$file") or die ("Cannot open $file\n$!");
@@ -1718,11 +1755,52 @@ sub check_serviceconfig() {
             close(FILE);
         }
     }
-    if ($buildtype eq "http") {
-        $file = "/etc/apache2/conf.d/$base\_server.conf";
+    if ($type eq "http") {
+        $file = "/etc/apache2/conf.d/$name.conf";
         $state = 1 if ( -f $file);
     }
-    return $file, $state;
+
+    return $file, $share, $state;
+}
+
+sub enable_service() {
+
+    print "+++++ enable_service\n" if ( $debug > 1 );
+    my $type = shift @_;
+
+    if ($verbose) {
+        print "Enabling $type ... \n";
+    }
+    $type =~ s/http/apache2/;
+    $type =~ s/nfs/nfsserver/;
+    system("chkconfig $type on");
+    system("/etc/init.d/$type start")
+}
+
+sub disable_service() {
+
+    print "+++++ disable_service\n" if ( $debug > 1 );
+    my $type = shift @_;
+
+    ## Disable service
+    ##
+    if ($verbose) {
+        print "Disabling $type ... \n";
+    }
+    $type =~ s/http/apache2/;
+    $type =~ s/nfs/nfsserver/;
+    system("chkconfig $type off");
+    system("/etc/init.d/$type stop");
+}
+
+# status returns 0 if enabled
+sub check_service() {
+    print "+++++ check_service\n" if ( $debug > 1 );
+    my $type = shift @_;
+
+    $type =~ s/http/apache2/;
+    $type =~ s/nfs/nfsserver/;
+    system("/etc/init.d/$type status >& /dev/null");
 }
 
 ###########################################################################
@@ -1733,7 +1811,7 @@ sub sqlfs_getstate
 {
     my $file = shift;
     my $state = 0;
-    print "setting uid to $dbrole\n" if ($debug > 1);
+    print "setting uid to $dbrole\n" if ($debug > 2);
     $uid = BaracusDB::su_user( $dbrole );
 
     my $sel = $sqlfsOBJ->detail( $file );
@@ -1744,7 +1822,7 @@ sub sqlfs_getstate
             $state = 2;
         }
     }
-    print "setting uid back to $uid\n" if ($debug > 1);
+    print "setting uid back to $uid\n" if ($debug > 2);
     $> = $uid;
 
     return $state;
@@ -1755,13 +1833,13 @@ sub sqlfs_store
 {
     my $file = shift;
     my $status = 0;
-    print "setting uid to $dbrole\n" if ($debug > 1);
+    print "setting uid to $dbrole\n" if ($debug > 2);
     $uid = BaracusDB::su_user( $dbrole );
     $status = $sqlfsOBJ->store( $file );
     if ( $status ) {
         warn "Store failed to store $file in sqlfs\n";
     }
-    print "setting uid back to $uid\n" if ($debug > 1);
+    print "setting uid back to $uid\n" if ($debug > 2);
     $> = $uid;
     return $status;
 }
@@ -1774,13 +1852,13 @@ sub sqlfs_storeScalar
     my $desc = shift;
 
     my $status = 0;
-    print "setting uid to $dbrole\n" if ($debug > 1);
+    print "setting uid to $dbrole\n" if ($debug > 2);
     $uid = BaracusDB::su_user( $dbrole );
     $status = $sqlfsOBJ->storeScalar( $file, $ref, $desc );
     if ( $status ) {
         warn "StoreScalar failed to store $file in sqlfs\n";
     }
-    print "setting uid back to $uid\n" if ($debug > 1);
+    print "setting uid back to $uid\n" if ($debug > 2);
     $> = $uid;
     return $status;
 }
@@ -1790,62 +1868,88 @@ sub sqlfs_remove
 {
     my $file = shift;
     my $status = 0;
-    print "setting uid to $dbrole\n" if ($debug > 1);
+    print "setting uid to $dbrole\n" if ($debug > 2);
     $uid = BaracusDB::su_user( $dbrole );
     $status = $sqlfsOBJ->remove( $file );
     if ( $status ) {
         warn "Unable to remove $file from sqlfs\n";
     }
-    print "setting uid back to $uid\n" if ($debug > 1);
+    print "setting uid back to $uid\n" if ($debug > 2);
     $> = $uid;
     return $status;
 }
 
 ###########################################################################
-# sqlfstable_reg - basource state relation
+# distro_cfg - basource state relation
 
 sub source_register() {
 
     print "+++++ source_register\n" if ( $debug > 1 );
     my $command = shift;
-    my $distro = shift;
+    my $distro  = shift;
+    my $addons  = shift;
 
-    print "setting uid to $dbrole\n" if ($debug > 1);
+    print "setting uid to $dbrole\n" if ($debug > 2);
     $uid = BaracusDB::su_user( $dbrole );
 
     if ($command eq "add") {
 
-        print "Updating registration: add $distro\n";
-        my $href = &get_db_source_entry( $distro );
-        if ( defined $href->{distro} and $href->{distro} eq $distro ) {
-            $LASTERROR = "Distro already registered: $distro\n";
-            return 1;
-        }
+        my @dalist;
 
-        &add_db_source_entry( $distro );
+        push @dalist, $distro if $distro;
+        push @dalist, split( /\s+/, $addons) if ( $addons );
+
+        foreach my $da ( @dalist ) {
+            print "Updating registration: add $da\n";
+            my $dbref = &get_db_source_entry( $da );
+            unless ( defined $dbref->{distroid} and
+                     ( $dbref->{distroid} eq $da ) and
+                     defined $dbref->{staus} and
+                     ( $dbref->{staus} != BaracusSql::BA_DELETED ) ) {
+                &add_db_source_entry( $da );
+            }
+        }
     }
 
     elsif ($command eq "remove") {
 
         print "Updating registration: remove $distro\n";
-        my $sql = q|DELETE FROM sqlfstable_reg
-                    WHERE distro=?|;
+#        my $sql = q|DELETE FROM sqlfstable_reg
+#                    WHERE distro=?|;
+
+        my $sql = q|UPDATE distro_cfg
+                    SET change=CURRENT_TIMESTAMP(0),
+                        status=?
+                    WHERE distroid=?|;
 
         my $sth = $dbh->prepare( $sql )
             or die "Cannot prepare sth: ",$dbh->errstr;
 
-        $sth->execute( $distro )
-            or die "Cannot execute sth: ", $sth->errstr;
+        my @dalist;
+
+        push @dalist, $distro if $distro;
+        push @dalist, split( /\s+/, $addons) if ( $addons );
+
+        foreach my $da ( @dalist ) {
+            $sth->execute( BaracusSql::BA_DELETED, $da )
+                or die "Cannot execute sth: ", $sth->errstr;
+        }
 
     }
 
     elsif ($command eq "disable") {
 
         print "Updating registration: disable $distro\n";
-        my $sql = q|UPDATE sqlfstable_reg
-                    SET modify_date=CURRENT_TIMESTAMP(0),
+
+#        my $sql = q|UPDATE sqlfstable_reg
+#                    SET modify_date=CURRENT_TIMESTAMP(0),
+#                        status=?
+#                    WHERE distro=?|;
+
+        my $sql = q|UPDATE distro_cfg
+                    SET change=CURRENT_TIMESTAMP(0),
                         status=?
-                    WHERE distro=?|;
+                    WHERE distroid=?|;
 
         my $sth = $dbh->prepare( $sql )
             or die "Cannot prepare sth: ",$dbh->errstr;
@@ -1858,10 +1962,16 @@ sub source_register() {
     elsif ($command eq "enable") {
 
         print "Updating registration: enable $distro\n";
-        my $sql = q|UPDATE sqlfstable_reg
-                    SET modify_date=CURRENT_TIMESTAMP(0),
+
+#        my $sql = q|UPDATE sqlfstable_reg
+#                    SET modify_date=CURRENT_TIMESTAMP(0),
+#                        status=?
+#                    WHERE distro=?|;
+
+        my $sql = q|UPDATE distro_cfg
+                    SET change=CURRENT_TIMESTAMP(0),
                         status=?
-                    WHERE distro=?|;
+                    WHERE distroid=?|;
 
         my $sth = $dbh->prepare( $sql )
             or die "Cannot prepare sth: ",$dbh->errstr;
@@ -1876,7 +1986,7 @@ sub source_register() {
         return 1;
     }
 
-    print "setting uid back to $uid\n" if ($debug > 1);
+    print "setting uid back to $uid\n" if ($debug > 2);
     $> = $uid;
 
     return 0;
@@ -1886,15 +1996,15 @@ sub get_db_source_entry() {
 
     my $distro = shift;
 
-    my $sql = q|SELECT distro,
+    my $sql = q|SELECT distroid,
                        buildip,
-                       basepath,
                        type,
+                       basepath,
                        status,
-                       create_date,
-                       modify_date
-                FROM sqlfstable_reg
-                WHERE distro = ?|;
+                       creation,
+                       change
+                FROM distro_cfg
+                WHERE distroid = ?|;
 
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare sth: ",$dbh->errstr;
@@ -1918,31 +2028,138 @@ sub add_db_source_entry() {
     print "Registering source: $distro $buildip $bdir{root} $buildtype\n"
         if ($verbose);
 
+    my $sql;
+    my $sth;
+
     my $dh = &baxml_distro_gethash( $distro );
-    my $basepath = join '/',
-        $bdir{'builds'}, $dh->{os}, $dh->{release}, $dh->{arch};
 
-    my $sql = q|INSERT INTO sqlfstable_reg ( distro,
-                                             buildip,
-                                             basepath,
-                                             type,
-                                             status,
-                                             create_date,
-                                             modify_date
-                                           )
-                VALUES (?, ?, ?, ?, ?,  CURRENT_TIMESTAMP(0), null )|;
+    my ($share,undef) = get_distro_share( $distro );
 
-    my $sth = $dbh->prepare( $sql )
-        or die "Cannot prepare sth: ",$dbh->errstr;
+    my $dbref = &get_db_source_entry( $distro );
 
-    $sth->bind_param( 1, $distro    );
-    $sth->bind_param( 2, $buildip   );
-    $sth->bind_param( 3, $basepath  );
-    $sth->bind_param( 4, $buildtype );
-    $sth->bind_param( 5, BaracusSql::BA_READY );
+    if ( defined $dbref ) {
+        $sql = q|UPDATE distro_cfg
+                 SET creation=CURRENT_TIMESTAMP(0),
+                     change=NULL,
+                     buildip=?,
+                     type=?,
+                     basepath=?,
+                     status=?
+                 WHERE distroid=?|;
 
-    $sth->execute()
-        or die "Cannot execute sth: ", $sth->errstr;
+        $sth = $dbh->prepare( $sql )
+            or die "Cannot prepare sth: ",$dbh->errstr;
+
+        $sth->bind_param( 1, $buildip    );
+        $sth->bind_param( 2, $buildtype  );
+        $sth->bind_param( 3, $share      );
+        $sth->bind_param( 4, BaracusSql::BA_READY );
+        $sth->bind_param( 5, $distro     );
+
+        $sth->execute()
+            or die "Cannot execute sth: ", $sth->errstr;
+    } else {
+        $sql = q|INSERT INTO distro_cfg ( distroid,
+                                          os,
+                                          release,
+                                          arch,
+                                          description,
+                                          addon,
+                                          addos,
+                                          addrel,
+                                          buildip,
+                                          type,
+                                          basepath,
+                                          status,
+                                          creation,
+                                          change,
+                                        )
+                 VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                          CURRENT_TIMESTAMP(0), NULL ) |;
+
+        $sth = $dbh->prepare( $sql )
+            or die "Cannot prepare sth: ",$dbh->errstr;
+
+        $sth->bind_param( 1, $distro        );
+        $sth->bind_param( 2, $dh->{os}      );
+        $sth->bind_param( 3, $dh->{release} );
+        $sth->bind_param( 4, $dh->{arch}    );
+        $sth->bind_param( 5, $dh->{description} );
+        if ( defined $dh->{addos} and $dh->{addos} ) {
+            $sth->bind_param( 6, 1 );
+            $sth->bind_param( 7, $dh->{addos} );
+            if ( defined $dh->{addrel} and $dh->{addrel} ) {
+                $sth->bind_param( 8, $dh->{addrel} );
+            } else {
+                $sth->bind_param( 8, 'NULL' );
+            }
+        } else {
+            $sth->bind_param( 6, 0 );
+            $sth->bind_param( 7, 'NULL' );
+            $sth->bind_param( 8, 'NULL' );
+        }
+        $sth->bind_param( 9,  $buildip    );
+        $sth->bind_param( 10, $buildtype  );
+        $sth->bind_param( 11, $share      );
+        $sth->bind_param( 12, BaracusSql::BA_READY );
+
+        print "dist $distro os $dh->{os} rel $dh->{release} arch $dh->{arch} desc $dh->{description} addos $dh->{addos} addrel $dh->{addrel} ip $buildip type $buildtype share $share\n";
+        $sth->execute()
+            or die "Cannot execute sth: ", $sth->errstr;
+    }
+}
+
+sub get_distro_sdk
+{
+    my $distro = shift;
+
+    my $dh = &baxml_distro_gethash( $distro );
+    unless ( defined $dh->{basedisthash}->{addons} ) {
+        return undef;
+    }
+
+    my @addons = @{$dh->{basedisthash}->{addons}};
+
+    foreach my $addon ( @addons ) {
+        return $addon if ($addon =~ /\-sdk\-/);
+    }
+    return undef;
+}
+
+sub get_distro_share
+{
+    my $distro = shift;
+
+    my $share;
+    my $name;
+
+    # collapse multi prod sles-9 down to
+    # os/release/arch
+
+    # all other shares have one installable product
+    # os/release/arch[/addos[/addrel]]/product
+
+    if ( $distro =~ /sles-9/ ) {
+        my $dh = &baxml_distro_gethash( $distro );
+        $share = $dh->{basedisthash}->{distpath};
+        $name  = "$dh->{basedist}_server";
+    }
+    elsif ( $distro =~ /opensuse-11.1/ ) {
+        my $dh = &baxml_distro_gethash( $distro );
+        $share = $dh->{basedisthash}->{distpath};
+        $name  = "$dh->{basedist}_server";
+    }
+    else {
+        my @prods = &baxml_products_getlist( $distro );
+        if ( scalar @prods > 1 ) {
+            die "get_distro_share: Unsure how to handle multiple product distro $distro\n";
+        }
+        my $ph = &baxml_product_gethash( $distro, $prods[0] );
+        $share = $ph->{prodpath};
+        $name = "$distro-$prods[0]_server";
+    }
+    print "get_distro_share: returning share $share and name $name\n" if $debug;
+    return ($share, $name);
 }
 
 sub list_installed_addons
@@ -1950,16 +2167,16 @@ sub list_installed_addons
     my $distro = shift;
     my @list;
 
-    my $bihol = &baxml_baseaddons_gethol();
     my $dh = &baxml_distro_gethash( $distro );
+    my $bh = $dh->{basedisthash};
+    my $base = $dh->{basedist};
 
-    # get base key for base hash of addon lists
-    my $base = "$dh->{os}-$dh->{release}-$dh->{arch}";
-
-    foreach my $dist ( @{$bihol->{$base}} ) {
+    foreach my $dist ( @{$bh->{addons}} ) {
         print "is distro $base addon $dist 'added' ? " if $debug;
         my $dbref = &get_db_source_entry( $dist );
-        if ( defined $dbref and $dbref->{distro} eq $dist ) {
+        if ( defined $dbref and defined $dbref->{status} and
+             ( $dbref->{distroid} eq $dist ) and
+             ( $dbref->{status} != BaracusSql::BA_DELETED ) ) {
             print "YES\n" if $debug;
             push @list, $dist;
         } else {
@@ -1989,6 +2206,7 @@ sub multiarg_handler() {
         @values = ( $buildtype, "dhcpd" );
     }
     foreach $value (@values) {
+        $value = lc $value;
         if ( $option eq "vars" ) {
             # special check for key=value assignment syntax
             die("FINISH") if ( $value !~ m/=/ );
@@ -2011,20 +2229,6 @@ sub multiarg_handler() {
 #      /usr/share/baracus/badistro.xml
 #      /usr/share/baracus/perl/badistro_check_xml.pl
 
-sub baxml_load
-{
-    use XML::Simple;
-
-    my $xmlfile = shift;
-
-    my $xs = XML::Simple->new ( SuppressEmpty => 1,
-                                ForceArray => [ qw (distro product iso) ],
-                                KeyAttr => { distro => 'name',
-                                             product => 'name',
-                                             iso => 'name' } );
-    $xs->XMLin( $xmlfile );
-}
-
 #
 #  All baxml_* helpers try to abstract the deep referencing of the
 #  xml.  The goals are to contain the required code changes, if the
@@ -2036,241 +2240,137 @@ sub baxml_load
 # returns an array of distro names
 sub baxml_distros_getlist
 {
-    print "+++++ distros_getlist: " . join (" ", keys %{$xml->{'distro'}}) . "\n"  if ( $debug > 2 );
     return keys %{$xml->{'distro'}};
 }
 
 # returns a hash reference to the distro attribs
 sub baxml_distro_gethash
 {
-    my $distro = shift;
-
-    print "+++++ distro_gethash: $distro, $xml->{'distro'}->{$distro}\n"  if ( $debug > 2 );
-    return $xml->{'distro'}->{$distro};
+    return $xml->{'distro'}->{$_[0]};
 }
 
 # returns an array of product names for the given distro
 sub baxml_products_getlist
 {
-    my $distro = shift;
-    print "+++++ products_getlist: $distro, " .
-        join (" ", (keys %{$xml->{'distro'}->{$distro}->{product}}))
-            . "\n"  if ( $debug > 2 );
-    return keys %{$xml->{'distro'}->{$distro}->{'product'}};
+    return keys %{$xml->{'distro'}->{$_[0]}->{'product'}};
 }
 
 # returns a hash reference to the distro's product attribs
 sub baxml_product_gethash
 {
-    my $distro  = shift;
-    my $product = shift;
-
-    print "+++++ product_gethash: $distro, $product, $xml->{'distro'}->{$distro}->{product}->{$product}\n" if ( $debug > 2 );
-    return $xml->{'distro'}->{$distro}->{'product'}->{$product};
+    return $xml->{'distro'}->{$_[0]}->{'product'}->{$_[1]};
 }
 
 # returns an array of product names for the given distro
 sub baxml_isos_getlist
 {
-    my $distro  = shift;
-    my $product = shift;
-
-    print "+++++ isos_getlist: $distro, $product, " . join (" ", (keys %{$xml->{'distro'}->{$distro}->{product}->{$product}->{iso}})) . "\n" if ( $debug > 2 );
-    return keys %{$xml->{'distro'}->{$distro}->{'product'}->{$product}->{'iso'}};
+    return keys %{$xml->{'distro'}->{$_[0]}->{'product'}->{$_[1]}->{'iso'}};
 }
 
 # returns a hash reference to the distro's product's iso attribs
 sub baxml_iso_gethash
 {
-    my $distro  = shift;
-    my $product = shift;
-    my $iso     = shift;
-
-    print "+++++ iso_gethash: $distro, $product, $iso, $xml->{'distro'}->{$distro}->{product}->{$product}->{iso}->{$iso}\n" if ( $debug > 2 );
-    return $xml->{'distro'}->{$distro}->{'product'}->{$product}->{'iso'}->{$iso};
+    return $xml->{'distro'}->{$_[0]}->{'product'}->{$_[1]}->{'iso'}->{$_[2]};
 }
 
-# ####
-# baxml_base* subs relate to base pathing and attrib fetching
-# all return the key and hash value of the level being queried
-
-# get distro name and hash
-# for the base of the given distro
-sub baxml_basedist_keyhash
+sub baxml_load
 {
-    my $distro = shift;
-    my $dh = &baxml_distro_gethash( $distro );
-    print "+++++ basedist_keyhash: $distro, distro_gethash dh $dh\n" if ( $debug > 2 );
+    use XML::Simple;
 
-    my $share = join '/',
-        $bdir{'builds'}, $dh->{os}, $dh->{release}, $dh->{arch};
+    my $xmlfile = shift;
 
-    # don't use the 'requires' content - juat treat it as a flag
-    if ( defined $dh->{'requires'} ) {
-        my $base = "$dh->{os}-$dh->{release}-$dh->{arch}";
+    my $xs = XML::Simple->new ( SuppressEmpty => 1,
+                                ForceArray => [ qw (distro product iso) ],
+                                KeyAttr => { distro => 'name',
+                                             product => 'name',
+                                             iso => 'name' } );
+    my $xml = $xs->XMLin( $xmlfile );
 
-        return $base, &baxml_distro_gethash( $base ), $share;
-    }
+    # sanity checking
+    # and promote some items to base for direct access
+    # and other helper info to struct just created by xml
 
-    # distro is base if missing 'requires' add-on flag
-    return $distro, $dh, $share;
-}
+    print "XML post-processing xml struct\n" if ($debug > 2);
+    foreach my $distro ( keys %{$xml->{distro}} ) {
+        my $dh = $xml->{distro}->{$distro};
+        my @baseparts = ( $dh->{os}, $dh->{release}, $dh->{arch} );
+        $dh->{basedist} = join "-", @baseparts;
+        unless ( $xml->{distro}->{ $dh->{basedist} } ) {
+            die "Malformed $xmlfile\nMissing entry for distro $dh->{basename} required by $distro\n";
+        }
+        print "XML working with distro $distro\n" if ($debug > 2);
+        $dh->{basedisthash} = $xml->{distro}->{ $dh->{basedist} };
+        $dh->{distpath} = join "/", $bdir{'builds'}, @baseparts;
+        if ( defined $dh->{'requires'} ) {
+            if ( $distro eq $dh->{basedist} ) {
+                die "Malformed $xmlfile\nAdd-on $distro (has 'requires') only has base components as part of its name\n";
+            }
+            print "XML distro is addon for base $dh->{basedist}\n" if ($debug > 2);
+            $dh->{distpath} = join "/", $dh->{distpath}, $dh->{addos};
+            $dh->{distpath} = join "/", $dh->{distpath}, $dh->{addrel}
+                if ( defined $dh->{addrel} );
 
-# get product name and hash for distro with attrib addon base
-# for the base of the given distro
-sub baxml_baseprod_keyhash
-{
-    my $distro = shift;
-    my ($base, $bh) = &baxml_basedist_keyhash( $distro );
-    print "+++++ baseprod_keyhash: $distro, basedist_keyhash base $base bh $bh\n" if ( $debug > 2 );
-    foreach my $prod ( &baxml_products_getlist( $base ) ) {
-        my $ph = &baxml_product_gethash( $base, $prod );
-        if ( defined $ph->{'addon'} and $ph->{'addon'} eq "base" ) {
-            return $prod, $ph;
+            # append distro to base addons list
+            print "XML add $distro to $dh->{basedist} addon array\n"
+                if ($debug > 2);
+            push @{$dh->{basedisthash}->{addons}}, $distro;
+        } elsif ( $dh != $dh->{basedisthash}) {
+            die "non-addon $distro hash $dh not equal to $dh->{basedisthash} ?!\n";
+        }
+        print "XML distro path $dh->{distpath}\n" if ($debug > 2);
+        # every non-addon distro needs one product of addon type "base"
+        my $basefound = 0;
+        $basefound = 1 if ( defined $dh->{'requires'} ); # spoof check for addons
+        # a distro with base product needs one iso with "kernel" and "initrd"
+        my $loaderfound = 1;
+        foreach my $product ( keys %{$dh->{product}} ) {
+            my $ph = $dh->{product}->{$product};
+            $ph->{prodpath} = join "/", $dh->{distpath}, $product;
+            print "XML working with product $product\n" if ($debug > 2);
+            print "XML product path $ph->{prodpath}\n" if ($debug > 2);
+            if ( defined $ph->{'addon'} and $ph->{'addon'} eq "base" ) {
+                if ( $basefound ) {
+                    die "Malformed $xmlfile\nDistro $distro has more than one product with <addon>base</addon>\n";
+                }
+                $basefound = 1;
+                $loaderfound = 0;
+                $dh->{baseprod} = $product;
+                $dh->{baseprodhash} = $ph;
+                $dh->{baseprodpath} = join "/", $bdir{'builds'}, @baseparts,
+                    $product;
+                print "XML base prod path $dh->{baseprodpath}\n" if ($debug > 2);
+            }
+            foreach my $iso ( keys %{$ph->{iso}} ) {
+                my $ih = $ph->{iso}->{$iso};
+                $ih->{isopath} = $ph->{prodpath};
+                $ih->{isopath} = join "/", $ih->{isopath}, $ih->{'path'}
+                    if ( defined $ih->{'path'} );
+                print "XML iso path $ih->{isopath}\n" if ($debug > 2);
+                if ( defined $ih->{'kernel'} and defined $ih->{'initrd'} ) {
+                    if ( $loaderfound ) {
+                        die "Malformed $xmlfile\nDistro $distro product $product has more than one iso with <kernel> and <initrd>\n";
+                    }
+                    $loaderfound = 1 ;
+                    $dh->{baseiso} = $iso;
+                    $dh->{baseisohash} = $ih;
+                    $dh->{baseisopath} = $ih->{isopath};
+                    $dh->{baselinux}  = join "/", $ih->{isopath}, $ih->{kernel};
+                    $dh->{baseinitrd} = join "/", $ih->{isopath}, $ih->{initrd};
+                    print "XML base iso path $dh->{baseisopath}\n" if ($debug > 2);
+                    print "XML $dh->{baselinux}\n" if ($debug > 2);
+                    print "XML $dh->{baseinitrd}\n" if ($debug > 2);
+                }
+            }
+            unless ( $loaderfound ) {
+                die "Malformed $xmlfile\nEntry $distro base $product is missing an iso containing both <kernel> and <initrd>\n";
+            }
+        }
+        unless ( $basefound ) {
+            die "Malformed $xmlfile\nEntry $distro is missing a product containing <addon>base</addon>\n";
         }
     }
-    die "Malformed badistro.xml\nEntry $base is missing a product containing <addon>base</addon>\n";
-}
 
-# get iso name and hash for iso with attrib kernel and initrd
-# for the base of the given distro
-sub baxml_baseiso_keyhash
-{
-    my $distro = shift;
-    my ($base, $bh) = &baxml_basedist_keyhash( $distro );
-    print "+++++ baseiso_keyhash: $distro, basedist_keyhash base $base bh $bh\n" if ( $debug > 2 );
-    my ($prod, $ph) = &baxml_baseprod_keyhash( $distro );
-    print "+++++ baseiso_keyhash: $distro, baseprod_keyhash prod $prod ph $ph\n" if ( $debug > 2 );
-    foreach my $iso ( &baxml_isos_getlist( $base, $prod ) ) {
-        my $ih = &baxml_iso_gethash( $base, $prod, $iso );
-        if ( defined $ih->{'kernel'} and defined $ih->{'initrd'} ) {
-            return $iso, $ih;
-        }
-    }
-    die "Malformed badistro.xml\nEntry $base $prod is missing an iso containing both <kernel> and <initrd>\n";
-}
-
-# return a hash keyed by base distro with array value of addons
-# which depend on the base key.
-
-sub baxml_baseaddons_gethol
-{
-    my %hol;
-    my @distros = &baxml_distros_getlist();
-    my $dist = shift @distros;
-    while ( scalar @distros ) {
-        my $dh = &baxml_distro_gethash( $dist );
-        my $base = "$dh->{os}-$dh->{release}-$dh->{arch}";
-        if ( $dist ne $base ) {
-            # working with an addon so capture it
-            push @{$hol{$base}}, $dist;
-        }
-        $dist = shift @distros;
-    }
-    if ( $debug ) {
-        while ( my ( $key, $val ) = each %hol ) {
-            printf "base $key has add-ons %s\n", join (" ", @{$val} );
-        }
-    }
-    return \%hol;
-}
-
-# get the base iso paths composed like so:
-#
-#    ~baracus/builds/os/release/arch/product[/path]
-#
-# product level name is used, e.g., dvd, sdk, SUSE-SLES-Version-9
-# and iso level path is used if present e.g., CD1
-
-# return hash keyed by isoname and subkeys 'hash' and 'path' for all isos
-sub baxml_base_getisospathshashes
-{
-    my $distro = shift;
-    my ($base, $bh) = &baxml_basedist_keyhash( $distro );
-    print "+++++ base_getisospathshashes: $distro, basedist_keyhash base $base bh $bh\n" if ( $debug > 2 );
-
-    my @dirs;
-    my %isos;
-
-    push @dirs, $bdir{'builds'}, $bh->{os}, $bh->{release}, $bh->{arch};
-
-    foreach my $product ( &baxml_products_getlist( $base ) ) {
-        foreach my $iso ( &baxml_isos_getlist( $base, $product ) ) {
-            my $ih = &baxml_iso_gethash( $base, $product, $iso );
-            $isos{$iso}->{path} = join '/', @dirs, $product;
-            $isos{$iso}->{path} .= "/" . $ih->{path}
-                if ( defined $ih->{path} and $ih->{path} );
-            $isos{$iso}->{hash} = $ih;
-        }
-    }
-    return \%isos;
-}
-
-# get the full distro isos paths composed like so:
-#
-#    ~baracus/builds/os/release[/arch/addos[/addrel]]/product[/path]
-#
-# addons will have addos and maybe addrel if present (mrg 1.1)
-# product level name is used, e.g., dvd, sdk, SUSE-SLES-Version-9
-# and iso level path is used if present e.g., CD1
-
-# return hash keyed by isoname and subkeys 'hash' and 'path' for all isos
-sub baxml_distro_getisospathshashes
-{
-    my $distro = shift;
-    my $dh = &baxml_distro_gethash( $distro );
-    print "+++++ distro_getisospathshashes: $distro, distro_gethash dh $dh\n" if ( $debug > 2 );
-
-    my @dirs;
-    my %isos;
-
-    push @dirs, $bdir{'builds'}, $dh->{os}, $dh->{release}, $dh->{arch};
-
-    if ( defined $dh->{'requires'} ) {
-        push @dirs, $dh->{addos};
-        push @dirs, $dh->{addrel} if ( defined $dh->{addrel} and $dh->{addrel} );
-    }
-
-    foreach my $product ( &baxml_products_getlist( $distro ) ) {
-        foreach my $iso ( &baxml_isos_getlist( $distro, $product ) ) {
-            my $ih = &baxml_iso_gethash( $distro, $product, $iso );
-            $isos{$iso}->{path} = join '/', @dirs, $product;
-            $isos{$iso}->{path} .= "/" . $ih->{path}
-                if ( defined $ih->{path} and $ih->{path} );
-            $isos{$iso}->{hash} = $ih;
-        }
-    }
-    return \%isos;
-}
-
-# get the absolute path of kernel and initrd off the base prod iso
-# return as hash with 'base', 'kernel' and 'initrd' keys
-sub baxml_bootloader_gethash
-{
-    my $distro = shift;
-    my ($base, $bh) = &baxml_basedist_keyhash( $distro );
-    print "+++++ bootloader_gethash: $distro, basedist base $base bh $bh\n" if ( $debug > 2 );
-    my ($prod, $ph) = &baxml_baseprod_keyhash( $distro );
-    print "+++++ bootloader_gethash: $distro, baseprod prod $prod ph $ph\n" if ( $debug > 2 );
-    my ($biso, $ih) = &baxml_baseiso_keyhash(  $distro );
-    print "+++++ bootloader_gethash: $distro, baseiso  biso $biso ih $ih\n" if ( $debug > 2 );
-
-    my @dirs;
-    my %files;
-
-    push @dirs, $bdir{'builds'}, $bh->{os}, $bh->{release}, $bh->{arch};
-    push @dirs, $prod;
-    push @dirs, $ih->{'path'} if ( defined $ih->{'path'} and $ih->{'path'} );
-
-    my $basepath = join '/', @dirs;
-    foreach my $loader ( qw( kernel initrd ) ) {
-        $files{$loader} = $basepath . "/" . $ih->{$loader};
-        $files{$loader} =~ s|/+|/|g;
-        print "boot $loader: $files{$loader}\n" if ($debug > 2);
-    }
-    $files{base} = $basepath;
-    $files{base} =~ s|/+|/|g;
-    return \%files;
+    return $xml;
 }
 
 ######################################################################

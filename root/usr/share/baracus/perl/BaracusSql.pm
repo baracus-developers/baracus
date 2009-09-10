@@ -51,7 +51,7 @@ sub keys2columns
     my $hash = shift;
     my $str = '';
     foreach my $key ( keys %{ $hash } ) {
-        next if ( $key =~ m|constraint|i );
+        next if ( $key =~ m|^[A-Z]+| );
         $str .= ',' if $str;
         $str .= " $key";
     }
@@ -92,20 +92,8 @@ sub get_sqltftp_tables
                              'change'      => 'TIMESTAMP',
                              );
 
-    my $tbl_source_reg = "sqlfstable_reg";
-    my %tbl_source_reg_columns = (
-                                  'distro'      => 'VARCHAR(48) PRIMARY KEY',
-                                  'buildip'     => 'VARCHAR(15)',
-                                  'basepath'    => 'VARCHAR(128)',
-                                  'type'        => 'VARCHAR(8)',
-                                  'status'      => 'INTEGER',
-                                  'create_date' => 'TIMESTAMP',
-                                  'modify_date' => 'TIMESTAMP',
-                                  );
-
     my %sqltftp_tbls = (
                         $tbl_sqlfs      => \%tbl_sqlfs_columns,
-                        $tbl_source_reg => \%tbl_source_reg_columns,
                         );
     return \%sqltftp_tbls;
 }
@@ -123,7 +111,7 @@ sub get_baracus_tables
                                   'mac'      => 'VARCHAR(17)',
                                   'uuid'     => 'VARCHAR(37)',
                                   'state'    => 'INTEGER',
-                                  'cmdline'  => 'VARCHAR(255)',
+                                  'cmdline'  => 'VARCHAR(1024)',
                                   'creation' => 'TIMESTAMP',
                                   'change'   => 'TIMESTAMP',
                                   );
@@ -135,7 +123,7 @@ sub get_baracus_tables
                                        'mac'      => 'VARCHAR(17)',
                                        'uuid'     => 'VARCHAR(37)',
                                        'state'    => 'INTEGER',
-                                       'cmdline'  => 'VARCHAR(255)',
+                                       'cmdline'  => 'VARCHAR(1024)',
                                        'creation' => 'TIMESTAMP',
                                        'change'   => 'TIMESTAMP',
                                        );
@@ -169,6 +157,12 @@ sub get_baracus_tables
                                    'addon'       => 'BOOLEAN',
                                    'addos'       => 'VARCHAR(8)',
                                    'addrel'      => 'VARCHAR(8)',
+                                   'buildip'     => 'VARCHAR(15)',
+                                   'type'        => 'VARCHAR(8)',
+                                   'basepath'    => 'VARCHAR(128)',
+                                   'status'      => 'INTEGER',
+                                   'creation'    => 'TIMESTAMP',
+                                   'change'      => 'TIMESTAMP',
                                    );
 
     my $tbl_module_cfg = "module_cfg";

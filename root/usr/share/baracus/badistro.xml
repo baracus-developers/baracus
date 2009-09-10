@@ -82,8 +82,18 @@
 	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-x86_64-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=X8FFufxq0nU~&mirror=AkamaiHost&nohost=false]]></url>
 	  </iso>
     </product>
+  </distro>
 
-    <product name="sdk">
+  <distro name="sles-11-sdk-x86_64">
+	<os>sles</os>
+	<release>11</release>
+    <addos>sdk</addos>
+    <addrel/>
+	<arch>x86_64</arch>
+	<requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
+	<description>SLES 11 Software Development Kit 64bit</description>
+	<autodownload>auth</autodownload>
+    <product name="dvd">
 	  <addon>signed</addon>
 	  <iso name="SLE-11-SDK-DVD-x86_64-GM-Media1.iso">
 	    <path/>
@@ -110,8 +120,18 @@
 	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-i586-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=-lJMHbIN6s8~&mirror=AkamaiHost&nohost=false]]></url>
 	  </iso>
     </product>
+  </distro>
 
-    <product name="sdk">
+  <distro name="sles-11-sdk-i586">
+	<os>sles</os>
+	<release>11</release>
+    <addos>sdk</addos>
+    <addrel/>
+	<arch>i586</arch>
+	<requires>sles-11-i586</requires> <!-- flag! content ignored -->
+	<description>SLES 11 Software Development Kit 32bit</description>
+	<autodownload>auth</autodownload>
+    <product name="dvd">
 	  <addon>signed</addon>
 	  <iso name="SLE-11-SDK-DVD-i586-GM-Media1.iso">
 	    <path/>
@@ -141,8 +161,18 @@
 	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FxWohTS2zkSs%7E%2FSLES-10-SP2-DVD-x86_64-GM-DVD1.iso&buildid=xWohTS2zkSs~&fileid=ymcKKUqgjzY~&mirror=AkamaiHost&nohost=false]]></url>
 	  </iso>
     </product>
+  </distro>
 
-    <product name="sdk">
+  <distro name="sles-10.2-sdk-x86_64">
+	<os>sles</os>
+	<release>10.2</release>
+    <addos>sdk</addos>
+    <addrel/>
+	<arch>x86_64</arch>
+	<requires>sles-10.2-x86_64</requires> <!-- flag! content ignored -->
+	<description>SLES 10.2 Software Development Kit 64bit</description>
+	<autodownload>auth</autodownload>
+    <product name="dvd">
 	  <addon>flat</addon>
 	  <iso name="SLE-10-SP2-SDK-DVD-x86_64-GM-DVD1.iso">
 	    <path/>
@@ -169,8 +199,18 @@
 	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FxWohTS2zkSs%7E%2FSLES-10-SP2-DVD-i386-GM-DVD1.iso&buildid=xWohTS2zkSs~&fileid=6Hjh1FLHxbI~&mirror=AkamaiHost&nohost=false]]></url>
 	  </iso>
     </product>
+  </distro>
 
-    <product name="sdk">
+  <distro name="sles-10.2-sdk-i386">
+	<os>sles</os>
+	<release>10.2</release>
+    <addos>sdk</addos>
+    <addrel/>
+	<arch>i386</arch>
+	<requires>sles-10.2-i386</requires> <!-- flag! content ignored -->
+	<description>SLES 10.2 Software Development Kit 32bit</description>
+	<autodownload>auth</autodownload>
+    <product name="dvd">
 	  <addon>flat</addon>
 	  <iso name="SLE-10-SP2-SDK-DVD-i386-GM-DVD1.iso">
 	    <path/>
@@ -521,7 +561,7 @@
   </distro>
 
 
-  <!-- openSuSE 11.1 HAE -->
+  <!-- openSuSE 11.1 -->
 
   <distro name="opensuse-11.1-x86_64">
 	<os>opensuse</os>

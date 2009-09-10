@@ -138,6 +138,14 @@ GetOptions(
            'help|?'    => \$help,
            );
 
+# for semi-transparent addition of sdk with base
+my %sdks = (
+            'sles-11-x86_64'   => 'sles-11-sdk-x86_64',
+            'sles-11-i586'     => 'sles-11-sdk-i586',
+            'sles-10.2-x86_64' => 'sles-10.2-sdk-x86_64',
+            'sles-10.2-i386'   => 'sles-10.2-sdk-i386',
+            );
+
 &man()  if $man;
 &help() if $help;
 &help() unless ( scalar @ARGV );
@@ -251,7 +259,14 @@ Other required parameters, which may be specified on the command-line or in a pr
                            See possible distros to use with
                              > baconfig list distro
                            and
-                             > basource verify --distro=*
+                             > basource list [--distro='*match*']
+
+  --addon <os-rev-addos[-addrev]-arch>
+
+                           Add-ons to layer over the base operating
+                           system install for this build client.  May
+                           be a list or specified multiple times.
+
 
   --hardware <hwteplate>   Hardware template that describes build client
                              > baconfig list hardware
@@ -290,6 +305,7 @@ sub add
     my $mac="";
     my $hardware="";
     my $distro="";
+    my $addon = "";
     my $module="";
     my $profile="";
     my $yasttemplate="";
@@ -318,6 +334,7 @@ sub add
                'sshpass=s'      => \$sshpass,
                'serialtty=s'    => \$serialtty,
                'serialbaud=s'   => \$serialbaud,
+               'addon=s'        => \&multiarg_handler,
                'module=s'       => \&multiarg_handler,
                'vars=s'         => \&multiarg_handler,
                );
@@ -327,6 +344,7 @@ sub add
         &help( $command );
     }
 
+    $addon  = $multiarg{ 'addon'  } if (defined $multiarg{ 'addon'  });
     $module = $multiarg{ 'module' } if (defined $multiarg{ 'module' });
     $vars   = $multiarg{ 'vars'   } if (defined $multiarg{ 'vars'   });
 
@@ -376,6 +394,34 @@ sub add
     if ($debug > 1) {
         foreach my $key ( sort ( keys %hash )) {
             print "add post-distro:  $key => $hash{$key}\n";
+        }
+    }
+
+    my $addons_in;
+    # addons may be in profile
+    $addons_in = $hash{'addon'};
+    # command line wins over profile entry
+    $addons_in = $addon if ($addon);
+
+    if ( defined $sdks{$hash{distro}} ) {
+        print "lumping in sdk addon $sdks{$hash{distro}} for $hash{distro}\n"
+            if $debug;
+        if ( $addons_in ) {
+            $addons_in = "$sdks{$hash{distro}} " . $addons_in;
+        } else {
+            $addons_in = $sdks{$hash{distro}};
+        }
+    }
+    # if hash{'addon'} was set by reading a profile addon= line
+    # we need to clear it from $hash as that is for the yast xml
+    $hash{'addon'} = '';
+    if ( defined $addons_in and $addons_in ) {
+        print "add pre-addons:  $addons_in\n" if ($debug > 1);
+        &load_addons( $href, $addons_in );
+    }
+    if ($debug > 1) {
+        foreach my $key ( sort ( keys %hash )) {
+            print "add post-addons:  $key => $hash{$key}\n";
         }
     }
 
@@ -457,6 +503,11 @@ sub add
     else {
         $modules_in = $mandatory_in;
     }
+    # if hash{'module'} was set by reading a profile module= line
+    # we need to clear it from $hash as that is for the yast xml
+
+    $hash{'module'}="";
+
     print "modules to load: '$modules_in'\n" if ( defined $modules_in && $debug );
     # modules are optional do notattempt to load if none specified
     if ( defined $modules_in && $modules_in ne "" ) {
@@ -1462,6 +1513,49 @@ sub load_distro
     }
 }
 
+sub load_addons
+{
+    my $href   = shift;
+    my $addons = shift;
+
+    my $sth;
+    # incorporate addons passed into autoinstall formated xml
+
+    my $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ $tbl{'distro'} } );
+    $sql_cols =~ s/[ \t]*//g;
+
+    foreach my $item ( split /\s+/, $addons ) {
+        print "load_addons: working with $item\n" if ($debug > 1);
+        my $sql = qq|SELECT $sql_cols FROM $tbl{'distro'}
+                 WHERE distroid = '| . $item . qq|'|;;
+        my $sel = $dbh->selectrow_hashref( $sql );
+
+        die "Unable to find distro entry for addon $item.\n"
+            unless ( defined $sel );
+        die "Unable to find needed distro entry for addon $item.\nMay need to run 'basource add --distro <base> --addon $item'\n"
+            unless ( defined $sel->{status} and
+                     $sel->{status} !=  BaracusSql::BA_DELETED );
+
+        my $addonbase = "$sel->{os}-$sel->{release}-$sel->{arch}";
+        if ( $href->{distro} ne $addonbase ) {
+            die "addon $item is for $addonbase not the specified $href->{distro}\n";
+        }
+        print $sel . "\n" if ($debug > 1);
+
+        $href->{addon} .= "\n" if ( $href->{addon} );
+        $href->{addon} .="      <listentry>
+        <media_url>$sel->{type}://$sel->{buildip}$sel->{basepath}</media_url>
+        <product>$sel->{distroid}</product>
+        <product_dir>/</product_dir>\n";
+        if ( $sel->{release} =~ m/11/ ) {
+            $href->{addon} .="        <ask_on_error config:type=\"boolean\">false</ask_on_error> <!-- available since openSUSE 11.0 -->
+        <name>$sel->{distroid}</name> <!-- available since openSUSE 11.1/SLES11 (bnc#433981) -->\n";
+        }
+        $href->{addon} .="      </listentry>"
+    }
+}
+
+
 sub load_hardware
 {
     my $href = shift;
@@ -1488,11 +1582,6 @@ sub load_modules
 {
     my $href    = shift;
     my $modules = shift;
-
-    # if hash{'module'} was set by reading a profile module= line
-    # we need to clear it from $href as that is for the yast xml
-
-    $href->{'module'}='';
 
     my $sth;
     # incorporate modules passed into autoinstall formated xml
