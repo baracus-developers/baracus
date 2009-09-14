@@ -686,9 +686,12 @@ sub verify() {
         return 1;
     }
 
-    while ( my ($key, $val) = each %{$dbref} ) {
-        print "dbref $key => $val\n";
+    if ( $debug > 2 ) {
+        while ( my ($key, $val) = each %{$dbref} ) {
+            print "dbref $key => $val\n";
+        }
     }
+
     print "Target:\t\t$dbref->{distroid}\n";
     print "Created:\t$dbref->{creation}\n";
     print "Modified:\t$dbref->{change}\n" if defined $dbref->{change};
@@ -842,7 +845,7 @@ sub detail() {
     }
 }
 
-=head2 list [ --distro <name> | --addon <name> ] [--all]
+=head2 list  [ base | addon ] { --distro <name> | --addon <name> } [--all]
 
   List distribution state.
 
@@ -853,13 +856,19 @@ Options
     --distro <name>  Exact, or partial with wildcarded ('*')
     --all            See all managable distributions
 
+    base             Scope results to matching base distributions
+    addon            For a provided base list the applicable addons
+
 =cut
 
 sub list() {
 
     my $command = 'list';
 
+
     my $distro;
+    my $base = "";
+    my $addon = "";
     my $wildcard = 0;
 
     @ARGV = @_;
@@ -868,11 +877,6 @@ sub list() {
                'distro=s'  => \$distro,
                'addon=s'   => \$distro,
                );
-
-    if ( scalar @ARGV ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &help( $command );
-    }
 
     if ( defined $distro ) {
         $distro = lc $distro ;
@@ -884,6 +888,22 @@ sub list() {
         $distro = "";
     }
 
+    my $name = "distro";
+    if ( scalar @ARGV ) {
+        if ( $ARGV[0] eq "base" ) {
+            $base = shift @ARGV;
+        }
+        elsif ( $ARGV[0] eq "addon" ) {
+            $addon = shift @ARGV;
+            $name = "addon";
+        }
+
+        if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $command );
+        }
+    }
+
     #
     # more like barepo than bahost this tools list relies on the
     # badistro.xml and the populated builds and isos directories.
@@ -891,16 +911,32 @@ sub list() {
 
     unless ( $quiet || $nolabels ) {
         print "--------------------------------------------------------------------------------\n";
-        printf "%-32s status\n", "distro";
+        printf "%-32s status\n", $name;
         print "--------------------------------------------------------------------------------\n";
     }
 
     foreach my $adistro ( reverse sort &baxml_distros_getlist() ) {
-        if ( $distro ) {
-            if ( $wildcard ) {
-                next unless ( $adistro =~ m|$distro|o );
-            } else {
-                next unless ( $adistro eq $distro );
+        my $dh = &baxml_distro_gethash($adistro);
+        if ( $base ) {
+            next if ( defined $dh->{requires} );
+        }
+        unless ( $addon ) {
+            if ( $distro ) {
+                if ( $wildcard ) {
+                    next unless ( $adistro =~ m|$distro|o );
+                } else {
+                    next unless ( $adistro eq $distro );
+                }
+            }
+        }
+        if ( $addon ) {
+            next unless ( defined $dh->{requires} );
+            if ( $distro ) {
+                if ( $wildcard ) {
+                    next unless ( $dh->{basedist} =~ m|$distro|o );
+                } else {
+                    next unless ( $dh->{basedist} eq $distro );
+                }
             }
         }
         my $dbref = &get_db_source_entry($adistro);
