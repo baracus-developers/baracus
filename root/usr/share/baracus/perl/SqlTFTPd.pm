@@ -114,7 +114,7 @@ sub new
 	    'ACKtimeout'  => 4,
 	    'ACKretries'  => 4,
 	    'Readable'    => 1,
-	    'Writable'    => 0,
+	    'Writable'    => 1,
 	    'CallBack'    => undef,
 	    'BlkSize'     => TFTP_DEFAULT_BLKSIZE,
 	    'Debug'       => 0,
@@ -343,6 +343,7 @@ sub processRQ
 			#################
 			if($self->{'Writable'})
 			{
+                use File::Basename;
 				# write is permitted
 				if($self->{'_REQUEST_'}{'FileName'} =~ /\.\.[\\\/]/)
 				{
@@ -351,7 +352,7 @@ sub processRQ
 					$self->sendERR(2);
 					return(undef);
 				}
-
+                $self->{'_REQUEST_'}{'WRQFileName'} = basename ($self->{'_REQUEST_'}{'FileName'});
 				if(!defined($self->checkFILE( $pxedisabledips,
                                               $pxedeliveredips )))
 				{
@@ -699,6 +700,11 @@ sub recvFILE
 					# sent ACK
 					if(length($datablk) < $self->{'BlkSize'})
 					{
+                        # done with last block close file and cp to sqlfs
+                        $self->closeFILE();
+                        $self->{'SqlFSHandle'}->store( $self->{'_REQUEST_'}{'WRQFileName'});
+                        unlink $self->{'_REQUEST_'}{'WRQFileName'};
+                        rmdir $self->{'_REQUEST_'}{'WRQDirName'};
 						return(1);
 					}
 					else
@@ -910,10 +916,19 @@ sub openFILE
 		########################################
 		# opcode is WRQ, open file for writing #
 		########################################
-		if(my $wfh = $self->{'SqlFSHandle'}->writeFH( $self->{'_REQUEST_'}{'FileName'}))
+        use File::Temp qw/ tempdir /;
+        my $tdir = tempdir ("baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
+        mkdir $tdir, 0755 || die ("Cannot create directory\n");
+        $self->{'_REQUEST_'}{'WRQDirName'} = $tdir;
+        $self->{'_REQUEST_'}{'WRQFileName'} = "$tdir/$self->{'_REQUEST_'}{'WRQFileName'}";
+
+        my $wfh = $self->{'_REQUEST_'}{'_FH_'};
+		if(CORE::open ($wfh, ">", $self->{'_REQUEST_'}{'WRQFileName'}))
 		{
-			# save the filehandle reference...
-			$self->{'_REQUEST_'}{'_FH_'} = $wfh;
+			# only OCTET mode, supported set FileHandle to binary mode...
+            binmode($wfh);
+
+            $self->{'_REQUEST_'}{'_FH_'} = $wfh;
 
 			return(1);
 		}

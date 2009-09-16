@@ -478,7 +478,8 @@ sub add
     }
     if ($serialtty) {
         if ($serialbaud) {
-            my $serialopts = "console=$serialtty console=$serialtty,$serialbaud";
+            my $serialopts = "console=tty0 console=$serialtty,$serialbaud";
+            $serialopts .= " earlyprintk=serial,$serialtty,$serialbaud";
             push(@raccess, $serialopts);
         }
         else {

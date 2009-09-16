@@ -608,8 +608,8 @@
 	  <addon>base</addon>
 	  <iso name="openSUSE-11.1-DVD-i586.iso">
 	    <path/>
-	    <kernel>boot/i586/loader/linux</kernel>
-	    <initrd>boot/i586/loader/initrd</initrd>
+	    <kernel>boot/i386/loader/linux</kernel>
+	    <initrd>boot/i386/loader/initrd</initrd>
 	    <md5>8f51b278c0415be28c5699e465444bd3</md5>
 	    <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-DVD-i586.iso]]></url>
 	  </iso>

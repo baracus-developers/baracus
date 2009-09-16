@@ -18,16 +18,16 @@ my $sysconfigfile = '/etc/sysconfig/baracus';
 my $sysconfig = AppConfig->new( {CREATE => 1} );
 $sysconfig->define( 'baracusdir=s',
                     'buildip=s',
-                    'baracus_options=s',
+                    'baracusd_options=s',
                     'remote_logging=s',
                    );
 $sysconfig->file($sysconfigfile);
 my $baracusdir = $sysconfig->get( 'baracusdir' ); # ~baracus is default
-my $baracus_options=$sysconfig->get( 'baracus_options' );
+my $baracusd_options=$sysconfig->get( 'baracusd_options' );
 my $buildip = $sysconfig->get( 'buildip' );
 my $remote_logging = $sysconfig->get( 'remote_logging' );
 
-$debug = 1 if ( defined $baracus_options and $baracus_options =~ m|debug| );
+$debug = 1 if ( defined $baracusd_options and $baracusd_options =~ m|debug| );
 
 print "\$baracusdir before : $baracusdir EOL\n" if $debug;
 if ( $baracusdir =~ m|^~([^/]*)| ) {

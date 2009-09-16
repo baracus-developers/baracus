@@ -865,7 +865,6 @@ sub list() {
 
     my $command = 'list';
 
-
     my $distro;
     my $base = "";
     my $addon = "";
@@ -1052,7 +1051,7 @@ sub download_iso() {
         my $skip = 0;
         foreach my $prod ( &baxml_products_getlist( $da ) ) {
             foreach my $isofile ( &baxml_isos_getlist( $da, $prod ) ) {
-                my $ih = &baxml_isos_getlist( $da, $prod, $isofile );
+                my $ih = &baxml_iso_gethash( $da, $prod, $isofile );
                 $distisoinfo->{$isofile}->{path} = $ih->{isopath};
                 $distisoinfo->{$isofile}->{hash} = $ih;
                 find ( { wanted =>
