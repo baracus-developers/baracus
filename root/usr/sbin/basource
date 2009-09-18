@@ -404,13 +404,14 @@ sub add() {
             $addons = "$sdk " . $addons;
         }
     }
+    my $checkhr = {};
     if ( $isos ) {
-        return 1 if &download_iso( $distro, $addons, $proxy );
+        return 1 if &download_iso( $distro, $addons, $proxy, $checkhr );
     }
 
     print "Calling routine to locate ISO files\n";
 
-    my $daisohr = &verify_iso( $distro, $addons, $isos, $check );
+    my $daisohr = &verify_iso( $distro, $addons, $isos, $check, $checkhr );
 
     print "Calling routines to generate build tree\n";
 
@@ -1029,6 +1030,7 @@ sub download_iso() {
     my $distro = shift;
     my $addons = shift;
     my $proxy  = shift;
+    my $checkhr = shift;
 
     my @dalist;
 
@@ -1073,8 +1075,8 @@ sub download_iso() {
         }
         $daisohr->{ $da }->{info} = $distisoinfo;
         push @{$daisohr->{ $da }->{list}}, @distisolist;
+        push @{$checkhr->{ $da }->{check}}, @distisolist;
         push @isofilelist, @distisolist;
-
     }
     if ($found) {
         print "ISO download requested and files were already found. If checksum\n";
@@ -1191,6 +1193,7 @@ sub verify_iso() {
     my $addons = shift;
     my $isos   = shift;
     my $check  = shift;
+    my $checkhr = shift;
 
     my @dalist;
 
@@ -1254,10 +1257,20 @@ sub verify_iso() {
     $halt = 0;
     foreach my $da ( @dalist ) {
         print "Verifing iso checksums for $da ...\n";            # print LONG
+
+        my $check_list;
+        if ( $isos ) {
+            $check_list = join " ", @{$checkhr->{ $da }->{check}};
+        }
+
         foreach my $isofile ( @{$daisohr->{ $da }->{list}} ) {
             my $isoshort = $isofile;
-            $isoshort =~ s|$bdir{isos}||;
-            print $isoshort . " checksum in progress\n" if $debug;
+            $isoshort =~ s|$bdir{isos}/||;
+            if ( $isos && not $check ) {
+                # skip non-downloaded unless check is specified
+                next unless ( $check_list =~ m|$isoshort| );
+            }
+            print $isoshort . " checksum in progress\n";
             open(FILE, $isofile) or
                 die "Can't open '$isofile': $!";
             binmode(FILE);
@@ -1363,7 +1376,7 @@ sub create_build
     my $dh = &baxml_distro_gethash( $distro );
     my $bh = $dh->{basedisthash};
 
-    my $share = $bh->{basedistpath};
+    my $share = $bh->{distpath};
 
     return unless ( $distro eq $dh->{basedist} );
 
@@ -1558,13 +1571,17 @@ sub add_bootloader_files() {
     if ( &sqlfs_getstate( "linux.$distro" ) ) {
         print "found bootloader linux.$basedist in tftp database\n" if $verbose;
     } else {
+        print "cp from $bh->{baselinux} to $tdir/linux.$basedist\n"
+            if ( $debug > 1 );
         copy($bh->{baselinux},"$tdir/linux.$basedist") or die "Copy failed: $!";
         &sqlfs_store( "$tdir/linux.$basedist" );
         unlink ( "$tdir/linux.$basedist" );
     }
     if( &sqlfs_getstate( "initrd.$basedist" ) ) {
-        print "found bootloader initrd.$basedist in tftp database\n" if $verbose;
+        print "found bootloader initrd.$basedist in tftp database\n"
+            if $verbose;
     } else {
+        print "cp from $bh->{baseinitrd} to $tdir/initrd.gz\n" if ( $debug > 1 );
         copy($bh->{baseinitrd},"$tdir/initrd.gz") or die "Copy failed: $!";
         if ( $distro =~ /sles-11/ ) {
             system("gunzip", "$tdir/initrd.gz");
@@ -1574,6 +1591,8 @@ sub add_bootloader_files() {
             unlink( "$tdir/my-key.gpg" );
             system("gzip", "$tdir/initrd");
         }
+        print "cp from $tdir/initrd.gz to $tdir/initrd.$basedist\n"
+            if ( $debug > 1 );
         copy("$tdir/initrd.gz", "$tdir/initrd.$basedist") or
             die "Copy failed: $!";
         unlink( "$tdir/initrd.gz" );

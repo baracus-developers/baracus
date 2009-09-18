@@ -114,8 +114,8 @@
 	  <addon>base</addon>
 	  <iso name="SLES-11-DVD-i586-GM-DVD1.iso">
 	    <path/>
-	    <kernel>boot/i586/loader/linux</kernel>
-	    <initrd>boot/i586/loader/initrd</initrd>
+	    <kernel>boot/i386/loader/linux</kernel>
+	    <initrd>boot/i386/loader/initrd</initrd>
 	    <md5>4958d4dde2575666355c8a1c5858bab0</md5>
 	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-i586-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=-lJMHbIN6s8~&mirror=AkamaiHost&nohost=false]]></url>
 	  </iso>
@@ -141,6 +141,125 @@
     </product>
   </distro>
 
+
+  <!-- SLED-11 -->
+
+  <distro name="sled-11-x86_64">
+	<os>sled</os>
+	<release>11</release>
+	<arch>x86_64</arch>
+	<description>SUSE Linux Enterprise Desktop 11 64bit</description>
+	<autodownload>auth</autodownload>
+
+    <product name="dvd">
+	  <addon>base</addon>
+	  <iso name="SLED-11-DVD-x86_64-GM-DVD.iso">
+	    <path/>
+	    <kernel>boot/x86_64/loader/linux</kernel>
+	    <initrd>boot/x86_64/loader/initrd</initrd>
+	    <md5>c120e9605a87d77f58402ec15cfeee51</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F31O5iweTHlg%7E%2FSLED-11-DVD-x86_64-GM-DVD.iso&buildid=31O5iweTHlg~&fileid=POmHrC52QQw~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+  <distro name="sled-11-i586">
+	<os>sled</os>
+	<release>11</release>
+	<arch>i586</arch>
+	<description>SUSE Linux Enterprise Desktop 11 32bit</description>
+	<autodownload>auth</autodownload>
+
+    <product name="dvd">
+	  <addon>base</addon>
+	  <iso name="SLED-11-DVD-i586-GM-DVD.iso">
+	    <path/>
+	    <kernel>boot/i386/loader/linux</kernel>
+	    <initrd>boot/i386/loader/initrd</initrd>
+	    <md5>f581602b4547cb45e715f3ea1cb0c4e4</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F31O5iweTHlg%7E%2FSLED-11-DVD-i586-GM-DVD.iso&buildid=31O5iweTHlg~&fileid=BmoyRdppYOw~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+
+  <!-- SLES 10.3 -->
+
+  <distro name="sles-10.3-x86_64">
+        <os>sles</os>
+        <release>10.3</release>
+        <arch>x86_64</arch>
+        <description>SUSE Linux Enterprise Server 10.3 64bit</description>
+        <autodownload>auth</autodownload>
+
+    <product name="dvd">
+          <addon>base</addon>
+          <iso name="SLES-10-SP3-DVD-x86_64-GMC-DVD1.iso">
+            <path/>
+            <kernel>boot/x86_64/loader/linux</kernel>
+            <initrd>boot/x86_64/loader/initrd</initrd>
+            <md5>6cb3f1b92eebf2ea24a1ff77145f8f9a</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-sdk-x86_64">
+        <os>sles</os>
+        <release>10.3</release>
+    <addos>sdk</addos>
+    <addrel/>
+        <arch>x86_64</arch>
+        <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
+        <description>SLES 10.3 Software Development Kit 64bit</description>
+        <autodownload>auth</autodownload>
+    <product name="dvd">
+          <addon>flat</addon>
+          <iso name="SLE-10-SP3-SDK-DVD-x86_64-GMC-DVD1.iso">
+            <path/>
+            <md5>76dbe2b3ac11381ab0172eceafed25fd</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-i386">
+        <os>sles</os>
+        <release>10.3</release>
+        <arch>i386</arch>
+        <description>SUSE Linux Enterprise Server 10.3 bit</description>
+        <autodownload>auth</autodownload>
+
+    <product name="dvd">
+          <addon>base</addon>
+          <iso name="SLES-10-SP3-DVD-i386-GMC-DVD1.iso">
+            <path/>
+            <kernel>boot/i386/loader/linux</kernel>
+            <initrd>boot/i386/loader/initrd</initrd>
+            <md5>44097d447f43e80cd0713ef6ae542a46</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-sdk-i386">
+        <os>sles</os>
+        <release>10.3</release>
+    <addos>sdk</addos>
+    <addrel/>
+        <arch>i386</arch>
+        <requires>sles-10.3-i386</requires> <!-- flag! content ignored -->
+        <description>SLES 10.3 Software Development Kit 32bit</description>
+        <autodownload>auth</autodownload>
+    <product name="dvd">
+          <addon>flat</addon>
+          <iso name="SLE-10-SP3-SDK-DVD-i386-GMC-DVD1.iso">
+            <path/>
+            <md5>4d49b01d7ba41a55f3707f9adc8650c4</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+    </product>
+  </distro>
 
   <!-- SLES 10.2 -->
 
@@ -194,7 +313,7 @@
 	  <iso name="SLES-10-SP2-DVD-i386-GM-DVD1.iso">
 	    <path/>
 	    <kernel>boot/i386/loader/linux</kernel>
-	    <initrd>boot/i386/loader/kernel</initrd>
+	    <initrd>boot/i386/loader/initrd</initrd>
 	    <md5>2b91efeb8a62e2824302bf9269080252</md5>
 	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FxWohTS2zkSs%7E%2FSLES-10-SP2-DVD-i386-GM-DVD1.iso&buildid=xWohTS2zkSs~&fileid=6Hjh1FLHxbI~&mirror=AkamaiHost&nohost=false]]></url>
 	  </iso>
@@ -216,6 +335,46 @@
 	    <path/>
 	    <md5>24ff4387f1f2f6c830e48f2bf04c69f3</md5>
 	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FeRAdQttrkeA%7E%2FSLE-10-SP2-SDK-DVD-i386-GM-DVD1.iso&buildid=eRAdQttrkeA~&fileid=QGCEXAwuCIE~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+  <!-- SLED 10.2 -->
+
+  <distro name="sled-10.2-x86_64">
+	<os>sled</os>
+	<release>10.2</release>
+	<arch>x86_64</arch>
+	<description>SUSE Linux Enterprise Desktop 10.2 64bit</description>
+	<autodownload>auth</autodownload>
+
+    <product name="dvd">
+	  <addon>base</addon>
+	  <iso name="SLED-10-SP2-x86_64-DVD1.iso">
+	    <path/>
+	    <kernel>boot/x86_64/loader/linux</kernel>
+	    <initrd>boot/x86_64/loader/initrd</initrd>
+	    <md5>1f527c9ae321d6e8291fe8e63d04574d</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FO4laI0St6AA%7E%2FSLED-10-SP2-x86_64-DVD1.iso&buildid=O4laI0St6AA~&fileid=Aurg53IQgEQ~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+  <distro name="sled-10.2-i386">
+	<os>sled</os>
+	<release>10.2</release>
+	<arch>i386</arch>
+	<description>SUSE Linux Enterprise Desktop 10.2 32bit</description>
+	<autodownload>auth</autodownload>
+
+    <product name="dvd">
+	  <addon>base</addon>
+	  <iso name="SLED-10-SP2-x86-DVD1.iso">
+	    <path/>
+	    <kernel>boot/i386/loader/linux</kernel>
+	    <initrd>boot/i386/loader/initrd</initrd>
+	    <md5>74cdd3daf335f32a77be25a0e43b0c3d</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FO4laI0St6AA%7E%2FSLED-10-SP2-x86-DVD1.iso&buildid=O4laI0St6AA~&fileid=ka5NE_hzUP4~&mirror=AkamaiHost&nohost=false]]></url>
 	  </iso>
     </product>
   </distro>

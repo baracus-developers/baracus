@@ -327,7 +327,6 @@ sub add
                'hardware=s'     => \$hardware,
                'yasttemplate=s' => \$yasttemplate,
                'profile=s'      => \$profile,
-               'profile=s'      => \$profile,
                'usevnc!'        => \$usevnc,
                'vncpass=s'      => \$vncpass,
                'usessh!'        => \$usessh,

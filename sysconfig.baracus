@@ -36,12 +36,12 @@ BUILDIP=
 
 ## Description:    Options to the Baracus daemon
 ## Type:           string
-## Default:        ""
+## Default:        "none"
 ## ServiceRestart: baracusd
 #
 # Currently the only valid option is 'debug'
 #
-BARACUSD_OPTIONS=
+BARACUSD_OPTIONS="none"
 
 ## Description:    Automatically disable PXE entry after successful file  delivery
 ## Type:           yesno
