@@ -14,7 +14,7 @@ use BaracusSql;
 
 =head1 NAME
 
-B<baconfig> - baracus tool to manage distro, hardware, module, and profile entries.
+B<baconfig> - baracus tool to manage hardware, module, profile, and tftp entries.
 
 =head1 SYNOPSIS
 
@@ -34,7 +34,6 @@ Where E<lt>commandE<gt> is
 
 And, where E<lt>typeE<gt> is
 
-    distro    Values related to the distribution.
     hardware  Values related to the hardware of the build client.
     module    Postinstall scripts to run on build completion.
     profile   Network or other variable definitions.
@@ -46,7 +45,7 @@ Use 'man' or 'help <command> [<type>]' for more details.
 
 =head1 DESCRIPTION
 
-This tool allows files related to distro, hardware, modules or profiles to be
+This tool allows files related to hardware, modules or profiles to be
 added to, removed from, detailed, fetched from database tables.  Additionally,
 all the database entries can be listed by type.
 
@@ -238,7 +237,7 @@ sub man
 
 =head2 list <type> [--all] [--quiet] [match]
 
-Takes <type> as an argument, (distro, hardware, module, profile).
+Takes <type> as an argument, (hardware, module, profile, tftp).
 Also takes optional string [ match ] to use for partial matching.
 
 Lists enabled entries of type, matching match, in filesystem.
@@ -354,9 +353,7 @@ sub add
     $type = lc $type;
     &check_type( $type );
 
-    if ( $type eq "distro" ) {
-        $status = &add_distro( @_ );
-    } elsif ( $type eq "hardware" ) {
+    if ( $type eq "hardware" ) {
         $status = &add_hardware( @_ );
     } elsif ( $type eq "module" ) {
         $status = &add_module( @_ );
@@ -367,130 +364,6 @@ sub add
     }
 
     return $status;
-}
-
-=head2 add distro <options and args>
-
-Where <options and args> are
-
-  --name id              full id: os-release[-<addos>[-<addrel>]]-arch
-                         e.g.,  sles-10.2-x86_64, opensuse-11.1-x86_64
-                                sles-10.2-rt-x86_64, sles-11-hae-x86_64
-                                sles-11-mono-i586
-  --os base_product      e.g.,  sles, opensuse - not an add-on name
-  --release release      e.g.,  9.4, 10.2, 11, 11.1
-  --arch                 e.g.,  x86_64, i386, i586 [ default x86_64 ]
-  --description "note"   describe the distribution.
-
-These arguments are for describing HAE, MONO, OES, RT add-on products
-
-  --addon                If specified this product is an add-on.
-  --addos  aos           name of the addon, e.g., rt, mono, hae, oes
-  --addrel arel          addon version for itself if it has one
-
-=cut
-
-sub add_distro
-{
-    my %entry = (
-                 'distroid'    => "",
-                 'os'          => "",
-                 'release'     => "",
-                 'arch'        => "x86_64",
-                 'description' => "",
-                 'addon'       => 0,
-                 'addos'       => "",
-                 'addrel'      => "",
-                 );
-
-    @ARGV = @_;
-    GetOptions(
-               'name=s'        => \$entry{'distroid'},
-               'os=s'          => \$entry{'os'},
-               'release=s'     => \$entry{'release'},
-               'arch=s'        => \$entry{'arch'},
-               'description=s' => \$entry{'description'},
-               'addon'         => \$entry{'addon'},
-               'addos=s'       => \$entry{'addos'},
-               'addrel=s'      => \$entry{'addrel'},
-               );
-
-    if ( scalar @ARGV ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &help();
-    }
-
-    unless ( $entry{'os'} and
-             $entry{'release'} and
-             $entry{'arch'}
-            ) {
-        &help( 'add', 'distro' );
-    }
-
-    $entry{'distroid'} = "$entry{'os'}-$entry{'release'}-";
-
-    if ( $entry{'addon'} ) {
-        $entry{'addon'} = 't';
-        unless ( $entry{'addos'} ) {
-            print "Required --addos <add> not provided with --addon.\n";
-            &help( 'add', 'distro' );
-        }
-
-        $entry{'distroid'} .= "$entry{'addos'}-";
-        $entry{'distroid'} .= "$entry{'addrel'}-" if ( $entry{'addrel'} );
-    }
-    else {
-        $entry{'addon'} = 'f';
-    }
-
-    $entry{'distroid'} .= "$entry{'arch'}";
-
-    my $findcount = &find( 'distro', $entry{'distroid'} );
-    if ( defined $findcount ) {
-        if ( $findcount ) {
-            $LASTERROR = "Entry already exists:  distro $entry{'distroid'}.\n";
-            return 1;
-        }
-    } else {
-        $LASTERROR .= "Failed in add distro.\n" . $LASTERROR;
-        return 1;
-    }
-
-    my $sql_cols = lc get_cols( 'distro' );
-    $sql_cols =~ s/[ \t]*//g;
-    my @cols = split( /,/, $sql_cols );
-    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
-
-    my $sql = qq|INSERT INTO $tbl{ 'distro' }
-                ( $sql_cols )
-                VALUES ( $sql_vals )
-                |;
-
-    print $sql . "\n" if $debug;
-
-    my $sth;
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $LASTERROR = "Unable to prepare 'add' distro statement\n" . $dbh->errstr;
-        return 1;
-    }
-
-    my $paramidx = 0;
-    foreach my $col (@cols) {
-        $paramidx += 1;
-        $sth->bind_param( $paramidx, $entry{ $col } );
-    }
-
-    # finished with last entry
-    unless( $sth->execute( ) ) {
-        $LASTERROR = "Unable to execute 'add' distro statement\n" .
-            $sth->err;
-        return 1;
-    }
-
-    $sth->finish;
-    undef $sth;
-
-    return 0;
 }
 
 =head2 add hardware <options and args>
@@ -1880,9 +1753,9 @@ sub update_hardware
 
 =head2 export E<lt>typeE<gt> <options and args>
 
-Where <type> may be module, profile, or tftp.  Not hardware or distro.
+Where <type> may be module, profile, or tftp.  Not hardware.
 
-For similar functionality with hardware and distro types it is suggested to simply redirect the 'detail <type>' output. With these types there is no actual 'data' portion and no related '--file' argument used to add them.
+For similar functionality with hardware type it is suggested to simply redirect the 'detail <type>' output. With these types there is no actual 'data' portion and no related '--file' argument used to add them.
 
 Where <options and args> are
 
@@ -2047,9 +1920,7 @@ sub detail
 
     my $db2use = $dbh;
 
-    if ( $type eq "distro" ) {
-        $sql .= "WHERE distroid = ?";
-    } elsif ( $type eq "hardware" ) {
+    if ( $type eq "hardware" ) {
         $sql .= "WHERE hardwareid = ?";
 
         $sql_cols = lc get_cols( 'oscert' );
@@ -2128,20 +1999,6 @@ sub detail
                 print  $href->{'data'};
                 $printcount += 1;
             }
-        }
-        if ( $type eq "distro" ) {
-            printf "[%s]\n",           $href->{'distroid'} unless $nolabels;
-            printf "os=%s\n",          $href->{'os'};
-            printf "release=%s\n",     $href->{'release'};
-            printf "description=%s\n", $href->{'description'};
-            printf "arch=%s\n",        $href->{'arch'};
-            printf "addon=%s\n",       $href->{'addon'};
-            if ( $href->{'addon'} ) {
-                printf "addos=%s\n",       $href->{'addos'};
-                printf "addrel=%s\n",      $href->{'addrel'}
-                    if ( $href->{'addrel'} );
-            }
-            $printcount += 1;
         }
         if ( $type eq "hardware" ) {
             printf "[%s]\n",            $href->{'hardwareid'} unless $nolabels;
@@ -2253,9 +2110,7 @@ sub remove
 
     my $db2use = $dbh;
 
-    if ( $type eq "distro" ) {
-        $sql = qq|DELETE FROM $tbl{ $type } WHERE distroid = ?|;
-    } elsif ( $type eq "hardware" ) {
+    if ( $type eq "hardware" ) {
         $sql = qq|DELETE FROM $tbl{ $type } WHERE hardwareid = ?|;
     } elsif ( $type eq "module" ) {
         $sql = qq|DELETE FROM $tbl{ $type } WHERE moduleid = ?|;
@@ -2308,7 +2163,7 @@ sub check_command
 sub check_type
 {
     my $type = shift;
-    my $type_list = "distro, hardware, module, profile, tftp";
+    my $type_list = "hardware, module, profile, tftp";
 
     return $type_list if ( $type eq "all" );
 
@@ -2356,13 +2211,7 @@ sub list_start
 
     my $db2use = $dbh;
 
-    if ( $type eq "distro" ) {
-        $sql = qq|SELECT distroid as name, description, os, release, arch, addos
-                  FROM $tbl{ $type }
-                  WHERE distroid LIKE ?
-                  ORDER BY os DESC, CAST(release AS FLOAT) + 0 DESC, addos, arch
-                 |;
-    } elsif ( $type eq "hardware" ) {
+    if ( $type eq "hardware" ) {
         $sql = qq|SELECT hardwareid as name, description
                   FROM $tbl{ $type }
                   WHERE hardwareid LIKE ?
@@ -2441,7 +2290,7 @@ sub get_cols
 
 # get_versions
 #
-# args: type (module, distro, hardware, profile), $name, $version
+# args: type (module, hardware, profile, tftp), $name, $version
 # ret:  hash to entries found to specified, highest, enabled versions on match
 #         or undef on error
 
@@ -2580,7 +2429,7 @@ sub check_distroid
 
     my $sql = qq| SELECT distroid
                   FROM $tbl{ distro }
-                  WHERE distroid LIKE ?
+                  WHERE distroid = ?
                 |;
 
     unless ( $sth = $dbh->prepare( $sql ) ) {
@@ -2616,7 +2465,7 @@ sub check_hardware
 
     my $sql = qq| SELECT hardwareid
                   FROM $tbl{ hardware }
-                  WHERE hardwareid LIKE ?
+                  WHERE hardwareid = ?
                 |;
 
     unless ( $sth = $dbh->prepare( $sql ) ) {

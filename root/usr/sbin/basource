@@ -36,7 +36,7 @@ Where command is one of
     disable --distro <x>  Diable a build source for distribution <x>
     enable  --distro <x>  Enable a build source for distribution <x>
     verify  --distro <x>  Verify build source for distribution <x>
-    details --distro <x>  Display specifics about a distribution
+    detail  --distro <x>  Display specifics about a distribution
 
     list   [--distro <x>] List known distros
 
@@ -115,6 +115,10 @@ foreach my $bd (@bdirs) {
 my $execname = $0;
 $execname = $1 if ( $0 =~ m|^.*/([^/].+)| );
 
+my %tbl = (
+            'distro'   => 'distro_cfg',
+           );
+
 my %cmds = (
             'add'      => \&add,
             'remove'   => \&remove,
@@ -165,8 +169,9 @@ die BaracusDB::errstr unless( $dbh );
 
 my $hashoftbls = BaracusSql::get_baracus_tables();
 
-print "bahost debug=$debug\n" if $debug;
+print "basource debug=$debug\n" if $debug;
 my $deepdebug = $debug > 2 ? 1 : 0;
+
 my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp",
                            'User' => "baracus",
                            'debug' => $deepdebug )
@@ -177,8 +182,17 @@ my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp",
 print "setting uid back to $uid\n" if ($debug > 2);
 $> = $uid;
 
-my $status = &main(@ARGV);
-
+my $status;
+# sidestep list of cmds - provide
+if ( $ARGV[0] eq "prepdbwithxml" ) {
+    # hidden method to initialize distro_cfg
+    $status = &prepdbwithxml();
+} elsif ( $ARGV[0] eq "purgedbofxml" ) {
+    # hidden method to purge distro_cfg
+    $status = &purgedbofxml();
+} else {
+    $status = &main(@ARGV);
+}
 $sqlfsOBJ->discard();
 
 die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
@@ -824,14 +838,8 @@ sub detail() {
     print "Based on product(s):  " .
         join (", ", ( sort &baxml_products_getlist( $distro ) ) ) . "\n";
     foreach my $product ( sort &baxml_products_getlist( $distro ) ) {
-        print "Detail for $product";
+        print "Detail for $product\n";
         my $ph = &baxml_product_gethash( $distro, $product );
-        if ( defined $ph->{'addon'} and $ph->{'addon'} ne "base" ) {
-            print " with extension style '$ph->{'addon'}'\n";
-        }
-        else {
-            print "\n";
-        }
         foreach my $iso ( sort &baxml_isos_getlist( $distro, $product ) ) {
             my $ih = &baxml_iso_gethash( $distro, $product, $iso );
             my $builds = $ih->{isopath};
@@ -888,10 +896,11 @@ sub list() {
         $distro = "";
     }
 
-    my $name = "distro";
+    my $name = "base/addon";
     if ( scalar @ARGV ) {
         if ( $ARGV[0] eq "base" ) {
             $base = shift @ARGV;
+            $name = "base";
         }
         elsif ( $ARGV[0] eq "addon" ) {
             $addon = shift @ARGV;
@@ -911,7 +920,7 @@ sub list() {
 
     unless ( $quiet || $nolabels ) {
         print "--------------------------------------------------------------------------------\n";
-        printf "%-32s status\n", $name;
+        printf "%-28s %-8s description\n", $name, "status";
         print "--------------------------------------------------------------------------------\n";
     }
 
@@ -945,17 +954,18 @@ sub list() {
         if ( defined $dbref and
              $dbref->{status} and
              $dbref->{status} != BaracusSql::BA_DELETED ) {
-            printf "%-32s ", $adistro;
+
+            printf "%-28s ", $adistro;
             $status = $BaracusSql::baState{ $dbref->{status} };
             unless ( $quiet ) {
-                printf "$status";
+                printf "%-8s %s", $status, $dbref->{description};
             }
             print "\n";
         } elsif ( $all ) {
-            printf "%-32s ", $adistro;
+            printf "%-28s ", $adistro;
             $status = $BaracusSql::baState{ BaracusSql::BA_DELETED };
             unless ( $quiet ) {
-                printf "$status";
+                printf "%-8s %s", $status, $dh->{description};
             }
             print "\n";
         }
@@ -1968,10 +1978,8 @@ sub source_register() {
     elsif ($command eq "remove") {
 
         print "Updating registration: remove $distro\n";
-#        my $sql = q|DELETE FROM sqlfstable_reg
-#                    WHERE distro=?|;
 
-        my $sql = q|UPDATE distro_cfg
+        my $sql = qq|UPDATE $tbl{ distro }
                     SET change=CURRENT_TIMESTAMP(0),
                         status=?
                     WHERE distroid=?|;
@@ -1995,15 +2003,10 @@ sub source_register() {
 
         print "Updating registration: disable $distro\n";
 
-#        my $sql = q|UPDATE sqlfstable_reg
-#                    SET modify_date=CURRENT_TIMESTAMP(0),
-#                        status=?
-#                    WHERE distro=?|;
-
-        my $sql = q|UPDATE distro_cfg
-                    SET change=CURRENT_TIMESTAMP(0),
-                        status=?
-                    WHERE distroid=?|;
+        my $sql = qq|UPDATE $tbl{ distro }
+                     SET change=CURRENT_TIMESTAMP(0),
+                         status=?
+                     WHERE distroid=?|;
 
         my $sth = $dbh->prepare( $sql )
             or die "Cannot prepare sth: ",$dbh->errstr;
@@ -2017,15 +2020,10 @@ sub source_register() {
 
         print "Updating registration: enable $distro\n";
 
-#        my $sql = q|UPDATE sqlfstable_reg
-#                    SET modify_date=CURRENT_TIMESTAMP(0),
-#                        status=?
-#                    WHERE distro=?|;
-
-        my $sql = q|UPDATE distro_cfg
-                    SET change=CURRENT_TIMESTAMP(0),
-                        status=?
-                    WHERE distroid=?|;
+        my $sql = qq|UPDATE $tbl{ 'distro' }
+                     SET change=CURRENT_TIMESTAMP(0),
+                         status=?
+                     WHERE distroid=?|;
 
         my $sth = $dbh->prepare( $sql )
             or die "Cannot prepare sth: ",$dbh->errstr;
@@ -2050,15 +2048,16 @@ sub get_db_source_entry() {
 
     my $distro = shift;
 
-    my $sql = q|SELECT distroid,
-                       buildip,
-                       type,
-                       basepath,
-                       status,
-                       creation,
-                       change
-                FROM distro_cfg
-                WHERE distroid = ?|;
+    my $sql = qq|SELECT distroid,
+                        buildip,
+                        type,
+                        basepath,
+                        description,
+                        status,
+                        creation,
+                        change
+                 FROM $tbl{ 'distro' }
+                 WHERE distroid = ? |;
 
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare sth: ",$dbh->errstr;
@@ -2092,14 +2091,14 @@ sub add_db_source_entry() {
     my $dbref = &get_db_source_entry( $distro );
 
     if ( defined $dbref ) {
-        $sql = q|UPDATE distro_cfg
-                 SET creation=CURRENT_TIMESTAMP(0),
-                     change=NULL,
-                     buildip=?,
-                     type=?,
-                     basepath=?,
-                     status=?
-                 WHERE distroid=?|;
+        $sql = qq|UPDATE $tbl{ 'distro' }
+                  SET creation=CURRENT_TIMESTAMP(0),
+                      change=NULL,
+                      buildip=?,
+                      type=?,
+                      basepath=?,
+                      status=?
+                  WHERE distroid=?|;
 
         $sth = $dbh->prepare( $sql )
             or die "Cannot prepare sth: ",$dbh->errstr;
@@ -2113,23 +2112,24 @@ sub add_db_source_entry() {
         $sth->execute()
             or die "Cannot execute sth: ", $sth->errstr;
     } else {
-        $sql = q|INSERT INTO distro_cfg ( distroid,
-                                          os,
-                                          release,
-                                          arch,
-                                          description,
-                                          addon,
-                                          addos,
-                                          addrel,
-                                          buildip,
-                                          type,
-                                          basepath,
-                                          status,
-                                          creation,
-                                          change,
-                                        )
-                 VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                          CURRENT_TIMESTAMP(0), NULL ) |;
+        $sql = qq|INSERT INTO $tbl{ 'distro' }
+                  ( distroid,
+                    os,
+                    release,
+                    arch,
+                    description,
+                    addon,
+                    addos,
+                    addrel,
+                    buildip,
+                    type,
+                    basepath,
+                    status,
+                    creation,
+                    change,
+                  )
+                  VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                           CURRENT_TIMESTAMP(0), NULL ) |;
 
         $sth = $dbh->prepare( $sql )
             or die "Cannot prepare sth: ",$dbh->errstr;
@@ -2238,6 +2238,18 @@ sub list_installed_addons
         }
     }
     return @list;
+}
+
+sub get_cols
+{
+    my $tbl = shift;
+    my $baracustbls = BaracusSql::get_baracus_tables()->{ $tbl{ $tbl } };
+    if ( defined $baracustbls ) {
+        return BaracusSql::keys2columns( $baracustbls );
+    }
+    else {
+        die "Internal database table/name usage error.\n";
+    }
 }
 
 ###########################################################################
@@ -2425,6 +2437,109 @@ sub baxml_load
     }
 
     return $xml;
+}
+
+# hidden command to initialize db
+
+sub prepdbwithxml
+{
+    my %entry;
+
+    my $sql_cols = lc get_cols( 'distro' );
+    $sql_cols =~ s/[ \t]*//g;
+    my @cols = split( /,/, $sql_cols );
+    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+    my $sql = qq|INSERT INTO $tbl{ distro }
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+
+    print $sql . "\n" if $debug;
+
+    my $sth;
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'add' distro statement\n" . $dbh->errstr;
+        return 1;
+    }
+
+    foreach my $distro ( keys %{$xml->{distro}} ) {
+        my $dh = $xml->{distro}->{$distro};
+        $entry{'distroid'   } = $distro;
+        $entry{'os'         } = $dh->{os};
+        $entry{'release'    } = $dh->{release};
+        $entry{'arch'       } = $dh->{arch};
+        $entry{'description'} = $dh->{description};
+
+        if ( defined $dh->{'requires'} ) {
+            $entry{'addon'  } = 1;
+            $entry{'addos'  } = $dh->{addos};
+            $entry{'addrel' } = $dh->{addrel}
+                if ( defined $dh->{addrel} );
+        } else {
+            $entry{'addon'  } = 0;
+            $entry{'addos'  } = "";
+            $entry{'addrel' } = "";
+        }
+
+        if ( $debug > 1 ) {
+            while (my ($key, $val) = each %entry) {
+                print "entry $key => $val\n"
+            }
+        }
+
+        my $dbref = &get_db_source_entry( $distro );
+        if ( defined $dbref and defined $dbref->{distroid} ) {
+            print "Entry already exists:  distro $entry{'distroid'}.\n";
+            next;
+        }
+
+        my $paramidx = 0;
+        foreach my $col (@cols) {
+            $paramidx += 1;
+            $sth->bind_param( $paramidx, $entry{ $col } );
+        }
+
+        # finished with last entry
+        unless( $sth->execute( ) ) {
+            $LASTERROR = "Unable to execute 'add' distro statement\n" .
+                $sth->err;
+            return 1;
+        }
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+sub purgedbofxml
+{
+    my $sql = qq|DELETE FROM $tbl{ 'distro' } WHERE distroid = ?|;
+    print $sql . "\n" if $debug;
+
+    my $sth;
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'purge' distro statement\n" . $dbh->errstr;
+        return 1;
+    }
+
+    foreach my $distro ( keys %{$xml->{distro}} ) {
+
+        print "Removing $distro entry\n" if ($debug);
+
+        unless( $sth->execute( $distro ) ) {
+            $LASTERROR = "Unable to execute 'purge' of $distro\n" .
+                $sth->err;
+            return 1;
+        }
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
 }
 
 ######################################################################

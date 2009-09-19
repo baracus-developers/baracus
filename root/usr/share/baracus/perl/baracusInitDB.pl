@@ -30,7 +30,7 @@ if ( defined $reverse_flag ) {
     &niam();
 } else {
     &main();
-    system ( "/usr/share/baracus/perl/baconfig_load_distro" );
+    system ( "basource prepdbwithxml" );
     system ( "/usr/share/baracus/perl/baconfig_load_hardware" );
     system ( "/usr/share/baracus/perl/baconfig_load_profile" );
     my $perl_reload = &add_apache2_perl();
