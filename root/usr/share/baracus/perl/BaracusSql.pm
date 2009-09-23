@@ -15,6 +15,10 @@ use constant BA_DELETED  => 4;
 use constant BA_UPDATED  => 5;
 use constant BA_DISKWIPE => 6;
 use constant BA_DISABLED => 7;
+use constant BA_FOUND    => 8;
+use constant BA_BUILDING => 9;
+use constant BA_WIPING   => 10;
+use constant BA_WIPED    => 11;
 
 =item baState
 
@@ -30,6 +34,10 @@ our %baState = (
                 5          => 'updated',
                 6          => 'diskwipe',
                 7          => 'disabled',
+                8          => 'found',
+                9          => 'building',
+                10         => 'wiping',
+                11         => 'wiped',
                 'ready'    => BA_READY,
                 'built'    => BA_BUILT,
                 'spoofed'  => BA_SPOOFED,
@@ -37,6 +45,10 @@ our %baState = (
                 'updated'  => BA_UPDATED,
                 'diskwipe' => BA_DISKWIPE,
                 'disabled' => BA_DISABLED,
+                'found'    => BA_FOUND,
+                'building' => BA_BUILDING,
+                'wiping'   => BA_WIPING,
+                'wiped'    => BA_WIPED,
                 );
 
 =item keys2columns

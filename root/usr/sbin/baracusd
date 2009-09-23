@@ -27,6 +27,7 @@ my $baracusd_options=$sysconfig->get( 'baracusd_options' );
 my $buildip = $sysconfig->get( 'buildip' );
 my $remote_logging = $sysconfig->get( 'remote_logging' );
 
+print "baracusd_options  $baracusd_options \n";
 $debug = 1 if ( defined $baracusd_options and $baracusd_options =~ m|debug| );
 
 print "\$baracusdir before : $baracusdir EOL\n" if $debug;
@@ -67,17 +68,17 @@ open(STDOUT, ">>$bdir{'logs'}/baracusd")
 open(STDERR, ">>$bdir{'logs'}/baracusd")
     or die "Unable to open log file: $!\n";
 
+my $uphoststate = "$bdir{'data'}/perl/baracusd_update_host_state.pl";
+
 my $dovalidate = 1;
-our $validatefile = "$bdir{'hooks'}/verify_client_build";
-our $validatepass = "$bdir{'hooks'}/verify_client_build_passed";
-our $validatefail = "$bdir{'hooks'}/verify_client_build_failed";
+my $validatepass = "$bdir{'hooks'}/verify_client_build_passed";
+my $validatefail = "$bdir{'hooks'}/verify_client_build_failed";
 &checkdovalidate();
 
-my $dopxehook = 1;
 my $dopxehookpass = 1;
 my $dopxehookfail = 1;
-our $pxehookpass = "$bdir{'hooks'}/post_pxe_delivery_passed";
-our $pxehookfail = "$bdir{'hooks'}/post_pxe_delivery_failed";
+my $pxehookpass = "$bdir{'hooks'}/post_pxe_delivery_passed";
+my $pxehookfail = "$bdir{'hooks'}/post_pxe_delivery_failed";
 &checkdopxehook();
 
 &config_syslog();
@@ -90,7 +91,7 @@ unless ($uid = (getpwnam($user))[2]) {
 }
 
 # create instance of TFTP server
-my $listener = SqlTFTPd->new( 'Timeout' => 10 )
+my $listener = SqlTFTPd->new( 'Timeout' => 10, 'debug' => $debug )
     or die SqlTFTPd->error;
 
 unless( $listener->open() ) {
@@ -182,7 +183,7 @@ while (1) {
                     print STDOUT "Disabled PXE peer $request->{'_REQUEST_'}{'PeerAddr'} check tftp entry no|enable flag\n";
                 }
             }
-            &deliverPXE( $request, $status ) if ( $dopxehook );
+            &deliverPXE( $request, $status );
         }
     }
 }
@@ -194,10 +195,9 @@ die "DOES NOT EXECUTE";
 ###########################################################################
 
 sub checkdovalidate {
-if (not -e $validatefile) {
-    print STDOUT "Build client verification script not found:\n\t$validatefile\n";
-    print STDOUT "No confirmation of completed builds or do post install hooks\n";
-    print STDOUT "Please check setting of BARACUSDIR in $sysconfigfile\n";
+if (not -e $uphoststate) {
+    print STDOUT "State change script not found:\n\t$uphoststate\n";
+    print STDOUT "No confirmation of completed builds, wipes\n";
     $dovalidate = 0;
 }
 }
@@ -208,9 +208,6 @@ sub checkdopxehook {
     }
     if (not -e $pxehookfail) {
         $dopxehookfail = 0;
-    }
-    unless ( $dopxehookpass or $dopxehookfail ) {
-        $dopxehook = 0;
     }
 }
 
@@ -275,10 +272,13 @@ sub validateURL
     if ( defined $pxedeliveredips->{ $request->{'_REQUEST_'}{'PeerAddr'} } ) {
         $mac = $pxedeliveredips->{ $request->{'_REQUEST_'}{'PeerAddr'} };
     }
+    my $cmd = "$uphoststate endofbuild --host $hostname --ip $ip --uuid $uuid";
+    $cmd .= " --mac $mac" if ( $mac );
 
     print STDOUT "VERIFYING hostname $hostname ip $ip uuid $uuid mac $mac\n"
         if $debug;
-    my $status = system("$validatefile $hostname $ip $uuid $mac ");
+
+    my $status = system( $cmd );
     if ( $status == 1 ) {
         print STDOUT "VERIFYING FAILED $hostname $ip $uuid $mac \n";
         if (-x $validatefail) {
@@ -331,11 +331,15 @@ sub deliverPXE {
 
     $mac =~ s|\-|:|g;
 
+    if ( defined $tftpsts ) {
+        my $cmd = "$uphoststate pxeserved --mac $mac";
+        system( $cmd );
+    }
     if ( defined $tftpsts and $dopxehookpass) {
         print STDOUT "INVOKING PXE PASS $pxehookpass $mac $ip\n";
         system("$pxehookpass $mac $ip");
     } elsif ( $dopxehookfail ) {
-        print STDOUT "INVOKING PXE FAIL $pxehookpass $mac $ip\n";
+        print STDOUT "INVOKING PXE FAIL $pxehookfail $mac $ip\n";
         system("$pxehookfail $mac $ip");
     }
     return;
