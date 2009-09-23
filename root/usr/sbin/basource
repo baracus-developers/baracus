@@ -2126,7 +2126,7 @@ sub add_db_source_entry() {
                     basepath,
                     status,
                     creation,
-                    change,
+                    change
                   )
                   VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                            CURRENT_TIMESTAMP(0), NULL ) |;
@@ -2157,7 +2157,7 @@ sub add_db_source_entry() {
         $sth->bind_param( 11, $share      );
         $sth->bind_param( 12, BaracusSql::BA_READY );
 
-        print "dist $distro os $dh->{os} rel $dh->{release} arch $dh->{arch} desc $dh->{description} addos $dh->{addos} addrel $dh->{addrel} ip $buildip type $buildtype share $share\n";
+        print "dist $distro os $dh->{os} rel $dh->{release} arch $dh->{arch} desc $dh->{description} addos $dh->{addos} addrel $dh->{addrel} ip $buildip type $buildtype share $share\n" if $debug;
         $sth->execute()
             or die "Cannot execute sth: ", $sth->errstr;
     }
