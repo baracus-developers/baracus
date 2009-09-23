@@ -3,6 +3,7 @@
 use strict;
 
 use Getopt::Long qw( :config pass_through );
+use AppConfig;
 
 use lib "/usr/share/baracus/perl";
 
@@ -28,7 +29,7 @@ my $autodisablepxe   = $sysconfig->get( 'autodisablepxe'   );
 $debug = 1 if ( defined $baracusd_options and $baracusd_options =~ m|debug| );
 
 my %tbl  = (
-            'host'     => 'templateid',
+            'host'       => 'templateid',
             );
 
 my %cmds = (
@@ -37,13 +38,13 @@ my %cmds = (
             'pxeserved'  => \&pxeserved,  # -> building or wiping
             );
 
-GetOptions(
-           'debug+'    => \$debug,
-           'hostname'  => \$hostname,
-           'ip'        => \$ip,
-           'uuid'      => \$uuid,
-           'mac'       => \$mac,
-           );
+GetOptions (
+            'debug+'     => \$debug,
+            'hostname=s' => \$hostname,
+            'ip=s'       => \$ip,
+            'uuid=s'     => \$uuid,
+            'mac=s'      => \$mac,
+            );
 
 my $dbname = "baracus";
 my $dbrole = $dbname;
@@ -54,13 +55,11 @@ die BaracusDB::errstr unless ( defined $uid );
 my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
 die BaracusDB::errstr unless( $dbh );
 
-my $status = &main(@ARGV);
+&main(@ARGV);
 
 die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
 
-print $LASTERROR if $status;
-
-exit $status;
+exit 0;
 
 die "DOES NOT EXECUTE";
 
@@ -84,22 +83,22 @@ sub main
 
 sub endofbuild {
     # get host template entry if any
-    my $href = &get_db_host_entry( $hostname );
+    my $href = &get_db_host_entry( );
     unless( defined $href ) {
         print "unable to find template for $hostname\n";
         return 1;
     }
     # check mac and uuid (and ip if template not dhcp) match or state is 3:spoofed
-    my $state = $BaracusSql::baState{ BaracusSql::BA_BUILT };
+    my $state = BaracusSql::BA_BUILT;
     # check for spoofing of url access
     if (( "$uuid" ne "$href->{'uuid'}" ) or
         (( "$ip"  ne "$href->{'ip'}"  ) and
          ( "dhcp" ne "$href->{'ip'}"  ))) {
-        $state = $BaracusSql::baState{ BaracusSql::BA_SPOOFED };
+        $state = BaracusSql::BA_SPOOFED;
     }
 
     if ( defined $mac and "$mac" ne "$href->{'mac'}" ) {
-        $state = $BaracusSql::baState{ BaracusSql::BA_SPOOFED };
+        $state = BaracusSql::BA_SPOOFED;
     }
 
     # check that the last change time greater than delta
@@ -115,7 +114,7 @@ sub endofbuild {
     # update the host template entry
     &update_db_host_entry( $href );
 
-    unless ( $state == $BaracusSql::baState{ BaracusSql::BA_BUILT } ) {
+    unless ( $state == BaracusSql::BA_BUILT ) {
         return 1;
     }
     return 0;
@@ -129,7 +128,7 @@ sub endofwipe {
 
 sub pxeserved {
     # get host template entry if any
-    my $href = &get_db_host_by_mac( $mac );
+    my $href = &get_db_host_by_mac( );
     unless( defined $href ) {
         print "unable to find template for $mac\n";
         return 1;
@@ -145,12 +144,12 @@ sub pxeserved {
          $href->{state} eq BaracusSql::BA_SPOOFED or
          $href->{state} eq BaracusSql::BA_UPDATED or
          $href->{state} eq BaracusSql::BA_BUILT ) {
-        $state = $BaracusSql::baState{ BaracusSql::BA_BUILDING };
+        $state = BaracusSql::BA_BUILDING;
     }
 
     if ( $href->{state} eq BaracusSql::BA_DISKWIPE or
          $href->{state} eq BaracusSql::BA_WIPED ) {
-        $state = $BaracusSql::baState{ BaracusSql::BA_WIPING };
+        $state = BaracusSql::BA_WIPING;
     }
 
     # BA_FOUND BA_DISABLED BA_DELETED # these shouldn't be served
@@ -183,11 +182,12 @@ sub pxeserved {
 ###########################################################################
 
 sub get_db_host_entry() {
-    my $hostname = shift;
 
     my $cols = lc get_cols( 'host' );
 
     my $sql = qq|SELECT $cols FROM $tbl{ host } WHERE hostname = ? |;
+
+    print $sql . "and hostname is $hostname \n" if $debug;
 
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare select statement\n" . $dbh->errstr;
@@ -198,15 +198,16 @@ sub get_db_host_entry() {
 }
 
 sub get_db_host_by_mac() {
-    my $mac = shift;
 
     my $cols = lc get_cols( 'host' );
 
     my $sql = qq|SELECT $cols FROM $tbl{ host } WHERE mac = ? |;
 
+    print $sql . "and mac is $mac \n" if $debug;
+
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare select statement\n" . $dbh->errstr;
-    $sth->execute( $hostname )
+    $sth->execute( $mac )
         or die "Cannot execute select statement\n" . $sth->err;
 
     return $sth->fetchrow_hashref();
@@ -216,12 +217,12 @@ sub update_db_host_entry() {
 
     my $href = shift;  # entry passed in with any needed mods
 
-    my $cols = lc get_cols( 'host' );
+    my $sql_cols = lc get_cols( 'host' );
     $sql_cols =~ s/[ \t]*//g;
     my @cols = split( /,/, $sql_cols );
     $sql_cols ="";
     my $sql_vals = "";
-    foreach $col ( @cols ) {
+    foreach my $col ( @cols ) {
         next if ( $col eq "hostname" );  # skip the key
         next if ( $col eq "change" );    # skip update col if present
         if ( defined $href->{ $col } ) {
@@ -229,20 +230,20 @@ sub update_db_host_entry() {
             $sql_vals .= "'$href->{ $col }',";
         }
     }
-    $sql_cols .= "change") {
+    $sql_cols .= "change";
     $sql_vals .= "CURRENT_TIMESTAMP(0)";
 
     my $sql = qq|UPDATE $tbl{ host }
-                ( $sql_cols ) = ( $sql_vals )
+                SET ( $sql_cols ) = ( $sql_vals )
                 WHERE hostname = ?
                 |;
 
-    print $sql . "\n" if $debug;
+    print $sql . "and hostname is $href->{ hostname }\n" if $debug;
 
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare update statement\n" . $dbh->errstr;
 
-    $sth->execute( $href->{ hostname } )
+    $sth->execute( $href->{hostname} )
         or die "Cannot execute update statement\n" . $sth->err;
 
     $sth->finish;
@@ -252,7 +253,7 @@ sub update_db_host_entry() {
 sub less_than_delta {
 
     use Time::Local;
-
+ 
     my $change = shift;   # string like 2009-05-13 14:01:02.08 _localtime_
     my $delta  = shift;
     my $now    = time();  # UTC... gah

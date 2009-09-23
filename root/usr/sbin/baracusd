@@ -27,7 +27,6 @@ my $baracusd_options=$sysconfig->get( 'baracusd_options' );
 my $buildip = $sysconfig->get( 'buildip' );
 my $remote_logging = $sysconfig->get( 'remote_logging' );
 
-print "baracusd_options  $baracusd_options \n";
 $debug = 1 if ( defined $baracusd_options and $baracusd_options =~ m|debug| );
 
 print "\$baracusdir before : $baracusdir EOL\n" if $debug;
@@ -327,9 +326,8 @@ sub deliverPXE {
     # dban pxeboot file we may want to auto-remove the host template.
 
     my $mac = $1;
+    $mac =~ s|-|:|g;
     my $ip = $request->{'_REQUEST_'}{'PeerAddr'};
-
-    $mac =~ s|\-|:|g;
 
     if ( defined $tftpsts ) {
         my $cmd = "$uphoststate pxeserved --mac $mac";
