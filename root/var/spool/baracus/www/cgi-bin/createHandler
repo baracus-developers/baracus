@@ -13,6 +13,7 @@ my @names = $query->param;
 my @params = ("mac", "ip", "hostname", "distro", "hardware", "module", "profile", "addon");
 my @vars = ( "netmask", "gateway", "dnsdomain", "dns1");
 my $varlist;
+my $redir = ' 2>&1';
 
 my $command = "sudo bahost add ";
 
@@ -48,7 +49,7 @@ if( $varlist)
 {
 	$command = $command." --vars $varlist";
 }
-
+$command = $command." $redir";
 $result = $result.`$command`;
 #$result = $result."\n\nCommand: $command\n\n\n\n";
 chomp $result;
