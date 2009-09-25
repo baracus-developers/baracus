@@ -368,6 +368,26 @@ sub add
         &help( $command );
     }
 
+    my $dbref;
+
+    # get any existing db entry
+    # if none exists add this new
+    # if one exists
+    #    and it is deleted we overwrite
+    #    and it is not deleted we exit
+    $dbref = &get_db_host_entry( $hostname );
+    if ( defined $dbref ) {
+        print "Attempt to add over a non-deleted entry for $hostname\n";
+        exit 1;
+    }
+
+    # get any existing db entry - with same MAC
+    $dbref = &get_db_host_by_mac( $mac );
+    if ( defined $dbref ) {
+        print "Attempt to add entry with mac identical to entry $dbref->{hostname}\n";
+        exit 1;
+    }
+
     # begin loading of hash used for remainder of processing command
 
     my %hash;
@@ -579,17 +599,6 @@ sub add
 
     &add_pxeboot( $href );
     &add_autoyast( $href );
-
-    # get any existing db entry
-    # if none exists add this new
-    # if one exists
-    #    and it is deleted we overwrite
-    #    and it is not deleted we exit
-    my $dbref = &get_db_host_entry( $hostname );
-    if ( defined $dbref ) {
-        print "Attempt to add over a non-deleted entry for $hostname\n";
-        exit 1;
-    }
 
     &add_db_host_entry( $href );
     print "Added $hostname template \n";
@@ -1242,57 +1251,74 @@ sub get_db_host_entry() {
 
     my $hostname = shift @_;
 
-    my $sql = qq|SELECT hostname,
-                       ip,
-                       mac,
-                       uuid,
-                       state,
-                       creation,
-                       change
-                FROM $tbl{'host'}
-                WHERE hostname = ? |;
+    my $cols = lc get_cols( 'host' );
+
+    my $sql = qq|SELECT $cols FROM $tbl{ host } WHERE hostname = ? |;
+
+    print $sql . "and hostname is $hostname \n" if $debug;
 
     my $sth = $dbh->prepare( $sql )
-        or die "Cannot prepare sth: ",$dbh->errstr;
-
+        or die "Cannot prepare select statement\n" . $dbh->errstr;
     $sth->execute( $hostname )
-        or die "Cannot execute sth: ",$sth->errstr;
+        or die "Cannot execute select statement\n" . $sth->err;
+
+    return $sth->fetchrow_hashref();
+}
+
+sub get_db_host_by_mac() {
+
+    my $mac = shift;
+
+    my $cols = lc get_cols( 'host' );
+
+    my $sql = qq|SELECT $cols FROM $tbl{ host } WHERE mac = ? |;
+
+    print $sql . "and mac is $mac \n" if $debug;
+
+    my $sth = $dbh->prepare( $sql )
+        or die "Cannot prepare select statement\n" . $dbh->errstr;
+    $sth->execute( $mac )
+        or die "Cannot execute select statement\n" . $sth->err;
 
     return $sth->fetchrow_hashref();
 }
 
 sub update_db_host_entry() {
 
-    my $HashRef = shift @_;
-    my %Hash = %$HashRef;
+    my $href = shift;  # entry passed in with any needed mods
 
-    my $sql = qq|UPDATE $tbl{'host'}
-                SET ip=?,
-                    mac=?,
-                    uuid=?,
-                    state=?,
-                    cmdline=?,
-                    change=CURRENT_TIMESTAMP(0)
-                WHERE hostname=? |;
-
-    if ( $debug > 1 ) {
-        print "$sql\n";
-        while ( my ( $key, $value ) = each %Hash ) {
-            print "update db: $key => $value\n";
+    my $sql_cols = lc get_cols( 'host' );
+    $sql_cols =~ s/[ \t]*//g;
+    my @cols = split( /,/, $sql_cols );
+    $sql_cols ="";
+    my $sql_vals = "";
+    foreach my $col ( @cols ) {
+        next if ( $col eq "hostname" );  # skip the key
+        next if ( $col eq "change"   );  # skip update col if present
+        next if ( $col eq "cmdline"  );  # skip update cmdline if present
+        if ( defined $href->{ $col } ) {
+            $sql_cols .= "$col,";
+            $sql_vals .= "'$href->{ $col }',";
         }
     }
+    $sql_cols .= "change, cmdline";
+    $sql_vals .= "CURRENT_TIMESTAMP(0), '$cmdline'";
+
+    my $sql = qq|UPDATE $tbl{ host }
+                SET ( $sql_cols ) = ( $sql_vals )
+                WHERE hostname = ?
+                |;
+
+    print $sql . "and hostname is $href->{ hostname }\n" if $debug;
+
     my $sth = $dbh->prepare( $sql )
-        or die "Cannot prepare sth: ",$dbh->errstr;
+        or die "Cannot prepare update statement\n" . $dbh->errstr;
 
-    $sth->bind_param( 1,  $Hash{'ip'}        );
-    $sth->bind_param( 2,  $Hash{'mac'}       );
-    $sth->bind_param( 3,  $Hash{'uuid'}      );
-    $sth->bind_param( 4,  $Hash{'state'}     );
-    $sth->bind_param( 5,  $cmdline           );
-    $sth->bind_param( 6,  $Hash{'hostname'}  );
+    $sth->execute( $href->{hostname} )
+        or die "Cannot execute update statement\n" . $sth->err;
 
-    $sth->execute()
-        or die "Cannot execute sth: ",$sth->errstr;
+    $sth->finish;
+    undef $sth;
 }
 
 sub remove_db_host_entry() {
@@ -1305,6 +1331,18 @@ sub remove_db_host_entry() {
 
     $sth->execute( $hostname )
         or die "Cannot execute sth: ",$sth->errstr;
+}
+
+sub get_cols
+{
+    my $tbl = shift;
+    my $baracustbls = BaracusSql::get_baracus_tables()->{ $tbl{ $tbl } };
+    if ( defined $baracustbls ) {
+        return BaracusSql::keys2columns( $baracustbls );
+    }
+    else {
+        die "Internal database table/name usage error.\n";
+    }
 }
 
 sub check_ip
