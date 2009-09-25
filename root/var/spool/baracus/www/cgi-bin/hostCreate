@@ -220,6 +220,10 @@ sub createProfileVars
 					}
 				}
 	    	}
+	    	else
+	    	{
+	    		$$_ = "";
+	    	}
 	    }
    	}
    	debugPrint( "distro: $distro");
