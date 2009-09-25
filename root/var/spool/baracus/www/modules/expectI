@@ -13,11 +13,22 @@ my $logPath = "/$BATools::baPath/tmp/";
 
 my $op = @ARGV[0];
 my $distro = @ARGV[1]; 
-my $user = @ARGV[2]; 
-my $ePass = @ARGV[3];
-my $fileName = @ARGV[4]; 
+my $addon = @ARGV[2];
+my $user = @ARGV[3]; 
+my $ePass = @ARGV[4];
+my $fileName = @ARGV[5]; 
 my $log = $fileName."-log";
-my $cmd = "sudo /usr/sbin/basource $op --distro=$distro -i";
+
+if( $addon ne "NOADDON")
+{
+	$addon = "--addon $addon";
+}
+else
+{
+	$addon = "";
+}
+
+my $cmd = "sudo /usr/sbin/basource $op --distro=$distro $addon -i";
 
 my $pass = decode_base64( $ePass);
 

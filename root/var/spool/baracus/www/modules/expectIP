@@ -13,17 +13,27 @@ my $logPath = "/$BATools::baPath/tmp/";
 
 my $op = @ARGV[0];
 my $distro = @ARGV[1]; 
-my $user = @ARGV[2]; 
-my $ePass = @ARGV[3];
+my $addon = @ARGV[2]
+my $user = @ARGV[3]; 
+my $ePass = @ARGV[4];
 
-my $paddr = @ARGV[4];
-my $puser = @ARGV[5];
-my $pePass = @ARGV[6];
+my $paddr = @ARGV[5];
+my $puser = @ARGV[6];
+my $pePass = @ARGV[7];
 
 my $fileName = @ARGV[7]; 
 
+if( $addon ne "NOADDON")
+{
+		$addon = "--addon $addon";
+}
+else
+{
+	$addon = "";
+}
+
 my $log = $fileName."-log";
-my $cmd = "sudo /usr/sbin/basource $op --distro=$distro -i -p";
+my $cmd = "sudo /usr/sbin/basource $op --distro=$distro $addon -i -p";
 
 my $pass = decode_base64( $ePass);
 my $ppass = decode_base64( $pePass);
@@ -31,7 +41,6 @@ my $ppass = decode_base64( $pePass);
 #Debug Code
 open (TF, ">/tmp/baexpect.log") || die "Error: $!";
 my $argc = @ARGV;
-print TF "Are We Here\n";
 print TF "fn: $fileName\n";
 print TF "path: $filePath\n";
 print TF "ePass: $ePass\n";
@@ -48,6 +57,7 @@ print TF "puser: $puser\n";
 print TF "ppass: $ppass\n";
 print TF "pePass: $pePass\n";
 close(TF);
+# Close Debug Code
 
 my $date = `date`;
 $fileName = $filePath.$fileName;

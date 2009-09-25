@@ -13,19 +13,18 @@ body
 	font-size:12pt;
 	color:white;
 }
-
 #f-labels h1
 {
 	color:black;
-    font-size: 10pt;
+    font-size: 8pt;
     font-weight:bold;
     display:inline;
-    margin-left:10;
+    margin-left:10px;
 }
 #f-labels h1.disabled
 {
 	color:grey;
-    font-size: 10pt;
+    font-size: 8pt;
     font-weight:bold;
     display:inline;
     margin-left:10;
@@ -35,12 +34,11 @@ body
 	position:absolute;
 	top:0px;
 	left:-10px;
-	color:455560;
+	color:#455560;
     font-size: 13pt;
     font-weight:bold;
     display:inline;
 }
-
 #f-labels h3
 {
 	color:#6A737B;
@@ -111,18 +109,16 @@ body
 
 #block1
 {
-	width:260;
-	height:125;
+	width:260px;
+	height:130px;
 	position:absolute;
 	top:10px;
 	left:20px;
 	border:2px solid #B2D68C;
-	padding-top:10;
+	padding-top:3;
 }
 #block1 input
 {
-	margin-top:40;
-	margin-left:150;
 	width:100;
 }
 
@@ -190,10 +186,10 @@ body
 
 #blockb
 {
-	width:260;
-	height:125;
+	width:260px;
+	height:130px;
 	position:absolute;
-	top:160px;
+	top:155px;
 	left:20px;
 	border:2px solid #B2D68C;
 	padding-top:10;

@@ -107,14 +107,63 @@ function hostRemoveEnterKey(e)
           return true;
      }
 }
+
+function hostReload( host, filter)
+{
+	var url = rURL + "?host=" + host + "&filter=" + filter;
+	refresh( url);
+}
+
 function confReload( name, nname, ver)
 {
 	var url = rURL + "?name=" + name + "&nname=" + nname + "&ver=" + ver;
 	refresh( url);
 }
-function hostReload( host, filter)
+
+function sourceRemoveEnterKey(e)
 {
-	var url = rURL + "?host=" + host + "&filter=" + filter;
+     var key;
+
+     if(window.event)
+     {
+          key = window.event.keyCode;   //IE
+     }
+     else
+     {
+          key = e.which;     			//firefox
+     }
+     if(key == 13)
+     {
+     	  if( document.form1.addon == undefined)
+     	  {
+     	  	 addon = "";
+     	  }
+     	  else
+     	  {
+     	  	addon = document.form1.addon.value;
+     	  }
+
+     	  if( document.form1.status == undefined)
+     	  {
+     	  	status = "";
+     	  }
+     	  else
+     	  {
+     	  	status = document.form1.status.value;
+     	  }
+     	  
+          sourceReload( document.form1.distro.value, addon, document.form1.filter.value, status)
+          return false;
+     }
+     else
+     {
+          return true;
+     }
+}
+
+function sourceReload( name, addon, filter, status)
+{
+	var url = rURL + "?distro=" + name + "&addon=" + addon + "&filter=" + filter + "&status=" + status;
 	refresh( url);
 }
 
@@ -126,6 +175,11 @@ function clearText( text)
 function jsTest()
 {
  	alert("LSG common.js is working!");	
+}
+
+function jsTest2( text)
+{
+	alert( text);
 }
 
 function scrollDown()
@@ -157,11 +211,11 @@ function procChange()
 function profileChange()
 {
 	
- 	var sURL = "/baracus/ba/hostCreate?prof=" + document.createAdd.profile.value + 
+ 	var myURL = "/baracus/ba/hostCreate?prof=" + document.createAdd.profile.value + 
  		"&hostname=" + document.createAdd.hostname.value +
  		"&mac=" + document.createAdd.mac.value +
  		"&ip=" + document.createAdd.ip.value;
- 	window.location.href = sURL;
+ 	window.location.href = myURL;
 }
 
 function hwUpdate( sel)
@@ -174,19 +228,6 @@ function hwUpdate( sel)
 function profUpdate( sel, tall, ver)
 {
 	var url = "/baracus/ba/createContent?caller=create&attr=profile&val=" + sel + "&t=" + tall + "&ver=" + ver;
-	document.getElementById("infoBox").src=url;
-}
-
-function distUpdate( selection)
-{
-	var url = "/baracus/ba/createContent?caller=create&attr=distro&val=" + selection;
-	document.getElementById("infoBox").src=url;
-}
-
-function templateUpdate( select)
-{
-	var selection = select.value;
-	var url = "/baracus/ba/createContent?caller=create&attr=template&val=" + selection;
 	document.getElementById("infoBox").src=url;
 }
 
@@ -203,6 +244,35 @@ function modUpdate()
 			url = url + "&val=" + selection.options[i].value;
 		}
 	}
+	document.getElementById("infoBox").src=url;
+}
+
+function addonUpdate()
+{
+	
+	var url = "/baracus/ba/createContent?caller=create&attr=addon";
+	var selection = document.createAdd.addon;
+	var i;
+	for(i = 0; i < selection.options.length; i++)
+	{
+		if( selection.options[i].selected)
+		{
+			url = url + "&val=" + selection.options[i].value;
+		}
+	}
+	document.getElementById("infoBox").src=url;
+}
+
+function distUpdate( selection)
+{
+	var url = "/baracus/ba/createContent?caller=create&attr=distro&val=" + selection;
+	document.getElementById("infoBox").src=url;
+}
+
+function templateUpdate( select)
+{
+	var selection = select.value;
+	var url = "/baracus/ba/createContent?caller=create&attr=template&val=" + selection;
 	document.getElementById("infoBox").src=url;
 }
 

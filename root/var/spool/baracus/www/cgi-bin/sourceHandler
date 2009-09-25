@@ -16,6 +16,10 @@ $pass = param('pass') || "";
 $ePass = encode_base64($pass);
 chomp($ePass);
 
+$proc = "";
+$rURL = "";
+$qStr = "";
+
 $proxy = param('proxy') || "";
 $paddr = param('paddr') || "";
 $puser = param('puser') || "";
@@ -23,9 +27,10 @@ $ppass = param('ppass') || "";
 $pePass = encode_base64($ppass);
 chomp($pePass);
 
-$rURL = "";
-$qStr = "";
 $distro = param('distro') || "NODISTRO";
+$addon = param('addon') || "NOADDON";
+$curDistro = param('curDistro') || "";
+
 $verbose = "-v";
 $redir = ' 2>&1';
 
@@ -34,15 +39,43 @@ my $refresh = "";
 my $content = "";
 my $header = "";
 my $headError = "<font class='error'>Error</font>";
-my $sub = param('sub');
-my $proc = "";
+my $sub = param('sub') || "nosub";
+
+if( $sub eq "nosub")
+{
+	$submit = param('submit') || "";
+	
+	if( $submit eq "Toggle Status")
+	{
+		$filter = param('filter') || "";
+		$status = param('status') || "";
+		$ref = "yes";
+		$proc = " ";
+		$rURL = "sourceVer";
+		$qStr = "?status=$status&filter=$filter&distro=$curDistro&addon=$addon";
+	
+		$sub = "tog";
+	}
+	elsif( $submit eq "Delete")
+	{
+		$sub = "del";
+		$ref = "yes";
+	}
+	elsif( $submit eq "Add")
+	
+	{
+		$sub = "add";
+		$ref = "yes";
+	}
+}
+
 
 if( $sub eq "list")
 {
 	$content = $content.listContent();
 	$header = listHeader();
 }
-elsif( $distro eq "NODISTRO")
+elsif( $distro eq "NODISTRO" && $addon eq "NOADDON")
 {
 	$content = $content.noDistroContent( $sub);
 	$header = $headError;
@@ -72,6 +105,11 @@ elsif( $sub eq "ver")
 	$content = $content.verContent();
 	$header = verHeader();
 }
+elsif( $sub eq "tog")
+{
+	$content = $content.togContent();
+	$header = togHeader();
+}
 else
 {
 	$content = $content."Invalid Subfunction: $sub";
@@ -82,8 +120,11 @@ $content = $content."\n\n\n";
 
 if( $ref eq "yes")
 {
-	$refresh = "onLoad=\"doLoad( '$rURL', '$qStr', 5)\"";
-	$proc = "Processing";
+	$refresh = "onLoad=\"doLoad( '$rURL', '$qStr', 2)\"";
+	if( !$proc)
+	{
+		$proc = "Processing";
+	}
 }
 
 
@@ -154,26 +195,32 @@ sub addContent()
 	my $cmd;
 	my $pCmd;
 	my $r = "";
+
+	if( $distro eq "NODISTRO")
+	{
+		$distro = $curDistro;
+	}
 	
 	if( $iso eq "iso")
 	{
 		if( $proxy eq "proxy")
 		{
-			$cmd = "perl /$BATools::baPath/modules/expectIP add $distro $user $ePass $paddr $puser $pePass";
-			$pCmd = "perl /$BATools::baPath/modules/expectIP add $distro $user $******** $paddr $puser ********";
+			$cmd = "perl /$BATools::baPath/modules/expectIP add $distro $addon $user $ePass $paddr $puser $pePass";
+			$pCmd = "perl /$BATools::baPath/modules/expectIP add $distro $addon $user $******** $paddr $puser ********";
 			$r = "\n\n".background( $cmd);
 		}
 		else
 		{
-			$cmd = "perl /$BATools::baPath/modules/expectI add $distro $user $ePass";
-			$pCmd = "perl /$BATools::baPath/modules/expectI add $distro $user ********";
+			$cmd = "perl /$BATools::baPath/modules/expectI add $distro $addon $user $ePass";
+			$pCmd = "perl /$BATools::baPath/modules/expectI add $distro $addon $user ********";
 			$r = "\n\n".background( $cmd);
 		}
 	}
 	else
 	{
-		$cmd = "perl /$BATools::baPath/modules/execute add $distro $verbose";
+		$cmd = "perl /$BATools::baPath/modules/execute add $distro $addon $verbose";
 		$pCmd = $cmd;
+					
 		$r = "\n\n".background( $cmd);
 	}
 	
@@ -191,7 +238,12 @@ sub delHeader()
 
 sub delContent()
 {
-	my $cmd = "perl /$BATools::baPath/modules/execute remove $distro no $redir";
+	if( $distro eq "NODISTRO")
+	{
+		$distro = $curDistro;
+	} 
+	
+	my $cmd = "perl /$BATools::baPath/modules/execute remove $distro $addon no $redir";
 	my $r = "";
 	
 	$r = background( $cmd);
@@ -218,6 +270,32 @@ sub enaContent()
 	my $retString = execute( $enacmd);
 
 	norefresh();
+	return $retString;
+}
+
+########################################################################################################
+#  Subfunction = ena (Toggle Install Source Status)
+########################################################################################################
+
+sub togHeader()
+{
+	return "Toggle Install Source Status";
+}
+
+sub togContent()
+{
+	my $toggle;
+	if( $distro eq "NODISTRO")
+	{
+		$toggle = $addon;
+	}
+	else
+	{
+		$toggle = $distro;
+	}
+	
+	my $retString = BATools::toggleStatus( $toggle);
+
 	return $retString;
 }
 
@@ -289,7 +367,7 @@ sub background
 	if( $fid eq "")
 	{	
 		my $output = `$cmd`;
-		$retString = $retString."Please Wait...\n".$output;
+		$retString = $retString."\n\nPlease Wait...\n".$output;
 		$qStr = "&fid=".$rfile;
 	}
 	else

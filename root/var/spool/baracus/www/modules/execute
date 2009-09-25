@@ -6,8 +6,9 @@ use BATools qw(:standard);
 my $filePath = "/$BATools::baPath/htdocs/pool/";
 my $op = $ARGV[0];
 my $distro = $ARGV[1];
-my $verbose = $ARGV[2];
-my $fileName = $filePath.$ARGV[3];
+my $addon = $ARGV[2];
+my $verbose = $ARGV[3];
+my $fileName = $filePath.$ARGV[4];
 my $date = `date`;
 
 if( $verbose ne "-v")
@@ -15,11 +16,20 @@ if( $verbose ne "-v")
 	$verbose = "";
 }
 
-my $cmd = "sudo basource $op --distro $distro 2>&1"; 
+if( $addon ne "NOADDON")
+{
+		$addon = "--addon $addon";
+}
+else
+{
+	$addon = "";
+}
+
+my $cmd = "sudo basource $op --distro $distro $addon 2>&1"; 
 
 chomp($date);
 open (NEWFILE, ">$fileName") || die "Error: $!";
-print NEWFILE "$op $distro ----- $date\n\n";
+print NEWFILE "$op $distro $addon ----- $date\n\n";
 close (NEWFILE);
 
 

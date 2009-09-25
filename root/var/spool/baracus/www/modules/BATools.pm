@@ -10,53 +10,29 @@ our $baPath = "/var/spool/baracus/www";
 our $baCGI = "baracus/ba";
 our $baRoot = "baracus";
 our	$debug = 0;
-
-my $qsPath = "/usr/share/baracus/qs.xml";
+our @statusList = ( "all", "ready", "disabled", "deleted");
 
 sub hello_message
 {
    return "Hello, World!";
 }
+
 ###########################################################################################
 # return an array of distributions
 ###########################################################################################
-sub getDistrosXML
-{
-	my @distros;
-	
-	# create object
-	$xml = new XML::Simple;
-	
-	# read XML file
-	$data = $xml->XMLin("$qsPath");
-	
-	foreach (@{$data->{distribution}})
-	{
-		push( @distros, $_->{os});
-	}
-	return @distros;
-}
 sub getDistros
 {
 	my $filter = $_[0];
-	my @darray;
-	my $arrayTmp;
+	my $status = $_[1];
+	my $catagory = $_[2];
 	
-	if( $filter)
-	{
-		@darray = BAdb::getDistros( $filter);
-	}
-	else
-	{
-		@darray = BAdb::getAllDistros();
-	}
+	return BAdb::getDistros( $filter, $status, $catagory);
 
-	return @darray;
 }
 
 
 ###########################################################################################
-#  Generate distro selection list from $distro_path xml file      
+#  Generate distro selection list      
 #  param1: selected item
 #  param2: 1=disable selected 0=do not disable 
 ###########################################################################################
@@ -66,7 +42,8 @@ sub getDistroSelectionList
 	my $select = $_[0];
 	my $disable = $_[1];
 	my $script = $_[2];
-	my $filter = $_[3];
+	my $status = $_[3];
+	my $catagory = $_[4] || "base";
 	my $isSelected;
 
 	chomp($select);
@@ -82,13 +59,15 @@ sub getDistroSelectionList
 		
 	$retString = "<select name='distro' $disabled $script>\n";
 
-	@distros = getDistros( $filter);
+	@distros = getDistros( "", $status, $catagory);
 	
 	foreach (@distros)
 	{
 			$val = $_;
 			chomp($val);
-			if( $val eq $select)
+			@oneArray = split( " ", $val);
+			$n = @oneArray[0];
+			if( $n eq $select)
 			{
 				$isSelected = "selected";
 			}
@@ -96,7 +75,8 @@ sub getDistroSelectionList
 			{
 				$isSelected = "";
 			}			
-			$option = "<option value='$val' $isSelected>$val</option>\n";	
+			
+			$option = "<option value='$n' $isSelected>$n</option>\n";	
 			$retString = $retString.$option;
 	}
 	
@@ -162,6 +142,30 @@ sub getHardwareSelectionList
 	return $retString;	
 }
 
+###########################################################################################
+#  Toggle Source Entry Status              
+###########################################################################################
+sub toggleStatus
+{
+	my $distro = $_[0];
+	my $status = BAdb::getSourceStatus( $distro);
+	my $r;
+	
+	if( $status eq "disabled")
+	{
+		$r = BAdb::enableSource( $distro);
+	}
+	elsif( $status eq "ready")
+	{
+		$r = BAdb::disableSource( $distro);
+	}
+	else
+	{
+		$r = "Invalid Request:  (Distro $distro, Status $status)";
+	}	
+
+	return  $r;
+}
 
 ###########################################################################################
 #  Generate Random String              
@@ -197,29 +201,6 @@ sub getModuleSelectionList
 
 	return $retString;
 }
-
-sub getModuleListFromDir
-{
-	my @dots;
-	my @filtered;
-	my $modulePath = "/var/spool/baracus/modules/";
-
-	opendir(DIR, $modulePath) || die "can't opendir $modulePath: $!";
-	@dots = readdir(DIR);
-	foreach (@dots)
-	{
-		# If file is not ., .., and does not end with ~
-		if( $_ ne "." && $_ ne ".." && $_ !~ m/~\Z/)
-		{
-			push(@filtered, $_);
-		}
-	}	
-			
-	closedir DIR;
-	return @filtered;
-}
-
-
 
 ###########################################################################################
 #  Get Currently Processing List              
@@ -414,7 +395,7 @@ sub getTabs(@@$$)
 		$ifSrc = "/$BATools::baRoot/uc.html";
 	}
 
-	$r = "<iframe frameborder='0' border='0' src=$ifSrc id='tabContent'></iframe>\n.$r";
+	$r = "<iframe frameborder='0' border='0' src=$ifSrc id='tabContent'></iframe>\n".$r;
 	return $r;
 }
 

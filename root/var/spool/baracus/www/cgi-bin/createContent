@@ -52,7 +52,7 @@ sub getContent
 	if( $a eq "profile")
 	{
 		$r = "\n\n";
-		$r = $r.BAdb::getProfileFromDB( $v, $ver, "yes");
+		$r = $r.BAdb::getProfile( $v, $ver, "yes");
 	}
 	elsif( $a eq "hardware")
 	{
@@ -62,14 +62,8 @@ sub getContent
 	}
 	elsif( $a eq "distro")
 	{
-		$cmd = "sudo baconfig detail distro $v";
+		$cmd = "sudo basource detail --distro $v";
 		$r = "Distribution Detail\n\n";
-		$r = $r.`$cmd`;
-	}
-	elsif( $a eq "profilex")
-	{
-		$cmd = "sudo baconfig detail profile $v";
-		$r = "Profile Detail\n\n";
 		$r = $r.`$cmd`;
 	}
 	elsif( $a eq "module")
@@ -86,6 +80,15 @@ sub getContent
 		$cmd = "sudo bahost list templates --host $v --verbose";
 		$r = "Host $v Detail\n\n";
 		$r = $r.`$cmd`."\n\n";
+	}
+	elsif( $a eq "addon")
+	{
+		foreach (@v)
+		{
+			$cmd = "sudo basource detail --distro $_";
+			$r = $r."Addon Detail: $_\n\n";
+			$r = $r.`$cmd`."\n\n";
+		}
 	}
 	else
 	{

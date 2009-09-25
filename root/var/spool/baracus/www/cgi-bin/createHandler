@@ -10,7 +10,7 @@ my $result = "\n\n\n\n";
 my $command;
 
 my @names = $query->param;
-my @params = ("mac", "ip", "hostname", "distro", "hardware", "module", "profile");
+my @params = ("mac", "ip", "hostname", "distro", "hardware", "module", "profile", "addon");
 my @vars = ( "netmask", "gateway", "dnsdomain", "dns1");
 my $varlist;
 

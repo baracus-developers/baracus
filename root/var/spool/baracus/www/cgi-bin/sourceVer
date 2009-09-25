@@ -4,67 +4,218 @@ use lib '/var/spool/baracus/www/modules';
 use BATools qw(:standard);
 use CGI qw(:standard);
 
-my $source_help = "$BATools::baPath/htdocs/help/source.hlp";
+my $name = param('distro') || "";
+my $filter = param('filter') || "";
+my $status = param('status') || "ready";
+my $addon = param('addon') || "";
+my $togButtonStatus = "";
 
-my $dselect = BATools::getDistroSelectionList("", "", "size='22' onClick='distUpdate(document.form1.distro.value)'", "current");
-my $help = print_help();
-my $ccurl = "";
+my $statusSel = getStatus( $name, $addon, $filter, $status);
 
-########################################################################################################
-#  Print HTML
-########################################################################################################
+our $bases = getBases( $name, $addon, $filter, $status);
+our $addons = "";
+my $addonsTitle = "";
+my $baseSelected = 0;
+my $addonSelected = 0;
+my $curStatus;
+my $content;
+ 
+if( $bases =~ m/selected/)
+{
+	$baseSelected = 1;
+}
+
+if( $name ne "" && $baseSelected)
+{
+	$addonsTitle = getAddonsTitle( $name);
+	$addons = getAddons( $name, $addon, $filter, $status);
+	if( $addons =~ m/selected/)
+	{
+		$addonSelected = 1;
+		$baseSelected = 0;
+	}
+}
+
+if( $baseSelected)
+{
+	$content = getContent( $name);
+ 	$curStatus = BAdb::getDistroStatus( $name); 
+}
+elsif( $addonSelected)
+{
+	$content = getContent( $addon);
+	$curStatus = BAdb::getDistroStatus( $addon); 
+}
+
+if( $curStatus eq "deleted")
+{
+	$togButtonStatus = "disabled";
+}
 
 print "Content-type: text/html\n\n";
 
-print <<HTML0;
+print <<HTML0
 
 <html>
 	<head>
 		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
-		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
-		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
+		<link rel='stylesheet' href='/$BATools::baRoot/css/host.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body>
-	<div id='f-labels'>
-	<div id='block1'>
-	<font class='history'>Verify Source Entries</font>
-	</div>
-
-	<div id='block2'>
-		<form name="form1" action="/$BATools::baCGI/sourceHandler">
-			<h3>Distributions</h3>
-			$dselect
-			<br>
-			<input type="hidden" name="sub" value="ver">
-			<input type="hidden" name="ref" value="yes">
-			<input class="button" type="submit" value="Verify">
+	<body onLoad='selectThis(document.form1.host, "$name");document.form1.host.focus()'>
+		<form method="POST" name='form1' action="/$BATools::baCGI/sourceHandler">
+		<div id='config'>
+		<div id='history'>Source List</div>
+		<div id='textEdit'>
+		$statusSel
+		<img class='search' src='/$BATools::baRoot/images/searchI.gif' onClick='sourceReload( document.form1.distro.value, \"\", document.form1.filter.value, document.form1.status.value)'/>
+		<img class='sweep' src='/$BATools::baRoot/images/sweepI.gif' onClick='document.form1.filter.value="";sourceReload( document.form1.distro.value, \"\", document.form1.filter.value, document.form1.status.value);'/>
+		<input type='text' class='filter' name='filter' value='$filter' onKeyPress='return sourceRemoveEnterKey(event)'>
+		<input class="submit" name='submit' type='submit' value='Toggle Status' $togButtonStatus>
+		<font class='name'>Distro Name</font><br>
+		$bases
+		<br>
+		<font class='name2'>$addonsTitle</font><br>
+		$addons
+		<br>
+		<font class='dataShort'>Distro Data</font>
+		<textarea class='short' name='data' disabled>$content</textarea>
+		</div>
+		</div>
+		<input type="hidden" name="curDistro" value="$name">
 		</form>
-	</div>
-
-	<div id='status'>
-	<iframe src=\"$ccurl\" scrolling='no' height='100%' width='100%' frameborder='0' id='infoBox' ></iframe>
-	</div>
-
-	</div>
-	<body>
-	</html>
-
+	</body>
+</html>
 HTML0
+;
 
-########################################################################################################
-#  Read Help File
-########################################################################################################
-
-sub print_help()
+sub getStatus
 {
-	my $retString = "";
-	open (MYFILE, $source_help) || return "Error Opening Help File:\n$!";
-	while(<MYFILE>)
+	my $name = shift @_;
+	my $addon = shift @_;
+	my $filter = shift @_;
+	my $status = shift @_;
+	
+	my $r = "<select class='status' name='status' onChange='sourceReload(\"$name\",\"$addon\",\"$filter\",this.value)'>\n";
+
+	foreach( @BATools::statusList)
 	{
-		$retString = $retString.$_;
+		$selected = $_ eq $status ? "selected" : "";
+		$r = $r."<option value='$_' $selected>$_</option>\n";
 	}
-	close (MYFILE);
-	return $retString; 
-}	
+	$r = $r."</select>\n";
+	return $r;
+}
+
+sub getBases
+{
+	my $name = shift @_;
+	my $addon = shift @_;
+	my $filter = shift @_;
+	my $status = shift @_;
+	my @oneArray;
+	my $n;
+	my $v;
+	my $spaces = "";
+	my $sCount;
+	my $r = "";
+	my $selected;
+	$r = $r."<select class='nameWide' name='distro' size='10' onClick='sourceReload( this.value, \"\", \"$filter\", \"$status\")'>\n";
+	
+	my @items = BATools::getDistros( $filter, $status, "base");
+	foreach( @items)
+	{
+		@oneArray = split( " ", $_);
+		$n = BATools::trim(@oneArray[0]);
+		$v = BATools::trim(@oneArray[1]);
+		
+		for($sCount = (55 - (length $n)); $sCount > 0; -- $sCount)
+		{
+			$spaces = $spaces."&nbsp;";
+		}		
+		
+		if( $n eq $name)
+		{
+			$selected = "selected";
+		}
+		else
+		{
+			$selected = "";
+		}
+		$r = $r."<option value='$n' $selected>$n $spaces $v</option>\n";	
+		$spaces = "";
+	}
+	
+	$r = $r."</select>";
+	
+	return $r;	
+}
+
+sub getAddonsTitle
+{
+	my $name = shift @_;
+	return "Addons for $name";
+}
+
+sub getAddons
+{
+	my $name = shift @_;
+	my $addon = shift @_;
+	my $filter = shift @_;
+	my $status = shift @_;
+
+	my @oneArray;
+	my $n;
+	my $v;
+	my $spaces = "";
+	my $sCount;
+	my $r = "";
+	my $selected;
+	$r = $r."<select class='nameWide2' name='addon' size='4' onClick='sourceReload( \"$name\", document.form1.addon.value, \"$filter\", \"$status\")'>";
+	
+	my @items = BAdb::getAddonsForDistro( $name, "", "");
+	foreach( @items)
+	{
+		@oneArray = split( " ", $_);
+		$n = BATools::trim(@oneArray[0]);
+		$v = BATools::trim(@oneArray[1]);
+		
+		for($sCount = (55 - (length $n)); $sCount > 0; -- $sCount)
+		{
+			$spaces = $spaces."&nbsp;";
+		}		
+		
+		if( $n eq $addon)
+		{
+			$selected = "selected";
+			$bases =~ s/selected//;
+		}
+		else
+		{
+			$selected = "";
+		}
+		$r = $r."<option value='$n' $selected>$n $spaces $v</option>\n";	
+		$spaces = "";
+	}
+	
+	$r = $r."</select>";
+	
+	return $r;	
+
+}
+
+
+sub getContent
+{
+	my $name = $_[0];
+	if( $name eq "")
+	{
+		$r = "";
+	}
+	else
+	{
+		$r = BAdb::getDistro( $name);
+	}
+	return $r;
+}
 

@@ -113,7 +113,7 @@ sub getContent
 
 			if( $pName)
 			{
-				$r = BAdb::removeProfileFromDB( $pName, $ver);
+				$r = BAdb::removeProfile( $pName, $ver);
 			}
 			else
 			{

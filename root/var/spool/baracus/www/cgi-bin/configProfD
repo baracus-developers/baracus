@@ -52,7 +52,7 @@ sub getProfiles
 	my $r = "";
 	$r = $r."<select class='name' name='profile' size='5' onClick='confReload(this.value, \"\", -1)'>";
 	
-	my @profiles = BAdb::getProfileListAllFromDB();
+	my @profiles = BAdb::getProfileListAll();
 	#$r = $r."\n<option value=''>PLEASE SELECT</option>\n";
 	foreach( @profiles)
 	{
@@ -73,7 +73,7 @@ sub getTemplate
 	}
 	else
 	{
-		$r = BAdb::getProfileFromDB( $prof, $ver, "yes");
+		$r = BAdb::getProfile( $prof, $ver, "yes");
 	}
 	return $r;
 }

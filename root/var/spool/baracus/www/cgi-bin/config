@@ -18,7 +18,7 @@ my @tlink = ( 	"configHW",
 				"configMod/configMod/configModS/configModU/configModA/configModD",
 				"configProf/configProf/configProfS/configProfU/configProfA/configProfD");		
 
-my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, $sub, "config");
+my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, $sub, "/baracus/ba/config");
 		 
 print header();
 

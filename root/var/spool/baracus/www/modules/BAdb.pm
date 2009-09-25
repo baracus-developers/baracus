@@ -17,149 +17,117 @@ my %tbl = (
 # Distribution Functions
 ###########################################################################################
 
-sub getAllDistros
+sub getAddonsForDistro
 {
-	my $arrayTmp = getAllDistrosFromDB( "*");
-	my @darray;
-	foreach( @$arrayTmp)
-	{
-		push( @darray, $_->[0]);
-	}
-	return @darray;
+        my $distro = shift @_;
+        my $flag = shift @_;
+        my $status = shift @_;
+        
+		my $quiet;
+		$quiet = $flag =~ m/q/ ? "-q" : "";
+		
+		if( $status)
+		{
+			$quiet = "";
+			$status = "| grep $status";
+		}
+		else
+		{
+			$status = "";
+		}
+
+        $cmd = "sudo basource list -a -n $quiet addon --distro $distro $status";
+
+        my $list = BATools::execute( $cmd);
+        return split("\n", $list);
 }
 
 sub getDistros
 {
 		my $filter = shift @_;
+		my $status = shift @_;
+		my $catagory = shift @_;
 		my @darray;
-		my @curArray;
-		my $arrayTmp = BAdb::getDistrosFromDB( "*");
-		my $status;
 		
-		if( $filter eq "current")
+		if( !$filter || $filter eq "")
 		{
-			foreach( @$arrayTmp)
-			{
-				push( @curArray, $_->[0]);
-			}
-			@darray = @curArray;
+			$filter = "*";
 		}
-		elsif( $filter eq "enabled" ||
-				$filter eq "disabled")
-		{
-			if( $filter eq "enabled")
-			{
-				$status = 1;
-			}
-			else
-			{
-				$status = 2;
-			}	
-			foreach( @$arrayTmp)
-			{
-				if( $_->[1] eq $status)
-				{
-					push( @curArray, $_->[0]);
-				}
-			}
-			@darray = @curArray;
-		}
-		elsif( $filter eq "nocurrent")
-		{
-			foreach( @$arrayTmp)
-			{
-				push( @curArray, $_->[0]);
-			}
-			my @allDistros = BAdb::getAllDistros();
-			my $iter = 0;
-			foreach $all ( @allDistros)
-			{
-				
-				foreach $cur( @curArray)
-				{
-					if( $all eq $cur)
-					{
-						splice( @allDistros, $iter, 1);
-					}
-				}
-				++ $iter;	
-			}
-			@darray = @allDistros;
-				
-		}
-		else
-		{
-			push( @darray, "- FILTER ERROR -");
-		}
+
+		my @darray = BAdb::getDistrosFromCL( $filter, $status, $catagory);
+
 		return @darray;
 }
 
-sub getDistrosFromDB
+sub getDistrosFromCL
 {
+	my $filter = shift @_;
+	my $status = shift @_;
+	my $catagory = shift @_;	
+	my @darray;
+	my @tmpArray;
+	my $name;
+	my $value;
+		
+	if( $status eq "current")
+	{
+		$all = "";
+		$status = "";
+	}
+	elsif( $status eq "ready")
+	{
+		$status = "| grep ready";
+	}
+	elsif( $status eq "disabled")
+	{
+		$status = "| grep disabled";
+	}
+	elsif( $status eq "deleted")
+	{
+		$status = "| grep deleted";
+	}
+	else
+	{
+		$status = "";
+	}
 
-    my $os = shift @_;
-    $os =~ s/\*/\%/g;
+	$cmd = "sudo basource list -a -n $catagory --distro='*$filter*' $status";
 
-    my $dbname = "sqltftp";
-    my $dbrole = "wwwrun";
-
-    $dbh = BaracusDB::connect_db( $dbname, $dbrole );
-        die BaracusDB::errstr unless( $dbh );
-
-    my $sql = q|SELECT distro,
-    					status
-                FROM sqlfstable_reg
-                WHERE distro LIKE ?|;
-
-    my $sth = $dbh->prepare( $sql )
-        or die "Cannot prepare sth: ",$dbh->errstr;
-
-    $sth->execute($os)
-        or die "Cannot execute sth: ",$sth->errstr;
-
-    my $fetchall = $sth->fetchall_arrayref();
-
-    die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
-
-    return $fetchall;
-
+	my $list = BATools::execute( $cmd);
+	@darray = split("\n", $list);
+	return @darray;
 }
 
-sub getAllDistrosFromDB
+sub getDistro
 {
-    my $id = shift @_;
-    $id =~ s/\*/\%/g;
+	my $name = shift @_;
+	my $cmd = "sudo basource detail --distro $name";
+	my $data = BATools::execute( $cmd);
+	return $data;
+}
 
-    my $dbname = "baracus";
-    my $dbrole = "wwwrun";
-    my $type = "distro";
-
-    $dbh = BaracusDB::connect_db( $dbname, $dbrole );
-        die BaracusDB::errstr unless( $dbh );
-
-    $sql = q|SELECT distroid as name, description
-		       FROM distro_cfg
-                WHERE distroid LIKE ?
-              |;
- 
-    my $sth = $dbh->prepare( $sql )
-        or die "Cannot prepare sth: ",$dbh->errstr;
-
-    $sth->execute($id)
-        or die "Cannot execute sth: ",$sth->errstr;
-
-    my $fetchall = $sth->fetchall_arrayref();
-
-    die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
-
-    return $fetchall;
+sub getDistroStatus
+{
+	my $name = shift @_;
+	my $cmd = "sudo basource list -a -n --distro $name";
+	my $data = BATools::execute( $cmd);
+	my $r = "";
+	
+	foreach( @BATools::statusList)
+	{
+		if( $data =~ m/$_/)
+		{
+			return $_;
+		}
+	}
+	return "NONE";
 }
 
 ###########################################################################################
 # Profile Functions
 ###########################################################################################
 
-sub getProfileListFromDB
+sub getProfileList
 {
 	my $cmd = "sudo baconfig list profile --quiet";
 	my $result = `$cmd`;
@@ -173,7 +141,7 @@ sub getProfileListFromDB
 }
 
 
-sub getProfileListAllFromDB
+sub getProfileListAll
 {
 	my $cmd = "sudo baconfig list profile -all --quiet | uniq";
 	my $result = `$cmd`;
@@ -222,7 +190,7 @@ sub getPofileVersionList
 	return @vArray;
 }
 
-sub getProfileFromDB
+sub getProfile
 {
 	my $name = shift @_;
 	my $ver = shift @_;
@@ -263,7 +231,7 @@ sub updateProfileFromFile
 	my $result = `$cmd`;
 	return $result;	
 }
-sub removeProfileFromDB
+sub removeProfile
 {
 	my $name = shift @_;
 	my $ver = shift @_;
@@ -497,4 +465,30 @@ sub getHostTemplate
 	return $data;
 }
 
+###########################################################################################
+# Source Functions
+###########################################################################################
+
+sub getSourceStatus
+{
+	my $distro = shift @_;
+	my $cmd = "sudo basource list --all -nolabels --distro $distro";
+	my $data = BATools::execute( $cmd);
+	my @oneArray = split( " ", $data);
+	return BATools::trim(@oneArray[1]);
+}
+
+sub enableSource
+{
+	my $distro = shift @_;
+	my $cmd = "sudo basource enable --distro $distro";
+	return BATools::execute( $cmd);
+}
+
+sub disableSource
+{
+	my $distro = shift @_;
+	my $cmd = "sudo basource disable --distro $distro";
+	return BATools::execute( $cmd);
+}
 1;
