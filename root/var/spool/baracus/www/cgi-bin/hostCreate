@@ -60,7 +60,7 @@ createProfileVars();
 $dasize = @distAddons;
 if( $dasize eq 0)
 {
-	$axScript = "ajaxFunction('axAddon', 'distro='+document.createAdd.distro.value,'blockc');";
+	$axScript = "ajaxFunction('axAddon', 'distro='+document.createAdd.distro.value, 'blockc');";
 	$addonList = "";
 }
 else
@@ -98,7 +98,7 @@ print <<HTML0;
 	<div id='f-labels'>
 	<form method="get" name="createAdd" action="/$BATools::baCGI/createHandler">
 	<div id='block1'>
-		<h1>Hostname: $dasize</h1>
+		<h1>Hostname:</h1>
 		<br><input class="text" type="text" size="25" maxlength="15" name="hostname" value="$hostname" $dhost>
 		<br>
 		<h1>MAC Address:</h1><br><input class="text" type="text" size="25" name="mac" value="$mac" $macD onkeypress="return mac_only(event)">
