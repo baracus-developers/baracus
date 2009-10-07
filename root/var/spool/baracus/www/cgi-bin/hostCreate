@@ -120,7 +120,7 @@ print <<HTML0;
 	</div>
 
 	<div id='blockc'>
-		$addonList
+		$addonListx
 	</div>
 
 	<div id='blockd'>
@@ -222,7 +222,10 @@ sub createProfileVars
 	    	}
 	    	else
 	    	{
-	    		$$_ = "";
+			    	if( $$_ eq $_)
+			    	{
+			    		$$_ = "";
+			    	}
 	    	}
 	    }
    	}
