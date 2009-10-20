@@ -155,8 +155,8 @@ sub get_baracus_tables
     my $tbl_hardwareid = "hardwareid";
     my %tbl_hardwareid_columns = (
                                   'hardwareid'   => 'VARCHAR(32) REFERENCES hardware_cfg',
-                                  'oscert'       => 'VARCHAR(32)',
-                                  'CONSTRAINT'   => 'hardwareid_pk PRIMARY KEY (hardwareid, oscert)',
+                                  'distroid'     => 'VARCHAR(32)',
+                                  'CONSTRAINT'   => 'hardwareid_pk PRIMARY KEY (hardwareid, distroid)',
                                   );
 
     my $tbl_distro_cfg = "distro_cfg";
@@ -185,9 +185,16 @@ sub get_baracus_tables
                                    'interpreter' => 'VARCHAR(8)',
                                    'data'        => 'VARCHAR',
                                    'status'      => 'BOOLEAN',
-                                   'mandatory'   => 'BOOLEAN',
                                    'CONSTRAINT'  => 'module_cfg_pk PRIMARY KEY (moduleid, version)',
                                   );
+
+    my $tbl_module_cert_cfg = "module_cert_cfg";
+    my %tbl_module_cert_cfg_columns = (
+                                       'moduleid'   => 'VARCHAR(32)',
+                                       'distroid'   => 'VARCHAR(48)',
+                                       'mandatory'  => 'BOOLEAN',
+                                       'CONSTRAINT' => 'module_cert_cfg_pk PRIMARY KEY (moduleid, distroid)',
+                                      );
 
     my $tbl_profile_cfg = "profile_cfg";
     my %tbl_profile_cfg_comlumns = (
@@ -199,14 +206,126 @@ sub get_baracus_tables
                                    'CONSTRAINT'  => 'proflie_cfg_pk PRIMARY KEY (profileid, version)',
                                   );
 
+    my $tbl_device_inventory_cfg = "device_inventory_cfg";
+    my %tbl_device_inventory_cfg_columns = (
+                                            'vendor'      => 'VARCHAR(32)',
+                                            'product'     => 'VARCHAR(64)',
+                                            'description' => 'VARCHAR(64)',
+                                            'version'     => 'VARCHAR(32)',
+                                            'product'     => 'VARCHAR(64)',
+                                            'serial'      => 'VARCHAR(32) PRIMARY KEY',
+                                            'mac'         => 'VARCHAR(17)',
+                                           );
+
+    my $tbl_device_bios_inventory = "device_bios_inventory_cfg";
+    my %tbl_device_bios_inventory_columns = (
+                                            'id'          => 'VARCHAR(32) REFERENCES device_inventory_cfg(serial) PRIMARY KEY',
+                                            'vendor'      => 'VARCHAR(32)',
+                                            'description' => 'VARCHAR(64)',
+                                            'version'     => 'VARCHAR(32)',
+                                            );
+
+    my $tbl_cpu_inventory_cfg = "cpu_inventory_cfg";
+    my %tbl_cpu_inventory_cfg_columns = (
+                                         'id'          => 'VARCHAR(32) REFERENCES device_inventory_cfg(serial) PRIMARY KEY',
+                                         'vendor'      => 'VARCHAR(32)',
+                                         'product'     => 'VARCHAR(64)',
+                                         'description' => 'VARCHAR(64)',
+                                         'speed'       => 'VARCHAR(32)',
+                                         'size'        => 'VARCHAR(16)',
+                                        );
+
+    my $tbl_cpu_cache_inventory_cfg = "cpu_cache_inventory_cfg";
+    my %tbl_cpu_cache_inventory_cfg_columns = (
+                                               'id'          => 'VARCHAR(32) REFERENCES cpu_inventory_cfg(id) PRIMARY KEY',
+                                               'slot'        => 'VARCHAR(8)',
+                                               'description' => 'VARCHAR(64)',
+                                               'size'        => 'VARCHAR(16)',
+                                              );
+
+    my $tbl_cpu_capability_inventory_cfg = "cpu_capability_inventory_cfg";
+    my %tbl_cpu_capability_inventory_cfg_columns = (
+                                                    'id'          => 'VARCHAR(32) REFERENCES cpu_inventory_cfg(id) PRIMARY KEY',
+                                                    'capability'  => 'VARCHAR(16)',
+                                                    'description' => 'VARCHAR(64)',
+                                                   );
+
+    my $tbl_disk_inventory_cfg = "disk_inventory_cfg";
+    my %tbl_disk_inventory_cfg_columns = (
+                                    'id'          => 'VARCHAR(32) REFERENCES device_inventory_cfg(serial) PRIMARY KEY',
+                                    'vendor'      => 'VARCHAR(32)',
+                                    'product'     => 'VARCHAR(64)',
+                                    'description' => 'VARCHAR(64)',
+                                    'logicalname' => 'VARCHAR(32)',
+                                    'serial'      => 'VARCHAR(32)',
+                                    'size'        => 'VARCHAR(16)',
+                                    'businfo'     => 'VARCHAR(16)',
+                                    'dev'         => 'VARCHAR(8)',
+                                   );
+
+    my $tbl_network_inventory_cfg = "network_inventory_cfg";
+    my %tbl_network_inventory_cfg_columns = (
+                                             'id'          => 'VARCHAR(32) REFERENCES device_inventory_cfg(serial)',
+                                             'vendor'      => 'VARCHAR(32)',
+                                             'product'     => 'VARCHAR(64)',
+                                             'description' => 'VARCHAR(64)',
+                                             'logicalname' => 'VARCHAR(32)',
+                                             'mac'         => 'VARCHAR(17) PRIMARY KEY',
+                                             'businfo'     => 'VARCHAR(16)',
+                                            );
+
+    my $tbl_network_setting_inventory_cfg = "network_setting_inventory_cfg"; 
+    my %tbl_network_setting_inventory_cfg_columns = (
+                                                     'id'      => 'VARCHAR(32) REFERENCES network_inventory_cfg(mac) PRIMARY KEY',
+                                                     'setting' => 'VARCHAR(16)',
+                                                     'value'   => 'VARCHAR(16)',
+                                                     );
+    
+    my $tbl_network_capability_inventory_cfg = "network_capability_inventory_cfg";
+    my %tbl_network_capability_inventory_cfg_columns = (
+                                                        'id'          => 'VARCHAR(32) REFERENCES network_inventory_cfg(mac) PRIMARY KEY',
+                                                        'capability'  => 'VARCHAR(16)',
+                                                        'description' => 'VARCHAR(64)',
+                                                       );
+
+    my $tbl_memory_inventory_cfg = "memory_inventory_cfg";
+    my %tbl_memory_inventory_cfg_columns = (
+                                            'id'          => 'VARCHAR(32) REFERENCES device_inventory_cfg(serial) PRIMARY KEY',
+                                            'slot'        => 'VARCHAR(8)',
+                                            'physid'      => 'VARCHAR(8)',
+                                            'description' => 'VARCHAR(64)',
+                                            'size'        => 'VARCHAR(16)',
+                                           );
+
+    my $tbl_memory_dimm_inventory_cfg = "memory_dimm_inventory_cfg";
+    my %tbl_memory_dimm_inventory_cfg_columns = (
+                                                 'id'          => 'VARCHAR(32) REFERENCES memory_inventory_cfg(id) PRIMARY KEY',
+                                                 'slot'        => 'VARCHAR(8)',
+                                                 'description' => 'VARCHAR(64)',
+                                                 'size'        => 'VARCHAR(16)',
+                                                 'speed'       => 'VARCHAR(32)',
+                                                );
+
     tie( my %baracus_tbls, 'Tie::IxHash',
-         $tbl_templateid     => \%tbl_templateid_columns,
-         $tbl_templateidhist => \%tbl_templateidhist_comlumns,
-         $tbl_hardware_cfg   => \%tbl_hardware_cfg_comlumns,
-         $tbl_hardwareid     => \%tbl_hardwareid_columns,
-         $tbl_distro_cfg     => \%tbl_distro_cfg_comlumns,
-         $tbl_module_cfg     => \%tbl_module_cfg_comlumns,
-         $tbl_profile_cfg    => \%tbl_profile_cfg_comlumns,
+         $tbl_templateid                       => \%tbl_templateid_columns,
+         $tbl_templateidhist                   => \%tbl_templateidhist_comlumns,
+         $tbl_hardware_cfg                     => \%tbl_hardware_cfg_comlumns,
+         $tbl_hardwareid                       => \%tbl_hardwareid_columns,
+         $tbl_distro_cfg                       => \%tbl_distro_cfg_comlumns,
+         $tbl_module_cfg                       => \%tbl_module_cfg_comlumns,
+         $tbl_module_cert_cfg                  => \%tbl_module_cert_cfg_columns,
+         $tbl_profile_cfg                      => \%tbl_profile_cfg_comlumns,
+         $tbl_device_inventory_cfg             => \%tbl_device_inventory_cfg_columns,
+         $tbl_device_bios_inventory            => \%tbl_device_bios_inventory_columns,
+         $tbl_cpu_inventory_cfg                => \%tbl_cpu_inventory_cfg_columns,
+         $tbl_cpu_cache_inventory_cfg          => \%tbl_cpu_cache_inventory_cfg_columns,
+         $tbl_cpu_capability_inventory_cfg     => \%tbl_cpu_capability_inventory_cfg_columns,
+         $tbl_disk_inventory_cfg               => \%tbl_disk_inventory_cfg_columns,
+         $tbl_network_inventory_cfg            => \%tbl_network_inventory_cfg_columns,
+         $tbl_network_setting_inventory_cfg    => \%tbl_network_setting_inventory_cfg_columns,
+         $tbl_network_capability_inventory_cfg => \%tbl_network_capability_inventory_cfg_columns,
+         $tbl_memory_inventory_cfg             => \%tbl_memory_inventory_cfg_columns,
+         $tbl_memory_dimm_inventory_cfg        => \%tbl_memory_dimm_inventory_cfg_columns,
         );
     return \%baracus_tbls;
 }
