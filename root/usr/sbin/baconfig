@@ -93,6 +93,7 @@ my %tbl = (
            'profile'  => 'profile_cfg',
            'tftp'     => 'sqlfstable',
            'oscert'   => 'hardwareid',
+           'modcert'  => 'module_cert_cfg'
            );
 
 my %cmds = (
@@ -312,8 +313,10 @@ sub list
                # name, version, status, mandatory, description
                printf "%-32s ", $href->{'name'};
                unless ( $quiet ) {
-                   printf "%-3s %-3s %-3s %s",
-                       $href->{'version'}, $href->{'status'}, $href->{'mandatory'},
+                  # printf "%-3s %-3s %-3s %s",
+                   printf "%-3s %-3s     %s",
+                    #   $href->{'version'}, $href->{'status'}, $href->{'mandatory'},
+                       $href->{'version'}, $href->{'status'},
                            (defined $href->{'description'}) ?
                                $href->{'description'} : "";
             }
@@ -529,13 +532,14 @@ sub add_module
 {
     my $file = "";
     my %entry = (
-                 'moduleid'     => "",
-                 'description'  => "",
-                 'interpreter'  => "shell",
-                 'data'         => "",
-                 'status'       => "t",
-                 'mandatory'    => "f",
-                 'version'      => 1,
+                 'moduleid'      => "",
+                 'description'   => "",
+                 'interpreter'   => "shell",
+                 'data'          => "",
+                 'status'        => "t",
+                 'cert'          => "",
+                 'mandatory'     => "f",
+                 'version'       => 1,
                  );
 
     @ARGV = @_;
@@ -547,7 +551,8 @@ sub add_module
                'enable!'        => \$entry{'status'},
                'disable'        => sub { $entry{'status'} = 0 },
                'mandatory!'     => \$entry{'mandatory'},
-               'optional'       => sub { $entry{'mandatory'} = 'f' },
+               'optional'       => sub { $entry{'mandatory'} = 0},
+               'cert=s'         => \$entry{'cert'},
                );
 
     if ( scalar @ARGV ) {
@@ -607,6 +612,17 @@ sub add_module
     my @cols = split( /,/, $sql_cols );
     my $sql_vals = "?," x scalar @cols; chop $sql_vals;
 
+    my $sql_cert_cols = lc get_cols( 'modcert' );
+    $sql_cert_cols =~ s/[ \t]*//g;
+    my @cert_cols = split( /,/, $sql_cert_cols );
+    my $sql_cert_vals = "?," x scalar @cert_cols; chop $sql_cert_vals;
+    my @cert_data = split( /\s/, $entry{ 'cert' });
+
+    my $sql_cert = qq|INSERT INTO $tbl{ 'modcert' }
+                     ( $sql_cert_cols )
+                     VALUES ( $sql_cert_vals )
+                     |;
+
     my $sql = qq|INSERT INTO $tbl{ 'module' }
                 ( $sql_cols )
                 VALUES ( $sql_vals )
@@ -614,8 +630,19 @@ sub add_module
     print $sql . "\n" if $debug;
 
     my $sth;
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $LASTERROR = "Unable to prepare 'add' module statement\n" .
+    ## Module table insert
+    foreach my $cert_in ( @cert_data ) {
+        unless ( &check_distroid($cert_in) ) {
+            $LASTERROR = "Unable to add module, distro: $cert_in does not exist\n";
+                return 1;
+        }
+    }
+
+    my $sql_handle = ( $sth = $dbh->prepare( $sql ) );
+    my $sql_cert_handle = ( $sth = $dbh->prepare( $sql_cert ) );
+
+    unless ( (defined $sql_handle) && (defined $sql_cert_handle) ) {
+        die "Unable to prepare 'add' hardware statement\n" .
             $dbh->errstr;
         return 1;
     }
@@ -623,13 +650,21 @@ sub add_module
     my $paramidx = 0;
     foreach my $col (@cols) {
         $paramidx += 1;
-        $sth->bind_param( $paramidx, $entry{ $col } );
+        $sql_handle->bind_param( $paramidx, $entry{ $col } );
     }
 
-    # finished with last entry
-    unless( $sth->execute( ) ) {
-        $LASTERROR = "Unable to execute 'add' module statement\n" .
-            $sth->err;
+    my $success = 1;
+    $success &&= $sql_handle->execute( );
+    foreach my $cert_in (@cert_data) {
+        $sql_cert_handle->bind_param( "1", $entry{'moduleid'} );
+        $sql_cert_handle->bind_param( "2", $cert_in );
+        $sql_cert_handle->bind_param( "3", $entry{'mandatory'} );
+        $success &&= $sql_cert_handle->execute( );
+    }
+
+    unless ($success) {
+        die "Unable to execute 'add' modcert statement\n" .
+            $sth->errstr;
         return 1;
     }
 
@@ -637,6 +672,7 @@ sub add_module
     undef $sth;
 
     return 0;
+
 }
 
 =head2 add profile <options and args>
@@ -944,6 +980,9 @@ sub update_module
                  'data'         => "",
                  'status'       => "",
                  'mandatory'    => "",
+                 'cert'         => "",
+                 'addcert'     => "",
+                 'rmcert'      => "",
                  'version'      => 0,
                  );
 
@@ -957,6 +996,9 @@ sub update_module
                'disable'        => sub { $entry{'status'} = 0 },
                'mandatory!'     => \$entry{'mandatory'},
                'optional'       => sub { $entry{'mandatory'} = 0},
+               'cert=s'         => \$entry{'cert'},
+               'addcert=s'      => \&multiarg_handler,
+               'rmcert=s'       => \&multiarg_handler,
                'version=i'      => \$entry{'version'},
                );
 
@@ -1014,6 +1056,29 @@ sub update_module
         close FILE;
     }
 
+    $entry{'addcert'} =
+        $multiarg{ 'addcert' } if (defined $multiarg{ 'addcert' });
+
+    $entry{'rmcert'} =
+        $multiarg{ 'rmcert' } if (defined $multiarg{ 'rmcert' });
+
+    unless ( &check_module( $entry{'moduleid'} ) ) {
+        $LASTERROR = "Unable to update module, $entry{'moduleid'} does not exist\n";
+        return 1;
+    }
+
+    unless ($entry{'addcert'} eq "" ) {
+        if ($entry{'mandatory'} eq "") {
+            $LASTERROR = "addcert requires a mandatory/optional argument\n";
+            return 1;
+        }
+        my $status = &update_cert("modcert", $entry{'moduleid'}, "addcert", $entry{'addcert'}, $entry{'mandatory'});
+    }
+
+    unless ($entry{'rmcert'} eq "" ) {
+        my $status = &update_cert("modcert", $entry{'moduleid'}, "rmcert", $entry{'rmcert'});
+    }
+
     # finished processing command line
 
     if ( $entry{'version'} != 0 ) {
@@ -1033,22 +1098,25 @@ sub update_module
         }
 
         # changing the mandatory flag
+        unless ($entry{'addcert'} eq "" ) {
+            my $mandatory =  &get_mandatory( $entry{'moduleid'}, $entry{'cert'} );
 
-        if ( $entry{'mandatory'} ne "" ) {
-            if ( $entry{'mandatory'} ) {
-                $entry{'mandatory'} = "t";
-            } else {
-                $entry{'mandatory'} = "f";
-            }
-            ## Check to make sure that at least one version is enabled
-            ##
-            unless ( &check_enabled( $entry{'moduleid'} ) ) {
-                $LASTERROR = "At least one version must be enabled to set to mandatory.\n";
+            if ( $entry{'mandatory'} == $mandatory ) {
+                $LASTERROR = "mandatory setting already set\n";
                 return 1;
             }
-            return 1
-                if &change_mandatory( $entry{'mandatory'},
-                                      $version_href );
+
+            if ( $mandatory ne "" ) {
+                ## Check to make sure that at least one version is enabled
+                ##
+                unless ( &check_enabled( $entry{'moduleid'} ) ) {
+                    $LASTERROR = "At least one version must be enabled to set to mandatory.\n";
+                    return 1;
+                }
+                return 1
+                    if &change_mandatory( $entry{'mandatory'},
+                                          $entry{'moduleid'}, $entry{'cert'} );
+            }
         }
 
         # the only other param to modify is description
@@ -1628,7 +1696,7 @@ sub update_hardware
 
     my %entry = (
                  'hardwareid'  => "",
-                 'hwdriver'    => "",
+           #     'hwdriver'    => "",
                  'addcert'     => "",
                  'rmcert'      => "",
                  );
@@ -1666,84 +1734,12 @@ sub update_hardware
         return 1;
     }
 
-    if (defined $entry{ 'addcert' }) {
-        my @cert_add = split( /\s/, $entry{ addcert });
-        foreach my $cert_in ( @cert_add ) {
-            unless ( &check_cert( $entry{'hardwareid'}, $cert_in ) ) {
-                $LASTERROR = "Unable to update hardware, $cert_in already exists\n";
-                  return 1;
-            }
-        }
-
-        foreach my $cert_in ( @cert_add ) {
-            unless ( &check_distroid($cert_in) ) {
-              $LASTERROR = "Unable to update hardware, distro: $cert_in does not exist\n";
-                return 1;
-            }
-        }
-
-        my $sql_cols = lc get_cols( 'oscert' );
-        $sql_cols =~ s/[ \t]*//g;
-        my @cols = split( /,/, $sql_cols );
-        my $sql_vals = "?," x scalar @cols; chop $sql_vals;
-
-        my $add_sql = qq|INSERT INTO $tbl{ 'oscert' }
-                         ( $sql_cols )
-                         VALUES ( $sql_vals )
-                        |;
-
-        my $sth;
-        unless ( $sth = $dbh->prepare( $add_sql ) ) {
-            $LASTERROR = "Unable to prepare 'update' hardware statement\n" .
-                $dbh->errstr;
-            return 1;
-        }
-
-        my $success = 1;
-        foreach my $cert_in (@cert_add) {
-            $sth->bind_param( "1", $cert_in );
-            $sth->bind_param( "2", $entry{'hardwareid'} );
-            $success &&= $sth->execute( );
-        }
-
-        unless ($success) {
-            die "Unable to execute 'add' hardware oscert statement\n" .
-                $sth->errstr;
-            return 1;
-        }
-
-        $sth->finish;
-        undef $sth;
+    if (! $entry{'addcert'} eq "" ) {
+        my $status = &update_cert($type, $entry{'hardwareid'}, "addcert", $entry{'addcert'});
     }
 
-    if (defined $entry{ 'rmcert' }) {
-
-        my $rm_sql = qq|DELETE FROM $tbl{ 'oscert' }
-                         WHERE oscert = ?
-                        |;
-
-        my @cert_rm = split( /\s/, $entry{ rmcert });
-
-        my $sth;
-        unless ( $sth = $dbh->prepare( $rm_sql ) ) {
-            $LASTERROR = "Unable to prepare 'update' hardware statement\n" .
-                $dbh->errstr;
-            return 1;
-        }
-
-        my $success = 1;
-        foreach my $cert_out (@cert_rm) {
-            $success &&= $sth->execute( $cert_out );
-        }
-
-         unless ($success) {
-            die "Unable to execute 'remove' hardware oscert statement\n" .
-                $sth->errstr;
-            return 1;
-        }
-
-        $sth->finish;
-        undef $sth;
+    if (! $entry{'rmcert'} eq "" ) {
+        my $status = &update_cert($type, $entry{'hardwareid'}, "rmcert", $entry{'rmcert'});
     }
 
     return 0;
@@ -1916,6 +1912,7 @@ sub detail
     my $sql_cols = lc get_cols( $type );
     my $sql = qq| SELECT $sql_cols FROM $tbl{ $type } |;
     my $sql_cert;
+    my $sql_man;
     my $sql_chunks;
 
     my $db2use = $dbh;
@@ -1923,13 +1920,22 @@ sub detail
     if ( $type eq "hardware" ) {
         $sql .= "WHERE hardwareid = ?";
 
-        $sql_cols = lc get_cols( 'oscert' );
-        $sql_cert = qq|SELECT oscert
+       # $sql_cols = lc get_cols( 'oscert' );
+        $sql_cert = qq|SELECT distroid
                        FROM $tbl{ 'oscert' }
                        WHERE hardwareid = '| . $name . qq|'|;
     } elsif ( $type eq "module" ) {
         $sql .= "WHERE moduleid = ?";
         $sql .= " AND version = $version" if ( $version );
+
+        $sql_cert = qq|SELECT distroid
+                       FROM $tbl{ 'modcert' }
+                       WHERE moduleid = '| . $name . qq|'|;
+
+        $sql_man = qq|SELECT distroid
+                       FROM $tbl{ 'modcert' }
+                       WHERE moduleid = '| . $name . qq|'
+                       AND mandatory = 't'|;
     } elsif ( $type eq "profile" ) {
         $sql .= "WHERE profileid = ?";
         $sql .= " AND version = $version" if ( $version );
@@ -1978,6 +1984,27 @@ sub detail
                     printf "# ba version: %s\n",     $href->{'version'};
                     print  "# ba\n";
                 }
+
+                my $modcert = "";
+                my $certs = $db2use->selectall_arrayref( $sql_cert, { slice => {} } );
+                if ( defined $certs ) {
+                    foreach my $cert ( @{$certs} ) {
+                        $modcert .= ":" if ( $modcert ne "" );
+                        $modcert .= @{$cert}[0];
+                    }
+                }
+                printf "# ba cert=%s\n", $modcert if ( defined $modcert );
+
+                my $modman = "";
+                my $mancerts = $db2use->selectall_arrayref( $sql_man, { slice => {} } );
+                if ( defined $mancerts ) {
+                    foreach my $mancert ( @{$mancerts} ) {
+                        $modman .= ":" if ( $modman ne "" );
+                        $modman .= @{$mancert}[0];
+                    }
+                }
+                printf "# ba mandatory=%s\n", $modman if ( defined $modman );
+
                 print  $href->{'data'};
                 $printcount += 1;
             }
@@ -2106,38 +2133,45 @@ sub remove
         return 1;
     }
 
-    my $sql;
+    my @sql;
 
     my $db2use = $dbh;
 
     if ( $type eq "hardware" ) {
-        $sql = qq|DELETE FROM $tbl{ $type } WHERE hardwareid = ?|;
+        @sql = ( qq|DELETE FROM $tbl{ $type } WHERE hardwareid = ?| );
     } elsif ( $type eq "module" ) {
-        $sql = qq|DELETE FROM $tbl{ $type } WHERE moduleid = ?|;
+        my $check = &get_mandatory( $name, 'all' );
+        if ( $check ) {
+            $LASTERROR = "Cannot remove module marked as mandatory\n";
+            return 1;
+        }
+        @sql = ( qq|DELETE FROM $tbl{ $type } WHERE moduleid = ?|, qq|DELETE FROM $tbl{ modcert } WHERE moduleid = ?| );
     } elsif ( $type eq "profile" ) {
-        $sql = qq|DELETE FROM $tbl{ $type } WHERE profileid = ?|;
+        @sql = ( qq|DELETE FROM $tbl{ $type } WHERE profileid = ?| );
     } elsif ( $type eq "tftp" ) {
-        $sql = qq|DELETE FROM $tbl{ $type } WHERE name = ?|;
+        @sql = ( qq|DELETE FROM $tbl{ $type } WHERE name = ?| );
         $db2use = $tftph;
     }
 
-    if ( defined $version ) {
-        $sql .= " AND version = $version";
-    }
+    foreach my $sql (@sql) {
+        if ( defined $version ) {
+            $sql .= " AND version = $version";
+        }
 
-    my $sth;
-    unless ( $sth = $db2use->prepare( $sql ) ) {
-        $LASTERROR = "Unable to prepare 'remove' statement\n" . $db2use->errstr;
-        return 1;
-    }
+        my $sth;
+        unless ( $sth = $db2use->prepare( $sql ) ) {
+            $LASTERROR = "Unable to prepare 'remove' statement\n" . $db2use->errstr;
+            return 1;
+        }
 
-    unless ( $sth->execute( $name ) ) {
-        $LASTERROR = "Unable to execute 'remove' statement\n" . $sth->err;
-        return 1;
-    }
+        unless ( $sth->execute( $name ) ) {
+            $LASTERROR = "Unable to execute 'remove' statement\n" . $sth->err;
+            return 1;
+        }
 
-    $sth->finish;
-    undef $sth;
+        $sth->finish;
+        undef $sth;
+    }
 
     return 0;
 }
@@ -2218,7 +2252,7 @@ sub list_start
                   ORDER BY name
                  |;
     } elsif ( $type eq "module" ) {
-        $sql = qq|SELECT moduleid as name, description, version, mandatory, status
+        $sql = qq|SELECT moduleid as name, description, version, status
                   FROM $tbl{ $type }
                   WHERE moduleid LIKE ? ORDER BY moduleid, version
                  |;
@@ -2344,6 +2378,103 @@ sub get_versions
     undef $sth;
 
     return ( $version_href, $highest_href, $enabled_href );
+}
+
+sub update_cert
+{
+    my $type = shift;
+    my $id = shift;
+    my $action = shift;
+    my $cert = shift;
+    my $mandatory = shift;
+    my $sth;
+
+    if ( $action eq "addcert" ) {
+        my @cert_add = split( /\s/, $cert );
+        foreach my $cert_in ( @cert_add ) {
+            unless ( &check_cert( $type, $id, $cert_in ) ) {
+                $LASTERROR = "Unable to update cert, $cert_in already exists\n";
+                  return 1;
+            }
+        }
+
+        foreach my $cert_in ( @cert_add ) {
+            unless ( &check_distroid($cert_in) ) {
+              $LASTERROR = "Unable to update cert: $cert_in does not exist\n";
+                return 1;
+            }
+        }
+
+        my $sql_cols = lc get_cols( $type );
+        $sql_cols =~ s/[ \t]*//g;
+        my @cols = split( /,/, $sql_cols );
+        my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+        my $add_sql = qq|INSERT INTO $tbl{ $type }
+                         ( $sql_cols )
+                         VALUES ( $sql_vals )
+                        |;
+
+        unless ( $sth = $dbh->prepare( $add_sql ) ) {
+            $LASTERROR = "Unable to prepare 'update' hardware statement\n" .
+                $dbh->errstr;
+            return 1;
+        }
+
+        my $success = 1;
+        foreach my $cert_in (@cert_add) {
+           if ( $type eq "oscert") {
+               $sth->bind_param( "1", $cert_in );
+               $sth->bind_param( "2", $id );
+            }
+            elsif ( $type eq "modcert" ) {
+                $sth->bind_param( "1", $id );
+                $sth->bind_param( "2", $cert_in );
+                $sth->bind_param( "3", $mandatory );
+            }
+            $success &&= $sth->execute( );
+        }
+
+        unless ($success) {
+            die "Unable to execute 'add' cert statement\n" .
+                $sth->errstr;
+            return 1;
+        }
+
+        $sth->finish;
+        undef $sth;
+    }
+
+    if ( $action eq "rmcert" ) {
+
+        my $rm_sql = qq|DELETE FROM $tbl{ $type }
+                        WHERE distroid = ?
+                       |;
+
+        my @cert_rm = split( /\s/, $cert );
+
+        unless ( $sth = $dbh->prepare( $rm_sql ) ) {
+            $LASTERROR = "Unable to prepare 'update' cert statement\n" .
+                $dbh->errstr;
+            return 1;
+        }
+
+        my $success = 1;
+        foreach my $cert_out (@cert_rm) {
+            $success &&= $sth->execute( $cert_out );
+        }
+
+         unless ($success) {
+            die "Unable to execute 'remove' cert statement\n" .
+                $sth->errstr;
+            return 1;
+        }
+
+        $sth->finish;
+        undef $sth;
+    }
+
+    return 0;
 }
 
 sub check_enabled
@@ -2492,19 +2623,67 @@ sub check_hardware
     return 0;
 }
 
-sub check_cert
+sub check_module
 {
-    my $hardwareid = shift;
-    my $cert_in = shift;
+    my $moduleid = shift;
 
     my $sth;
     my $href;
 
-    my $sql = qq| SELECT oscert
-                  FROM $tbl{ oscert }
-                  WHERE hardwareid = '$hardwareid'
-                  AND oscert = '$cert_in'
+    my $sql = qq| SELECT moduleid
+                  FROM $tbl{ module }
+                  WHERE moduleid = ?
                 |;
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR =
+            "Unable to prepare 'check_module' statement\n" . $dbh->errstr;
+        return 1;
+    }
+
+    unless( $sth->execute( $moduleid ) ) {
+        $LASTERROR =
+            "Unable to execute 'check_module' statement\n" . $sth->err;
+        return 1;
+    }
+
+    while( $href = $sth->fetchrow_hashref( ) ) {
+        if ($href->{'moduleid'}) {
+            return 1;
+        }
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+sub check_cert
+{
+
+    my $type = shift;
+    my $id = shift;
+    my $cert_in = shift;
+
+    my $sth;
+    my $href;
+    my $sql;
+
+    if ( $type eq "oscert" ) {
+        $sql = qq| SELECT distroid 
+                      FROM $tbl{ $type }
+                      WHERE hardwareid = '$id'
+                      AND distroid = '$cert_in'
+                    |;
+    }
+    elsif ( $type eq "modcert" ) {
+        $sql = qq| SELECT distroid 
+                      FROM $tbl{ $type }
+                      WHERE moduleid = '$id'
+                      AND distroid = '$cert_in'
+                    |;
+    }
 
     unless ( $sth = $dbh->prepare( $sql ) ) {
         $LASTERROR =
@@ -2519,7 +2698,7 @@ sub check_cert
     }
 
     while( $href = $sth->fetchrow_hashref( ) ) {
-        if ($href->{'oscert'}) {
+        if ($href->{'distroid'}) {
             return 0;
         }
     }
@@ -2641,24 +2820,67 @@ sub change_status
     return 0;
 }
 
+sub get_mandatory
+{
+    my $moduleid = shift;
+    my $cert = shift;
+
+    my $sql = qq|SELECT mandatory
+                 FROM $tbl{ modcert }
+                 WHERE moduleid = ?
+                |;
+
+    if ( $cert eq "all" ) {
+        $sql .= " AND distroid LIKE '%';";
+    } else {
+        $sql .= " AND distroid = '$cert';";
+    }
+
+    print $sql . "\n" if $debug;
+
+    my $sth;
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'get_mandatory' statement\n" .
+            $dbh->errstr;
+        return 1;
+    }
+    unless ( $sth->execute( $moduleid ) ) {
+        $LASTERROR = "Unable to execute 'get_mandatory' statement\n" .
+            $sth->err;
+        return 1;
+    }
+
+    my $href = $sth->fetchrow_hashref();
+
+    ## Return 3 if neither optional or mandatory
+    ## 3 = new entry
+    unless( defined $href->{'mandatory'} ) {
+        $href->{'mandatory'} = 3;
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return  $href->{'mandatory'};
+}
+
 sub change_mandatory
 {
     my $mandatory = shift;
-    my $href = shift;
+    my $moduleid = shift;
+    my $cert = shift;
 
-    unless (defined $href && defined $href->{'mandatory'} ) {
+    unless (defined $mandatory && defined $moduleid && defined $cert ) {
         $LASTERROR = "Unable to modify mandatory without valid entry\n";
         return 1;
     }
 
-    # don't change to what we already are
-    return 0 if ( $href->{'mandatory'} eq $mandatory );
-
-    my $sql = qq|UPDATE $tbl{ module }
+    my $sql = qq|UPDATE $tbl{ modcert }
                  SET mandatory = '$mandatory'
-                 WHERE moduleid = '$href->{ moduleid }'
-                 AND version >= '1'
+                 WHERE moduleid = '$moduleid'
+                 AND distroid = '$cert'
                 |;
+
     print $sql . "\n" if $debug;
 
     # update specified version
