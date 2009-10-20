@@ -517,10 +517,12 @@ sub add_hardware
 
 Where <options and args> are
 
-    --name id              Required unique id, suggest script name.
-    --enable | --noenable  Enable module for use. [ default enable ]
-    --description "note"   Quoted note describing this script.
-    --file <path/script>   Script to use for this module.
+    --name id                                   Required unique id, suggest script name.
+    --enable | --noenable                       Enable module for use. [ default enable ]
+    --description "note"                        Quoted note describing this script.
+    --mandatory --cert "distro1 distro2 etc.."  Make module mandatory for listed distros
+    --optional --cert "distro1 distro2 etc.."   Make module optional for listed distros
+    --file <path/script>                        Script to use for this module.
 
 =cut
 
@@ -953,9 +955,13 @@ sub update
 
 Where <options and args> are
 
-    --name id              Required unique id, suggest script name.
-    --enable | --noenable  Enable module for use. [ no default ]
-    --description "note"   Quoted note describing this script.
+    --name id                                   Required unique id, suggest script name.
+    --enable | --noenable                       Enable module for use. [ no default ]
+    --description "note"                        Quoted note describing this script.
+    --addcert "distro1 distro2 etc.."           Add distros for which module is supported
+    --rmcert "distro1 distro2 etc.."            Remove distro support for module
+    --mandatory --cert "distro1 distro2 etc.."  Make module mandatory for listed distros
+    --optional --cert "distro1 distro2 etc.."   Make module optional for listed distros
 
 you may only specify one of the following
 
