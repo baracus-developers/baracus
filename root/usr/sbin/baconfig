@@ -1098,7 +1098,7 @@ sub update_module
         }
 
         # changing the mandatory flag
-        unless ($entry{'addcert'} eq "" ) {
+        if ( (! $entry{'addcert'} eq "" ) || ( defined ( $entry{'cert'} ) ) ) {
             my $mandatory =  &get_mandatory( $entry{'moduleid'}, $entry{'cert'} );
 
             if ( $entry{'mandatory'} == $mandatory ) {
@@ -2141,7 +2141,7 @@ sub remove
         @sql = ( qq|DELETE FROM $tbl{ $type } WHERE hardwareid = ?| );
     } elsif ( $type eq "module" ) {
         my $check = &get_mandatory( $name, 'all' );
-        if ( $check ) {
+        if ( $check == 1 ) {
             $LASTERROR = "Cannot remove module marked as mandatory\n";
             return 1;
         }

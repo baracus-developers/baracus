@@ -116,6 +116,7 @@ my %tbl = (
            'distro'    => 'distro_cfg',
            'hardware'  => 'hardware_cfg',
            'module'    => 'module_cfg',
+           'modcert'   => 'module_cert_cfg',
            'history'   => 'templateidhist',
            'oscert'    => 'hardwareid',
            );
@@ -516,7 +517,7 @@ sub add
     $modules_in = $module if ($module);
 
     # Check for and add mandatory modules
-    my $mandatory_in = &db_get_mandatory;
+    my $mandatory_in = &db_get_mandatory($distro);
     if ($modules_in) {
         $modules_in = $modules_in . " $mandatory_in";
     }
@@ -531,6 +532,7 @@ sub add
     print "modules to load: '$modules_in'\n" if ( defined $modules_in && $debug );
     # modules are optional do notattempt to load if none specified
     if ( defined $modules_in && $modules_in ne "" ) {
+        &check_modules( $distro, $modules_in );
         &load_modules( $href, $modules_in );
     }
     if ($debug > 1) {
@@ -1149,10 +1151,10 @@ sub check_cert
     my $sth;
     my $href;
 
-    my $sql = qq| SELECT oscert
+    my $sql = qq| SELECT distroid
                   FROM $tbl{'oscert'}
                   WHERE hardwareid = '$hardwareid'
-                  AND oscert = '$cert'
+                  AND distroid = '$cert'
                 |;
 
      unless ( $sth = $dbh->prepare( $sql ) ) {
@@ -1168,7 +1170,7 @@ sub check_cert
     }
 
     while( $href = $sth->fetchrow_hashref( ) ) {
-        if ($href->{'oscert'}) {
+        if ($href->{'distroid'}) {
             return 1;
         }
     }
@@ -1181,14 +1183,17 @@ sub check_cert
 
 sub db_get_mandatory
 {
+    my $distro = shift;
+
     my $sql;
     my $sth;
     my $m_modules;
     my @modarray;
 
     $sql = qq|SELECT moduleid
-              FROM $tbl{ module }
-              WHERE mandatory = 't'
+              FROM $tbl{ modcert }
+              WHERE distroid = ?
+              AND  mandatory = 't'
              |;
 
     unless ( $sth = $dbh->prepare( $sql ) ) {
@@ -1197,7 +1202,7 @@ sub db_get_mandatory
         return 1;
     }
 
-    unless( $sth->execute() ) {
+    unless( $sth->execute( $distro ) ) {
         $LASTERROR =
             "Unable to execute 'mandatory' statement\n" . $sth->err;
         return 1;
@@ -1614,6 +1619,34 @@ sub load_hardware
         }
         print "hware: $key => $href->{$key}\n" if ( $debug > 1 );
     }
+}
+
+sub check_modules
+{
+    my $distro  = shift;
+    my $modules = shift;
+
+    my $sql = qq|SELECT '$distro'  
+              FROM $tbl{ 'modcert' }
+              WHERE moduleid = ? |;
+
+    foreach my $item (split(/[,\s*]/, $modules)) {
+        my $sth;
+        unless ( $sth = $dbh->prepare( $sql ) ) {
+            die "Unable to prepare 'module' statement\n" . $dbh->errstr;
+        }
+        unless( $sth->execute( $item ) ) {
+            die "Unable to execute 'module' statement\n" . $sth->err;
+        }
+       
+        my $rowcount = 0;
+        while ( my $sel = $sth->fetchrow_hashref( ) ) {
+            $rowcount += 1;
+        }
+        die "Module entry not certified for $item.\n"
+            unless ( $rowcount );
+    }
+
 }
 
 sub load_modules
