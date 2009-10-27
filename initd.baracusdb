@@ -37,7 +37,7 @@
 ### END INIT INFO
 
 # Source SuSE config
-PG_SYSCONFIG=/etc/sysconfig/baracus
+PG_SYSCONFIG=/etc/sysconfig/baracusdb
 test -f $PG_SYSCONFIG && . $PG_SYSCONFIG
 
 # Shell functions sourced from /etc/rc.status:
@@ -132,7 +132,7 @@ case "$1" in
 
     ## Baracus pathing could be in sysconfig
     ## make sure we have the expected role(s) and database(s) setup
-    /usr/share/baracus/perl/baracusInitDB.pl &> ~baracus/logs/initlog || rc_failed
+    /usr/share/baracus/perl/baracusInitDB.pl &> $DATADIR/../../logs/initlog || rc_failed
 	rc_status -v
     ;;
 

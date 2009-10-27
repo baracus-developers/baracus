@@ -987,8 +987,8 @@ sub update_module
                  'status'       => "",
                  'mandatory'    => "",
                  'cert'         => "",
-                 'addcert'     => "",
-                 'rmcert'      => "",
+                 'addcert'      => "",
+                 'rmcert'       => "",
                  'version'      => 0,
                  );
 
@@ -2212,6 +2212,10 @@ sub check_type
         exit 1;
     }
     unless ( defined $tbl{ $type } ) {
+        print "invalid <type> '$type' please use: $type_list\n";
+        exit 1;
+    }
+    if ( $type eq "distro" ) {
         print "invalid <type> '$type' please use: $type_list\n";
         exit 1;
     }

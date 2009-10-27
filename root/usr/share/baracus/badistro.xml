@@ -182,7 +182,6 @@
     </product>
   </distro>
 
-
   <!-- SLES 10.3 -->
 
   <distro name="sles-10.3-x86_64">
@@ -194,12 +193,12 @@
 
     <product name="dvd">
           <addon>base</addon>
-          <iso name="SLES-10-SP3-DVD-x86_64-GMC-DVD1.iso">
+          <iso name="SLES-10-SP3-DVD-x86_64-GM-DVD1.iso">
             <path/>
             <kernel>boot/x86_64/loader/linux</kernel>
             <initrd>boot/x86_64/loader/initrd</initrd>
-            <md5>6cb3f1b92eebf2ea24a1ff77145f8f9a</md5>
-            <url><![CDATA[]]></url>
+            <md5>80ef92a51de722ee79899ae9bda5f7f0</md5>
+            <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP3-DVD-x86_64-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=2xpO5QouT84~&mirror=AkamaiHost&nohost=false]]></url>
           </iso>
     </product>
   </distro>
@@ -215,10 +214,10 @@
         <autodownload>auth</autodownload>
     <product name="dvd">
           <addon>flat</addon>
-          <iso name="SLE-10-SP3-SDK-DVD-x86_64-GMC-DVD1.iso">
+          <iso name="SLE-10-SP3-SDK-DVD-x86_64-GM-DVD1.iso">
             <path/>
-            <md5>76dbe2b3ac11381ab0172eceafed25fd</md5>
-            <url><![CDATA[]]></url>
+            <md5>7f3bc894b03daa2b3672c6740ae3aba1</md5>
+            <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP3-SDK-DVD-x86_64-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=KiIGteX_M54~&mirror=AkamaiHost&nohost=false]]></url>
           </iso>
     </product>
   </distro>
@@ -227,17 +226,17 @@
         <os>sles</os>
         <release>10.3</release>
         <arch>i386</arch>
-        <description>SUSE Linux Enterprise Server 10.3 bit</description>
+        <description>SUSE Linux Enterprise Server 10.3 32bit</description>
         <autodownload>auth</autodownload>
 
     <product name="dvd">
           <addon>base</addon>
-          <iso name="SLES-10-SP3-DVD-i386-GMC-DVD1.iso">
+          <iso name="SLES-10-SP3-DVD-i386-GM-DVD1.iso">
             <path/>
             <kernel>boot/i386/loader/linux</kernel>
             <initrd>boot/i386/loader/initrd</initrd>
-            <md5>44097d447f43e80cd0713ef6ae542a46</md5>
-            <url><![CDATA[]]></url>
+            <md5>cc03499d8141d2276713ba0ef760aec8</md5>
+            <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP3-DVD-i386-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=AdQfSs70M8E~&mirror=AkamaiHost&nohost=false]]></url>
           </iso>
     </product>
   </distro>
@@ -253,11 +252,51 @@
         <autodownload>auth</autodownload>
     <product name="dvd">
           <addon>flat</addon>
-          <iso name="SLE-10-SP3-SDK-DVD-i386-GMC-DVD1.iso">
+          <iso name="SLE-10-SP3-SDK-DVD-i386-GM-DVD1.iso">
             <path/>
-            <md5>4d49b01d7ba41a55f3707f9adc8650c4</md5>
-            <url><![CDATA[]]></url>
+            <md5>e51e6cf5fc29ceed198d5987c76c2afa</md5>
+            <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP3-SDK-DVD-i386-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=GNm-ml762fw~&mirror=AkamaiHost&nohost=false]]></url>
           </iso>
+    </product>
+  </distro>
+
+  <!-- SLED 10.3 -->
+
+  <distro name="sled-10.3-x86_64">
+	<os>sled</os>
+	<release>10.3</release>
+	<arch>x86_64</arch>
+	<description>SUSE Linux Enterprise Desktop 10.3 64bit</description>
+	<autodownload>auth</autodownload>
+
+    <product name="dvd">
+	  <addon>base</addon>
+	  <iso name="SLED-10-SP3-DVD-x86_64-GM-DVD1.iso">
+	    <path/>
+	    <kernel>boot/x86_64/loader/linux</kernel>
+	    <initrd>boot/x86_64/loader/initrd</initrd>
+	    <md5>06d9766a28911c7ce67ffe1234808549</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzZOX5rRmXMA%7E%2FSLED-10-SP3-DVD-x86_64-GM-DVD1.iso&buildid=zZOX5rRmXMA~&fileid=vswdFCNqOTo~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+  <distro name="sled-10.3-i386">
+	<os>sled</os>
+	<release>10.3</release>
+	<arch>i386</arch>
+	<description>SUSE Linux Enterprise Desktop 10.3 32bit</description>
+	<autodownload>auth</autodownload>
+
+    <product name="dvd">
+	  <addon>base</addon>
+	  <iso name="SLED-10-SP3-DVD-i386-GM-DVD1.iso">
+	    <path/>
+	    <kernel>boot/i386/loader/linux</kernel>
+	    <initrd>boot/i386/loader/initrd</initrd>
+	    <md5>8d6d7248f0dff367c854d08f7e120660</md5>
+	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzZOX5rRmXMA%7E%2FSLED-10-SP3-DVD-i386-GM-DVD1.iso&buildid=zZOX5rRmXMA~&fileid=M6Yc3wxAXuk~&mirror=AkamaiHost&nohost=false]]></url>
+	  </iso>
     </product>
   </distro>
 
@@ -637,6 +676,46 @@
     </product>
   </distro>
 
+  <!-- SLES 10.3 RT -->
+
+  <distro name="sles-10.3-rt-x86_64">
+	<os>sles</os>
+	<release>10.3</release>
+    <addos>rt</addos>
+    <addrel/>
+	<arch>x86_64</arch>
+	<requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
+	<description>SLES 10.3 Real-Time Add-On 64bit</description>
+	<autodownload>auth</autodownload>
+    <product name="dvd">
+	  <addon>flat</addon>
+	  <iso name="SLES-10-SP3-RT-CD-BiArch-Build0003-CD1.iso">
+	    <path/>
+	    <md5>0d006bcff527cbe61c4ea4e08505e45b</md5>
+	    <url><![CDATA[]]></url>
+	  </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-rt-i386">
+	<os>sles</os>
+	<release>10.3</release>
+    <addos>rt</addos>
+    <addrel/>
+	<arch>i386</arch>
+	<requires>sles-10.3-i386</requires> <!-- flag! content ignored -->
+	<description>SLES 10.3 Real-Time Add-On 32bit</description>
+	<autodownload>auth</autodownload>
+    <product name="dvd">
+	  <addon>flat</addon>
+	  <iso name="SLES-10-SP3-RT-CD-BiArch-Build0003-CD1.iso">
+	    <path/>
+	    <md5>0d006bcff527cbe61c4ea4e08505e45b</md5>
+	    <url><![CDATA[]]></url>
+	  </iso>
+    </product>
+  </distro>
+
 
   <!-- SLES 11 MONO -->
 
@@ -792,6 +871,152 @@
   </distro>
 
 
+  <!-- RHEL 3.9 -->
+
+  <distro name="rhel-3.9-x86_64">
+        <os>rhel</os>
+        <release>3.9</release>
+        <arch>x86_64</arch>
+        <description>RedHat Enterprise Linux 3.9 64bit</description>
+        <autodownload>no</autodownload>
+    <product name="cds">
+          <addon>base</addon>
+          <iso name="rhel-3-u9-x86_64-as-disc1.iso">
+            <path>CD1</path>
+            <kernel>isolinux/vmlinuz</kernel>
+            <initrd>isolinux/initrd.img</initrd>
+            <md5>eeb477cb3545461e54ed5d4c3ecc4952</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+          <iso name="rhel-3-u9-x86_64-as-disc2.iso">
+            <path>CD2</path>
+            <md5>6d4730305682a172eeeb55ba10dbd7dc</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+          <iso name="rhel-3-u9-x86_64-as-disc3.iso">
+            <path>CD3</path>
+            <md5>0c0b86b395ddeffd1dd66b3203a590a9</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+          <iso name="rhel-3-u9-x86_64-as-disc4.iso">
+            <path/>
+            <md5>6ef64530a9c2cc8ec0df2f1e1bd5b582</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+    </product>
+  </distro>
+
+  <distro name="rhel-3.9-i386">
+        <os>rhel</os>
+        <release>3.9</release>
+        <arch>i386</arch>
+        <description>RedHat Enterprise Linux 3.9 32bit</description>
+        <autodownload>no</autodownload>
+    <product name="cds">
+          <addon>base</addon>
+          <iso name="rhel-3-u9-i386-as-disc1.iso">
+            <path>CD1</path>
+            <kernel>isolinux/vmlinuz</kernel>
+            <initrd>isolinux/initrd.img</initrd>
+            <md5>e09c011ed762a4697c026184ac9e4630</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+          <iso name="rhel-3-u9-i386-as-disc2.iso">
+            <path>CD2</path>
+            <md5>028a621b32c57eb90c5c3cb6caa7536d</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+          <iso name="rhel-3-u9-i386-as-disc3.iso">
+            <path>CD3</path>
+            <md5>902423a86d98e6d457d1fb878db238a3</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+          <iso name="rhel-3-u9-i386-as-disc4.iso">
+            <path/>
+            <md5>d475714c91b8761f39132abc019e5bf1</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+    </product>
+  </distro>
+
+  <!-- RHEL 4.6 -->
+
+  <distro name="rhel-4.6-x86_64">
+        <os>rhel</os>
+        <release>4.6</release>
+        <arch>x86_64</arch>
+        <description>RedHat Enterprise Linux 4.6 64bit</description>
+        <autodownload>no</autodownload>
+    <product name="dvd">
+          <addon>base</addon>
+          <iso name="RHEL4.6-x86_64-AS-DVD.iso">
+            <path/>
+            <kernel>isolinux/vmlinuz</kernel>
+            <initrd>isolinux/initrd.img</initrd>
+            <md5>e7bac65dea907eedc6944c615917099c</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+    </product>
+  </distro>
+
+  <distro name="rhel-4.6-i386">
+        <os>rhel</os>
+        <release>4.6</release>
+        <arch>i386</arch>
+        <description>RedHat Enterprise Linux 4.6 32bit</description>
+        <autodownload>no</autodownload>
+    <product name="dvd">
+          <addon>base</addon>
+          <iso name="RHEL4.6-i386-AS-DVD.iso">
+            <path/>
+            <kernel>isolinux/vmlinuz</kernel>
+            <initrd>isolinux/initrd.img</initrd>
+            <md5>d9440b8aa3cabacb2eec905287473714</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+    </product>
+  </distro>
+
+
+  <!-- RHEL 4.8 -->
+
+  <distro name="rhel-4.8-x86_64">
+        <os>rhel</os>
+        <release>4.8</release>
+        <arch>x86_64</arch>
+        <description>RedHat Enterprise Linux 4.8 64bit</description>
+        <autodownload>no</autodownload>
+    <product name="dvd">
+          <addon>base</addon>
+          <iso name="RHEL4.8-x86_64-AS-DVD.iso">
+            <path/>
+            <kernel>isolinux/vmlinuz</kernel>
+            <initrd>isolinux/initrd.img</initrd>
+            <md5>35629ed4e21bcaaee599830f59cb009d</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+    </product>
+  </distro>
+
+  <distro name="rhel-4.8-i386">
+        <os>rhel</os>
+        <release>4.8</release>
+        <arch>i386</arch>
+        <description>RedHat Enterprise Linux 4.8 32bit</description>
+        <autodownload>no</autodownload>
+    <product name="dvd">
+          <addon>base</addon>
+          <iso name="RHEL4.8-i386-AS-DVD.iso">
+            <path/>
+            <kernel>isolinux/vmlinuz</kernel>
+            <initrd>isolinux/initrd.img</initrd>
+            <md5>f9518f55a0a9d26e2a321a96dfb335f3</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+    </product>
+  </distro>
+
+
   <!-- RHEL 5.3 -->
 
   <distro name="rhel-5.3-x86_64">
@@ -824,9 +1049,48 @@
 	    <path/>
 	    <kernel>isolinux/vmlinuz</kernel>
 	    <initrd>isolinux/initrd.img</initrd>
-	    <md5></md5>
+	    <md5>371c62851611fd32ead440df6f24a296</md5>
 	    <url><![CDATA[]]></url>
 	  </iso>
+    </product>
+  </distro>
+
+
+  <!-- RHEL 5.4 -->
+
+  <distro name="rhel-5.4-x86_64">
+        <os>rhel</os>
+        <release>5.4</release>
+        <arch>x86_64</arch>
+        <description>RedHat Enterprise Linux 5.4 64bit</description>
+        <autodownload>no</autodownload>
+    <product name="dvd">
+          <addon>base</addon>
+          <iso name="rhel-server-5.4-x86_64-dvd.iso">
+            <path/>
+            <kernel>isolinux/vmlinuz</kernel>
+            <initrd>isolinux/initrd.img</initrd>
+            <md5>04fe3c10202402d7b389528d2bad0210</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+    </product>
+  </distro>
+
+  <distro name="rhel-5.4-i386">
+        <os>rhel</os>
+        <release>5.4</release>
+        <arch>i386</arch>
+        <description>RedHat Enterprise Linux 5.4 32bit</description>
+        <autodownload>no</autodownload>
+    <product name="dvd">
+          <addon>base</addon>
+          <iso name="rhel-server-5.4-i386-dvd.iso">
+            <path/>
+            <kernel>isolinux/vmlinuz</kernel>
+            <initrd>isolinux/initrd.img</initrd>
+            <md5>7a12ec6599527e4f3d1790b51eadbfed</md5>
+            <url><![CDATA[]]></url>
+          </iso>
     </product>
   </distro>
 
