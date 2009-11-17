@@ -1,7 +1,0 @@
-DEFAULT __HOSTNAME__
-PROMPT 0
-TIMEOUT 0
-
-LABEL __HOSTNAME__
-        kernel __KERNEL__
-        append __BOOTARGS__ initrd=__INITRD__ install=__TYPE__://__BUILDIP__/__BUILDROOT__/__OS__/__RELEASE__/__ARCH__/dvd autoyast=tftp://__BUILDIP__/__AUTOINST__ textmode=1 __LOGHOST__ __RACCESS__

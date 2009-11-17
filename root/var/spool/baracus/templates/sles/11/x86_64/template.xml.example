@@ -57,8 +57,7 @@ __ADDON__
     <loader_type>grub</loader_type>
     <sections config:type="list">
       <section>
-        <append>acpi=on selinux=0 apm=off resume=__ROOTPART__2 splash=silent crashkernel=128M-:64M@16M showopts</append>
-        <image>/boot/vmlinuz-2.6.27.19-5-default</image>
+        <append>__BOOTARGS__ resume=__ROOTPART__2 splash=silent crashkernel=128M-:64M@16M showopts </append>
         <initial>1</initial>
         <initrd>/boot/initrd-2.6.27.19-5-default</initrd>
         <lines_cache_id>0</lines_cache_id>
@@ -448,6 +447,7 @@ nameserver __DNS1__
       </interface>
     </interfaces>
     <managed config:type="boolean">false</managed>
+    <!-- is this messing with the persistent names
     <net-udev config:type="list">
       <rule>
         <name>eth0</name>
@@ -455,6 +455,7 @@ nameserver __DNS1__
         <value>__MAC__</value>
       </rule>
     </net-udev>
+    -->
     <routing>
       <ip_forward config:type="boolean">false</ip_forward>
       <routes config:type="list">
@@ -472,11 +473,15 @@ nameserver __DNS1__
       <script>
         <filename>build_notify</filename>
         <interpreter>shell</interpreter>
-        <source><![CDATA[tftp -m binary __BUILDIP__ -c get /baracus/uuid/__UUID__?__HOSTNAME__]]></source>
+        <source><![CDATA[wget http://__SERVERIP__/baracus/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></source>
       </script>
     </post-scripts>
     <init-scripts config:type="list">
       __MODULE__
+      <script>
+        <filename>lsg_serial.sh</filename>
+        <location>http://__SERVERIP__/baracus/lsg_serial.sh</location>
+      </script>
     </init-scripts>
   </scripts>
   <partitioning config:type="list">
@@ -550,7 +555,9 @@ nameserver __DNS1__
       <pattern>base</pattern>
     </patterns>
     <packages config:type="list">
-      <package>tftp</package>
+      <package>kdump</package>
+      <package>kernel-kdump</package>
+      <package>wget</package>
     </packages>
   </software>
   <timezone>
@@ -568,372 +575,14 @@ nameserver __DNS1__
   </user_defaults>
   <users config:type="list">
     <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>Games account</fullname>
-      <gid>100</gid>
-      <home>/var/games</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max></max>
-        <min></min>
-        <warn></warn>
-      </password_settings>
-      <shell>/bin/bash</shell>
-      <uid>12</uid>
-      <user_password>*</user_password>
-      <username>games</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>bin</fullname>
-      <gid>1</gid>
-      <home>/bin</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max></max>
-        <min></min>
-        <warn></warn>
-      </password_settings>
-      <shell>/bin/bash</shell>
-      <uid>1</uid>
-      <user_password>*</user_password>
-      <username>bin</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>nobody</fullname>
-      <gid>65533</gid>
-      <home>/var/lib/nobody</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max></max>
-        <min></min>
-        <warn></warn>
-      </password_settings>
-      <shell>/bin/bash</shell>
-      <uid>65534</uid>
-      <user_password>*</user_password>
-      <username>nobody</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>Printing daemon</fullname>
-      <gid>7</gid>
-      <home>/var/spool/lpd</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max></max>
-        <min></min>
-        <warn></warn>
-      </password_settings>
-      <shell>/bin/bash</shell>
-      <uid>4</uid>
-      <user_password>*</user_password>
-      <username>lp</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>Postfix Daemon</fullname>
-      <gid>51</gid>
-      <home>/var/spool/postfix</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max>99999</max>
-        <min>0</min>
-        <warn>7</warn>
-      </password_settings>
-      <shell>/bin/false</shell>
-      <uid>51</uid>
-      <user_password>*</user_password>
-      <username>postfix</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>User for uuidd</fullname>
-      <gid>103</gid>
-      <home>/var/run/uuidd</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max>99999</max>
-        <min>0</min>
-        <warn>7</warn>
-      </password_settings>
-      <shell>/bin/false</shell>
-      <uid>102</uid>
-      <user_password>*</user_password>
-      <username>uuidd</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>Novell Customer Center User</fullname>
-      <gid>106</gid>
-      <home>/var/lib/YaST2/suse-ncc-fakehome</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max>99999</max>
-        <min>0</min>
-        <warn>7</warn>
-      </password_settings>
-      <shell>/bin/bash</shell>
-      <uid>104</uid>
-      <user_password>*</user_password>
-      <username>suse-ncc</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>FTP account</fullname>
-      <gid>49</gid>
-      <home>/srv/ftp</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max></max>
-        <min></min>
-        <warn></warn>
-      </password_settings>
-      <shell>/bin/bash</shell>
-      <uid>40</uid>
-      <user_password>*</user_password>
-      <username>ftp</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>Batch jobs daemon</fullname>
-      <gid>25</gid>
-      <home>/var/spool/atjobs</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max>99999</max>
-        <min>0</min>
-        <warn>7</warn>
-      </password_settings>
-      <shell>/bin/bash</shell>
-      <uid>25</uid>
-      <user_password>*</user_password>
-      <username>at</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>root</fullname>
-      <gid>0</gid>
-      <home>/root</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max></max>
-        <min></min>
-        <warn></warn>
-      </password_settings>
-      <shell>/bin/bash</shell>
       <uid>0</uid>
-      <user_password>$2a$05$3k2U/T1DJugCeV0Tl4pxYuimRTyrY.zGLdGqA7jZWTmPPwmrRceaS</user_password>
+      <gid>0</gid>
       <username>root</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>Mailer daemon</fullname>
-      <gid>12</gid>
-      <home>/var/spool/clientmqueue</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max></max>
-        <min></min>
-        <warn></warn>
-      </password_settings>
-      <shell>/bin/false</shell>
-      <uid>8</uid>
-      <user_password>*</user_password>
-      <username>mail</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>Daemon</fullname>
-      <gid>2</gid>
-      <home>/sbin</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max></max>
-        <min></min>
-        <warn></warn>
-      </password_settings>
+      <fullname>root</fullname>
+      <home>/root</home>
       <shell>/bin/bash</shell>
-      <uid>2</uid>
-      <user_password>*</user_password>
-      <username>daemon</username>
-    </user>
-    <user>
       <encrypted config:type="boolean">true</encrypted>
-      <fullname>NTP daemon</fullname>
-      <gid>104</gid>
-      <home>/var/lib/ntp</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max>99999</max>
-        <min>0</min>
-        <warn>7</warn>
-      </password_settings>
-      <shell>/bin/false</shell>
-      <uid>74</uid>
-      <user_password>*</user_password>
-      <username>ntp</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>User for D-Bus</fullname>
-      <gid>101</gid>
-      <home>/var/run/dbus</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max></max>
-        <min>0</min>
-        <warn>7</warn>
-      </password_settings>
-      <shell>/bin/false</shell>
-      <uid>100</uid>
-      <user_password>*</user_password>
-      <username>messagebus</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>Unix-to-Unix CoPy system</fullname>
-      <gid>14</gid>
-      <home>/etc/uucp</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max></max>
-        <min></min>
-        <warn></warn>
-      </password_settings>
-      <shell>/bin/bash</shell>
-      <uid>10</uid>
-      <user_password>*</user_password>
-      <username>uucp</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>User for haldaemon</fullname>
-      <gid>102</gid>
-      <home>/var/run/hald</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max></max>
-        <min>0</min>
-        <warn>7</warn>
-      </password_settings>
-      <shell>/bin/false</shell>
-      <uid>101</uid>
-      <user_password>*</user_password>
-      <username>haldaemon</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>WWW daemon apache</fullname>
-      <gid>8</gid>
-      <home>/var/lib/wwwrun</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max></max>
-        <min></min>
-        <warn></warn>
-      </password_settings>
-      <shell>/bin/false</shell>
-      <uid>30</uid>
-      <user_password>*</user_password>
-      <username>wwwrun</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>Manual pages viewer</fullname>
-      <gid>62</gid>
-      <home>/var/cache/man</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max></max>
-        <min></min>
-        <warn></warn>
-      </password_settings>
-      <shell>/bin/bash</shell>
-      <uid>13</uid>
-      <user_password>*</user_password>
-      <username>man</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>PolicyKit</fullname>
-      <gid>105</gid>
-      <home>/var/run/PolicyKit</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max>99999</max>
-        <min>0</min>
-        <warn>7</warn>
-      </password_settings>
-      <shell>/bin/false</shell>
-      <uid>103</uid>
-      <user_password>*</user_password>
-      <username>polkituser</username>
-    </user>
-    <user>
-      <encrypted config:type="boolean">true</encrypted>
-      <fullname>News system</fullname>
-      <gid>13</gid>
-      <home>/etc/news</home>
-      <password_settings>
-        <expire></expire>
-        <flag></flag>
-        <inact></inact>
-        <max></max>
-        <min></min>
-        <warn></warn>
-      </password_settings>
-      <shell>/bin/bash</shell>
-      <uid>9</uid>
-      <user_password>*</user_password>
-      <username>news</username>
-    </user>
-    <user>
-      <fullname>SSH daemon</fullname>
-      <gid>65</gid>
-      <home>/var/lib/sshd</home>
-      <shell>/bin/false</shell>
-      <uid>71</uid>
-      <username>sshd</username>
+      <user_password>$2a$05$3k2U/T1DJugCeV0Tl4pxYuimRTyrY.zGLdGqA7jZWTmPPwmrRceaS</user_password>
     </user>
   </users>
 </profile>

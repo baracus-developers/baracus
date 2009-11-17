@@ -2,163 +2,23 @@
 <!DOCTYPE profile>
 <profile xmlns="http://www.suse.com/1.0/yast2ns" xmlns:config="http://www.suse.com/1.0/configns">
   <configure>
-    <groups config:type="list">
-      <group>
-        <groupname>users</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>nogroup</groupname>
-        <userlist>nobody</userlist>
-      </group>
-      <group>
-        <groupname>video</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>public</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>console</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>lp</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>audio</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>daemon</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>bin</groupname>
-        <userlist>daemon</userlist>
-      </group>
-      <group>
-        <groupname>dialout</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <group_password>!</group_password>
-        <groupname>at</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>games</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>cdrom</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>uucp</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <group_password>!</group_password>
-        <groupname>maildrop</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>ftp</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>wheel</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>utmp</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>trusted</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>root</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>news</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <group_password>!</group_password>
-        <groupname>sshd</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>nobody</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>disk</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>sys</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>kmem</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <group_password>!</group_password>
-        <groupname>postfix</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>mail</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>xok</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>shadow</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>www</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>floppy</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>modem</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>man</groupname>
-        <userlist></userlist>
-      </group>
-      <group>
-        <groupname>tty</groupname>
-        <userlist></userlist>
-      </group>
-    </groups>
     <networking>
       <dns>
         <dhcp_hostname config:type="boolean">false</dhcp_hostname>
         <dhcp_resolv config:type="boolean">false</dhcp_resolv>
         <domain>__DNSDOMAIN__</domain>
         <hostname>__HOSTNAME__</hostname>
+        <nameservers config:type="list">
+          <nameserver>__DNS1__</nameserver>
+        </nameservers>
+        <searchlist config:type="list">
+          <search>__DNSDOMAIN__</search>
+        </searchlist>
       </dns>
       <interfaces config:type="list">
         <interface>
           <bootproto>STATIC</bootproto>
-          <device>eth0</device>
+          <device>eth-id-__MAC__</device>
           <ipaddr>__IP__</ipaddr>
           <netmask>__NETMASK__</netmask>
           <network>__IP__</network>
@@ -167,6 +27,7 @@
         </interface>
       </interfaces>
       <managed config:type="boolean">false</managed>
+      <!-- 
       <net-udev config:type="list">
         <rule>
           <name>eth0</name>
@@ -174,6 +35,7 @@
           <value>__MAC__</value>
         </rule>
       </net-udev>
+      -->
       <routing>
         <ip_forward config:type="boolean">false</ip_forward>
         <routes config:type="list">
@@ -186,6 +48,16 @@
         </routes>
       </routing>
     </networking>
+    <printer>
+      <cups_installation config:type="symbol">server</cups_installation>
+      <default></default>
+      <printcap config:type="list"/>
+      <server_hostname></server_hostname>
+      <spooler>cups</spooler>
+    </printer>
+    <runlevel>
+      <default>3</default>
+    </runlevel>
     <user_defaults>
       <expire></expire>
       <group>100</group>
@@ -197,202 +69,22 @@
     </user_defaults>
     <users config:type="list">
       <user>
-        <encrypted config:type="boolean">true</encrypted>
-        <fullname>Batch jobs daemon</fullname>
-        <gid>25</gid>
-        <home>/var/spool/atjobs</home>
-        <password_settings>
-          <expire></expire>
-          <flag></flag>
-          <inact></inact>
-          <max>99999</max>
-          <min>0</min>
-          <warn>7</warn>
-        </password_settings>
-        <shell>/bin/bash</shell>
-        <uid>25</uid>
-        <user_password>!</user_password>
-        <username>at</username>
-      </user>
-      <user>
-        <encrypted config:type="boolean">true</encrypted>
-        <fullname>nobody</fullname>
-        <gid>65533</gid>
-        <home>/var/lib/nobody</home>
-        <password_settings>
-          <expire></expire>
-          <flag></flag>
-          <inact></inact>
-          <max>10000</max>
-          <min>0</min>
-          <warn></warn>
-        </password_settings>
-        <shell>/bin/bash</shell>
-        <uid>65534</uid>
-        <user_password>*</user_password>
-        <username>nobody</username>
-      </user>
-      <user>
-        <encrypted config:type="boolean">true</encrypted>
-        <fullname>SSH daemon</fullname>
-        <gid>65</gid>
-        <home>/var/lib/sshd</home>
-        <password_settings>
-          <expire></expire>
-          <flag></flag>
-          <inact></inact>
-          <max>99999</max>
-          <min>0</min>
-          <warn>7</warn>
-        </password_settings>
-        <shell>/bin/false</shell>
-        <uid>71</uid>
-        <user_password>!</user_password>
-        <username>sshd</username>
-      </user>
-      <user>
-        <encrypted config:type="boolean">true</encrypted>
-        <fullname>FTP account</fullname>
-        <gid>49</gid>
-        <home>/srv/ftp</home>
-        <password_settings>
-          <expire></expire>
-          <flag></flag>
-          <inact></inact>
-          <max>10000</max>
-          <min>0</min>
-          <warn></warn>
-        </password_settings>
-        <shell>/bin/bash</shell>
-        <uid>40</uid>
-        <user_password>*</user_password>
-        <username>ftp</username>
-      </user>
-      <user>
-        <encrypted config:type="boolean">true</encrypted>
-        <fullname>Postfix Daemon</fullname>
-        <gid>51</gid>
-        <home>/var/spool/postfix</home>
-        <password_settings>
-          <expire></expire>
-          <flag></flag>
-          <inact></inact>
-          <max>99999</max>
-          <min>0</min>
-          <warn>7</warn>
-        </password_settings>
-        <shell>/bin/false</shell>
-        <uid>51</uid>
-        <user_password>!</user_password>
-        <username>postfix</username>
-      </user>
-      <user>
-        <encrypted config:type="boolean">true</encrypted>
-        <fullname>News system</fullname>
-        <gid>13</gid>
-        <home>/etc/news</home>
-        <password_settings>
-          <expire></expire>
-          <flag></flag>
-          <inact></inact>
-          <max>10000</max>
-          <min>0</min>
-          <warn></warn>
-        </password_settings>
-        <shell>/bin/bash</shell>
-        <uid>9</uid>
-        <user_password>*</user_password>
-        <username>news</username>
-      </user>
-      <user>
-        <encrypted config:type="boolean">true</encrypted>
-        <fullname>Games account</fullname>
+        <encrypted config:type="boolean">false</encrypted>
+        <fullname>baracus</fullname>
         <gid>100</gid>
-        <home>/var/games</home>
+        <home>/home/baracus</home>
         <password_settings>
           <expire></expire>
           <flag></flag>
           <inact></inact>
-          <max>10000</max>
+          <max>99999</max>
           <min>0</min>
-          <warn></warn>
+          <warn>7</warn>
         </password_settings>
         <shell>/bin/bash</shell>
-        <uid>12</uid>
-        <user_password>*</user_password>
-        <username>games</username>
-      </user>
-      <user>
-        <encrypted config:type="boolean">true</encrypted>
-        <fullname>Daemon</fullname>
-        <gid>2</gid>
-        <home>/sbin</home>
-        <password_settings>
-          <expire></expire>
-          <flag></flag>
-          <inact></inact>
-          <max>10000</max>
-          <min>0</min>
-          <warn></warn>
-        </password_settings>
-        <shell>/bin/bash</shell>
-        <uid>2</uid>
-        <user_password>*</user_password>
-        <username>daemon</username>
-      </user>
-      <user>
-        <encrypted config:type="boolean">true</encrypted>
-        <fullname>Mailer daemon</fullname>
-        <gid>12</gid>
-        <home>/var/spool/clientmqueue</home>
-        <password_settings>
-          <expire></expire>
-          <flag></flag>
-          <inact></inact>
-          <max>10000</max>
-          <min>0</min>
-          <warn></warn>
-        </password_settings>
-        <shell>/bin/false</shell>
-        <uid>8</uid>
-        <user_password>*</user_password>
-        <username>mail</username>
-      </user>
-      <user>
-        <encrypted config:type="boolean">true</encrypted>
-        <fullname>bin</fullname>
-        <gid>1</gid>
-        <home>/bin</home>
-        <password_settings>
-          <expire></expire>
-          <flag></flag>
-          <inact></inact>
-          <max>10000</max>
-          <min>0</min>
-          <warn></warn>
-        </password_settings>
-        <shell>/bin/bash</shell>
-        <uid>1</uid>
-        <user_password>*</user_password>
-        <username>bin</username>
-      </user>
-      <user>
-        <encrypted config:type="boolean">true</encrypted>
-        <fullname>Printing daemon</fullname>
-        <gid>7</gid>
-        <home>/var/spool/lpd</home>
-        <password_settings>
-          <expire></expire>
-          <flag></flag>
-          <inact></inact>
-          <max>10000</max>
-          <min>0</min>
-          <warn></warn>
-        </password_settings>
-        <shell>/bin/bash</shell>
-        <uid>4</uid>
-        <user_password>*</user_password>
-        <username>lp</username>
+        <uid>1000</uid>
+        <user_password>baracus</user_password>
+        <username>baracus</username>
       </user>
       <user>
         <encrypted config:type="boolean">true</encrypted>
@@ -409,66 +101,28 @@
         </password_settings>
         <shell>/bin/bash</shell>
         <uid>0</uid>
-        <user_password>r.uR2w70IY7AE</user_password>
+        <user_password>N4sI4i2G6vjvI</user_password>
         <username>root</username>
-      </user>
-      <user>
-        <encrypted config:type="boolean">true</encrypted>
-        <fullname>WWW daemon apache</fullname>
-        <gid>8</gid>
-        <home>/var/lib/wwwrun</home>
-        <password_settings>
-          <expire></expire>
-          <flag></flag>
-          <inact></inact>
-          <max>10000</max>
-          <min>0</min>
-          <warn></warn>
-        </password_settings>
-        <shell>/bin/false</shell>
-        <uid>30</uid>
-        <user_password>*</user_password>
-        <username>wwwrun</username>
-      </user>
-      <user>
-        <encrypted config:type="boolean">true</encrypted>
-        <fullname>Manual pages viewer</fullname>
-        <gid>62</gid>
-        <home>/var/cache/man</home>
-        <password_settings>
-          <expire></expire>
-          <flag></flag>
-          <inact></inact>
-          <max>10000</max>
-          <min>0</min>
-          <warn></warn>
-        </password_settings>
-        <shell>/bin/bash</shell>
-        <uid>13</uid>
-        <user_password>*</user_password>
-        <username>man</username>
-      </user>
-      <user>
-        <encrypted config:type="boolean">true</encrypted>
-        <fullname>Unix-to-Unix CoPy system</fullname>
-        <gid>14</gid>
-        <home>/etc/uucp</home>
-        <password_settings>
-          <expire></expire>
-          <flag></flag>
-          <inact></inact>
-          <max>10000</max>
-          <min>0</min>
-          <warn></warn>
-        </password_settings>
-        <shell>/bin/bash</shell>
-        <uid>10</uid>
-        <user_password>*</user_password>
-        <username>uucp</username>
       </user>
     </users>
   </configure>
   <install>
+    <scripts>
+      <post-scripts config:type="list">
+      </post-scripts>
+      <init-scripts config:type="list">
+        <script>
+          <filename>build_notify</filename>
+          <source><![CDATA[sleep 60
+wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></source>
+        </script>
+        __MODULE__
+        <script>
+          <filename>lsg_serial.sh</filename>
+          <location>http://__SERVERIP__/baracus/lsg_serial.sh</location>
+        </script>
+      </init-scripts>
+    </scripts>
     <bootloader>
       <activate config:type="boolean">false</activate>
       <device_map config:type="list">
@@ -508,7 +162,7 @@
           </section_entry>
           <section_entry>
             <key>kernel</key>
-            <value>(hd0,1)/boot/vmlinuz root=__ROOTPART__1 selinux=0 resume=__ROOTPART__2 splash=silent elevator=cfq showopts</value>
+            <value>(hd0,1)/boot/vmlinuz __BOOTARGS__ root=__ROOTPART__2 resume=__ROOTPART__1 splash=silent elevator=cfq showopts</value>
           </section_entry>
           <section_entry>
             <key>initrd</key>
@@ -522,7 +176,7 @@
           </section_entry>
           <section_entry>
             <key>kernel</key>
-            <value>(hd0,1)/boot/vmlinuz root=__ROOTPART__1 showopts ide=nodma apm=off acpi=off vga=normal noresume selinux=0 barrier=off iommu=noforce  3</value>
+            <value>(hd0,1)/boot/vmlinuz root=__ROOTPART__2 showopts ide=nodma apm=off acpi=off vga=normal noresume selinux=0 barrier=off iommu=noforce  3</value>
           </section_entry>
           <section_entry>
             <key>initrd</key>
@@ -534,39 +188,38 @@
     <general>
       <clock>
         <hwclock>UTC</hwclock>
-        <timezone>US/Pacific</timezone>
+        <timezone>__TIMEZONE__</timezone>
       </clock>
       <keyboard>
-        <keymap>english-us</keymap>
+        <keymap>__KEYMAP__</keymap>
       </keyboard>
-      <language>en_US</language>
+      <language>__LANG__</language>
       <mode>
         <confirm config:type="boolean">false</confirm>
       </mode>
-      <mouse>
-        <id>22_exps2</id>
-      </mouse>
     </general>
     <partitioning config:type="list">
       <drive>
+        <device>__ROOTDISK__</device>
         <partitions config:type="list">
-          <partition>
-            <filesystem config:type="symbol">reiserfs</filesystem>
-            <create config:type="boolean">true</create>
-            <format config:type="boolean">true</format>
-            <mount>/</mount>
-            <partition_id config:type="integer">131</partition_id>
-            <partition_nr config:type="integer">1</partition_nr>
-            <size>max</size>
-          </partition>
+          <!-- need swap to come first as auto in sle9 -->
           <partition>
             <filesystem config:type="symbol">swap</filesystem>
             <create config:type="boolean">true</create>
             <format config:type="boolean">true</format>
             <mount>swap</mount>
             <partition_id config:type="integer">130</partition_id>
-            <partition_nr config:type="integer">2</partition_nr>
+            <partition_nr config:type="integer">1</partition_nr>
             <size>auto</size>
+          </partition>
+          <partition>
+            <filesystem config:type="symbol">reiserfs</filesystem>
+            <create config:type="boolean">true</create>
+            <format config:type="boolean">true</format>
+            <mount>/</mount>
+            <partition_id config:type="integer">131</partition_id>
+            <partition_nr config:type="integer">2</partition_nr>
+            <size>max</size>
           </partition>
         </partitions>
         <use>all</use>
@@ -596,12 +249,13 @@
     </report>
     <software>
       <addons config:type="list">
+        <addon>auth</addon>
         <addon>Base-System</addon>
         <addon>YaST2</addon>
       </addons>
       <base>Minimal</base>
       <packages config:type="list">
-        <package>tftp</package>
+        <package>curl-32bit</package>
       </packages>
     </software>
   </install>
