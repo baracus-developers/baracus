@@ -3,6 +3,27 @@ package BaracusSYSLOG;
 use 5.006;
 use strict;
 
+BEGIN {
+  use Exporter ();
+  use vars qw( @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
+  @ISA         = qw(Exporter);
+  @EXPORT      = qw();
+  @EXPORT_OK   = qw();
+  %EXPORT_TAGS =
+      (
+       subs =>
+       [ qw(
+               enable_remote_logging
+               disable_remote_logging
+               enable_apparmor_logging
+               disable_apparmor_logging
+           ) ]
+       );
+  Exporter::export_ok_tags('subs');
+}
+
+our $VERSION = '0.01';
+
 our $LASTERROR="";
 
 sub error {

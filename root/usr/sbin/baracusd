@@ -4,81 +4,35 @@ use strict;
 use warnings;
 
 use Getopt::Long;
-use AppConfig;
 
 use lib "/usr/share/baracus/perl";
 
-use BaracusSYSLOG;
+use BaracusConfig qw( :vars );
+use BaracusSYSLOG qw( :subs );
 use SqlTFTPd qw(%OPCODES);
 use SqlFS;
 
 my $debug = 0;
 
-my $sysconfigfile = '/etc/sysconfig/baracus';
-my $sysconfig = AppConfig->new( {CREATE => 1} );
-$sysconfig->define( 'baracusdir=s',
-                    'buildip=s',
-                    'baracusd_options=s',
-                    'remote_logging=s',
-                   );
-$sysconfig->file($sysconfigfile);
-my $baracusdir = $sysconfig->get( 'baracusdir' ); # ~baracus is default
-my $baracusd_options=$sysconfig->get( 'baracusd_options' );
-my $buildip = $sysconfig->get( 'buildip' );
-my $remote_logging = $sysconfig->get( 'remote_logging' );
+$debug = 1 if ( defined $baVar{bdoptions} and $baVar{bdoptions} =~ m|debug| );
 
-$debug = 1 if ( defined $baracusd_options and $baracusd_options =~ m|debug| );
-
-print "\$baracusdir before : $baracusdir EOL\n" if $debug;
-if ( $baracusdir =~ m|^~([^/]*)| ) {
-  my $prepath="";
-  if ( "$1" eq "" ) {
-    $prepath = $ENV{HOME}
-  } else {
-    unless ($prepath = (getpwnam($1))[7]) {
-      die "BARACUSDIR has bad use of ~ or non-existent user in $sysconfigfile\n";
-    }
-  }
-  $baracusdir =~ s|^~([^/]*)|$prepath|;
-}
-# remove trailing slash or spaces
-$baracusdir =~ s|/*\s*$||;
-print "\$baracusdir after : $baracusdir EOL\n" if $debug;
-
-# store baracus well know directories in global hash
-our %bdir = (
-	    'root' => "$baracusdir",
-	    'conf' => "/etc/baracus.d",
-	    'data' => "/usr/share/baracus",
-	   );
-my @bdirs = qw( builds isos templates modules hooks logs );
-foreach my $bd (@bdirs) {
-  $bdir{ $bd } = "$baracusdir/$bd";
-}
-if ($debug) {
-  print "Baracus directories:\n";
-  while ( my ($key,$value) = each ( %bdir ) ) {
-    print "\t$key => $value\n" if ( defined $value );
-  }
-}
-
-open(STDOUT, ">>$bdir{'logs'}/baracusd")
+open(STDOUT, ">>$baDir{'logs'}/baracusd")
     or die "Unable to open log file: $!\n";
-open(STDERR, ">>$bdir{'logs'}/baracusd")
+open(STDERR, ">>$baDir{'logs'}/baracusd")
     or die "Unable to open log file: $!\n";
 
-my $uphoststate = "$bdir{'data'}/perl/baracusd_update_host_state.pl";
-
-my $dovalidate = 1;
-my $validatepass = "$bdir{'hooks'}/verify_client_build_passed";
-my $validatefail = "$bdir{'hooks'}/verify_client_build_failed";
-&checkdovalidate();
-
-my $dopxehookpass = 1;
-my $dopxehookfail = 1;
-my $pxehookpass = "$bdir{'hooks'}/post_pxe_delivery_passed";
-my $pxehookfail = "$bdir{'hooks'}/post_pxe_delivery_failed";
-&checkdopxehook();
+#my $uphoststate = "$baDir{'data'}/perl/baracusd_update_host_state.pl";
+#
+#my $dovalidate = 1;
+#my $validatepass = "$baDir{'hooks'}/verify_client_build_passed";
+#my $validatefail = "$baDir{'hooks'}/verify_client_build_failed";
+#&checkdovalidate();
+#
+#my $dopxehookpass = 1;
+#my $dopxehookfail = 1;
+#my $pxehookpass = "$baDir{'hooks'}/post_pxe_delivery_passed";
+#my $pxehookfail = "$baDir{'hooks'}/post_pxe_delivery_failed";
+#&checkdopxehook();
 
 &config_syslog();
 
@@ -101,7 +55,7 @@ unless( $listener->open() ) {
         "Or disabling the xinetd based 'tftp' service:\n\n",
         "\tchkconfig tftp off\n\tservice xinetd restart\n\n";
     die "Unable to open port for TFTP connections: ", $@, "\n",
-        "please refer to $bdir{'logs'}/baracusd for details.\n";
+        "please refer to $baDir{'logs'}/baracusd for details.\n";
 }
 
 print STDOUT "baracusd launched with uid: $>\n";
@@ -129,11 +83,9 @@ my $sqlfsOBJ = SqlFS->new( 'DataSource' => "$dbsource",
 $listener->setSqlFSHandle( $sqlfsOBJ );
 
 # load any missing required files
-my @requiredfiles = ( "$bdir{'data'}/pxelinux.0",
-                      "$bdir{'data'}/data/dban.bzi",
-                      "$bdir{'data'}/data/dban.initrd",
-                      "$bdir{'data'}/templates/pxetemplate-autowipe.dban",
-                      "$bdir{'data'}/templates/pxetemplate-noautowipe.dban",
+my @requiredfiles = ( "$baDir{'data'}/data/gpxe-0.9.9+-gpxe.pxe",
+                      "$baDir{'data'}/data/linux.baracus",
+                      "$baDir{'data'}/data/initrd.baracus",
                      );
 
 foreach my $requiredfile ( @requiredfiles ) {
@@ -157,7 +109,7 @@ while (1) {
     # wait for any request (RRQ or WRQ)
     if (my $request = $listener->waitRQ()) {
         # process request and be done if validateURL
-        unless ( $dovalidate && &validateURL( $request ) ) {
+#        unless ( $dovalidate && &validateURL( $request ) ) {
 
             # upcase MAC portion of pxeboot 01-<mac> file
             &upcasepxefilename( $request );
@@ -182,8 +134,8 @@ while (1) {
                     print STDOUT "Disabled PXE peer $request->{'_REQUEST_'}{'PeerAddr'} check tftp entry no|enable flag\n";
                 }
             }
-            &deliverPXE( $request, $status );
-        }
+#            &deliverPXE( $request, $status );
+#        }
     }
 }
 
@@ -193,46 +145,46 @@ die "DOES NOT EXECUTE";
 
 ###########################################################################
 
-sub checkdovalidate {
-if (not -e $uphoststate) {
-    print STDOUT "State change script not found:\n\t$uphoststate\n";
-    print STDOUT "No confirmation of completed builds, wipes\n";
-    $dovalidate = 0;
-}
-}
+#sub checkdovalidate {
+#if (not -e $uphoststate) {
+#    print STDOUT "State change script not found:\n\t$uphoststate\n";
+#    print STDOUT "No confirmation of completed builds, wipes\n";
+#    $dovalidate = 0;
+#}
+#}
 
-sub checkdopxehook {
-    if (not -e $pxehookpass) {
-        $dopxehookpass = 0;
-    }
-    if (not -e $pxehookfail) {
-        $dopxehookfail = 0;
-    }
-}
+#sub checkdopxehook {
+#    if (not -e $pxehookpass) {
+#        $dopxehookpass = 0;
+#    }
+#    if (not -e $pxehookfail) {
+#        $dopxehookfail = 0;
+#    }
+#}
 
 sub config_syslog
 {
     my $logconf="/etc/syslog-ng/syslog-ng.conf";
     my $armorconf="/etc/apparmor.d/sbin.syslog-ng";
-    my $logpath = "$bdir{'logs'}/YaST2";
+    my $logpath = "$baDir{'logs'}/YaST2";
 
     unless ( -d $logpath ) {
         mkdir "$logpath", 0755
             or die ("Cannot create: $! \n");
     }
 
-    if ($remote_logging eq "yes") {
+    if ($baVar{rlogging} eq "yes") {
         print STDOUT "Enabling remote logging support in syslog-ng.conf\n";
-        if ( BaracusSYSLOG::enable_remote_logging( $logpath,
-                                                   $logconf,
-                                                   $buildip )) {
+        if ( enable_remote_logging( $logpath,
+                                    $logconf,
+                                    $baVar{serverip} )) {
             system("rcsyslog restart");
         } else {
             print BaracusSYSLOG::error();
         }
 
-        if ( BaracusSYSLOG::enable_apparmor_logging( $logpath,
-                                                     $armorconf ) ) {
+        if ( enable_apparmor_logging( $logpath,
+                                      $armorconf ) ) {
             system("rcapparmor restart");
         } else {
             print BaracusSYSLOG::error();
@@ -240,14 +192,13 @@ sub config_syslog
     }
     else {
         print STDOUT "Disabling remote logging support in syslog-ng.conf\n";
-        if ( BaracusSYSLOG::disable_remote_logging( $logconf ) ) {
+        if ( disable_remote_logging( $logconf ) ) {
             system("rcsyslog restart");
         } else {
             print BaracusSYSLOG::error();
         }
 
-        if ( BaracusSYSLOG::disable_apparmor_logging( $logpath,
-                                                      $armorconf ) ) {
+        if ( disable_apparmor_logging( $logpath, $armorconf ) ) {
             system("rcapparmor restart");
         } else {
             print BaracusSYSLOG::error();
@@ -255,49 +206,49 @@ sub config_syslog
     }
 }
 
-sub validateURL
-{
-    my $request = shift;
-
-    my $name = $request->{'_REQUEST_'}{'FileName'};
-
-    unless ( $name =~ m|.*/baracus/uuid/([-0-9a-zA-Z]{36})\?(\S+).*$| ) {
-        return 0;
-    }
-    my $uuid=$1;
-    my $hostname=$2;
-    my $ip = $request->{'_REQUEST_'}{'PeerAddr'};
-    my $mac = "";
-    if ( defined $pxedeliveredips->{ $request->{'_REQUEST_'}{'PeerAddr'} } ) {
-        $mac = $pxedeliveredips->{ $request->{'_REQUEST_'}{'PeerAddr'} };
-    }
-    my $cmd = "$uphoststate endofbuild --host $hostname --ip $ip --uuid $uuid";
-    $cmd .= " --mac $mac" if ( $mac );
-
-    print STDOUT "VERIFYING hostname $hostname ip $ip uuid $uuid mac $mac\n"
-        if $debug;
-
-    my $status = system( $cmd );
-    if ( $status == 1 ) {
-        print STDOUT "VERIFYING FAILED $hostname $ip $uuid $mac \n";
-        if (-x $validatefail) {
-            print STDOUT "INVOKING $validatefail\n";
-            system("$validatefail $hostname $ip $uuid $mac");
-        } else {
-            print STDOUT "no executable failed script found: $validatefail\n";
-        }
-    } elsif ( $status == 0 ) {
-        print STDOUT "VERIFYING PASSED $hostname $ip $uuid $mac\n";
-        if ( -x $validatepass ) {
-            print STDOUT "INVOKING $validatepass\n";
-            system("$validatepass $hostname $ip $uuid $mac");
-        } else {
-            print STDOUT "no executable passed script found: $validatepass\n";
-        }
-    }
-    # was a valid validate url - even if a spoofing attempt
-    return 1;
-}
+#sub validateURL
+#{
+#    my $request = shift;
+#
+#    my $name = $request->{'_REQUEST_'}{'FileName'};
+#
+#    unless ( $name =~ m|.*/baracus/uuid/([-0-9a-zA-Z]{36})\?(\S+).*$| ) {
+#        return 0;
+#    }
+#    my $uuid=$1;
+#    my $hostname=$2;
+#    my $ip = $request->{'_REQUEST_'}{'PeerAddr'};
+#    my $mac = "";
+#    if ( defined $pxedeliveredips->{ $request->{'_REQUEST_'}{'PeerAddr'} } ) {
+#        $mac = $pxedeliveredips->{ $request->{'_REQUEST_'}{'PeerAddr'} };
+#    }
+#    my $cmd = "$uphoststate endofbuild --host $hostname --ip $ip --uuid $uuid";
+#    $cmd .= " --mac $mac" if ( $mac );
+#
+#    print STDOUT "VERIFYING hostname $hostname ip $ip uuid $uuid mac $mac\n"
+#        if $debug;
+#
+#    my $status = system( $cmd );
+#    if ( $status == 1 ) {
+#        print STDOUT "VERIFYING FAILED $hostname $ip $uuid $mac \n";
+#        if (-x $validatefail) {
+#            print STDOUT "INVOKING $validatefail\n";
+#            system("$validatefail $hostname $ip $uuid $mac");
+#        } else {
+#            print STDOUT "no executable failed script found: $validatefail\n";
+#        }
+#    } elsif ( $status == 0 ) {
+#        print STDOUT "VERIFYING PASSED $hostname $ip $uuid $mac\n";
+#        if ( -x $validatepass ) {
+#            print STDOUT "INVOKING $validatepass\n";
+#            system("$validatepass $hostname $ip $uuid $mac");
+#        } else {
+#            print STDOUT "no executable passed script found: $validatepass\n";
+#        }
+#    }
+#    # was a valid validate url - even if a spoofing attempt
+#    return 1;
+#}
 
 sub upcasepxefilename {
     my $request = shift;
@@ -311,37 +262,37 @@ sub upcasepxefilename {
         "$1/" . $request->{'_REQUEST_'}{'FileName'};       # put prefix back
 }
 
-sub deliverPXE {
-    my $request = shift;
-    my $tftpsts = shift;
-
-    unless ( $request->{'_REQUEST_'}{'FileName'} =~ m|01-((([0-9a-fA-F]){2}-?){6})| ) {
-        return;
-    }
-
-    # on successful deliver of pxeboot file we may like to automate
-    # some changes of the related entries. for instance for generic
-    # hardware set to always pxe boot we need to disable the related
-    # tftp server build entry. another example, after delivery of the
-    # dban pxeboot file we may want to auto-remove the host template.
-
-    my $mac = $1;
-    $mac =~ s|-|:|g;
-    my $ip = $request->{'_REQUEST_'}{'PeerAddr'};
-
-    if ( defined $tftpsts ) {
-        my $cmd = "$uphoststate pxeserved --mac $mac";
-        system( $cmd );
-    }
-    if ( defined $tftpsts and $dopxehookpass) {
-        print STDOUT "INVOKING PXE PASS $pxehookpass $mac $ip\n";
-        system("$pxehookpass $mac $ip");
-    } elsif ( $dopxehookfail ) {
-        print STDOUT "INVOKING PXE FAIL $pxehookfail $mac $ip\n";
-        system("$pxehookfail $mac $ip");
-    }
-    return;
-}
+#sub deliverPXE {
+#    my $request = shift;
+#    my $tftpsts = shift;
+#
+#    unless ( $request->{'_REQUEST_'}{'FileName'} =~ m|01-((([0-9a-fA-F]){2}-?){6})| ) {
+#        return;
+#    }
+#
+#    # on successful deliver of pxeboot file we may like to automate
+#    # some changes of the related entries. for instance for generic
+#    # hardware set to always pxe boot we need to disable the related
+#    # tftp server build entry. another example, after delivery of the
+#    # dban pxeboot file we may want to auto-remove the host template.
+#
+#    my $mac = $1;
+#    $mac =~ s|-|:|g;
+#    my $ip = $request->{'_REQUEST_'}{'PeerAddr'};
+#
+#    if ( defined $tftpsts ) {
+#        my $cmd = "$uphoststate pxeserved --mac $mac";
+#        system( $cmd );
+#    }
+#    if ( defined $tftpsts and $dopxehookpass) {
+#        print STDOUT "INVOKING PXE PASS $pxehookpass $mac $ip\n";
+#        system("$pxehookpass $mac $ip");
+#    } elsif ( $dopxehookfail ) {
+#        print STDOUT "INVOKING PXE FAIL $pxehookfail $mac $ip\n";
+#        system("$pxehookfail $mac $ip");
+#    }
+#    return;
+#}
 
 
 die "ABSOLUTELY DOES NOT EXECUTE";

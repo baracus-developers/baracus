@@ -1,17 +1,24 @@
-## Required Variables
-## Can be passed via cmdline
-##
+# NETWORK
+
 netmask=
 gateway=
 dnsdomain=
 dns1=
 
-## Optional Variables
-##
-## example ntp1=ntp.myntpserver.com
-## example language=en_US
-## example timezone=US/Eastern
+# LOCALIZATION
+#
+#           SUSE              RHEL
+# timezone= "America/Denver"  "America/Denver" 
+# keymap=   english-us        us
+# lang=     en_US             en_US.UTF-8
+
 timezone=
 lang=
 hardware=
-arch=
+
+# DISTRO and HARDWARE
+# can be here vs cmdline
+
+# distro=sles-11-x86_64
+# hardware=default-sda
+

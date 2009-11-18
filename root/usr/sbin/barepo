@@ -2,12 +2,12 @@
 
 use strict;
 use Getopt::Long qw( :config pass_through );
-use AppConfig;
 use Pod::Usage;
 
 use lib "/usr/share/baracus/perl";
 
 use BaracusREPO;
+use BaracusConfig qw( :vars );
 
 =pod
 
@@ -51,38 +51,6 @@ This tool provides assistance to users wanting to create their own network insta
 =back
 
 =cut
-
-# get the sysconfig option settings
-my $sysconfigfile = '/etc/sysconfig/baracus';
-my $sysconfig = AppConfig->new( {CREATE => 1} );
-$sysconfig->define( 'baracusdir=s' );
-$sysconfig->file( $sysconfigfile );
-my $baracusdir     = $sysconfig->get( 'baracusdir' ); # ~baracus is default
-
-if ( $baracusdir =~ m|^~([^/]*)| ) {
-    my $prepath="";
-    if ( "$1" eq "" ) {
-        $prepath = $ENV{HOME}
-    } else {
-        unless ($prepath = (getpwnam($1))[7]) {
-            die "BARACUSDIR has bad use of ~ or non-existent user in $sysconfigfile\n";
-        }
-    }
-    $baracusdir =~ s|^~([^/]*)|$prepath|;
-}
-# remove trailing slash or spaces
-$baracusdir =~ s|/*\s*$||;
-
-# store baracus well know directories in global hash 'bdir'
-my @bdirs = qw( builds isos templates modules hooks logs byum );
-my %bdir = (
-            'root' => "$baracusdir",
-            'conf' => "/etc/baracus.d",
-            'data' => "/usr/share/baracus",
-            );
-foreach my $bd (@bdirs) {
-    $bdir{ $bd } = "$baracusdir/$bd";
-}
 
 our $LASTERROR="";
 
@@ -190,9 +158,9 @@ sub create() {
         &help( $command );
     }
 
-    $repo = "$bdir{'byum'}/$repo";
-    unless ( -d $bdir{'byum'}) {
-        mkdir $bdir{'byum'}, 0755 || die ("Cannot create directory\n");
+    $repo = "$baDir{'byum'}/$repo";
+    unless ( -d $baDir{'byum'}) {
+        mkdir $baDir{'byum'}, 0755 || die ("Cannot create directory\n");
     }
     if ($verbose) { print "Creating $repo \n"; }
     my $status = BaracusREPO::create_repo($repo, @packages);
@@ -218,7 +186,7 @@ sub add() {
         printf "\nMissing reponame <name>\n";
         &help( $command );
     }
-    $repo = "$bdir{'byum'}/$repo";
+    $repo = "$baDir{'byum'}/$repo";
     if ($verbose) { print "Adding packages to $repo \n"; }
     my $status = BaracusREPO::add_packages($repo, @packages);
     if ( $status ) {
@@ -242,7 +210,7 @@ sub update() {
         &help( $command );
     }
 
-    $repo = "$bdir{'byum'}/$repo";
+    $repo = "$baDir{'byum'}/$repo";
     if ($verbose) { print "Updating $repo \n"; }
     my $status = BaracusREPO::update_repo($repo);
     if ( $status ) {
@@ -267,7 +235,7 @@ sub remove() {
         &help( $command );
     }
 
-    $repo="$bdir{'byum'}/$repo";
+    $repo="$baDir{'byum'}/$repo";
     if ($verbose) { print "Removing $repo \n"; }
     my $status = BaracusREPO::remove_repo($repo);
     if ( $status ) {
@@ -293,7 +261,7 @@ sub verify {
         &help( $command );
     }
 
-    $repo = "$bdir{'byum'}/$repo";
+    $repo = "$baDir{'byum'}/$repo";
 
     # barepo create related issues
     print "Verify directory and apache config... ";
@@ -349,14 +317,14 @@ sub list {
     }
 
     # no repos is not really an error
-    unless (-d $bdir{'byum'}) {
+    unless (-d $baDir{'byum'}) {
         return 0;
     }
 
     my ($create, $data, $repodir);
-    opendir(DIR, $bdir{'byum'});
+    opendir(DIR, $baDir{'byum'});
     foreach my $mydir ( grep(/\b$repo\b/o, grep(!/^\.+$/, readdir(DIR))) ) {
-        $repodir = "$bdir{'byum'}/$mydir";
+        $repodir = "$baDir{'byum'}/$mydir";
         $create = BaracusREPO::verify_repo_creation( $repodir );
         $data   = BaracusREPO::verify_repo_repodata( $repodir );
         print "repo $mydir create $create data $data\n" if ($debug);
@@ -384,9 +352,9 @@ sub detail {
         &help( $command );
     }
 
-    my $repodir = "$bdir{'byum'}/$repo";
+    my $repodir = "$baDir{'byum'}/$repo";
 
-    unless ( -d $bdir{'byum'} && -d $repodir ) {
+    unless ( -d $baDir{'byum'} && -d $repodir ) {
         $LASTERROR = "Unable to find repo named $repo\n";
         return 1;
     }

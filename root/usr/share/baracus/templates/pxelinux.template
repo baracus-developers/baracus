@@ -1,7 +1,0 @@
-DEFAULT install
-PROMPT 0
-TIMEOUT 0
-
-LABEL install
-        kernel linux.%PXEID%
-        append initrd=initrd.%PXEID% install=%TYPE%://%IP%/%PATH% textmode=1

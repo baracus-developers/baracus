@@ -256,9 +256,9 @@ sub apache2_listen_conf
     use AppConfig;
     my $sysconfigfile = '/etc/sysconfig/baracus';
     my $sysconfig = AppConfig->new( {CREATE => 1} );
-    $sysconfig->define( 'buildip=s' );
+    $sysconfig->define( 'server_ip=s' );
     $sysconfig->file( $sysconfigfile );
-    my $mods = $sysconfig->get( 'buildip' );
+    my $mods = $sysconfig->get( 'server_ip' );
 
     # listen.conf support systems with more than one IP and use BUILDIP
 

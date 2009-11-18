@@ -12,9 +12,19 @@
 # location so just pointing this to an empty, or non-existant
 # directory is not advised.
 #
-BARACUSDIR=~baracus
+BASE_DIR=~baracus
 
-## Description:    Default build service type
+## Description:    Server IP address
+## Type:           string
+## Default:        ""
+#
+# IP address of the Baracus server where the database resides
+# and where the Baracus web and cgi pages are served from.
+# Typically this would be the address of this machine.
+#
+SERVER_IP=
+
+## Description:    Default method for shareing install sources
 ## Type:           string
 ## Default:        "nfs"
 #
@@ -22,17 +32,20 @@ BARACUSDIR=~baracus
 #
 # Note: ftp is not yet fully supported
 #
-BUILDTYPE=nfs
+SHARE_TYPE=nfs
 
-## Description:    Build host IP address
+## Description:    Share IP address
 ## Type:           string
 ## Default:        ""
 #
-# IP address of the file server of the bracus build direcory
-# responsible for running the config BUILDTYPE protocol.
-# Typically this would be the address of this machine.
+# IP address of the network share file server responsible
+# for making install sources available for network installs.
+# This IP is responsible for serving the files via the protocol 
+# specified with SHARE_TYPE (above).
 #
-BUILDIP=
+# This might be an NFS filer or load-balanced http server.
+#
+SHARE_IP=
 
 ## Description:    Options to the Baracus daemon
 ## Type:           string
@@ -57,7 +70,7 @@ BARACUSD_OPTIONS="none"
 #
 # This variable is used by baracus hook 'post_pxe_delivery_passed'
 
-AUTODISABLEPXE="no"
+AUTO_DISABLE_PXE="no"
 
 ## Description:    Have remote hosts log thier builds over the network
 ## Type:           yesno

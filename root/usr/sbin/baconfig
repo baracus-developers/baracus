@@ -985,7 +985,7 @@ sub update_module
                  'interpreter'  => "",
                  'data'         => "",
                  'status'       => "",
-                 'mandatory'    => "",
+                 'mandatory'    => 0,
                  'cert'         => "",
                  'addcert'      => "",
                  'rmcert'       => "",
@@ -1002,7 +1002,7 @@ sub update_module
                'disable'        => sub { $entry{'status'} = 0 },
                'mandatory!'     => \$entry{'mandatory'},
                'optional'       => sub { $entry{'mandatory'} = 0},
-               'cert=s'         => \$entry{'cert'},
+               'cert=s'         => \&multiarg_handler,
                'addcert=s'      => \&multiarg_handler,
                'rmcert=s'       => \&multiarg_handler,
                'version=i'      => \$entry{'version'},
@@ -1062,6 +1062,9 @@ sub update_module
         close FILE;
     }
 
+    $entry{'cert'} =
+        $multiarg{ 'cert' } if (defined $multiarg{ 'cert' });
+
     $entry{'addcert'} =
         $multiarg{ 'addcert' } if (defined $multiarg{ 'addcert' });
 
@@ -1074,10 +1077,6 @@ sub update_module
     }
 
     unless ($entry{'addcert'} eq "" ) {
-        if ($entry{'mandatory'} eq "") {
-            $LASTERROR = "addcert requires a mandatory/optional argument\n";
-            return 1;
-        }
         my $status = &update_cert("modcert", $entry{'moduleid'}, "addcert", $entry{'addcert'}, $entry{'mandatory'});
     }
 

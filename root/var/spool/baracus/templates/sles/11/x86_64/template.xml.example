@@ -16,7 +16,7 @@ __ADDON__
     <global>
       <activate>true</activate>
       <boot_root>true</boot_root>
-      <default>SUSE Linux Enterprise Server 11 - 2.6.27.19-5</default>
+      <default>0</default>
       <generic_mbr>true</generic_mbr>
       <gfxmenu>/boot/message</gfxmenu>
       <lines_cache_id>2</lines_cache_id>

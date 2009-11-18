@@ -12,12 +12,36 @@ baconfig add hardware --name default \
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
 
+baconfig detail hardware default-hda &> /dev/null || \
+baconfig add hardware --name default-hda \
+--description="default-hda" \
+--bootargs="acpi=on selinux=0 apm=off" \
+--rootdisk=/dev/hda \
+--rootpart=/dev/hda \
+--pxetemplate=pxetemplate-auto \
+--yasttemplate=template.xml 
+#--oscert=SLES9:SLES10
+#--addon="<!--no addon -->"
+#--hwdriver="<!--no hwdrivers -->"
+
 baconfig detail hardware default-HP &> /dev/null || \
 baconfig add hardware --name default-HP \
 --description="default-HP" \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=/dev/cciss/c0d0 \
 --rootpart=/dev/cciss/c0d0p \
+--pxetemplate=pxetemplate-auto \
+--yasttemplate=template.xml
+#--oscert=SLES9:SLES10
+#--addon="<!--no addon -->"
+#--hwdriver="<!--no hwdrivers -->"
+
+baconfig detail hardware default-ks &> /dev/null || \
+baconfig add hardware --name default-ks \
+--description="default-ks" \
+--bootargs="acpi=on selinux=0 apm=off" \
+--rootdisk=hda \
+--rootpart=hda \
 --pxetemplate=pxetemplate-auto \
 --yasttemplate=template.xml
 #--oscert=SLES9:SLES10

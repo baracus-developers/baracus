@@ -1,7 +1,0 @@
-DEFAULT wipe
-PROMPT 0
-TIMEOUT 0
-
-LABEL wipe
-        kernel dban.bzi 
-        append initrd=dban.initrd root=/dev/ram0 init=/rc nuke="dwipe"

@@ -3,7 +3,6 @@
 use strict;
 
 use Getopt::Long qw( :config pass_through );
-use AppConfig;
 use Pod::Usage;
 
 use File::Temp qw/ tempdir /;
@@ -15,7 +14,8 @@ use lib "/usr/share/baracus/perl";
 
 use SqlFS;
 use BaracusDB;
-use BaracusSql;
+use BaracusSql qw( :vars :subs :states );
+use BaracusConfig qw( :vars );
 
 =pod
 
@@ -40,8 +40,8 @@ Where command is one of
 
     list   [--distro <x>] List known distros
 
-    service --start       Start defaults [ BUILDTYPE and dhcpd ]
-    service --stop        Stop defaults [ BUILDTYPE and dhcpd ]
+    service --start       Start defaults [ SHARE_TYPE and dhcpd ]
+    service --stop        Stop defaults [ SHARE_TYPE and dhcpd ]
     service --start <y>   Start specified service(s) (nfs,http,dhcpd)
     service --stop  <y>   Stop specified service(s) (nfs,http,dhcpd)
 
@@ -75,42 +75,6 @@ my $man      = 0;
 my $help     = 0;
 
 my %multiarg; # used for processing repeatable getoptions
-
-# get the sysconfig option settings
-my $sysconfigfile = '/etc/sysconfig/baracus';
-my $sysconfig = AppConfig->new( {CREATE => 1} );
-$sysconfig->define( 'baracusdir=s',
-                    'buildtype=s',
-                    'buildip=s',
-                   );
-$sysconfig->file( $sysconfigfile );
-my $baracusdir = $sysconfig->get( 'baracusdir' ); # ~baracus is default
-my $buildtype  = $sysconfig->get( "buildtype" );
-my $buildip    = $sysconfig->get( "buildip"   );
-
-if ( $baracusdir =~ m|^~([^/]*)| ) {
-    my $prepath="";
-    if ( "$1" eq "" ) {
-        $prepath = $ENV{HOME}
-    } else {
-        unless ($prepath = (getpwnam($1))[7]) {
-            die "BARACUSDIR has bad use of ~ or non-existent user in $sysconfigfile\n";
-        }
-    }
-    $baracusdir =~ s|^~([^/]*)|$prepath|;
-}
-# remove trailing slash or spaces
-$baracusdir =~ s|/*\s*$||;
-
-# store baracus well know directories in global hash 'bdir'
-my @bdirs = qw( builds isos templates hooks logs );
-my %bdir = (
-         'root' => "$baracusdir",
-         'data' => "/usr/share/baracus",
-         );
-foreach my $bd (@bdirs) {
-  $bdir{ $bd } = "$baracusdir/$bd";
-}
 
 my $execname = $0;
 $execname = $1 if ( $0 =~ m|^.*/([^/].+)| );
@@ -147,12 +111,12 @@ if ($ARGV[0] eq "man"  ) { &man(); }
 if ($ARGV[0] eq "help" ) { shift @ARGV; &help(@ARGV); }
 
 # wait till here to barf on this so help is available even with bad sysconfig
-unless ($buildip) {
-    print "Please edit /etc/sysconfig/baracus and set BUILDIP=<server>\n";
+unless ($baVar{serverip}) {
+    print "Please edit /etc/sysconfig/baracus and set SERVER_IP=<server>\n";
     exit 1;
 }
 
-my $xml = &baxml_load( "$bdir{'data'}/badistro.xml" );
+my $xml = &baxml_load( "$baDir{'data'}/badistro.xml" );
 
 my $dbname = "baracus";
 my $dbrole = "baracus";
@@ -167,7 +131,7 @@ die BaracusDB::errstr unless ( defined $uid );
 my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
 die BaracusDB::errstr unless( $dbh );
 
-my $hashoftbls = BaracusSql::get_baracus_tables();
+my $hashoftbls = get_baracus_tables();
 
 print "basource debug=$debug\n" if $debug;
 my $deepdebug = $debug > 2 ? 1 : 0;
@@ -435,7 +399,7 @@ sub add() {
 
     &streamline_install( $distro );
 
-    print "Calling routine to configure $buildtype\n";
+    print "Calling routine to configure $baVar{sharetype}\n";
 
     &add_build_service( $distro, $addons );
 
@@ -595,11 +559,11 @@ sub enable() {
         return 1;
     }
     unless ( defined $dbref->{status} and
-             ( $dbref->{status} != BaracusSql::BA_DELETED ) ) {
+             ( $dbref->{status} != BA_DELETED ) ) {
         $LASTERROR = "Unable to enable $distro not yet added.\n";
         return 1;
     }
-    if ( $dbref->{status} != BaracusSql::BA_DISABLED ) {
+    if ( $dbref->{status} != BA_DISABLED ) {
         $LASTERROR = "Unable to enable $distro not disabled.\n";
         return 1;
     }
@@ -649,11 +613,11 @@ sub disable() {
         return 1;
     }
     unless ( defined $dbref->{status} and
-             ( $dbref->{status} != BaracusSql::BA_DELETED ) ) {
+             ( $dbref->{status} != BA_DELETED ) ) {
         $LASTERROR = "Unable to disable $distro not yet added.\n";
         return 1;
     }
-    if ( $dbref->{status} != BaracusSql::BA_READY ) {
+    if ( $dbref->{status} != BA_READY ) {
         $LASTERROR = "Unable to disable $distro not enabled.\n";
         return 1;
     }
@@ -696,7 +660,7 @@ sub verify() {
 
     unless ( defined $dbref and
              $dbref->{status} and
-             $dbref->{status} != BaracusSql::BA_DELETED ) {
+             $dbref->{status} != BA_DELETED ) {
         $LASTERROR = "No entry found for $distro\n";
         return 1;
     }
@@ -710,9 +674,9 @@ sub verify() {
     print "Target:\t\t$dbref->{distroid}\n";
     print "Created:\t$dbref->{creation}\n";
     print "Modified:\t$dbref->{change}\n" if defined $dbref->{change};
-    print "Status:\t\t$BaracusSql::baState{ $dbref->{status}}\n";
-    print "Service:\t$dbref->{type}";
-    if ( &check_service( $dbref->{type} ) ) {
+    print "Status:\t\t$baState{ $dbref->{status}}\n";
+    print "Service:\t$dbref->{sharetype}";
+    if ( &check_service( $dbref->{sharetype} ) ) {
         print " not running";
     } elsif ( $verbose ) {
         print " ok";
@@ -721,7 +685,7 @@ sub verify() {
 
     my $oldshare = "";
     foreach my $prod ( &baxml_products_getlist( $distro ) ) {
-        my ($netcfg, $share, $state) = &check_service_product( $distro, $prod, $dbref->{type} );
+        my ($netcfg, $share, $state) = &check_service_product( $distro, $prod, $dbref->{sharetype} );
 
         if ( $oldshare ne $share ) {
             $oldshare = $share;
@@ -803,10 +767,10 @@ sub detail() {
     my $dbref = &get_db_source_entry($distro);
     if ( defined $dbref and
          defined $dbref->{status} and
-         $dbref->{status} != BaracusSql::BA_DELETED ) {
-        $status = $BaracusSql::baState{ $dbref->{status} };
+         $dbref->{status} != BA_DELETED ) {
+        $status = $baState{ $dbref->{status} };
     } else {
-        $status = $BaracusSql::baState{ BaracusSql::BA_DELETED };
+        $status = $baState{ BA_DELETED };
     }
 
     my $dh = &baxml_distro_gethash( $distro );
@@ -820,7 +784,7 @@ sub detail() {
              },
              follow => 1
             },
-           $bdir{isos} );
+           $baDir{isos} );
 
     print "\nDetails for $distro\n";
     print "With current status '$status'\n";
@@ -848,7 +812,7 @@ sub detail() {
             $isoexist = "+" if ( $iodhash{$iso} );
             $direxist = "+" if ( -d $builds );
 
-            $builds =~ s|$bdir{builds}/||og;
+            $builds =~ s|$baDir{builds}/||og;
             printf "  %s $iso  =>  %s $builds\n", $isoexist, $direxist;
         }
     }
@@ -953,17 +917,17 @@ sub list() {
 
         if ( defined $dbref and
              $dbref->{status} and
-             $dbref->{status} != BaracusSql::BA_DELETED ) {
+             $dbref->{status} != BA_DELETED ) {
 
             printf "%-28s ", $adistro;
-            $status = $BaracusSql::baState{ $dbref->{status} };
+            $status = $baState{ $dbref->{status} };
             unless ( $quiet ) {
                 printf "%-8s %s", $status, $dbref->{description};
             }
             print "\n";
         } elsif ( $all ) {
             printf "%-28s ", $adistro;
-            $status = $BaracusSql::baState{ BaracusSql::BA_DELETED };
+            $status = $baState{ BA_DELETED };
             unless ( $quiet ) {
                 printf "%-8s %s", $status, $dh->{description};
             }
@@ -973,14 +937,14 @@ sub list() {
     return 0;
 }
 
-=head2 service { --start [type] | --stop [type] }
+=head2 service { --start [service] | --stop [service] }
 
 With service you need to specify start or stop
 
     service --start
     service --stop
 
-With current sysconfig settings, if specific services are unspecified, these default to start or stop both the build type and dhcpd.
+With current sysconfig settings, if specific services are unspecified, these default to start or stop both the SHARE_TYPE and dhcpd services.
 
 You can also list the services to start or stop specifically
 
@@ -1052,8 +1016,8 @@ sub download_iso() {
     my $found = 0;
 
     ## create directory for iso files if not present
-    if (! -d $bdir{builds}) {
-        mkpath "$bdir{builds}" or die ("Cannot create ~baracus/isos directory\n");
+    if (! -d $baDir{builds}) {
+        mkpath "$baDir{builds}" or die ("Cannot create ~baracus/isos directory\n");
     }
 
     print "Searching for iso files needing download ...\n" if ($verbose);
@@ -1076,7 +1040,7 @@ sub download_iso() {
                          },
                          follow => 1
                         },
-                       $bdir{isos} );
+                       $baDir{isos} );
                 unless ( $skip ) {
                     push @distisolist, $isofile;
                     $skip = 0;
@@ -1147,7 +1111,7 @@ sub get_iso() {
     print "+++++ get_iso\n" if ( $debug > 1 );
     my ($distro,$url,$iso,$username,$password,$proxy,$pusername,$ppassword,$proxyaddr) = @_;
     use LWP::UserAgent;
-    my $file="$bdir{'isos'}/$iso";
+    my $file="$baDir{'isos'}/$iso";
     my $br;
     my $ua;
 
@@ -1156,8 +1120,8 @@ sub get_iso() {
     $proxyaddr =~ s/http:\/\///;
     $ENV{'HTTP_PROXY'} = "http:\/\/$pusername:$ppassword\@$proxyaddr";
 
-    unless(-d $bdir{'isos'}) {
-        mkdir $bdir{'isos'}, 0755 || die ("Cannot create directory\n");
+    unless(-d $baDir{'isos'}) {
+        mkdir $baDir{'isos'}, 0755 || die ("Cannot create directory\n");
     }
 
     if ($proxy) {
@@ -1214,8 +1178,8 @@ sub verify_iso() {
     my $daisohr = {};
 
     ## test directory for iso files
-    if (! -d $bdir{builds}) {
-        print "Directory does not exist: $bdir{builds}\n";
+    if (! -d $baDir{builds}) {
+        print "Directory does not exist: $baDir{builds}\n";
         exit(1);
     }
 
@@ -1242,7 +1206,7 @@ sub verify_iso() {
                         },
                         follow => 1
                        },
-                      $bdir{isos});
+                      $baDir{isos});
                 if ($missing == 1) {
                     $missing = 0;
                     $halt = 1;
@@ -1275,7 +1239,7 @@ sub verify_iso() {
 
         foreach my $isofile ( @{$daisohr->{ $da }->{list}} ) {
             my $isoshort = $isofile;
-            $isoshort =~ s|$bdir{isos}/||;
+            $isoshort =~ s|$baDir{isos}/||;
             if ( $isos && not $check ) {
                 # skip non-downloaded unless check is specified
                 next unless ( $check_list =~ m|$isoshort| );
@@ -1359,8 +1323,8 @@ sub make_paths() {
                     return 1;
                 }
                 my ($isoshort, $idirshort) = ($isofile, $idir);
-                $isoshort  =~ s|$bdir{isos}||;
-                $idirshort =~ s|$bdir{isos}||;
+                $isoshort  =~ s|$baDir{isos}||;
+                $idirshort =~ s|$baDir{isos}||;
                 print "Extraction $isoshort to $idirshort\n";    # print LONG
                 system( "mount -o loop $isofile $tdir" );
                 system( "/usr/bin/rsync -azHl $tdir/* $idir" );
@@ -1394,7 +1358,7 @@ sub create_build
     # for i586/x86_64 sles10.2-11 - bnc 507086
 
     if ($distro =~ /sles-10\.2/ or $distro =~ /sles-11/) {
-        my $driverupdate_in = "$bdir{'data'}/driverupdate";
+        my $driverupdate_in = "$baDir{'data'}/driverupdate";
         my $driverupdate_out = "$bh->{baseisopath}/driverupdate";
         if ( $debug ) {
             print "Installing driverupdate for sles 10.2 - 11\n";
@@ -1522,7 +1486,17 @@ sub streamline_install
     ## Remove license.zip or info.txt and associated entry in
     ## media.1/directory.yast
     ##
-    if ($distro =~ /sles-10/ or $distro =~ /sles-11/) {
+    if ( $distro =~ /opensuse-11.2/ ) {
+        ##
+        ## great - they've added a license file which they prompt for if missing
+        ## - and if missing they also claim not to have found the install dir...
+        ##
+        print "NOTE -->> streamline of 11.2 not yet done <<-- NOTE\n";
+        $licensefile = "license.tar.gz";
+        $remove = 0;
+
+    }
+    elsif ($distro =~ /sles-10/ or $distro =~ /sles-11/) {
         $licensefile = "license.zip";
         $remove = 1;
 
@@ -1595,7 +1569,7 @@ sub add_bootloader_files() {
         copy($bh->{baseinitrd},"$tdir/initrd.gz") or die "Copy failed: $!";
         if ( $distro =~ /sles-11/ ) {
             system("gunzip", "$tdir/initrd.gz");
-            copy("$bdir{data}/gpghome/.gnupg/my-key.gpg", "$tdir/my-key.gpg") or
+            copy("$baDir{data}/gpghome/.gnupg/my-key.gpg", "$tdir/my-key.gpg") or
                      die "Copy failed: $!";
             my $result = `cd $tdir; find my-key.gpg | cpio --quiet -o -A -F initrd -H newc >> /dev/null`;
             unlink( "$tdir/my-key.gpg" );
@@ -1613,34 +1587,6 @@ sub add_bootloader_files() {
 
     print "removing tempdir $tdir\n" if ($debug > 1);
     rmdir $tdir;
-
-    ## Create example pxelinux.cfg boot file
-    ##
-    open(PXEFILE, "<$bdir{'data'}/templates/pxelinux.template")
-        or die "unable to open file: $!\n";
-    my $pxe = join '', <PXEFILE>;
-    close(PXEFILE);
-
-    $pxe =~ s/%PXEID%/$distro/g;
-    $pxe =~ s/%TYPE%/$buildtype/g;
-    $pxe =~ s/%IP%/$buildip/g;
-    if ( $distro =~ /sles-9/ ) {
-        $pxe =~ s|%PATH%|$bh->{distpath}/|g;
-    } else {
-        $pxe =~ s|%PATH%|$bh->{baseprodpath}/|g;
-    }
-
-    # store won't overwrite ( $name, \$contentref, [ description ] )
-    if ( &sqlfs_getstate( "template.$buildtype.$basedist" ) ) {
-        print "found bootloader template.$buildtype.$basedist in tftp database\n" if $verbose;
-    } else {
-        &sqlfs_storeScalar( "template.$buildtype.$basedist", \$pxe );
-    }
-    # TODO:  perhaps create a menu of install sources to choose from
-    # NOTE:  SqlFS is 'flat' so 'default' is only used for lookup match here
-    unless ( &sqlfs_getstate( "default" ) ) {
-        &sqlfs_storeScalar( "default", \$pxe, "template.$buildtype.$basedist" );
-    }
 }
 
 sub remove_bootloader_files() {
@@ -1660,9 +1606,9 @@ sub remove_bootloader_files() {
         &sqlfs_remove( "initrd.$basedist" );
     }
 
-    foreach my $type ( "http", "nfs" ) {
-        if ( &sqlfs_getstate( "template.$type.$basedist" ) ) {
-            &sqlfs_remove( "template.$type.$basedist" );
+    foreach my $sharetype ( "http", "nfs" ) {
+        if ( &sqlfs_getstate( "template.$sharetype.$basedist" ) ) {
+            &sqlfs_remove( "template.$sharetype.$basedist" );
         }
     }
 }
@@ -1688,24 +1634,24 @@ sub add_build_service
         foreach my $prod ( &baxml_products_getlist( $da ) ) {
 
             my ($file, $share, $state) =
-                &check_service_product( $da, $prod, $buildtype );
+                &check_service_product( $da, $prod, $baVar{sharetype} );
 
             if ( $state ) {
-                print "$buildtype file $file found added for $da\n" if $verbose;
+                print "$baVar{sharetype} file $file found added for $da\n" if $verbose;
             }
             else {
                 print "modifying $file adding $share\n" if ( $debug );
 
                 $restartservice = 1;
 
-                if ($buildtype eq "nfs") {
+                if ($baVar{sharetype} eq "nfs") {
                     open(FILE, ">>$file") || die ("Cannot open $file\n$!");
                     print FILE "$share\t*(ro,root_squash,insecure,sync,no_subtree_check)\n";
                     close(FILE);
                 }
 
-                if ($buildtype eq "http") {
-                    open(FILE, "<$bdir{'data'}/templates/inst_server.conf.in") or
+                if ($baVar{sharetype} eq "http") {
+                    open(FILE, "<$baDir{'data'}/templates/inst_server.conf.in") or
                         die ("Cannot open file\n");
                     my $httpdconf = join '', <FILE>;
                     close(FILE);
@@ -1726,10 +1672,10 @@ sub add_build_service
         }
     }
     if ( $restartservice ) {
-        if ($buildtype eq "nfs") {
+        if ($baVar{sharetype} eq "nfs") {
             system("/usr/sbin/exportfs -r");
         }
-        if ($buildtype eq "http") {
+        if ($baVar{sharetype} eq "http") {
             system("/etc/init.d/apache2 reload");
         }
     }
@@ -1753,16 +1699,16 @@ sub remove_build_service
         foreach my $prod ( &baxml_products_getlist( $da ) ) {
 
             my ($file, $share, $state) =
-                &check_service_product( $da, $prod, $buildtype );
+                &check_service_product( $da, $prod, $baVar{sharetype} );
 
             if ( not $state ) {
-                print "$buildtype file $file found removed for $da\n" if $verbose;
+                print "$baVar{sharetype} file $file found removed for $da\n" if $verbose;
             } else {
                 print "modifying $file removing $share\n" if ( $debug );
 
                 $restartservice = 1;
 
-                if ($buildtype eq "nfs") {
+                if ($baVar{sharetype} eq "nfs") {
                     copy("/etc/exports", "/etc/exports.bak");
                     open(OUTFILE, ">/etc/exports") || die ("Cannot open file\n");
                     open(INFILE, "</etc/exports.bak") || die ("Cannot open file\n");
@@ -1776,17 +1722,17 @@ sub remove_build_service
                     unlink("/etc/exports.bak");
                 }
 
-                if ($buildtype eq "http") {
+                if ($baVar{sharetype} eq "http") {
                     unlink( $file );
                 }
             }
         }
     }
     if ( $restartservice ) {
-        if ($buildtype eq "nfs") {
+        if ($baVar{sharetype} eq "nfs") {
             system("/usr/sbin/exportfs -r");
         }
-        if ($buildtype eq "http") {
+        if ($baVar{sharetype} eq "http") {
             system("/etc/init.d/apache2 reload");
         }
     }
@@ -1798,7 +1744,7 @@ sub check_service_product
     print "+++++ check_serviceconfig\n" if ( $debug > 1 );
     my $distro    = shift;
     my $product   = shift;
-    my $type      = shift;
+    my $sharetype = shift;
 
     my $dh = &baxml_distro_gethash( $distro );
 
@@ -1807,7 +1753,7 @@ sub check_service_product
     my $file;
     my $state = 0;
 
-    if ($type eq "nfs") {
+    if ($sharetype eq "nfs") {
         $file = "/etc/exports";
         if ( -f $file ) {
             open(FILE, "<$file") or die ("Cannot open $file\n$!");
@@ -1819,7 +1765,7 @@ sub check_service_product
             close(FILE);
         }
     }
-    if ($type eq "http") {
+    if ($sharetype eq "http") {
         $file = "/etc/apache2/conf.d/$name.conf";
         $state = 1 if ( -f $file);
     }
@@ -1830,41 +1776,41 @@ sub check_service_product
 sub enable_service() {
 
     print "+++++ enable_service\n" if ( $debug > 1 );
-    my $type = shift @_;
+    my $sharetype = shift @_;
 
     if ($verbose) {
-        print "Enabling $type ... \n";
+        print "Enabling $sharetype ... \n";
     }
-    $type =~ s/http/apache2/;
-    $type =~ s/nfs/nfsserver/;
-    system("chkconfig $type on");
-    system("/etc/init.d/$type start")
+    $sharetype =~ s/http/apache2/;
+    $sharetype =~ s/nfs/nfsserver/;
+    system("chkconfig $sharetype on");
+    system("/etc/init.d/$sharetype start")
 }
 
 sub disable_service() {
 
     print "+++++ disable_service\n" if ( $debug > 1 );
-    my $type = shift @_;
+    my $sharetype = shift @_;
 
     ## Disable service
     ##
     if ($verbose) {
-        print "Disabling $type ... \n";
+        print "Disabling $sharetype ... \n";
     }
-    $type =~ s/http/apache2/;
-    $type =~ s/nfs/nfsserver/;
-    system("chkconfig $type off");
-    system("/etc/init.d/$type stop");
+    $sharetype =~ s/http/apache2/;
+    $sharetype =~ s/nfs/nfsserver/;
+    system("chkconfig $sharetype off");
+    system("/etc/init.d/$sharetype stop");
 }
 
 # status returns 0 if enabled
 sub check_service() {
     print "+++++ check_service\n" if ( $debug > 1 );
-    my $type = shift @_;
+    my $sharetype = shift @_;
 
-    $type =~ s/http/apache2/;
-    $type =~ s/nfs/nfsserver/;
-    system("/etc/init.d/$type status >& /dev/null");
+    $sharetype =~ s/http/apache2/;
+    $sharetype =~ s/nfs/nfsserver/;
+    system("/etc/init.d/$sharetype status >& /dev/null");
 }
 
 ###########################################################################
@@ -1969,7 +1915,7 @@ sub source_register() {
             unless ( defined $dbref->{distroid} and
                      ( $dbref->{distroid} eq $da ) and
                      defined $dbref->{staus} and
-                     ( $dbref->{staus} != BaracusSql::BA_DELETED ) ) {
+                     ( $dbref->{staus} != BA_DELETED ) ) {
                 &add_db_source_entry( $da );
             }
         }
@@ -1993,7 +1939,7 @@ sub source_register() {
         push @dalist, split( /\s+/, $addons) if ( $addons );
 
         foreach my $da ( @dalist ) {
-            $sth->execute( BaracusSql::BA_DELETED, $da )
+            $sth->execute( BA_DELETED, $da )
                 or die "Cannot execute sth: ", $sth->errstr;
         }
 
@@ -2011,7 +1957,7 @@ sub source_register() {
         my $sth = $dbh->prepare( $sql )
             or die "Cannot prepare sth: ",$dbh->errstr;
 
-        $sth->execute( BaracusSql::BA_DISABLED, $distro )
+        $sth->execute( BA_DISABLED, $distro )
             or die "Cannot execute sth: ", $sth->errstr;
 
     }
@@ -2028,7 +1974,7 @@ sub source_register() {
         my $sth = $dbh->prepare( $sql )
             or die "Cannot prepare sth: ",$dbh->errstr;
 
-        $sth->execute( BaracusSql::BA_READY, $distro )
+        $sth->execute( BA_READY, $distro )
             or die "Cannot execute sth: ", $sth->errstr;
 
     }
@@ -2049,8 +1995,8 @@ sub get_db_source_entry() {
     my $distro = shift;
 
     my $sql = qq|SELECT distroid,
-                        buildip,
-                        type,
+                        shareip,
+                        sharetype,
                         basepath,
                         description,
                         status,
@@ -2078,7 +2024,7 @@ sub add_db_source_entry() {
 
     my $distro = shift;
 
-    print "Registering source: $distro $buildip $bdir{root} $buildtype\n"
+    print "Registering source: $distro $baVar{shareip} $baDir{root} $baVar{sharetype}\n"
         if ($verbose);
 
     my $sql;
@@ -2094,8 +2040,8 @@ sub add_db_source_entry() {
         $sql = qq|UPDATE $tbl{ 'distro' }
                   SET creation=CURRENT_TIMESTAMP(0),
                       change=NULL,
-                      buildip=?,
-                      type=?,
+                      shareip=?,
+                      sharetype=?,
                       basepath=?,
                       status=?
                   WHERE distroid=?|;
@@ -2103,10 +2049,10 @@ sub add_db_source_entry() {
         $sth = $dbh->prepare( $sql )
             or die "Cannot prepare sth: ",$dbh->errstr;
 
-        $sth->bind_param( 1, $buildip    );
-        $sth->bind_param( 2, $buildtype  );
+        $sth->bind_param( 1, $baVar{shareip}    );
+        $sth->bind_param( 2, $baVar{sharetype}  );
         $sth->bind_param( 3, $share      );
-        $sth->bind_param( 4, BaracusSql::BA_READY );
+        $sth->bind_param( 4, BA_READY );
         $sth->bind_param( 5, $distro     );
 
         $sth->execute()
@@ -2121,14 +2067,16 @@ sub add_db_source_entry() {
                     addon,
                     addos,
                     addrel,
-                    buildip,
-                    type,
+                    shareip,
+                    sharetype,
                     basepath,
+                    kernel,
+                    initrd,
                     status,
                     creation,
                     change
                   )
-                  VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                  VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                            CURRENT_TIMESTAMP(0), NULL ) |;
 
         $sth = $dbh->prepare( $sql )
@@ -2147,17 +2095,23 @@ sub add_db_source_entry() {
             } else {
                 $sth->bind_param( 8, 'NULL' );
             }
+            $sth->bind_param( 12, 'NULL' );  # no kernel for addon
+            $sth->bind_param( 13, 'NULL' );  # no initrd for addon
         } else {
             $sth->bind_param( 6, 0 );
             $sth->bind_param( 7, 'NULL' );
             $sth->bind_param( 8, 'NULL' );
-        }
-        $sth->bind_param( 9,  $buildip    );
-        $sth->bind_param( 10, $buildtype  );
-        $sth->bind_param( 11, $share      );
-        $sth->bind_param( 12, BaracusSql::BA_READY );
 
-        print "dist $distro os $dh->{os} rel $dh->{release} arch $dh->{arch} desc $dh->{description} addos $dh->{addos} addrel $dh->{addrel} ip $buildip type $buildtype share $share\n" if $debug;
+            $sth->bind_param( 12, $dh->{basekernelsubpath} );
+            $sth->bind_param( 13, $dh->{baseinitrdsubpath} );
+        }
+        $sth->bind_param( 9,  $baVar{shareip}    );
+        $sth->bind_param( 10, $baVar{sharetype}  );
+        $sth->bind_param( 11, $share      );
+
+        $sth->bind_param( 14, BA_READY );
+
+#        print "dist $distro os $dh->{os} rel $dh->{release} arch $dh->{arch} desc $dh->{description} addos $dh->{addos} addrel $dh->{addrel} ip $baVar{shareip} type $baVar{sharetype} share $share\n" if $debug;
         $sth->execute()
             or die "Cannot execute sth: ", $sth->errstr;
     }
@@ -2198,7 +2152,7 @@ sub get_distro_share
         $share = $dh->{basedisthash}->{distpath};
         $name  = "$dh->{basedist}_server";
     }
-    elsif ( $distro =~ /opensuse-11.1/ ) {
+    elsif ( $distro =~ /opensuse-/  ) {
         my $dh = &baxml_distro_gethash( $distro );
         $share = $dh->{basedisthash}->{distpath};
         $name  = "$dh->{basedist}_server";
@@ -2230,7 +2184,7 @@ sub list_installed_addons
         my $dbref = &get_db_source_entry( $dist );
         if ( defined $dbref and defined $dbref->{status} and
              ( $dbref->{distroid} eq $dist ) and
-             ( $dbref->{status} != BaracusSql::BA_DELETED ) ) {
+             ( $dbref->{status} != BA_DELETED ) ) {
             print "YES\n" if $debug;
             push @list, $dist;
         } else {
@@ -2243,9 +2197,9 @@ sub list_installed_addons
 sub get_cols
 {
     my $tbl = shift;
-    my $baracustbls = BaracusSql::get_baracus_tables()->{ $tbl{ $tbl } };
+    my $baracustbls = get_baracus_tables()->{ $tbl{ $tbl } };
     if ( defined $baracustbls ) {
-        return BaracusSql::keys2columns( $baracustbls );
+        return keys2columns( $baracustbls );
     }
     else {
         die "Internal database table/name usage error.\n";
@@ -2269,7 +2223,7 @@ sub multiarg_handler() {
         # with ':s' should not get here
         # we could 'die("FINISH")'
         # but for now just return
-        @values = ( $buildtype, "dhcpd" );
+        @values = ( $baVar{sharetype}, "dhcpd" );
     }
     foreach $value (@values) {
         $value = lc $value;
@@ -2365,8 +2319,9 @@ sub baxml_load
             die "Malformed $xmlfile\nMissing entry for distro $dh->{basename} required by $distro\n";
         }
         print "XML working with distro $distro\n" if ($debug > 2);
+        print "XML described as $dh->{description}\n" if ($debug > 2);
         $dh->{basedisthash} = $xml->{distro}->{ $dh->{basedist} };
-        $dh->{distpath} = join "/", $bdir{'builds'}, @baseparts;
+        $dh->{distpath} = join "/", $baDir{'builds'}, @baseparts;
         if ( defined $dh->{'requires'} ) {
             if ( $distro eq $dh->{basedist} ) {
                 die "Malformed $xmlfile\nAdd-on $distro (has 'requires') only has base components as part of its name\n";
@@ -2402,7 +2357,7 @@ sub baxml_load
                 $loaderfound = 0;
                 $dh->{baseprod} = $product;
                 $dh->{baseprodhash} = $ph;
-                $dh->{baseprodpath} = join "/", $bdir{'builds'}, @baseparts,
+                $dh->{baseprodpath} = join "/", $baDir{'builds'}, @baseparts,
                     $product;
                 print "XML base prod path $dh->{baseprodpath}\n" if ($debug > 2);
             }
@@ -2422,9 +2377,16 @@ sub baxml_load
                     $dh->{baseisopath} = $ih->{isopath};
                     $dh->{baselinux}  = join "/", $ih->{isopath}, $ih->{kernel};
                     $dh->{baseinitrd} = join "/", $ih->{isopath}, $ih->{initrd};
+                    my $path = "";
+                    $path .= $ih->{path} . "/" if ( defined $ih->{'path'} );
+                    $dh->{basekernelsubpath} = "${path}$ih->{kernel}";
+                    $dh->{baseinitrdsubpath} = "${path}$ih->{initrd}";
+
                     print "XML base iso path $dh->{baseisopath}\n" if ($debug > 2);
                     print "XML $dh->{baselinux}\n" if ($debug > 2);
                     print "XML $dh->{baseinitrd}\n" if ($debug > 2);
+                    print "XML sub $dh->{basekernelsubpath}\n" if ($debug > 2);
+                    print "XML sub $dh->{baseinitrdsubpath}\n" if ($debug > 2);
                 }
             }
             unless ( $loaderfound ) {
@@ -2476,10 +2438,14 @@ sub prepdbwithxml
             $entry{'addos'  } = $dh->{addos};
             $entry{'addrel' } = $dh->{addrel}
                 if ( defined $dh->{addrel} );
+            $entry{'kernel'} = "";
+            $entry{'initrd'} = "";
         } else {
             $entry{'addon'  } = 0;
             $entry{'addos'  } = "";
             $entry{'addrel' } = "";
+            $entry{'kernel'} = $dh->{basekernelsubpath};
+            $entry{'initrd'} = $dh->{baseinitrdsubpath};
         }
 
         if ( $debug > 1 ) {

@@ -3,14 +3,14 @@
 use strict;
 
 use Getopt::Long qw( :config pass_through );
-use AppConfig;
 use Pod::Usage;
 
 use lib "/usr/share/baracus/perl";
 
 use SqlFS;
 use BaracusDB;
-use BaracusSql;
+use BaracusSql qw( :vars :subs :states );
+use BaracusConfig qw( :vars );
 
 =pod
 
@@ -32,6 +32,8 @@ Where E<lt>commandE<gt> is one of
 
   list templates                list host templates
   list history                  list build client template history
+  list commands                 list commands used to modify hosts
+  list macs                     list all known mac addrs
 
 And, where <...> indicates additional required arguments.
 
@@ -55,7 +57,7 @@ This tool allows administrators to maintain a collection of build templates for 
 
 =cut
 
-our $LASTERROR;
+my $LASTERROR;
 
 my $verbose  = 0;
 my $quiet    = 0;
@@ -66,48 +68,9 @@ my $help     = 0;
 
 my %multiarg; # used for processing repeatable getoptions
 
-# get the sysconfig option settings
-my $sysconfigfile = '/etc/sysconfig/baracus';
-my $sysconfig = AppConfig->new( {CREATE => 1} );
-$sysconfig->define( 'baracusdir=s',
-                    'buildtype=s',
-                    'buildip=s',
-                    'remote_logging=s',
-                   );
-$sysconfig->file( $sysconfigfile );
-my $baracusdir     = $sysconfig->get( 'baracusdir' ); # ~baracus is default
-my $buildip        = $sysconfig->get( 'buildip'    );
-my $type           = $sysconfig->get( 'buildtype'  );
-my $remote_logging = $sysconfig->get( 'remote_logging' );
-
-if ( $baracusdir =~ m|^~([^/]*)| ) {
-    my $prepath="";
-    if ( "$1" eq "" ) {
-        $prepath = $ENV{HOME}
-    } else {
-        unless ($prepath = (getpwnam($1))[7]) {
-            die "BARACUSDIR has bad use of ~ or non-existent user in $sysconfigfile\n";
-        }
-    }
-    $baracusdir =~ s|^~([^/]*)|$prepath|;
-}
-# remove trailing slash or spaces
-$baracusdir =~ s|/*\s*$||;
-
-# store baracus well know directories in global hash 'bdir'
-my @bdirs = qw( builds isos templates hooks logs );
-my %bdir = (
-            'root' => "$baracusdir",
-            'data' => "/usr/share/baracus",
-            );
-foreach my $bd (@bdirs) {
-    $bdir{ $bd } = "$baracusdir/$bd";
-}
-
+# Build command line for historical reference and point-in-time rebuilding
 my $execname = $0;
 $execname = $1 if ( $0 =~ m|^.*/([^/].+)| );
-
-# Build command line for historical reference and point-in-time rebuilding
 my $cmdline = join '::', $execname, @ARGV;
 
 my %tbl = (
@@ -119,6 +82,8 @@ my %tbl = (
            'modcert'   => 'module_cert_cfg',
            'history'   => 'templateidhist',
            'oscert'    => 'hardwareid',
+           'build'     => 'build',
+           'mac'       => 'mac',
            );
 
 my %cmds = (
@@ -154,8 +119,8 @@ if ($ARGV[0] eq "man"  ) { &man(); }
 if ($ARGV[0] eq "help" ) { shift @ARGV; &help(@ARGV); }
 
 # wait till here to barf on this so help is available even with bad sysconfig
-unless ($buildip) {
-    print "Please edit /etc/sysconfig/baracus and set BUILDIP=<server>\n";
+unless ($baVar{serverip}) {
+    print "Please edit /etc/sysconfig/baracus and set SERVER_IP=<server>\n";
     exit 1;
 }
 
@@ -170,7 +135,7 @@ die BaracusDB::errstr unless ( defined $uid );
 my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
 die BaracusDB::errstr unless( $dbh );
 
-my $hashoftbls = BaracusSql::get_baracus_tables();
+my $hashoftbls = get_baracus_tables();
 
 print "bahost debug=$debug\n" if $debug;
 my $deepdebug = $debug > 2 ? 1 : 0;
@@ -464,48 +429,78 @@ sub add
     # vnc remote access may be specified in profile *and* on command line
     # command line wins over profile entry
     if (($vncpass) && !($usevnc)) {
-        die "--vncpass requires --usevnc\n"
+        die "--vncpass requires --usevnc\n";
+    } elsif (!($vncpass) && ($usevnc)) {
+        die "--usevnc requires --vncpass\n";
     }
-    if ($usevnc) {
-        if ($vncpass) {
-          $vncpass =~ s/$vncpass/vncpassword=$vncpass/;
-          push(@raccess, "vnc=1", $vncpass);
+
+    if ($vncpass) {
+        if ( length( $vncpass) < 8 ) {
+            $LASTERROR = "minimum password length of 8 chars required\n";
+            return 1;
+        }
+        $vncpass =~ s/$vncpass/vncpassword=$vncpass/;
+        if ( $hash{os} =~ m|rhel|   or
+             $hash{os} =~ m|fedora| or
+             $hash{os} =~ m|centos| ) {
+            push(@raccess, "vnc", $vncpass);
         }
         else {
-            die "--vncaddr requires --vncpass\n";
+            push(@raccess, "vnc=1", $vncpass);
         }
     }
 
     # ssh remote access may be specified in profile *and* on command line
     # command line wins over profile entry
-    if (($sshpass) && !($usessh)) {
-        die "--sshpass requires --usessh\n"
+    if (($sshpass) || ($usessh)) {
+        if ( $hash{os} =~ m|rhel|   or
+             $hash{os} =~ m|fedora| or
+             $hash{os} =~ m|centos| ) {
+            $LASTERROR = "RHEL, Fedora, CentOS do not support ssh install\n";
+            return 1;
+        }
     }
+    if (($sshpass) && !($usessh)) {
+        die "--sshpass requires --usessh\n";
+    }
+    elsif (!($sshpass) && ($usessh)) {
+        die "--usessh requires --sshpass\n";
+    }
+
     if ($usessh) {
-        if ($sshpass) {
-            $sshpass =~ s/$sshpass/sshpassword=$sshpass/;
-            push(@raccess, "usessh=1", $sshpass);
-        }
-        else {
-            die "--sshaddr requires --sshpass\n";
-        }
+        $sshpass =~ s/$sshpass/sshpassword=$sshpass/;
+        push(@raccess, "usessh=1", $sshpass);
     }
 
     # serial remote access may be specified in profile *and* on command line
     # command line wins over profile entry
-    if (($serialbaud) && !($serialtty)) {
-        die "--serialbaud requires --serialtty\n"
+    $hash{console} = "";
+    if (($serialtty) && !($serialbaud)) {
+            die "--serialtty requires --serialbaud\n";
+    } elsif (!($serialtty) && ($serialbaud)) {
+            die "--serialbaud requires --serialtty\n";
     }
-    if ($serialtty) {
-        if ($serialbaud) {
+
+    if (($serialbaud) && ($serialtty)) {
+        if ( $hash{os} =~ m|rhel|   or
+             $hash{os} =~ m|fedora| or
+             $hash{os} =~ m|centos| or
+             $hash{distro} =~ m|sles-9| ) {
+            ##
+            ##  INCLUDE SLES9 FOR MINIMAL CMD LINE TXT
+            ##
+            my $serialopts = "console=tty0 console=$serialtty,$serialbaud";
+            push(@raccess, $serialopts);
+            $hash{console} = $serialopts;
+        }
+        else {
             my $serialopts = "console=tty0 console=$serialtty,$serialbaud";
             $serialopts .= " earlyprintk=serial,$serialtty,$serialbaud";
             push(@raccess, $serialopts);
-        }
-        else {
-            die "--serialtty requires --serialbaud\n";
+            $hash{console} = $serialopts;
         }
     }
+
 
     # Join all raccess args
     $hash{'raccess'} = join " ", @raccess;
@@ -549,8 +544,10 @@ sub add
     ## Mandatory: hostname ip mac
     ##
 
-    $hash{'type'} = $type if ($type);
-    $hash{'buildip'} = $buildip if ($buildip);
+    $hash{'serverip'} = $baVar{serverip} if ($baVar{serverip});
+    $hash{'sharetype'} = $baVar{sharetype} if ($baVar{sharetype});
+    $hash{'shareip'} = $baVar{shareip} if ($baVar{shareip});
+
     $hash{'yasttemplate'} = $yasttemplate if ($yasttemplate);
 
     ## If passed on command line via vars, then honor those
@@ -570,14 +567,23 @@ sub add
     $hash{'ip'} = $ip;
     $hash{'mac'} = $mac;
     $hash{'uuid'} = &get_uuid;
-    $hash{'buildroot'} = $bdir{'builds'};
+    $hash{'buildroot'} = $baDir{'builds'};
     $hash{'autoinst'} = &automac( $mac );
     $hash{'basedist'} = "$href->{'os'}-$href->{'release'}-$href->{'arch'}";
     $hash{'initrd'} = "initrd.$hash{'basedist'}";
     $hash{'kernel'} = "linux.$hash{'basedist'}";
+    $hash{'state'} = BA_READY ;
+    $hash{'pxestate'} = BA_READY;
+    $hash{'autonuke'} = 'f';
 
-    if ( $remote_logging eq "yes" ) {
-        $hash{'loghost'} = "loghost=$buildip";
+    if ( $baVar{remote_logging} eq "yes" ) {
+        if ( $hash{os} =~ m|rhel|   or
+             $hash{os} =~ m|fedora| or
+             $hash{os} =~ m|centos| ) {
+            $hash{'loghost'} = "syslog=$baVar{serverip}";
+        } else {
+            $hash{'loghost'} = "loghost=$baVar{serverip}";
+        }
     } else {
         $hash{'loghost'} = ""
     }
@@ -599,10 +605,16 @@ sub add
 
     # all user input loaded now finish processing
 
-    &add_pxeboot( $href );
+#    &add_pxeboot( $href );
     &add_autoyast( $href );
 
     &add_db_host_entry( $href );
+    my $macref = get_db_mac( $href->{mac} );
+    if ( defined $macref ) {
+        &update_db_mac_state( $href->{mac}, BA_READY, 'ready' );
+    } else {
+        &add_db_mac( $href->{mac}, BA_READY, 'ready' );
+    }
     print "Added $hostname template \n";
 
     return 0;
@@ -668,78 +680,102 @@ sub wipe
     }
 
     my $bootmac = &bootmac( $dbref->{'mac'} );
+
+    my $macref = &get_db_mac( $dbref->{'mac'} );
+
+    unless ( defined $macref ) {
+        $LASTERROR = "Unable to find mac $dbref->{mac} entry for $hostname\n";
+        return 1;
+    }
+
     my $autostring = $autowipe ? "auto" : "";
 
     # copy dban over mac template for host in sqltftpd server
 
     # print coding example of 'constant' usage if debug
-    print "$BaracusSql::baState{ BaracusSql::BA_DISKWIPE } = " .
-        BaracusSql::BA_DISKWIPE . "\n" if ( $debug > 1 );
+    print "$baState{ BA_DISKWIPE } = " .
+        BA_DISKWIPE . "\n" if ( $debug > 1 );
 
-    # if state is already 'wipe' and right 'nuke' don't do it all again
-    if ( $dbref->{'state'} == BaracusSql::BA_DISKWIPE ) {
-        print "Entering check where already in 'diskwipe' state\n" if $debug;
-        my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
-        print "using tempdir $tdir\n" if ($debug > 1);
-        if ( $sqlfsOBJ->fetch( "$tdir/$bootmac" ) ) {
-            $LASTERROR = $sqlfsOBJ->error();
-            rmdir $tdir;
-            return 1;
-        }
-        my $fh;
-        open ( $fh, "<", "$tdir/$bootmac" ) or die "Unable to open: $!\n";
-        my $tbootmac = join '', <$fh>;
-        close $fh;
-        print "removing tempdir $tdir\n" if ($debug > 1);
-        rmdir $tdir;
-        print $bootmac if ( $debug > 1 );
-        my $isautonuke = ( $tbootmac =~ m|autonuke| ) ? 1 : 0;
-        print "isautonuke: $isautonuke and autowipe $autowipe\n" if $debug;
-        unless( ( $isautonuke && (not $autowipe) ) or
-                ( (not $isautonuke) && $autowipe ) ) {
-            $LASTERROR = "Host entry for $hostname already set to ${autostring}wipe.\n";
-            return 1;
-        }
-    }
+#    # if state is already 'wipe' and right 'nuke' don't do it all again
+#    if ( $macref->{'state'} == BA_DISKWIPE ) {
+#        print "Entering check where already in 'diskwipe' state\n" if $debug;
+#        my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
+#        print "using tempdir $tdir\n" if ($debug > 1);
+#        if ( $sqlfsOBJ->fetch( "$tdir/$bootmac" ) ) {
+#            $LASTERROR = $sqlfsOBJ->error();
+#            rmdir $tdir;
+#            return 1;
+#        }
+#        my $fh;
+#        open ( $fh, "<", "$tdir/$bootmac" ) or die "Unable to open: $!\n";
+#        my $tbootmac = join '', <$fh>;
+#        close $fh;
+#        print "removing tempdir $tdir\n" if ($debug > 1);
+#        rmdir $tdir;
+#        print $bootmac if ( $debug > 1 );
+#        my $isautonuke = ( $tbootmac =~ m|autonuke| ) ? 1 : 0;
+#        print "isautonuke: $isautonuke and autowipe $autowipe\n" if $debug;
+#        unless( ( $isautonuke && (not $autowipe) ) or
+#                ( (not $isautonuke) && $autowipe ) ) {
+#            $LASTERROR = "Host entry for $hostname already set to ${autostring}wipe.\n";
+#            return 1;
+#        }
+#    }
 
     # noautowipe is the safe default - change only if --autowipe passed.
-    my $autofile = "pxetemplate-noautowipe.dban";
-    $autofile = "pxetemplate-autowipe.dban" if ( $autowipe );
+#    my $autofile = "pxetemplate-noautowipe.dban";
+#    $autofile = "pxetemplate-autowipe.dban" if ( $autowipe );
 
-    if ( $sqlfsOBJ->internalDataCopy( $autofile, $bootmac ) ) {
-        die "Cannot update host to dban wipe\n" . $sqlfsOBJ->error();
+#    if ( $sqlfsOBJ->internalDataCopy( $autofile, $bootmac ) ) {
+#        die "Cannot update host to dban wipe\n" . $sqlfsOBJ->error();
+#    }
+
+#    if ( $sqlfsOBJ->update( { 'name' => $bootmac,
+#                              'enabled' => 1,  # boolean enable/disable
+#                              'description' =>
+#                              "pxeboot dban ${autostring}wipe" } ) ) {
+#        die "Unable to set status to enable for dban wipe\n" . $sqlfsOBJ->error();
+#    }
+
+    if ( $dbref->{autonuke} != $autowipe or
+         $dbref->{'state'} != BA_DISKWIPE
+        )
+    {
+        $dbref->{'state'} = BA_DISKWIPE;
+        $dbref->{autonuke} = $autowipe;
+        &update_db_host_entry( $dbref );
     }
 
-    if ( $sqlfsOBJ->update( { 'name' => $bootmac,
-                              'enabled' => 1,  # boolean enable/disable
-                              'description' =>
-                              "pxeboot dban ${autostring}wipe" } ) ) {
-        die "Unable to set status to enable for dban wipe\n" . $sqlfsOBJ->error();
+    if ( $macref->{'state'} != BA_DISKWIPE ) {
+        &update_db_mac_state( $dbref->{mac}, BA_DISKWIPE, 'diskwipe' );
     }
-
-    $dbref->{'state'} = BaracusSql::BA_DISKWIPE;
-
-    &update_db_host_entry( $dbref );
     print "Next pxeboot harddrive of $hostname will be ${autostring}wiped.\n";
 
     return 0;
 }
 
-=head2 remove --hostname <name>
+=head2 remove { --hostname <name> | --mac <macaddr }
 
 When a device has been completely decommisioned or an entry for it is no longer desired this command will remove the host build template from all its related databases.
+
+     --hostname    remove template, build information, and mac entry
+     --mac         remove mac entry for devices w/o template or build
+
+Note that you cannot remove a host template with the --mac option.
 
 =cut
 
 sub remove() {
-    my $command = "wipe";
+    my $command = "remove";
 
     my $hostname="";
+    my $mac="";
 
     @ARGV = @_;
 
     GetOptions(
                'hostname=s'     => \$hostname,
+               'mac=s'          => \$mac,
                );
 
     if ( scalar @ARGV ) {
@@ -747,49 +783,68 @@ sub remove() {
         &help( $command );
     }
 
-    unless ( $hostname ) {
-        print "Missing  --hostname\n";
+    unless ( $hostname or $mac ) {
+        print "Missing  --hostname or --mac\n";
         &help( $command );
     }
 
-    my $dbref = &get_db_host_entry( $hostname );
-
-    unless ( defined $dbref ) {
-        $LASTERROR = "Unable to find template for $hostname\n";
-        return 1;
-    }
-
-    if ( $debug > 1 ) {
-        while ( my ($key, $val) = each %{$dbref} ) {
-            print "dbref $key => " . $val eq "" ? "" : $val . "\n";
+    if ( $hostname ) {
+        my $dbref = &get_db_host_entry( $hostname );
+        unless ( defined $dbref ) {
+            $LASTERROR = "Unable to find template for $hostname\n";
+            return 1;
         }
-    }
 
-    # remove files from sqlfstable for sqltftpd server
-
-    my $bootmac = &bootmac( $dbref->{'mac'} );
-
-    if ( $sqlfsOBJ->find( "$bootmac" ) ) {
-        if ( $sqlfsOBJ->remove( "$bootmac" ) ) {
-            warn "failed to remove $bootmac from sqlfs\n";
+        if ( $debug > 1 ) {
+            while ( my ($key, $val) = each %{$dbref} ) {
+                print "dbref $key => " . $val eq "" ? "" : $val . "\n";
+            }
         }
-    }
 
-    my $automac = &automac( $dbref->{'mac'} );
+        # remove files from sqlfstable for sqltftpd server
 
-    if ( $sqlfsOBJ->find( "$automac" ) ) {
-        if ( $sqlfsOBJ->remove( "$automac" ) ) {
-            warn "failed to remove $automac from sqlfs\n";
+        #    my $bootmac = &bootmac( $dbref->{'mac'} );
+        #
+        #    if ( $sqlfsOBJ->find( "$bootmac" ) ) {
+        #        if ( $sqlfsOBJ->remove( "$bootmac" ) ) {
+        #            warn "failed to remove $bootmac from sqlfs\n";
+        #        }
+        #    }
+
+        my $automac = &automac( $dbref->{'mac'} );
+
+        if ( $sqlfsOBJ->find( "$automac" ) ) {
+            if ( $sqlfsOBJ->remove( "$automac" ) ) {
+                warn "failed to remove $automac from sqlfs\n";
+            }
         }
+
+        # for proper command history update we 'update' to deleted state
+        $dbref->{'state'} = BA_DELETED;
+        &update_db_host_entry( $dbref );
+
+        &update_db_mac_state( $dbref->{mac}, BA_DELETED, 'deleted');
+
+        &remove_db_host_entry( $hostname );
+        print "Removed $hostname template\n";
     }
+    else
+    {
+        $mac = &check_mac( $mac );
+        my $dbref = &get_db_host_by_mac( $mac );
+        if ( defined $dbref ) {
+            $LASTERROR = "Will not remove by --mac for device with host template\n";
+            return 1;
+        }
+        my $macref = &get_db_mac( $mac );
+        unless ( defined $macref ) {
+            $LASTERROR = "Unable to find entry for $mac\n";
+            return 1;
+        }
 
-    # for proper command history update we 'update' to deleted state
-    $dbref->{'state'} = BaracusSql::BA_DELETED;
-    &update_db_host_entry( $dbref );
-
-    &remove_db_host_entry( $hostname );
-    print "Removed $hostname template\n";
-
+        &remove_db_mac( $mac );
+        print "Removed $mac from found db\n";
+    }
     return 0;
 }
 
@@ -802,9 +857,12 @@ List history shows a history of all the changes to the build template table.
 
 List commands shows all the command-line invocations resutlting in a db change.
 
+List macs shows all know mac addrresses
+
 Options
 
   --hostname <name>        exact, or partial with wildcarded ('*')
+  --mac <addr>             exact mac to lookup
   --verbose                output more details related to tftp files
                            for build template.
 
@@ -816,11 +874,13 @@ sub list
     my $subcommand = shift;
 
     my $hostname;
+    my $mac;
 
     @ARGV = @_;
 
     GetOptions(
                'hostname=s'     => \$hostname,
+               'mac=s'          => \$mac,
                );
 
     if ( scalar @ARGV ) {
@@ -835,7 +895,13 @@ sub list
         $hostname = "%";
     }
 
-    my $sth = db_list_start ( $subcommand, $hostname );
+    if ( defined $mac ) {
+        $mac = &check_mac( $mac );
+    } else {
+        $mac = "%";
+    }
+
+    my $sth = db_list_start ( $subcommand, $hostname, $mac );
 
     unless( defined $sth ) {
         # $LASTERROR returned from db_list_start
@@ -850,27 +916,34 @@ sub list
 
         unless ( $quiet || $nolabels ) {
             print "--------------------------------------------------------------------------------\n";
-            printf "%-16s %-8s  tftp files\n", "hostname", "sts";
+            printf "%-16s %-10s  ", "hostname", "sts";
+            if ( $verbose ) {
+                printf "distro  hardware  tftp\n";
+            } else {
+                print "tftp\n";
+            }
             print "--------------------------------------------------------------------------------\n";
         }
 
         while ( $dbref = &db_list_next( $sth ) ) {
             my $autostate = "missing";
-            my $pxestate  = "missing";
-            my $bootmac = $dbref->{'mac'};
-            $bootmac =~ s/:/-/g;
-            my $automac = "02-$bootmac";
-            $bootmac = "01-$bootmac";
+            my $pxestate  = "";
+
+#            my $bootmac = &bootmac( $href->{'mac'} );
+            my $automac = &automac( $dbref->{'mac'} );
+
+            my $macref = &get_db_mac( $dbref->{'mac'} );
 
             my $sel;
-            $sel = $sqlfsOBJ->detail( $bootmac );
-            if ( defined $sel ) {
-                if ( $sel->{'enabled'} ) {
+#            $sel = $sqlfsOBJ->detail( $bootmac );
+#            if ( defined $sel ) {
+#                if ( $sel->{'enabled'} ) {
+                if ( $dbref->{'pxestate'} == BA_READY ) {
                     $pxestate = "ok";
                 } else {
                     $pxestate = "disabled";
                 }
-            }
+#            }
             $sel = $sqlfsOBJ->detail( $automac );
             if ( defined $sel ) {
                 if ( $sel->{'enabled'} ) {
@@ -884,14 +957,17 @@ sub list
             # and the state of the related tftp files for 'verified' reporting.
             printf "%-16s ", $dbref->{'hostname'};
             unless ( $quiet ) {
-                printf "%-8s  ", $BaracusSql::baState{ $dbref->{'state'} };
+                printf "%-8s  ", $baState{ $macref->{'state'} };
                 if ( $verbose ) {
-                    printf "%s $pxestate  %s $autostate", $bootmac, $automac;
+                    my $href = &get_db_build_by_host( $dbref->{hostname} );
+                    printf "%s  %s  ", $href->{distroid}, $href->{hardwareid};
+                    printf "pxe $pxestate %s $autostate", $automac;
+#                    printf "%s $pxestate  %s $autostate", $bootmac, $automac;
                 } else {
-                    if ( $pxestate ne "ok" && $autostate ne "ok" ) {
-                        print "related tftp files missing or disabled";
+                    if ( $autostate ne "ok" ) {
+                        print "related tftp file(s) missing or disabled";
                     } elsif ( $pxestate ne "ok" ) {
-                        printf "%s $pxestate", $bootmac;
+                        printf "pxe $pxestate";
                     } elsif ( $autostate ne "ok" ) {
                         printf "%s $autostate", $automac;
                     } else {
@@ -906,6 +982,7 @@ sub list
         ## List history filtered by hostname if provided
         ##
 
+        #hum.... need to work with mac state entry ....
         while ( $dbref = &db_list_next( $sth ) ) {
             #
             # hostname ip mac uuid state cmdline creation change
@@ -913,7 +990,7 @@ sub list
             printf "%-16s ", $dbref->{'hostname'} ;
             printf "%-15s ", $dbref->{'ip'} ;
             printf "%17s ", $dbref->{'mac'} ;
-            printf "%-8s ", $BaracusSql::baState{ $dbref->{'state'} };
+            printf "%-8s ", $baState{ $dbref->{'state'} };
             print "$dbref->{'uuid'} " if $verbose;
             print "$dbref->{'creation'} " if $verbose;
             print "\n";
@@ -930,7 +1007,42 @@ sub list
             printf "%s\n", join ' ', ( split /::/, $dbref->{'cmdline'} );
         }
     }
+    elsif ( $subcommand eq "macs" ) {
+        ## List macs and show state and when time of that state
+        ##
 
+        unless ( $quiet || $nolabels ) {
+            print "--------------------------------------------------------------------------------\n";
+            if ( $verbose ) {
+                printf "%-20s", "time ";
+            }
+            printf "%-17s %-8s %-16s %-24s %-16s\n", "mac", "sts", "hostname", "distro", "hardware";
+            print "--------------------------------------------------------------------------------\n";
+        }
+
+        while ( $dbref = &db_list_next( $sth ) ) {
+            #
+            # mac status dbref->{ status as string }
+            my $hname = "";
+            if ( defined $dbref->{'hostname'} and $dbref->{'hostname'} ne "") {
+                $hname = $dbref->{'hostname'};
+            }
+            my $dist = "";
+            if ( defined $dbref->{'distroid'} and $dbref->{'distroid'} ne "") {
+                $dist = $dbref->{'distroid'};
+            }
+            my $hard = "";
+            if ( defined $dbref->{'hardwareid'} and $dbref->{'hardwareid'} ne "") {
+                $hard = $dbref->{'hardwareid'};
+            }
+            my $state_str = $baState{ $dbref->{state} };
+
+            if ( $verbose ) {
+                printf "%-20s", $dbref->{ $state_str };
+            }
+            printf "%-17s %-8s %-16s %-24s %-16s\n", $dbref->{'mac'}, $state_str, $hname, $dist, $hard;
+        }
+    }
     &db_list_finish( $sth );
 
     return 0;
@@ -988,29 +1100,36 @@ sub _enable_disable_
         }
     }
 
+    my $macref = &get_db_mac( $dbref->{mac} );
+
+    unless ( defined $macref ) {
+        $LASTERROR = "Unable to find mac $dbref->{mac} entry for $hostname\n";
+        return 1;
+    }
+
     my $state   = $command eq "enable" ? "ready" : "disabled";
     my $enabled = $command eq "enable" ? 1 : 0;  # tftp state is bool
 
-    print "command $command state $state enabled $enabled\n" if $debug;
+#    print "command $command state $state enabled $enabled\n" if $debug;
 
     # print coding example of 'constant' usage if debug
-    print "$BaracusSql::baState{ $state } = $state\n" if $debug;
+    print "$baState{ $dbref->{pxestate} } = $state\n" if $debug;
 
     my $sel;
 
     # pxeboot tftp file name
-    my $bootmac = &bootmac( $dbref->{'mac'} );
+#    my $bootmac = &bootmac( $dbref->{'mac'} );
 
-    $sel = $sqlfsOBJ->detail( $bootmac );
-    if ( defined $sel && $sel->{'enabled'} != $enabled ) {
-        if ( $sqlfsOBJ->update( { 'name' => $bootmac,
-                                  'enabled' => $enabled,
-                                  'description' => "pxeboot bahost ${command}d",
-                                 } ) ) {
-            die "Unable to update status for tftp file $bootmac\n" .
-                $sqlfsOBJ->error();
-        }
-    }
+#    $sel = $sqlfsOBJ->detail( $bootmac );
+#    if ( defined $sel && $sel->{'enabled'} != $enabled ) {
+#        if ( $sqlfsOBJ->update( { 'name' => $bootmac,
+#                                  'enabled' => $enabled,
+#                                  'description' => "pxeboot bahost ${command}d",
+#                                 } ) ) {
+#            die "Unable to update status for tftp file $bootmac\n" .
+#                $sqlfsOBJ->error();
+#        }
+#    }
 
     # autoyast tftp file name
     my $automac = &automac( $dbref->{'mac'} );
@@ -1026,19 +1145,20 @@ sub _enable_disable_
         }
     }
 
-    # if state is 'wipe' or same as $state do not continue - with host entry
-    if ( $dbref->{'state'} == BaracusSql::BA_DISKWIPE or
-         $dbref->{'state'} == $BaracusSql::baState{ $state } ) {
-        print "Build template for $hostname is '" .
-            $BaracusSql::baState{ $dbref->{'state'} } .
-                "' and will not be modified\n";
-        return 0;
-    } else {
-        $dbref->{'state'} = $BaracusSql::baState{ $state };
+#    # if state is 'wipe' or same as $state do not continue - with host entry
+#    if ( $macref->{'state'} == BA_DISKWIPE or
+#         $dbref->{'pxestate'} == $baState{ $state } ) {
+#        print "Build template for $hostname is '" .
+#            $baState{ $dbref->{'pxestate'} } .
+#                "' and status is '" . $baState{ $macref->{'state'} }
+#                    . "' and will not be modified\n";
+#        return 0;
+#    } else {
+        $dbref->{'pxestate'} = $baState{ $state };
         &update_db_host_entry( $dbref );
-    }
+#    }
 
-    print "State of $hostname template and tftp files now ${command}d \n";
+    print "State of $hostname serving pxeboot and related files now ${command}d \n";
 
     return 0;
 }
@@ -1086,6 +1206,8 @@ sub db_list_start
 {
     my $type  = shift;  # 'templates' or 'history'
     my $name  = shift;
+    my $mac   = shift;
+    my $filter ;
 
     my $sql;
     my $sth;
@@ -1095,15 +1217,18 @@ sub db_list_start
 
     if ( $type eq "templates" ) {
 
+        $filter = $name;
         $sql = qq|SELECT hostname,
                         mac,
-                        state
+                        pxestate
                  FROM $tbl{'host'}
                  WHERE hostname LIKE ?
                  ORDER BY hostname|;
 
+
     } elsif ( $type eq "history" or $type eq "commands" ) {
 
+        $filter = $name;
         $sql = qq|SELECT hostname,
                         ip,
                         mac,
@@ -1114,14 +1239,43 @@ sub db_list_start
                         change
                  FROM $tbl{'history'}
                  WHERE hostname LIKE ?|;
+    } elsif ( $type eq "macs" ) {
+
+        $filter = $mac;
+        $sql = qq|SELECT
+                  mac.mac,
+                  mac.state,
+                  mac.ready,
+                  mac.built,
+                  mac.spoofed,
+                  mac.deleted,
+                  mac.updated,
+                  mac.diskwipe,
+                  mac.disabled,
+                  mac.found,
+                  mac.building,
+                  mac.wiping,
+                  mac.wiped,
+                  mac.wipefail,
+                  mac.register,
+                  templateid.hostname,
+                  build.distroid,
+                  build.hardwareid
+                  FROM mac
+                  LEFT OUTER JOIN
+                  ( templateid JOIN build ON (templateid.mac = build.mac))
+                  ON mac.mac = templateid.mac
+                  WHERE mac.mac LIKE ?|;
     }
+
+# SELECT * FROM a LEFT JOIN (b JOIN c ON (b.ref = c.id)) ON (a.id = b.id);
 
     unless ( $sth = $dbh->prepare( $sql ) ) {
         $LASTERROR = "Unable to prepare 'list' query\n" . $dbh->errstr;
         return undef;
     }
 
-    unless ( $sth->execute( $name ) ) {
+    unless ( $sth->execute( $filter ) ) {
         $LASTERROR = "Unable to execute 'list' query" . $sth->err;
         return undef;
     }
@@ -1228,28 +1382,56 @@ sub add_db_host_entry() {
     my $HashRef = shift @_;
     my %Hash = %$HashRef;
 
-    my $sql = qq|INSERT INTO $tbl{'host'} ( hostname,
-                                         ip,
-                                         mac,
-                                         uuid,
-                                         state,
-                                         cmdline,
-                                         creation,
-                                         change )
-                VALUES ( ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(0), CURRENT_TIMESTAMP(0) )|;
+    my @fields = qw|hostname ip mac uuid loghost raccess autonuke pxestate state cmdline|;
+    my $fields = join(', ', @fields);
+    my $values = join(', ', (map { $dbh->quote($_) } @Hash{@fields}));
+    $fields .= ", creation, change";
+    $values .= ", CURRENT_TIMESTAMP(0), CURRENT_TIMESTAMP(0)";
+    my $sql = qq|INSERT INTO $tbl{'host'} ( $fields ) VALUES ( $values )|;
 
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare sth: ",$dbh->errstr;
 
-    $sth->bind_param( 1, $Hash{'hostname'}    );
-    $sth->bind_param( 2, $Hash{'ip'}          );
-    $sth->bind_param( 3, $Hash{'mac'}         );
-    $sth->bind_param( 4, $Hash{'uuid'}        );
-    $sth->bind_param( 5, BaracusSql::BA_READY );
-    $sth->bind_param( 6, $cmdline             );
+    $sth->execute()
+        or die "Cannot execute sth: ", $sth->errstr;
+
+    ##
+    ##  bind mac, hostname, distro, hardware for pxe boot info
+    #
+    my %entry = (
+                 'mac'        => $Hash{'mac'},
+                 'hostname'   => $Hash{'hostname'},
+                 'distroid'   => $Hash{'distro'},
+                 'hardwareid' => $Hash{'hardware'},
+#                'profile'    => $Hash{'profile'},
+                 );
+
+    my $sql_cols = lc get_cols( 'build' );
+
+    $sql_cols =~ s/[ \t]*//g;
+    my @cols = split( /,/, $sql_cols );
+    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+    $sql = qq|INSERT INTO $tbl{ 'build' }
+              ( $sql_cols )
+              VALUES ( $sql_vals )
+              |;
+    print $sql . "\n" if $debug;
+
+    $sth = $dbh->prepare( $sql )
+         or die "Cannot prepare sth: ", $dbh->errstr;
+
+    my $paramidx = 0;
+    foreach my $col (@cols) {
+        $paramidx += 1;
+        $sth->bind_param( $paramidx, $entry{ $col } );
+    }
 
     $sth->execute()
         or die "Cannot execute sth: ", $sth->errstr;
+
+    $sth->finish;
+    undef $sth;
 }
 
 sub get_db_host_entry() {
@@ -1283,6 +1465,24 @@ sub get_db_host_by_mac() {
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare select statement\n" . $dbh->errstr;
     $sth->execute( $mac )
+        or die "Cannot execute select statement\n" . $sth->err;
+
+    return $sth->fetchrow_hashref();
+}
+
+sub get_db_build_by_host() {
+
+    my $hostname = shift;
+
+    my $cols = lc get_cols( 'build' );
+
+    my $sql = qq|SELECT $cols FROM $tbl{ build } WHERE hostname = ? |;
+
+    print $sql . "and hostname is $hostname \n" if $debug;
+
+    my $sth = $dbh->prepare( $sql )
+        or die "Cannot prepare select statement\n" . $dbh->errstr;
+    $sth->execute( $hostname )
         or die "Cannot execute select statement\n" . $sth->err;
 
     return $sth->fetchrow_hashref();
@@ -1329,21 +1529,93 @@ sub update_db_host_entry() {
 sub remove_db_host_entry() {
     my $hostname = shift @_;
 
-    my $sql = qq|DELETE FROM $tbl{'host'} WHERE hostname=?|;
+    ##
+    ##  bind mac, hostname, distro, hardware for pxe boot info
+    #
+    my $href = &get_db_build_by_host( $hostname );
 
+    my $sql = qq|DELETE FROM $tbl{ 'build' } WHERE mac = ?|;
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare sth: ",$dbh->errstr;
+    $sth->execute( $href->{mac} )
+        or die "Cannot execute sth: ",$sth->errstr;
 
+    $sql = qq|DELETE FROM $tbl{'host'} WHERE hostname=?|;
+    $sth = $dbh->prepare( $sql )
+        or die "Cannot prepare sth: ",$dbh->errstr;
     $sth->execute( $hostname )
         or die "Cannot execute sth: ",$sth->errstr;
+
+
+    $sth->finish();
+    undef $sth;
+}
+
+sub add_db_mac
+{
+    my $mac   = shift;
+    my $state = shift;
+    my $field = shift;
+
+    my $fields = "mac,state,$field";
+    my $values = qq|'$mac',$state,CURRENT_TIMESTAMP(0)|;
+    my $sql = qq|INSERT INTO mac ( $fields ) VALUES ( $values )|;
+    my $sth;
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
+    $sth->finish();
+}
+
+sub get_db_mac() {
+
+    my $mac = shift;
+
+    my $cols = lc get_cols( 'mac' );
+
+    my $sql = qq|SELECT $cols FROM $tbl{ mac } WHERE mac = ? |;
+
+    print $sql . "and mac is $mac \n" if $debug;
+
+    my $sth = $dbh->prepare( $sql )
+        or die "Cannot prepare select statement\n" . $dbh->errstr;
+    $sth->execute( $mac )
+        or die "Cannot execute select statement\n" . $sth->err;
+
+    return $sth->fetchrow_hashref();
+}
+
+sub update_db_mac_state
+{
+    my $mac   = shift;
+    my $state = shift;
+    my $field = shift;
+
+    my $fields = "state,$field";
+    my $values = qq|'$state',CURRENT_TIMESTAMP(0)|;
+    my $sth;
+    my $sql = qq|UPDATE mac SET ($fields) = ($values) WHERE mac = ?|;
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( $mac ) );
+    $sth->finish();
+}
+
+sub remove_db_mac() {
+    my $mac = shift;
+    my $sql = qq|DELETE FROM $tbl{'mac'} WHERE mac=?|;
+    print $sql . "and mac is $mac \n" if $debug;
+    my $sth = $dbh->prepare( $sql )
+        or die "Cannot prepare statement\n" . $dbh->errstr;
+    $sth->execute( $mac )
+        or die "Cannot execute statement\n" . $sth->err;
+    $sth->finish();
 }
 
 sub get_cols
 {
     my $tbl = shift;
-    my $baracustbls = BaracusSql::get_baracus_tables()->{ $tbl{ $tbl } };
+    my $baracustbls = get_baracus_tables()->{ $tbl{ $tbl } };
     if ( defined $baracustbls ) {
-        return BaracusSql::keys2columns( $baracustbls );
+        return keys2columns( $baracustbls );
     }
     else {
         die "Internal database table/name usage error.\n";
@@ -1418,7 +1690,8 @@ sub check_subcommand
 
     unless ( $subcommand eq "history" or
              $subcommand eq "templates" or
-             $subcommand eq "commands" ) {
+             $subcommand eq "commands" or
+             $subcommand eq "macs" ) {
         print "Invalid <subcommand> '$subcommand' for <command> '$command'\n";
         exit 1;
     }
@@ -1483,7 +1756,7 @@ sub load_profile
     my $href    = shift;
     my $tmphref = shift;
 
-    my $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ $tbl{'profile'} } );
+    my $sql_cols = keys2columns( $hashoftbls->{ $tbl{'profile'} } );
     $sql_cols =~ s/[ \t]*//g;
     my @cols = split(/,/, $sql_cols);
     my $sql = qq|SELECT $sql_cols FROM $tbl{'profile'}
@@ -1538,7 +1811,7 @@ sub load_distro
 {
     my $href = shift;
 
-    my $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ $tbl{'distro'} } );
+    my $sql_cols = keys2columns( $hashoftbls->{ $tbl{'distro'} } );
     $sql_cols =~ s/[ \t]*//g;
     my $sql = qq|SELECT $sql_cols FROM $tbl{'distro'}
                  WHERE distroid = '| . $href->{'distro'} . qq|'|;;
@@ -1564,7 +1837,7 @@ sub load_addons
     my $sth;
     # incorporate addons passed into autoinstall formated xml
 
-    my $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ $tbl{'distro'} } );
+    my $sql_cols = keys2columns( $hashoftbls->{ $tbl{'distro'} } );
     $sql_cols =~ s/[ \t]*//g;
 
     foreach my $item ( split /\s+/, $addons ) {
@@ -1577,7 +1850,7 @@ sub load_addons
             unless ( defined $sel );
         die "Unable to find needed distro entry for addon $item.\nMay need to run 'basource add --distro <base> --addon $item'\n"
             unless ( defined $sel->{status} and
-                     $sel->{status} !=  BaracusSql::BA_DELETED );
+                     $sel->{status} !=  BA_DELETED );
 
         my $addonbase = "$sel->{os}-$sel->{release}-$sel->{arch}";
         if ( $href->{distro} ne $addonbase ) {
@@ -1587,7 +1860,7 @@ sub load_addons
 
         $href->{addon} .= "\n" if ( $href->{addon} );
         $href->{addon} .="      <listentry>
-        <media_url>$sel->{type}://$sel->{buildip}$sel->{basepath}</media_url>
+        <media_url>$sel->{sharetype}://$sel->{shareip}$sel->{basepath}</media_url>
         <product>$sel->{distroid}</product>
         <product_dir>/</product_dir>\n";
         if ( $sel->{release} =~ m/11/ ) {
@@ -1603,7 +1876,7 @@ sub load_hardware
 {
     my $href = shift;
 
-    my $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ $tbl{'hardware'} } );
+    my $sql_cols = keys2columns( $hashoftbls->{ $tbl{'hardware'} } );
     $sql_cols =~ s/[ \t]*//g;
     my $sql = qq|SELECT $sql_cols FROM $tbl{'hardware'}
                  WHERE hardwareid = '| . $href->{'hardware'} . qq|'|;
@@ -1638,12 +1911,12 @@ sub check_modules
         unless( $sth->execute( $item ) ) {
             die "Unable to execute 'module' statement\n" . $sth->err;
         }
-       
+
         my $rowcount = 0;
         while ( my $sel = $sth->fetchrow_hashref( ) ) {
             $rowcount += 1;
         }
-        die "Module entry not certified for $item.\n"
+        die "Module $item not certified for $distro.\n"
             unless ( $rowcount );
     }
 
@@ -1660,7 +1933,7 @@ sub load_modules
 #   $href->{'module'} = "    <init-scripts config:type="list">\n";
     foreach my $item (split(/[,\s*]/, $modules)) {
 
-        my $sql_cols = BaracusSql::keys2columns( $hashoftbls->{ $tbl{'module'} } );
+        my $sql_cols = keys2columns( $hashoftbls->{ $tbl{'module'} } );
         $sql_cols =~ s/[ \t]*//g;
         my @cols = split(/,/, $sql_cols);
         my $sql = qq|SELECT $sql_cols FROM $tbl{'module'}
@@ -1699,7 +1972,7 @@ sub add_pxeboot
 
     my $href = shift;
 
-    my $pxeTemplate = join "/", $bdir{ 'templates' }, $href->{'os'}, $href->{'release'}, $href->{'arch'}, "pxetemplates", $href->{'pxetemplate'};
+    my $pxeTemplate = join "/", $baDir{ 'templates' }, $href->{'os'}, $href->{'release'}, $href->{'arch'}, "pxetemplates", $href->{'pxetemplate'};
 
     if ($debug) {
         print "pxeTemplate = $pxeTemplate\n";
@@ -1708,7 +1981,7 @@ sub add_pxeboot
     if ( ! -f $pxeTemplate ) {
         print "\nThe base template files for pxe cannot be found here:\n";
         print "\n$pxeTemplate\n";
-        print "\nPlease refer to the README found in $bdir{ 'templates' }/\n";
+        print "\nPlease refer to the README found in $baDir{ 'templates' }/\n";
         exit 1;
     }
 
@@ -1757,16 +2030,16 @@ sub add_autoyast
 
     my $href = shift;
 
-    my $autoYastTemplate = join "/", $bdir{ 'templates' }, $href->{'os'}, $href->{'release'}, $href->{'arch'}, $href->{'yasttemplate'};
+    my $autoYastTemplate = join "/", $baDir{ 'templates' }, $href->{'os'}, $href->{'release'}, $href->{'arch'}, $href->{'yasttemplate'};
 
     if ($debug) {
         print "autoYastTemplate = $autoYastTemplate\n";
     }
 
     if ( ! -f $autoYastTemplate ) {
-        print "\nThe base template files for autoyast cannot be found here:\n";
-        print "\n$autoYastTemplate";
-        print "\nPlease refer to the README found in $bdir{ 'templates' }/\n";
+        print "\nThe base template files for autobuild cannot be found here:\n";
+        print "\n$autoYastTemplate\n";
+        print "\nPlease refer to the README found in $baDir{ 'templates' }/\n";
         exit 1;
     }
 
@@ -1795,9 +2068,13 @@ sub add_autoyast
         open(FILE, ">$tdir/$automac") or
             die "Cannot open file $automac: $!\n";
         print FILE $yastfile;
-        print FILE "<!-- baracus.Hostname: $href->{'hostname'} -->\n";
-        print FILE "<!-- baracus.MAC: $href->{'mac'}; -->\n";
-        print FILE "<!-- baracus.Generated: $date -->\n";
+        if ( $href->{os} ne "rhel"   &&
+             $href->{os} ne "fedora" &&
+             $href->{os} ne "centos" ) {
+            print FILE "<!-- baracus.Hostname: $href->{'hostname'} -->\n";
+            print FILE "<!-- baracus.MAC: $href->{'mac'}; -->\n";
+            print FILE "<!-- baracus.Generated: $date -->\n";
+        }
         close(FILE);
 
         if ( $sqlfsOBJ->store( "$tdir/$automac",

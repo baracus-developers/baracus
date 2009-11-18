@@ -1,0 +1,212 @@
+#!/usr/bin/perl -w
+
+use strict;
+use warnings;
+
+use Getopt::Long qw( :config pass_through );
+use AppConfig;
+use Pod::Usage;
+
+use lib "/usr/share/baracus/perl";
+
+use BaracusPower qw( :subs );
+use BaracusDB;
+use BaracusSql;
+
+my $dbname = "baracus";
+my $dbrole = $dbname;
+
+my $uid = BaracusDB::su_user( $dbrole );
+die BaracusDB::errstr unless ( defined $uid );
+
+my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
+die BaracusDB::errstr unless( $dbh );
+
+=pod
+
+=head1 NAME
+
+B<bapower> - baracus tool for BMC power management
+
+=head1 SYNOPSIS
+ 
+B<bapower> E<lt>commandE<gt> [options]
+
+Where E<lt>commandE<gt> is
+
+    off    --mac=<mac> --ip=<ip> --hostname=<hostname>     poweroff hardware.
+    on     --mac=<mac> --ip=<ip> --hostname=<hostname>     poweron hardware.
+    cycle  --mac=<mac> --ip=<ip> --hostname=<hostname>     powercycle hardware.
+    status --mac=<mac> --ip=<ip> --hostname=<hostname>     power status.
+
+    help                      This 'Usage' summary message.
+    man                       Detailed man page.
+
+Use 'man' or 'help <command>' for more details.
+
+=head1 DESCRIPTION
+
+This tool allows for power management via plugable BMC control modules
+
+=head1 OPTIONS
+
+=over 4
+
+=item -v --verbose  Be verbose with output
+
+=back
+
+=cut
+
+our $LASTERROR="";
+
+my $man      = 0;
+my $help     = 0;
+my $debug    = 0;
+my $verbose  = 0;
+
+my %cmds = (
+            'on'     => \&on,
+            'off'    => \&off,
+            'cycle'  => \&cycle,
+            'status' => \&status,
+            'help'   => \&help,
+            'man'     => \&man,
+            );
+
+GetOptions(
+           'debug'          => \$debug,
+           'help|?'         => \$help,
+           'man'            => \$man,
+           'verbose'        => \$verbose,
+           );
+
+&man()  if $man;
+&help() if $help;
+&help() unless ( scalar @ARGV );
+if ($ARGV[0] eq "man"  ) { &man(); }
+if ($ARGV[0] eq "help" ) { shift @ARGV; &help(@ARGV); }
+
+my $status = &main(@ARGV);
+
+die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+
+print $LASTERROR if $status;
+
+exit $status;
+
+die "DOES NOT EXECUTE";
+
+###############################################################################
+#
+# subroutines
+#
+
+sub main
+{
+    my $command = shift;
+
+    my $deviceid = "";
+
+    printf "Executing $command with \"@_\".\n" if $debug;
+
+    $deviceid = &arg_handler( @_ );
+    unless ($deviceid) {
+        print "invalid or non-existant deviceid\n";
+        return 1;
+    }
+
+    &check_command( $command );
+
+    my $bmc = &get_bmc($deviceid, $dbh);
+
+    $command = lc $command;
+
+    $cmds{ $command }( $bmc ); 
+}
+
+sub help() {
+    my $command = shift;
+
+    unless ( defined $command ) {
+        pod2usage( -verboase => 0,
+                   -exitstatus => 0 );
+    }
+
+    $command = lc $command;
+    &check_command( $command );
+
+    my $execname = $0;
+    $execname = $1 if ( $0 =~ m|^.*/([^/].+)| );
+
+    pod2usage( -msg        => "$execname $command ...\n",
+               -verbose    => 99,
+               -sections   => "COMMANDS/${command}.*",
+               -exitstatus => 0 );
+}
+
+sub man
+{
+    pod2usage( -verbose    => 2,
+               -sections   => "NAME|SYNOPSIS|DESCRIPTION|OPTIONS|COMMANDS",
+               -exitstatus => 0 );
+}
+
+sub arg_handler() {
+
+    my %entry = (
+                 'mac'      => "",
+                 'ip'       => "",
+                 'hostname' => "",
+                );
+    @ARGV = @_;
+    GetOptions(
+               'mac=s'      => \$entry{'mac'},
+               'ip=s'       => \$entry{'ip'},
+               'hostname=s' => \$entry{'hostname'},
+              );
+
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help();
+    }
+
+    if ($entry{'mac'} && ($entry{'ip'} || $entry{'hostname'})) {
+        print "Only one device identifier allowed (mac,ip,hostname)\n";
+    }
+
+    my $deviceid = 0;
+
+    if ($entry{'mac'}) {
+        $deviceid = $entry{'mac'};
+    } elsif ($entry{'ip'}) {
+        $deviceid = $entry{'ip'};
+        $deviceid = &get_mac($deviceid, "ip", $dbh);
+    } else {
+        $deviceid = $entry{'hostname'};
+        $deviceid = &get_mac($deviceid, "hostname", $dbh);
+    }
+
+    return( $deviceid );
+
+}
+
+sub check_command
+{
+    my $command = shift;
+
+    my $cmd_list = join ', ', (sort keys %cmds);
+    unless ( defined $command ) {
+        print "Requires <command> (e.g. $cmd_list)\n";
+        &help();
+    }
+
+    unless ( defined $cmds{ $command } ) {
+        print "Invalid <command> '$command' please use:  $cmd_list\n";
+        exit 1;
+    }
+}
+
+die "ABSOLUTELY DOES NOT EXECUTE";
+
+__END__

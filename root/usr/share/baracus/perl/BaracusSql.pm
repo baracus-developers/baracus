@@ -7,6 +7,47 @@ use warnings;
 
 use Tie::IxHash;
 
+BEGIN {
+  use Exporter ();
+  use vars qw( @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
+  @ISA         = qw(Exporter);
+  @EXPORT      = qw();
+  @EXPORT_OK   = qw();
+
+  %EXPORT_TAGS = (
+    states => [qw(
+        BA_DBMAXLEN
+        BA_READY
+        BA_BUILT
+        BA_SPOOFED
+        BA_DELETED
+        BA_UPDATED
+        BA_DISKWIPE
+        BA_DISABLED
+        BA_FOUND
+        BA_BUILDING
+        BA_WIPING
+        BA_WIPED
+        BA_WIPEFAIL
+        BA_REGISTER
+    )],
+    vars => [qw( %baState )],
+    subs => [qw(
+        keys2columns
+        hash2columns
+        get_sqltftp_tables
+        get_baracus_tables
+        get_baracus_functions
+        get_baracus_triggers
+    )],
+  );
+  Exporter::export_ok_tags('states');
+  Exporter::export_ok_tags('vars');
+  Exporter::export_ok_tags('subs');
+}
+
+# for sql binary file chunking 1MB blobs
+use constant BA_DBMAXLEN => 1048575;
 
 use constant BA_READY    => 1;
 use constant BA_BUILT    => 2;
@@ -19,6 +60,8 @@ use constant BA_FOUND    => 8;
 use constant BA_BUILDING => 9;
 use constant BA_WIPING   => 10;
 use constant BA_WIPED    => 11;
+use constant BA_WIPEFAIL => 12;
+use constant BA_REGISTER => 13;
 
 =item baState
 
@@ -26,30 +69,50 @@ here we define some state constants and a hash to make easy use of them
 
 =cut
 
-our %baState = (
-                1          => 'ready',
-                2          => 'built',
-                3          => 'spoofed',
-                4          => 'deleted',
-                5          => 'updated',
-                6          => 'diskwipe',
-                7          => 'disabled',
-                8          => 'found',
-                9          => 'building',
-                10         => 'wiping',
-                11         => 'wiped',
-                'ready'    => BA_READY,
-                'built'    => BA_BUILT,
-                'spoofed'  => BA_SPOOFED,
-                'deleted'  => BA_DELETED,
-                'updated'  => BA_UPDATED,
-                'diskwipe' => BA_DISKWIPE,
-                'disabled' => BA_DISABLED,
-                'found'    => BA_FOUND,
-                'building' => BA_BUILDING,
-                'wiping'   => BA_WIPING,
-                'wiped'    => BA_WIPED,
-                );
+use vars qw( %baState );
+
+%baState =
+    (
+     1           => 'ready',
+     2           => 'built',
+     3           => 'spoofed',
+     4           => 'deleted',
+     5           => 'updated',
+     6           => 'diskwipe',
+     7           => 'disabled',
+     8           => 'found',
+     9           => 'building',
+     10          => 'wiping',
+     11          => 'wiped',
+     12          => 'wipefail',
+     13          => 'register',
+     BA_READY    => 'ready',
+     BA_BUILT    => 'built',
+     BA_SPOOFED  => 'spoofed',
+     BA_DELETED  => 'deleted',
+     BA_UPDATED  => 'updated',
+     BA_DISKWIPE => 'diskwipe',
+     BA_DISABLED => 'disabled',
+     BA_FOUND    => 'found',
+     BA_BUILDING => 'building',
+     BA_WIPING   => 'wiping',
+     BA_WIPED    => 'wiped',
+     BA_WIPEFAIL => 'wipefail',
+     BA_REGISTER => 'register',
+     'ready'     => BA_READY,
+     'built'     => BA_BUILT,
+     'spoofed'   => BA_SPOOFED,
+     'deleted'   => BA_DELETED,
+     'updated'   => BA_UPDATED,
+     'diskwipe'  => BA_DISKWIPE,
+     'disabled'  => BA_DISABLED,
+     'found'     => BA_FOUND,
+     'building'  => BA_BUILDING,
+     'wiping'    => BA_WIPING,
+     'wiped'     => BA_WIPED,
+     'wipefail'  => BA_WIPEFAIL,
+     'register'  => BA_REGISTER,
+     );
 
 =item keys2columns
 
@@ -94,19 +157,21 @@ sub hash2columns
 sub get_sqltftp_tables
 {
     my $tbl_sqlfs = "sqlfstable";
-    my %tbl_sqlfs_columns = (
-                             'id'          => 'SERIAL PRIMARY KEY',
-                             'name'        => 'VARCHAR(64) NOT NULL',
-                             'description' => 'VARCHAR(32)',
-                             'bin'         => 'VARCHAR',
-                             'enabled'     => 'INTEGER',
-                             'insertion'   => 'TIMESTAMP',
-                             'change'      => 'TIMESTAMP',
-                             );
+    my %tbl_sqlfs_columns =
+        (
+         'id'          => 'SERIAL PRIMARY KEY',
+         'name'        => 'VARCHAR(64) NOT NULL',
+         'description' => 'VARCHAR(32)',
+         'bin'         => 'VARCHAR',
+         'enabled'     => 'INTEGER',
+         'insertion'   => 'TIMESTAMP',
+         'change'      => 'TIMESTAMP',
+         );
 
-    my %sqltftp_tbls = (
-                        $tbl_sqlfs      => \%tbl_sqlfs_columns,
-                        );
+    my %sqltftp_tbls =
+        (
+         $tbl_sqlfs    => \%tbl_sqlfs_columns,
+         );
     return \%sqltftp_tbls;
 }
 
@@ -115,217 +180,167 @@ sub get_sqltftp_tables
 
 sub get_baracus_tables
 {
+    my $tbl_mac = "mac";
+    my %tbl_mac_cols =
+        (
+         'mac'      => 'VARCHAR(17) PRIMARY KEY',
+         'state'    => 'INTEGER',     # last state
+         'ready'    => 'TIMESTAMP',
+         'built'    => 'TIMESTAMP',
+         'spoofed'  => 'TIMESTAMP',
+         'deleted'  => 'TIMESTAMP',
+         'updated'  => 'TIMESTAMP',
+         'diskwipe' => 'TIMESTAMP',
+         'disabled' => 'TIMESTAMP',
+         'found'    => 'TIMESTAMP',
+         'building' => 'TIMESTAMP',
+         'wiping'   => 'TIMESTAMP',
+         'wiped'    => 'TIMESTAMP',
+         'wipefail' => 'TIMESTAMP',
+         'register' => 'TIMESTAMP',
+         );
 
     my $tbl_templateid = "templateid";
-    my %tbl_templateid_columns = (
-                                  'hostname' => 'VARCHAR(32) PRIMARY KEY',
-                                  'ip'       => 'VARCHAR(15)',
-                                  'mac'      => 'VARCHAR(17)',
-                                  'uuid'     => 'VARCHAR(37)',
-                                  'state'    => 'INTEGER',
-                                  'cmdline'  => 'VARCHAR(1024)',
-                                  'creation' => 'TIMESTAMP',
-                                  'change'   => 'TIMESTAMP',
-                                  );
+    my %tbl_templateid_columns =
+        (
+         'hostname' => 'VARCHAR(32) PRIMARY KEY',
+         'ip'       => 'VARCHAR(15)',
+         'mac'      => 'VARCHAR(17)',
+         'uuid'     => 'VARCHAR(36)',
+         'loghost'  => 'VARCHAR(32)',
+         'raccess'  => 'VARCHAR(128)',
+         'autonuke' => 'BOOLEAN',
+         'pxestate' => 'INTEGER',
+         'state'    => 'INTEGER',
+         'cmdline'  => 'VARCHAR(1024)',
+         'creation' => 'TIMESTAMP',
+         'change'   => 'TIMESTAMP',
+         );
 
     my $tbl_templateidhist = "templateidhist";
-    my %tbl_templateidhist_comlumns = (
-                                       'hostname' => 'VARCHAR(32)',
-                                       'ip'       => 'VARCHAR(15)',
-                                       'mac'      => 'VARCHAR(17)',
-                                       'uuid'     => 'VARCHAR(37)',
-                                       'state'    => 'INTEGER',
-                                       'cmdline'  => 'VARCHAR(1024)',
-                                       'creation' => 'TIMESTAMP',
-                                       'change'   => 'TIMESTAMP',
-                                       );
+    my %tbl_templateidhist_columns =
+        (
+         'hostname' => 'VARCHAR(32)',
+         'ip'       => 'VARCHAR(15)',
+         'mac'      => 'VARCHAR(17)',
+         'uuid'     => 'VARCHAR(36)',
+         'loghost'  => 'VARCHAR(32)',
+         'raccess'  => 'VARCHAR(128)',
+         'autonuke' => 'BOOLEAN',
+         'pxestate' => 'INTEGER',
+         'state'    => 'INTEGER',
+         'cmdline'  => 'VARCHAR(1024)',
+         'creation' => 'TIMESTAMP',
+         'change'   => 'TIMESTAMP',
+         );
 
     my $tbl_hardware_cfg = "hardware_cfg";
-    my %tbl_hardware_cfg_comlumns = (
-                                     'hardwareid'   => 'VARCHAR(32) PRIMARY KEY',
-                                     'description'  => 'VARCHAR(64)',
-                                     'bootArgs'     => 'VARCHAR(64)',
-                                     'rootDisk'     => 'VARCHAR(32)',
-                                     'rootPart'     => 'VARCHAR(32)',
-                                     'pxeTemplate'  => 'VARCHAR(32)',
-                                     'yastTemplate' => 'VARCHAR(32)',
-                                     'hwdriver'     => 'VARCHAR(32)',
-                                     );
+    my %tbl_hardware_cfg_columns =
+        (
+         'hardwareid'   => 'VARCHAR(32) PRIMARY KEY',
+         'description'  => 'VARCHAR(64)',
+         'bootArgs'     => 'VARCHAR(64)',
+         'rootDisk'     => 'VARCHAR(32)',
+         'rootPart'     => 'VARCHAR(32)',
+         'pxeTemplate'  => 'VARCHAR(32)',
+         'yastTemplate' => 'VARCHAR(32)',
+         'hwdriver'     => 'VARCHAR(32)',
+         );
 
     my $tbl_hardwareid = "hardwareid";
-    my %tbl_hardwareid_columns = (
-                                  'hardwareid'   => 'VARCHAR(32) REFERENCES hardware_cfg',
-                                  'distroid'     => 'VARCHAR(32)',
-                                  'CONSTRAINT'   => 'hardwareid_pk PRIMARY KEY (hardwareid, distroid)',
-                                  );
+    my %tbl_hardwareid_columns =
+        (
+         'hardwareid'   => 'VARCHAR(32) REFERENCES hardware_cfg',
+         'distroid'     => 'VARCHAR(32)',
+         'CONSTRAINT'   => 'hardwareid_pk PRIMARY KEY (hardwareid, distroid)',
+         );
 
     my $tbl_distro_cfg = "distro_cfg";
-    my %tbl_distro_cfg_comlumns = (
-                                   'distroid'    => 'VARCHAR(48) PRIMARY KEY',
-                                   'os'          => 'VARCHAR(12)',
-                                   'release'     => 'VARCHAR(8)',
-                                   'arch'        => 'VARCHAR(8)',
-                                   'description' => 'VARCHAR(64)',
-                                   'addon'       => 'BOOLEAN',
-                                   'addos'       => 'VARCHAR(8)',
-                                   'addrel'      => 'VARCHAR(8)',
-                                   'buildip'     => 'VARCHAR(15)',
-                                   'type'        => 'VARCHAR(8)',
-                                   'basepath'    => 'VARCHAR(128)',
-                                   'status'      => 'INTEGER',
-                                   'creation'    => 'TIMESTAMP',
-                                   'change'      => 'TIMESTAMP',
-                                   );
+    my %tbl_distro_cfg_columns =
+        (
+         'distroid'    => 'VARCHAR(48) PRIMARY KEY',
+         'os'          => 'VARCHAR(12)',
+         'release'     => 'VARCHAR(8)',
+         'arch'        => 'VARCHAR(8)',
+         'description' => 'VARCHAR(64)',
+         'addon'       => 'BOOLEAN',
+         'addos'       => 'VARCHAR(8)',
+         'addrel'      => 'VARCHAR(8)',
+         'shareip'     => 'VARCHAR(15)',
+         'sharetype'   => 'VARCHAR(8)',
+         'basepath'    => 'VARCHAR(128)',
+         'kernel'      => 'VARCHAR(32)',
+         'initrd'      => 'VARCHAR(32)',
+         'status'      => 'INTEGER',
+         'creation'    => 'TIMESTAMP',
+         'change'      => 'TIMESTAMP',
+         );
 
     my $tbl_module_cfg = "module_cfg";
-    my %tbl_module_cfg_comlumns = (
-                                   'moduleid'    => 'VARCHAR(32) NOT NULL',
-                                   'version'     => 'INTEGER',
-                                   'description' => 'VARCHAR(64)',
-                                   'interpreter' => 'VARCHAR(8)',
-                                   'data'        => 'VARCHAR',
-                                   'status'      => 'BOOLEAN',
-                                   'CONSTRAINT'  => 'module_cfg_pk PRIMARY KEY (moduleid, version)',
-                                  );
+    my %tbl_module_cfg_columns =
+        (
+         'moduleid'    => 'VARCHAR(32) NOT NULL',
+         'version'     => 'INTEGER',
+         'description' => 'VARCHAR(64)',
+         'interpreter' => 'VARCHAR(8)',
+         'data'        => 'VARCHAR',
+         'status'      => 'BOOLEAN',
+         'CONSTRAINT'  => 'module_cfg_pk PRIMARY KEY (moduleid, version)',
+         );
 
     my $tbl_module_cert_cfg = "module_cert_cfg";
-    my %tbl_module_cert_cfg_columns = (
-                                       'moduleid'   => 'VARCHAR(32)',
-                                       'distroid'   => 'VARCHAR(48)',
-                                       'mandatory'  => 'BOOLEAN',
-                                       'CONSTRAINT' => 'module_cert_cfg_pk PRIMARY KEY (moduleid, distroid)',
-                                      );
+    my %tbl_module_cert_cfg_columns =
+        (
+         'moduleid'   => 'VARCHAR(32)',
+         'distroid'   => 'VARCHAR(48)',
+         'mandatory'  => 'BOOLEAN',
+         'CONSTRAINT' => 'module_cert_cfg_pk PRIMARY KEY (moduleid, distroid)',
+         );
 
     my $tbl_profile_cfg = "profile_cfg";
-    my %tbl_profile_cfg_comlumns = (
-                                   'profileid'   => 'VARCHAR(32) NOT NULL',
-                                   'version'     => 'INTEGER',
-                                   'description' => 'VARCHAR(64)',
-                                   'data'        => 'VARCHAR',
-                                   'status'      => 'BOOLEAN',
-                                   'CONSTRAINT'  => 'proflie_cfg_pk PRIMARY KEY (profileid, version)',
-                                  );
+    my %tbl_profile_cfg_columns =
+        (
+         'profileid'   => 'VARCHAR(32) NOT NULL',
+         'version'     => 'INTEGER',
+         'description' => 'VARCHAR(64)',
+         'data'        => 'VARCHAR',
+         'status'      => 'BOOLEAN',
+         'CONSTRAINT'  => 'proflie_cfg_pk PRIMARY KEY (profileid, version)',
+         );
 
-    my $tbl_device_inventory_cfg = "device_inventory_cfg";
-    my %tbl_device_inventory_cfg_columns = (
-                                            'vendor'      => 'VARCHAR(32)',
-                                            'product'     => 'VARCHAR(64)',
-                                            'description' => 'VARCHAR(64)',
-                                            'version'     => 'VARCHAR(32)',
-                                            'product'     => 'VARCHAR(64)',
-                                            'serial'      => 'VARCHAR(32) PRIMARY KEY',
-                                            'mac'         => 'VARCHAR(17)',
-                                           );
+    my $tbl_build_cfg = "build";
+    my %tbl_build_cfg_columns =
+        (
+         'mac'         => 'VARCHAR(17) PRIMARY KEY',
+         'hostname'    => 'VARCHAR(32) REFERENCES templateid',
+         'distroid'    => 'VARCHAR(48) REFERENCES distro_cfg',
+         'hardwareid'  => 'VARCHAR(32) REFERENCES hardware_cfg',
+         );
 
-    my $tbl_device_bios_inventory = "device_bios_inventory_cfg";
-    my %tbl_device_bios_inventory_columns = (
-                                            'id'          => 'VARCHAR(32) REFERENCES device_inventory_cfg(serial) PRIMARY KEY',
-                                            'vendor'      => 'VARCHAR(32)',
-                                            'description' => 'VARCHAR(64)',
-                                            'version'     => 'VARCHAR(32)',
-                                            );
-
-    my $tbl_cpu_inventory_cfg = "cpu_inventory_cfg";
-    my %tbl_cpu_inventory_cfg_columns = (
-                                         'id'          => 'VARCHAR(32) REFERENCES device_inventory_cfg(serial) PRIMARY KEY',
-                                         'vendor'      => 'VARCHAR(32)',
-                                         'product'     => 'VARCHAR(64)',
-                                         'description' => 'VARCHAR(64)',
-                                         'speed'       => 'VARCHAR(32)',
-                                         'size'        => 'VARCHAR(16)',
-                                        );
-
-    my $tbl_cpu_cache_inventory_cfg = "cpu_cache_inventory_cfg";
-    my %tbl_cpu_cache_inventory_cfg_columns = (
-                                               'id'          => 'VARCHAR(32) REFERENCES cpu_inventory_cfg(id) PRIMARY KEY',
-                                               'slot'        => 'VARCHAR(8)',
-                                               'description' => 'VARCHAR(64)',
-                                               'size'        => 'VARCHAR(16)',
-                                              );
-
-    my $tbl_cpu_capability_inventory_cfg = "cpu_capability_inventory_cfg";
-    my %tbl_cpu_capability_inventory_cfg_columns = (
-                                                    'id'          => 'VARCHAR(32) REFERENCES cpu_inventory_cfg(id) PRIMARY KEY',
-                                                    'capability'  => 'VARCHAR(16)',
-                                                    'description' => 'VARCHAR(64)',
-                                                   );
-
-    my $tbl_disk_inventory_cfg = "disk_inventory_cfg";
-    my %tbl_disk_inventory_cfg_columns = (
-                                    'id'          => 'VARCHAR(32) REFERENCES device_inventory_cfg(serial) PRIMARY KEY',
-                                    'vendor'      => 'VARCHAR(32)',
-                                    'product'     => 'VARCHAR(64)',
-                                    'description' => 'VARCHAR(64)',
-                                    'logicalname' => 'VARCHAR(32)',
-                                    'serial'      => 'VARCHAR(32)',
-                                    'size'        => 'VARCHAR(16)',
-                                    'businfo'     => 'VARCHAR(16)',
-                                    'dev'         => 'VARCHAR(8)',
-                                   );
-
-    my $tbl_network_inventory_cfg = "network_inventory_cfg";
-    my %tbl_network_inventory_cfg_columns = (
-                                             'id'          => 'VARCHAR(32) REFERENCES device_inventory_cfg(serial)',
-                                             'vendor'      => 'VARCHAR(32)',
-                                             'product'     => 'VARCHAR(64)',
-                                             'description' => 'VARCHAR(64)',
-                                             'logicalname' => 'VARCHAR(32)',
-                                             'mac'         => 'VARCHAR(17) PRIMARY KEY',
-                                             'businfo'     => 'VARCHAR(16)',
-                                            );
-
-    my $tbl_network_setting_inventory_cfg = "network_setting_inventory_cfg"; 
-    my %tbl_network_setting_inventory_cfg_columns = (
-                                                     'id'      => 'VARCHAR(32) REFERENCES network_inventory_cfg(mac) PRIMARY KEY',
-                                                     'setting' => 'VARCHAR(16)',
-                                                     'value'   => 'VARCHAR(16)',
-                                                     );
-    
-    my $tbl_network_capability_inventory_cfg = "network_capability_inventory_cfg";
-    my %tbl_network_capability_inventory_cfg_columns = (
-                                                        'id'          => 'VARCHAR(32) REFERENCES network_inventory_cfg(mac) PRIMARY KEY',
-                                                        'capability'  => 'VARCHAR(16)',
-                                                        'description' => 'VARCHAR(64)',
-                                                       );
-
-    my $tbl_memory_inventory_cfg = "memory_inventory_cfg";
-    my %tbl_memory_inventory_cfg_columns = (
-                                            'id'          => 'VARCHAR(32) REFERENCES device_inventory_cfg(serial) PRIMARY KEY',
-                                            'slot'        => 'VARCHAR(8)',
-                                            'physid'      => 'VARCHAR(8)',
-                                            'description' => 'VARCHAR(64)',
-                                            'size'        => 'VARCHAR(16)',
-                                           );
-
-    my $tbl_memory_dimm_inventory_cfg = "memory_dimm_inventory_cfg";
-    my %tbl_memory_dimm_inventory_cfg_columns = (
-                                                 'id'          => 'VARCHAR(32) REFERENCES memory_inventory_cfg(id) PRIMARY KEY',
-                                                 'slot'        => 'VARCHAR(8)',
-                                                 'description' => 'VARCHAR(64)',
-                                                 'size'        => 'VARCHAR(16)',
-                                                 'speed'       => 'VARCHAR(32)',
-                                                );
+    my $tbl_power_cfg = "power_cfg";
+    my %tbl_power_cfg_columns =
+         (
+          'mac'     => 'VARCHAR(17) PRIMARY KEY',
+          'ctype'   => 'VARCHAR(16)',
+          'login'   => 'VARCHAR(16)',
+          'passwd'  => 'VARCHAR(32)',
+          'bmcaddr' => 'VARCHAR(32)',
+          'node'    => 'VARCHAR(32)',
+          'other'   => 'VARCHAR(32)',
+         );
 
     tie( my %baracus_tbls, 'Tie::IxHash',
-         $tbl_templateid                       => \%tbl_templateid_columns,
-         $tbl_templateidhist                   => \%tbl_templateidhist_comlumns,
-         $tbl_hardware_cfg                     => \%tbl_hardware_cfg_comlumns,
-         $tbl_hardwareid                       => \%tbl_hardwareid_columns,
-         $tbl_distro_cfg                       => \%tbl_distro_cfg_comlumns,
-         $tbl_module_cfg                       => \%tbl_module_cfg_comlumns,
-         $tbl_module_cert_cfg                  => \%tbl_module_cert_cfg_columns,
-         $tbl_profile_cfg                      => \%tbl_profile_cfg_comlumns,
-         $tbl_device_inventory_cfg             => \%tbl_device_inventory_cfg_columns,
-         $tbl_device_bios_inventory            => \%tbl_device_bios_inventory_columns,
-         $tbl_cpu_inventory_cfg                => \%tbl_cpu_inventory_cfg_columns,
-         $tbl_cpu_cache_inventory_cfg          => \%tbl_cpu_cache_inventory_cfg_columns,
-         $tbl_cpu_capability_inventory_cfg     => \%tbl_cpu_capability_inventory_cfg_columns,
-         $tbl_disk_inventory_cfg               => \%tbl_disk_inventory_cfg_columns,
-         $tbl_network_inventory_cfg            => \%tbl_network_inventory_cfg_columns,
-         $tbl_network_setting_inventory_cfg    => \%tbl_network_setting_inventory_cfg_columns,
-         $tbl_network_capability_inventory_cfg => \%tbl_network_capability_inventory_cfg_columns,
-         $tbl_memory_inventory_cfg             => \%tbl_memory_inventory_cfg_columns,
-         $tbl_memory_dimm_inventory_cfg        => \%tbl_memory_dimm_inventory_cfg_columns,
+         $tbl_mac             => \%tbl_mac_cols,
+         $tbl_templateid      => \%tbl_templateid_columns,
+         $tbl_templateidhist  => \%tbl_templateidhist_columns,
+         $tbl_hardware_cfg    => \%tbl_hardware_cfg_columns,
+         $tbl_hardwareid      => \%tbl_hardwareid_columns,
+         $tbl_distro_cfg      => \%tbl_distro_cfg_columns,
+         $tbl_module_cfg      => \%tbl_module_cfg_columns,
+         $tbl_module_cert_cfg => \%tbl_module_cert_cfg_columns,
+         $tbl_profile_cfg     => \%tbl_profile_cfg_columns,
+         $tbl_build_cfg       => \%tbl_build_cfg_columns,
+         $tbl_power_cfg       => \%tbl_power_cfg_columns,
         );
     return \%baracus_tbls;
 }
@@ -397,10 +412,11 @@ $template_state_trigger$ LANGUAGE 'plpgsql';
 |;
 
 
-    my %baracus_functions = (
-        'template_state_add_delete()' => $func_add_delete,
-        'template_state_update()'     => $func_update,
-                            );
+    my %baracus_functions =
+        (
+         'template_state_add_delete()' => $func_add_delete,
+         'template_state_update()'     => $func_update,
+         );
 
     return \%baracus_functions;
 }
@@ -415,10 +431,11 @@ FOR EACH ROW EXECUTE PROCEDURE template_state_add_delete()
 FOR EACH ROW EXECUTE PROCEDURE template_state_update()
 |;
 
-    my %baracus_triggers = (
-        'template_state_add_delete_trigger' => $trigger_add_delete,
-        'template_state_update_trigger' => $trigger_update,
-                            );
+    my %baracus_triggers =
+        (
+         'template_state_add_delete_trigger' => $trigger_add_delete,
+         'template_state_update_trigger' => $trigger_update,
+         );
 
     return \%baracus_triggers;
 }
