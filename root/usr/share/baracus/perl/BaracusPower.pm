@@ -14,6 +14,7 @@ BEGIN {
   %EXPORT_TAGS =
       (
        subs => [ qw(
+        add
         off
         on
         cycle
@@ -39,6 +40,7 @@ my %powermod = (
           );
 
 my %cmds = (
+           'add'         => \&add_powerdb_entry,
            'ipmi'        => \&ipmi,
            'bladecenter' => \&bladecenter,
            'ilo'         => \&ilo,
@@ -49,7 +51,14 @@ my %cmds = (
            'egenera'     => \&fence_egenera,
           );
 
-sub off(){
+sub add() {
+
+    my $bmc = shift;
+    my $result = $cmds{ add }($bmc);
+
+    return $result;
+}
+sub off() {
 
     my $bmc = shift;
 
@@ -221,23 +230,70 @@ sub check_powerdb_entry() {
 sub add_powerdb_entry() {
 
     my $bmcref = shift;
-    my $dbh = shift;
+    my $dbh = $bmcref->{ 'dbh' };
 
     my $sth;
     my $href;
 
-    my $sql = qq| INSERT into power_cfg,
-                  ( ctype,
-                    bmcaddr,
-                    mac,
+    my $sql = qq|INSERT INTO power_cfg
+                  ( mac,
+                    ctype,
                     login,
                     passwd,
+                    bmcaddr,
                     node,
                     other,
-                    alias,
+                    alias
                   )
-                 VALUES ( ?, ?, ?, ?, ?, ?, ? )
+                 VALUES ( ?, ?, ?, ?, ?, ?, ?, ? )
                 |;
+
+    $sth = $dbh->prepare( $sql )
+            or die "Cannot prepare sth: ",$dbh->errstr;
+
+    if ( defined $bmcref->{mac} ){
+         $sth->bind_param( 1, $bmcref->{mac} );
+    } else {
+         $sth->bind_param( 1, 'NULL');
+    }
+    if ( defined $bmcref->{ctype} ) {
+        $sth->bind_param( 2, $bmcref->{ctype} );
+    } else {
+        $sth->bind_param( 2, 'NULL');
+    }
+    if ( defined $bmcref->{mac} ) {
+        $sth->bind_param( 3, $bmcref->{login} );
+    } else {
+        $sth->bind_param( 3, 'NULL');
+    }
+    if ( defined $bmcref->{login} ) {
+        $sth->bind_param( 4, $bmcref->{passwd} );
+    } else {
+        $sth->bind_param( 4, 'NULL' );
+    }
+    if ( defined $bmcref->{passwd} ) {
+        $sth->bind_param( 5, $bmcref->{bmcaddr} );
+    } else {
+        $sth->bind_param( 5, 'NULL' );
+    }
+    if ( defined $bmcref->{node} ) {
+        $sth->bind_param( 6, $bmcref->{node} );
+    } else {
+        $sth->bind_param( 6, 'NULL' );
+    }
+    if ( defined $bmcref->{other} ) {
+        $sth->bind_param( 7, $bmcref->{other} );
+    } else {
+        $sth->bind_param( 7, 'NULL' );
+    }
+    if ( defined $bmcref->{alias} ) {
+        $sth->bind_param( 8, $bmcref->{alias} );
+    } else {
+        $sth->bind_param( 8, 'NULL' );
+    }
+
+    $sth->execute()
+            or die "Cannot execute sth: ", $sth->errstr;
 
     return 0;
 }

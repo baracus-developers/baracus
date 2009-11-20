@@ -70,8 +70,9 @@ my %cmds = (
             'off'    => \&off,
             'cycle'  => \&cycle,
             'status' => \&status,
+            'add'    => \&add_stub,
             'help'   => \&help,
-            'man'     => \&man,
+            'man'    => \&man,
             );
 
 GetOptions(
@@ -107,21 +108,25 @@ sub main
     my $command = shift;
 
     my $deviceid = "";
+    my $bmc;
 
     printf "Executing $command with \"@_\".\n" if $debug;
 
-    $deviceid = &arg_handler( @_ );
-    unless ($deviceid) {
-        print "invalid or non-existant deviceid\n";
-        return 1;
-    }
-
-    &check_command( $command );
-
-    my $bmc = &get_bmc($deviceid, $dbh);
-
     $command = lc $command;
-    $cmds{ $command }( $bmc ); 
+    &check_command( $command );
+    
+    if ( ( $command eq "add") || ( $command eq "remove") || ( $command eq "update" ) ) {
+        $bmc->{'dbh'} = $dbh;
+        $cmds{ $command }( $bmc, @_ );
+    } else {
+        $deviceid = &arg_handler( @_ );
+        unless ($deviceid) {
+            print "invalid or non-existant deviceid\n";
+            return 1;
+        }
+        $bmc = &get_bmc($deviceid, $dbh);
+        $cmds{ $command }( $bmc );
+    }
 }
 
 sub help() {
@@ -155,14 +160,10 @@ sub arg_handler() {
 
     my %entry = (
                  'mac'      => "",
-                 'ip'       => "",
-                 'hostname' => "",
                 );
     @ARGV = @_;
     GetOptions(
                'mac=s'      => \$entry{'mac'},
-               'ip=s'       => \$entry{'ip'},
-               'hostname=s' => \$entry{'hostname'},
               );
 
     if ( scalar @ARGV ) {
@@ -170,20 +171,17 @@ sub arg_handler() {
         &help();
     }
 
-    if ($entry{'mac'} && ($entry{'ip'} || $entry{'hostname'})) {
-        print "Only one device identifier allowed (mac,ip,hostname)\n";
+    unless ( $entry{'mac'} ) {
+        print "--mac required\n";
     }
 
     my $deviceid = 0;
 
     if ($entry{'mac'}) {
         $deviceid = $entry{'mac'};
-    } elsif ($entry{'ip'}) {
-        $deviceid = $entry{'ip'};
-        $deviceid = &get_mac($deviceid, "ip", $dbh);
     } else {
-        $deviceid = $entry{'hostname'};
-        $deviceid = &get_mac($deviceid, "hostname", $dbh);
+        $LASTERROR = sprintf "\n--mac required\n";
+        return 1;
     }
 
     return( $deviceid );
@@ -205,6 +203,38 @@ sub check_command
         exit 1;
     }
 }
+
+sub add_stub() {
+
+    my $bmcref = shift;
+    @ARGV = @_;
+    GetOptions(
+               'mac=s'         => \$bmcref->{'mac'},
+               'ctype=s'       => \$bmcref->{'ctype'},
+               'login=s'       => \$bmcref->{'login'},
+               'passwd=s'      => \$bmcref->{'passwd'},
+               'bmcaddr=s'     => \$bmcref->{'bmcaddr'},
+               'node=s'        => \$bmcref->{'node'},
+               'other=s'       => \$bmcref->{'other'},
+               'alias=s'       => \$bmcref->{'alias'},
+               );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    } 
+
+    ## Check minimal required args
+    ## Should be broken out into ctype specific checks
+    unless ( ($bmcref->{'mac'}) && ($bmcref->{'login'}) && ($bmcref->{'passwd'}) && ($bmcref->{'ctype'} && ($bmcref->{'bmcaddr'}))  ) {
+        print "Required BMC args not provided ( ctype,mac,login,passwd,bmcaddr ).\n";
+    }
+
+    &add( $bmcref );
+
+    return 0;
+
+ }   
 
 die "ABSOLUTELY DOES NOT EXECUTE";
 
