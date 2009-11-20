@@ -36,9 +36,9 @@ baconfig add hardware --name default-HP \
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
 
-baconfig detail hardware default-ks &> /dev/null || \
-baconfig add hardware --name default-ks \
---description="default-ks" \
+baconfig detail hardware default-rhel &> /dev/null || \
+baconfig add hardware --name default-rhel \
+--description="default-rhel" \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=hda \
 --rootpart=hda \

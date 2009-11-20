@@ -80,7 +80,6 @@ sub cycle() {
 sub status() {
 
     my $bmc = shift;
-
     my $result = $cmds{ $bmc->{'ctype'} }($bmc, "status");
 
     return $result;
@@ -235,6 +234,7 @@ sub add_powerdb_entry() {
                     passwd,
                     node,
                     other,
+                    alias,
                   )
                  VALUES ( ?, ?, ?, ?, ?, ?, ? )
                 |;

@@ -291,13 +291,15 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
         $state = $macref->{state};
 
         if ( $state eq BA_DISABLED or
-             $state eq BA_DELETED  ) {
+             $state eq BA_BUILDING or   # BUILDING has 2nd stage reboot
+             $state eq BA_BUILT    or   # don't re-build forever
+             $state eq BA_DELETED  ) {  # use 'bahost enable' for READY rebuild
 
             ##
             ## LOCALBOOT
             ##
 
-            print STDERR "$input->{mac} - bahost entry deleted or disabled\n";
+            print STDERR "$input->{mac} - bahost entry building, built, deleted or disabled\n";
 
             &do_localboot( $cgi );  # exits
         }
@@ -308,10 +310,8 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
 
         if ( $state eq BA_FOUND    or
              $state eq BA_READY    or
-             $state eq BA_BUILT    or
              $state eq BA_SPOOFED  or
              $state eq BA_UPDATED  or
-             $state eq BA_BUILDING or
              $state eq BA_REGISTER ) {
 
             ##

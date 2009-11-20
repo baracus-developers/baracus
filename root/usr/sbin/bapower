@@ -121,7 +121,6 @@ sub main
     my $bmc = &get_bmc($deviceid, $dbh);
 
     $command = lc $command;
-
     $cmds{ $command }( $bmc ); 
 }
 

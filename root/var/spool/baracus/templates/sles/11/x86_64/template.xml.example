@@ -470,13 +470,12 @@ nameserver __DNS1__
   </networking>
   <scripts>
     <post-scripts config:type="list">
-      <script>
-        <filename>build_notify</filename>
-        <interpreter>shell</interpreter>
-        <source><![CDATA[wget http://__SERVERIP__/baracus/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></source>
-      </script>
     </post-scripts>
     <init-scripts config:type="list">
+      <script>
+        <filename>build_notify</filename>
+        <source><![CDATA[wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></source>
+      </script>
       __MODULE__
       <script>
         <filename>lsg_serial.sh</filename>
@@ -556,7 +555,6 @@ nameserver __DNS1__
     </patterns>
     <packages config:type="list">
       <package>kdump</package>
-      <package>kernel-kdump</package>
       <package>wget</package>
     </packages>
   </software>

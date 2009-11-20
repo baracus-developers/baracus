@@ -327,6 +327,7 @@ sub get_baracus_tables
           'bmcaddr' => 'VARCHAR(32)',
           'node'    => 'VARCHAR(32)',
           'other'   => 'VARCHAR(32)',
+          'alias'   => 'VARCHAR(32)',
          );
 
     tie( my %baracus_tbls, 'Tie::IxHash',
