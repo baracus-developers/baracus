@@ -1,4 +1,14 @@
 %changelog
+* Fri Nov 20 2009 dwestervelt@novell - 1.11
+- Initial release of bapower BMC power control command
+- currently supports IMPI
+- support on,off,cycle,status,add functions 
+* Fri Nov 20 2009 dbahi@novell - 1.10
+- a massive shift forward in functionality
+- http cgi based serving gpxe fetched boot files
+- cradle, read inventory, to grave, read dban, host building
+- baracus is basource, barepo, baconfig, bahost, and bapower
+- baracus is also a db, tftp server, boot manager with a web interface
 * Tue Jun 10 2009 dbahi@novell - 0.19
 - westervelt - added schema for distro, hardware, modules vs files
 - added code create_install_config to work distro, hardware, modules
