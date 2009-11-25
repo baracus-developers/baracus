@@ -51,6 +51,7 @@ test -f $PG_SYSCONFIG && . $PG_SYSCONFIG
 . /etc/rc.status
 
 eval DATADIR=${POSTGRES_DATADIR:-~baracus/pgsql/data}
+eval PGPORT=${POSTGRES_PORT:-5162}
 OPTIONS=${POSTGRES_OPTIONS}
 H=/usr/bin/postmaster
 test -x $H || exit 5
@@ -123,12 +124,12 @@ case "$1" in
 	echo -ne "Starting Baracusdb\n"
         ## remove old socket, if it exists and no daemon is running.
 	checkproc -p $PIDFILE $H || {
-		rm -f /tmp/.s.PGSQL.5432 $PIDFILE
+		rm -f /tmp/.s.PGSQL.$PGPORT $PIDFILE
 	}
 
 	## Start daemon with startproc(8). If this fails
 	## the echo return value is set appropriate.
-	pg_ctl start -s -w -p $H -D $DATADIR -o "\"$OPTIONS\""
+	pg_ctl start -s -w -p $H -D $DATADIR -o "\"-p $PGPORT $OPTIONS\""
 
     ## Baracus pathing could be in sysconfig
     ## make sure we have the expected role(s) and database(s) setup

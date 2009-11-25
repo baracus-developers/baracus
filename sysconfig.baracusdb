@@ -20,6 +20,15 @@ POSTGRES_DATADIR="~baracus/pgsql/data"
 #
 POSTGRES_OPTIONS=""
 
+## Description:    Baracus Database Port
+## Type:	   string()
+## Default:        ""
+## ServiceRestart: baracusdb
+#
+# The port given to the PostgreSQL master daemon on startup.
+#
+POSTGRES_PORT="5162"
+
 ## Description:    Baracus Database Locale
 ## Type:           string()
 ## Default:        "C"

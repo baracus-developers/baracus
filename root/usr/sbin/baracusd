@@ -72,7 +72,7 @@ print STDOUT "baracusd now running with uid: $>\n";
 
 # create and/or connect to our database to serve up TFTP files
 my $dbname = "sqltftp";
-my $dbsource = "DBI:Pg:dbname=$dbname";
+my $dbsource = "DBI:Pg:dbname=$dbname;port=5162";
 print STDOUT "dbsource   $dbsource\n";
 
 my $sqlfsOBJ = SqlFS->new( 'DataSource' => "$dbsource",

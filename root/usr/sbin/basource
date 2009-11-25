@@ -136,7 +136,7 @@ my $hashoftbls = get_baracus_tables();
 print "basource debug=$debug\n" if $debug;
 my $deepdebug = $debug > 2 ? 1 : 0;
 
-my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp",
+my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp;port=5162",
                            'User' => "baracus",
                            'debug' => $deepdebug )
     or die "Unable to create new instance of SqlFS\n";

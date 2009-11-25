@@ -21,7 +21,7 @@ my $built   = "$baDir{hooks}/verify_client_build_passed";
 my $spoofed = "$baDir{hooks}/verify_client_build_failed";
 
 my $dbh = DBI->connect
-    ("DBI:Pg:dbname=baracus",
+    ("DBI:Pg:dbname=baracus;port=5162",
      "wwwrun",
      "",
      {

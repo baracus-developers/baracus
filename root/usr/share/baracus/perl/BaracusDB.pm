@@ -74,7 +74,7 @@ sub connect_db
         return '';
     }
 
-    my $datasource = "$dsprefix=$dbase";
+    my $datasource = "$dsprefix=$dbase;port=5162";
 
     printf "\$datasource $datasource \$user %s \$pass %s\n",
         defined $user ? $user : "",
