@@ -18,7 +18,7 @@ Requires:  apache2, apache2-mod_perl, perl-Apache-DBI
 Requires:  perl, perl-XML-Simple, perl-libwww-perl, perl-Data-UUID
 Requires:  perl-Config-General, perl-Config-Simple, perl-AppConfig
 Requires:  perl-TermReadKey, perl-DBI, perl-DBD-Pg, perl-Tie-IxHash
-Requires:  rsync, dhcp-server, postgresql-server, createrepo
+Requires:  rsync, dhcp-server, postgresql-server, createrepo, fence
 %if 0%{?suse_version} < 1030
 Requires:  nfs-utils
 %else
