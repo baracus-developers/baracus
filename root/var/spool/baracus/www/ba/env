@@ -33,7 +33,7 @@ my $dbh = DBI->connect
      );
 
 my $tftph = DBI->connect
-    ("DBI:Pg:dbname=sqltftp",
+    ("DBI:Pg:dbname=sqltftp;port=5162",
      "wwwrun",
      "",
      {
