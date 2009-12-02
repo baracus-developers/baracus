@@ -34,10 +34,13 @@ B<bapower> E<lt>commandE<gt> [options]
 
 Where E<lt>commandE<gt> is
 
-    off    --mac=<mac> --ip=<ip> --hostname=<hostname>     poweroff hardware.
-    on     --mac=<mac> --ip=<ip> --hostname=<hostname>     poweron hardware.
-    cycle  --mac=<mac> --ip=<ip> --hostname=<hostname>     powercycle hardware.
-    status --mac=<mac> --ip=<ip> --hostname=<hostname>     power status.
+    off    --mac=<mac> --alias=alias    poweroff hardware.
+    on     --mac=<mac> --alias=alias    poweron hardware.
+    cycle  --mac=<mac> --alias=alias    powercycle hardware.
+    status --mac=<mac> --alias=alias    power status.
+    list   --mac=<mac>|--alias <alias>  List BMC entries
+    remove --mac=<mac>|--alias <alias>  Remove BMC entry
+    add    --mac=<mac> --bmcaddr=<bmc ip> --ctype <BMC type> --login <username> --passwd <password> --alias <alias>  Add BMC entry
 
     help                      This 'Usage' summary message.
     man                       Detailed man page.
@@ -71,6 +74,8 @@ my %cmds = (
             'cycle'  => \&cycle,
             'status' => \&status,
             'add'    => \&add_stub,
+            'remove' => \&remove_stub,
+            'list'   => \&list_stub,
             'help'   => \&help,
             'man'    => \&man,
             );
@@ -115,7 +120,7 @@ sub main
     $command = lc $command;
     &check_command( $command );
     
-    if ( ( $command eq "add") || ( $command eq "remove") || ( $command eq "update" ) ) {
+    if ( ( $command eq "add") || ( $command eq "remove") || ( $command eq "update" ) || ( $command eq "list" ) ) {
         $bmc->{'dbh'} = $dbh;
         $cmds{ $command }( $bmc, @_ );
     } else {
@@ -160,10 +165,12 @@ sub arg_handler() {
 
     my %entry = (
                  'mac'      => "",
+                 'alias'    => "",
                 );
     @ARGV = @_;
     GetOptions(
                'mac=s'      => \$entry{'mac'},
+               'alias=s'    => \$entry{'alias'},
               );
 
     if ( scalar @ARGV ) {
@@ -171,16 +178,19 @@ sub arg_handler() {
         &help();
     }
 
-    unless ( $entry{'mac'} ) {
-        print "--mac required\n";
+    if ( ($entry{'mac'}) && ($entry{'alias'}) ) {
+        $LASTERROR = sprintf "\n--mac and --alias not allowed together\n";
+        return 1;
     }
 
     my $deviceid = 0;
 
     if ($entry{'mac'}) {
         $deviceid = $entry{'mac'};
+    } elsif ($entry{'alias'}) {
+        $deviceid = &get_mac( $entry{'alias'}, $dbh );
     } else {
-        $LASTERROR = sprintf "\n--mac required\n";
+        $LASTERROR = sprintf "\n--mac or --alias required\n";
         return 1;
     }
 
@@ -199,9 +209,35 @@ sub check_command
     }
 
     unless ( defined $cmds{ $command } ) {
-        print "Invalid <command> '$command' please use:  $cmd_list\n";
-        exit 1;
+        $LASTERROR = sprintf "\nInvalid <command> '$command' please use:  $cmd_list\n";
+        return 1;
     }
+}
+
+sub remove_stub() {
+
+    my $bmcref = shift;
+    @ARGV = @_;
+    GetOptions(
+               'mac=s'         => \$bmcref->{'mac'},
+               'alias=s'       => \$bmcref->{'alias'},
+               );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    ## Check minimal required args
+    ## Should be broken out into ctype specific checks
+    unless ( ($bmcref->{'mac'}) ||  ($bmcref->{'alias'} )  ) {
+        $LASTERROR = sprintf "\nRequired BMC identifier not provided (mac or alias). \n";
+    }
+
+    &remove( $bmcref );
+
+    return 0;
+
 }
 
 sub add_stub() {
@@ -227,14 +263,46 @@ sub add_stub() {
     ## Check minimal required args
     ## Should be broken out into ctype specific checks
     unless ( ($bmcref->{'mac'}) && ($bmcref->{'login'}) && ($bmcref->{'passwd'}) && ($bmcref->{'ctype'} && ($bmcref->{'bmcaddr'}))  ) {
-        print "Required BMC args not provided ( ctype,mac,login,passwd,bmcaddr ).\n";
+        $LASTERROR = "Required BMC args not provided ( ctype,mac,login,passwd,bmcaddr ).\n";
+        return 1;
     }
 
     &add( $bmcref );
 
     return 0;
 
- }   
+}   
+
+sub list_stub() {
+
+    my $bmcref = shift;
+    @ARGV = @_;
+    GetOptions(
+               'mac=s'         => \$bmcref->{'mac'},
+               'alias=s'       => \$bmcref->{'alias'},
+               );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    print "--------------------------------------------------------------------------------------\n";
+    printf "%-8s %-16s %-18s %-18s %-16s %-16s ", "ctype", "bmcaddr", "mac", "alias", "node", "other";
+    print "\n";
+    print "--------------------------------------------------------------------------------------\n";
+
+    my $sth = &list_start( $bmcref );
+    my $href = $sth->fetchrow_hashref();
+    while  ($href ne "null") { 
+        printf "%-8s %-16s %-18s %-18s %-16s %-16s ", "$href->{'ctype'}", "$href->{'bmcaddr'}", "$href->{'mac'}", "$href->{'alias'}", "$href->{'node'}", "$href->{'other'}";
+        print "\n";
+        $href = &list_next( $sth );
+    }
+
+    return 0;
+
+}
 
 die "ABSOLUTELY DOES NOT EXECUTE";
 
