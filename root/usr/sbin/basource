@@ -1179,8 +1179,9 @@ sub verify_iso() {
 
     ## test directory for iso files
     if (! -d $baDir{builds}) {
-        print "Directory does not exist: $baDir{builds}\n";
-        exit(1);
+        print "Creating missing directory: $baDir{builds}\n";
+	mkdir $baDir{builds};
+#        exit(1);
     }
 
     print "Searching for required iso files ...\n" if ($verbose);

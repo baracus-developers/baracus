@@ -173,6 +173,10 @@ sub config_syslog
             or die ("Cannot create: $! \n");
     }
 
+    unless ( -f $logconf ) {
+        return;
+    }
+
     if ($baVar{rlogging} eq "yes") {
         print STDOUT "Enabling remote logging support in syslog-ng.conf\n";
         if ( enable_remote_logging( $logpath,
@@ -183,19 +187,26 @@ sub config_syslog
             print BaracusSYSLOG::error();
         }
 
+        unless ( -f $armorconf ) {
+            return;
+        }
+
         if ( enable_apparmor_logging( $logpath,
                                       $armorconf ) ) {
             system("rcapparmor restart");
         } else {
             print BaracusSYSLOG::error();
         }
-    }
-    else {
+    } else {
         print STDOUT "Disabling remote logging support in syslog-ng.conf\n";
         if ( disable_remote_logging( $logconf ) ) {
             system("rcsyslog restart");
         } else {
             print BaracusSYSLOG::error();
+        }
+
+        unless ( -f $armorconf ) {
+            return;
         }
 
         if ( disable_apparmor_logging( $logpath, $armorconf ) ) {
@@ -298,4 +309,3 @@ sub upcasepxefilename {
 die "ABSOLUTELY DOES NOT EXECUTE";
 
 __END__
-
