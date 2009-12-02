@@ -295,6 +295,8 @@ sub list_stub() {
     my $sth = &list_start( $bmcref );
     my $href = $sth->fetchrow_hashref();
     while  ($href ne "null") { 
+        $href->{'node'} =~ s/NULL//g;
+        $href->{'other'} =~ s/NULL//g;
         printf "%-8s %-16s %-18s %-18s %-16s %-16s ", "$href->{'ctype'}", "$href->{'bmcaddr'}", "$href->{'mac'}", "$href->{'alias'}", "$href->{'node'}", "$href->{'other'}";
         print "\n";
         $href = &list_next( $sth );
