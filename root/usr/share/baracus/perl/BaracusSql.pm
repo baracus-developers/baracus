@@ -8,60 +8,71 @@ use warnings;
 use Tie::IxHash;
 
 BEGIN {
-  use Exporter ();
-  use vars qw( @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
-  @ISA         = qw(Exporter);
-  @EXPORT      = qw();
-  @EXPORT_OK   = qw();
+    use Exporter ();
+    use vars qw( @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
+    @ISA         = qw(Exporter);
+    @EXPORT      = qw();
+    @EXPORT_OK   = qw();
 
-  %EXPORT_TAGS = (
-    states => [qw(
-        BA_DBMAXLEN
-        BA_READY
-        BA_BUILT
-        BA_SPOOFED
-        BA_DELETED
-        BA_UPDATED
-        BA_DISKWIPE
-        BA_DISABLED
-        BA_FOUND
-        BA_BUILDING
-        BA_WIPING
-        BA_WIPED
-        BA_WIPEFAIL
-        BA_REGISTER
-    )],
-    vars => [qw( %baState )],
-    subs => [qw(
-        keys2columns
-        hash2columns
-        get_sqltftp_tables
-        get_baracus_tables
-        get_baracus_functions
-        get_baracus_triggers
-    )],
-  );
-  Exporter::export_ok_tags('states');
-  Exporter::export_ok_tags('vars');
-  Exporter::export_ok_tags('subs');
+    %EXPORT_TAGS =
+        (
+         states =>
+         [qw(
+                BA_DBMAXLEN
+
+                BA_READY
+                BA_BUILT
+                BA_SPOOFED
+                BA_DELETED
+                BA_UPDATED
+                BA_DISKWIPE
+                BA_DISABLED
+                BA_FOUND
+                BA_BUILDING
+                BA_WIPING
+                BA_WIPED
+                BA_WIPEFAIL
+                BA_REGISTER
+                BA_ADDED
+                BA_LOCALBOOT
+                BA_NOPXE
+            )],
+         vars => [qw( %baState )],
+#                get_cols
+         subs =>
+         [qw(
+                keys2columns
+                hash2columns
+                get_sqltftp_tables
+                get_baracus_tables
+                get_baracus_functions
+                get_baracus_triggers
+            )],
+         );
+    Exporter::export_ok_tags('states');
+    Exporter::export_ok_tags('vars');
+    Exporter::export_ok_tags('subs');
 }
 
 # for sql binary file chunking 1MB blobs
 use constant BA_DBMAXLEN => 1048575;
 
-use constant BA_READY    => 1;
-use constant BA_BUILT    => 2;
-use constant BA_SPOOFED  => 3;
-use constant BA_DELETED  => 4;
-use constant BA_UPDATED  => 5;
-use constant BA_DISKWIPE => 6;
-use constant BA_DISABLED => 7;
-use constant BA_FOUND    => 8;
-use constant BA_BUILDING => 9;
-use constant BA_WIPING   => 10;
-use constant BA_WIPED    => 11;
-use constant BA_WIPEFAIL => 12;
-use constant BA_REGISTER => 13;
+use constant BA_READY     => 1;
+use constant BA_BUILT     => 2;
+use constant BA_SPOOFED   => 3;
+use constant BA_DELETED   => 4;
+use constant BA_UPDATED   => 5;
+use constant BA_DISKWIPE  => 6;
+use constant BA_DISABLED  => 7;
+use constant BA_FOUND     => 8;
+use constant BA_BUILDING  => 9;
+use constant BA_WIPING    => 10;
+use constant BA_WIPED     => 11;
+use constant BA_WIPEFAIL  => 12;
+use constant BA_REGISTER  => 13;
+use constant BA_ADDED     => 14;
+use constant BA_LOCALBOOT => 15;
+use constant BA_NOPXE     => 16;
 
 =item baState
 
@@ -73,46 +84,56 @@ use vars qw( %baState );
 
 %baState =
     (
-     1           => 'ready',
-     2           => 'built',
-     3           => 'spoofed',
-     4           => 'deleted',
-     5           => 'updated',
-     6           => 'diskwipe',
-     7           => 'disabled',
-     8           => 'found',
-     9           => 'building',
-     10          => 'wiping',
-     11          => 'wiped',
-     12          => 'wipefail',
-     13          => 'register',
-     BA_READY    => 'ready',
-     BA_BUILT    => 'built',
-     BA_SPOOFED  => 'spoofed',
-     BA_DELETED  => 'deleted',
-     BA_UPDATED  => 'updated',
-     BA_DISKWIPE => 'diskwipe',
-     BA_DISABLED => 'disabled',
-     BA_FOUND    => 'found',
-     BA_BUILDING => 'building',
-     BA_WIPING   => 'wiping',
-     BA_WIPED    => 'wiped',
-     BA_WIPEFAIL => 'wipefail',
-     BA_REGISTER => 'register',
-     'ready'     => BA_READY,
-     'built'     => BA_BUILT,
-     'spoofed'   => BA_SPOOFED,
-     'deleted'   => BA_DELETED,
-     'updated'   => BA_UPDATED,
-     'diskwipe'  => BA_DISKWIPE,
-     'disabled'  => BA_DISABLED,
-     'found'     => BA_FOUND,
-     'building'  => BA_BUILDING,
-     'wiping'    => BA_WIPING,
-     'wiped'     => BA_WIPED,
-     'wipefail'  => BA_WIPEFAIL,
-     'register'  => BA_REGISTER,
+     1            => 'ready',
+     2            => 'built',
+     3            => 'spoofed',
+     4            => 'deleted',
+     5            => 'updated',
+     6            => 'diskwipe',
+     7            => 'disabled',
+     8            => 'found',
+     9            => 'building',
+     10           => 'wiping',
+     11           => 'wiped',
+     12           => 'wipefail',
+     13           => 'register',
+     14           => 'added',
+     15           => 'localboot',
+     16           => 'nopxe',
+     BA_READY     => 'ready',
+     BA_BUILT     => 'built',
+     BA_SPOOFED   => 'spoofed',
+     BA_DELETED   => 'deleted',
+     BA_UPDATED   => 'updated',
+     BA_DISKWIPE  => 'diskwipe',
+     BA_DISABLED  => 'disabled',
+     BA_FOUND     => 'found',
+     BA_BUILDING  => 'building',
+     BA_WIPING    => 'wiping',
+     BA_WIPED     => 'wiped',
+     BA_WIPEFAIL  => 'wipefail',
+     BA_REGISTER  => 'register',
+     BA_ADDED     => 'added',
+     BA_LOCALBOOT => 'localboot',
+     BA_NOPXE     => 'nopxe',
+     'ready'      => BA_READY,
+     'built'      => BA_BUILT,
+     'spoofed'    => BA_SPOOFED,
+     'deleted'    => BA_DELETED,
+     'updated'    => BA_UPDATED,
+     'diskwipe'   => BA_DISKWIPE,
+     'disabled'   => BA_DISABLED,
+     'found'      => BA_FOUND,
+     'building'   => BA_BUILDING,
+     'wiping'     => BA_WIPING,
+     'wiped'      => BA_WIPED,
+     'wipefail'   => BA_WIPEFAIL,
+     'register'   => BA_REGISTER,
+     'added'      => BA_ADDED,
+     'localboot'  => BA_LOCALBOOT,
+     'nopxe'      => BA_NOPXE,
      );
+
 
 =item keys2columns
 
@@ -183,21 +204,24 @@ sub get_baracus_tables
     my $tbl_mac = "mac";
     my %tbl_mac_cols =
         (
-         'mac'      => 'VARCHAR(17) PRIMARY KEY',
-         'state'    => 'INTEGER',     # last state
-         'ready'    => 'TIMESTAMP',
-         'built'    => 'TIMESTAMP',
-         'spoofed'  => 'TIMESTAMP',
-         'deleted'  => 'TIMESTAMP',
-         'updated'  => 'TIMESTAMP',
-         'diskwipe' => 'TIMESTAMP',
-         'disabled' => 'TIMESTAMP',
-         'found'    => 'TIMESTAMP',
-         'building' => 'TIMESTAMP',
-         'wiping'   => 'TIMESTAMP',
-         'wiped'    => 'TIMESTAMP',
-         'wipefail' => 'TIMESTAMP',
-         'register' => 'TIMESTAMP',
+         'mac'       => 'VARCHAR(17) PRIMARY KEY',
+         'state'     => 'INTEGER',     # last state
+         'ready'     => 'TIMESTAMP',
+         'built'     => 'TIMESTAMP',
+         'spoofed'   => 'TIMESTAMP',
+         'deleted'   => 'TIMESTAMP',
+         'updated'   => 'TIMESTAMP',
+         'diskwipe'  => 'TIMESTAMP',
+         'disabled'  => 'TIMESTAMP',
+         'found'     => 'TIMESTAMP',
+         'building'  => 'TIMESTAMP',
+         'wiping'    => 'TIMESTAMP',
+         'wiped'     => 'TIMESTAMP',
+         'wipefail'  => 'TIMESTAMP',
+         'register'  => 'TIMESTAMP',
+         'added'     => 'TIMESTAMP',
+         'localboot' => 'TIMESTAMP',
+         'nopxe'     => 'TIMESTAMP',
          );
 
     my $tbl_templateid = "templateid";
@@ -210,8 +234,10 @@ sub get_baracus_tables
          'loghost'  => 'VARCHAR(32)',
          'raccess'  => 'VARCHAR(128)',
          'autonuke' => 'BOOLEAN',
-         'pxestate' => 'INTEGER',
-         'state'    => 'INTEGER',
+         'pxestate' => 'INTEGER',      # follows admin state - unless autodisable
+         'admin'    => 'INTEGER',      # admin ready / disabled
+         'pxenext'  => 'INTEGER',      # next state / action on pxeboot
+         'oper'     => 'INTEGER',      # operational state independent of admin
          'cmdline'  => 'VARCHAR(1024)',
          'creation' => 'TIMESTAMP',
          'change'   => 'TIMESTAMP',
@@ -228,7 +254,9 @@ sub get_baracus_tables
          'raccess'  => 'VARCHAR(128)',
          'autonuke' => 'BOOLEAN',
          'pxestate' => 'INTEGER',
-         'state'    => 'INTEGER',
+         'admin'    => 'INTEGER',
+         'pxenext'  => 'INTEGER',
+         'oper'     => 'INTEGER',
          'cmdline'  => 'VARCHAR(1024)',
          'creation' => 'TIMESTAMP',
          'change'   => 'TIMESTAMP',
@@ -305,7 +333,7 @@ sub get_baracus_tables
          'description' => 'VARCHAR(64)',
          'data'        => 'VARCHAR',
          'status'      => 'BOOLEAN',
-         'CONSTRAINT'  => 'proflie_cfg_pk PRIMARY KEY (profileid, version)',
+         'CONSTRAINT'  => 'profile_cfg_pk PRIMARY KEY (profileid, version)',
          );
 
     my $tbl_build_cfg = "build";
@@ -352,18 +380,24 @@ sub get_baracus_functions
 RETURNS TRIGGER AS $template_state_trigger$
     DECLARE
         new_hostname VARCHAR;
-        new_ip VARCHAR;
-        new_mac VARCHAR;
-        new_uuid VARCHAR;
-        new_state INTEGER;
-        new_cmdline VARCHAR;
+        new_ip       VARCHAR;
+        new_mac      VARCHAR;
+        new_uuid     VARCHAR;
+        new_pxestate INTEGER;
+        new_admin    INTEGER;
+        new_pxenext  INTEGER;
+        new_oper     INTEGER;
+        new_cmdline  VARCHAR;
         new_creation TIMESTAMP;
     BEGIN
     INSERT INTO templateidhist ( hostname,
                                  ip,
                                  mac,
                                  uuid,
-                                 state,
+                                 pxestate,
+                                 admin,
+                                 pxenext,
+                                 oper,
                                  cmdline,
                                  creation,
                                  change )
@@ -371,7 +405,10 @@ RETURNS TRIGGER AS $template_state_trigger$
              NEW.ip,
              NEW.mac,
              NEW.uuid,
-             NEW.state,
+             NEW.pxestate,
+             NEW.admin,
+             NEW.pxenext,
+             NEW.oper,
              NEW.cmdline,
              NEW.creation,
              CURRENT_TIMESTAMP(0) );
@@ -384,18 +421,24 @@ $template_state_trigger$ LANGUAGE 'plpgsql';
 RETURNS TRIGGER AS $template_state_trigger$
     DECLARE
         new_hostname VARCHAR;
-        new_ip VARCHAR;
-        new_mac VARCHAR;
-        new_uuid VARCHAR;
-        new_state INTEGER;
-        new_cmdline VARCHAR;
+        new_ip       VARCHAR;
+        new_mac      VARCHAR;
+        new_uuid     VARCHAR;
+        new_pxestate INTEGER;
+        new_admin    INTEGER;
+        new_pxenext  INTEGER;
+        new_oper     INTEGER;
+        new_cmdline  VARCHAR;
         new_creation TIMESTAMP;
     BEGIN
     INSERT INTO templateidhist ( hostname,
                                  ip,
                                  mac,
                                  uuid,
-                                 state,
+                                 pxestate,
+                                 admin,
+                                 pxenext,
+                                 oper,
                                  cmdline,
                                  creation,
                                  change )
@@ -403,7 +446,10 @@ RETURNS TRIGGER AS $template_state_trigger$
              NEW.ip,
              NEW.mac,
              NEW.uuid,
-             NEW.state,
+             NEW.pxestate,
+             NEW.admin,
+             NEW.pxenext,
+             NEW.oper,
              NEW.cmdline,
              NEW.creation,
              CURRENT_TIMESTAMP(0) );

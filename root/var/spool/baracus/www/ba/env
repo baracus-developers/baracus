@@ -309,6 +309,7 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
         $hardref = &get_hardware( $dbh, $bref );
 
         if ( $state eq BA_FOUND    or
+             $state eq BA_ADDED    or
              $state eq BA_READY    or
              $state eq BA_SPOOFED  or
              $state eq BA_UPDATED  or
@@ -326,13 +327,9 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
 
             my $args;
 
-            if ( $distref->{os} eq "opensuse" ) {
-                $args = qq|textmode=1 install=$distref->{sharetype}://$distref->{shareip}$distref->{basepath}/dvd autoyast=http://$baVar{serverip}/ba/auto\?mac=$input->{mac}|;
-#                $args = qq|textmode=1 install=$distref->{sharetype}://$distref->{shareip}$distref->{basepath}/dvd|;
-
-            }
-            elsif ( $distref->{os} eq "sles" or
-                    $distref->{os} eq "sled" ) {
+            if ( $distref->{os} eq "opensuse" or
+                 $distref->{os} eq "sles"     or
+                 $distref->{os} eq "sled"   ) {
                 $args = qq|textmode=1 install=$distref->{sharetype}://$distref->{shareip}$distref->{basepath} autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
 
 

@@ -2131,6 +2131,7 @@ sub get_distro_sdk
 
     foreach my $addon ( @addons ) {
         return $addon if ($addon =~ /\-sdk\-/);
+        return $addon if ($addon =~ /\-nonoss\-/);
     }
     return undef;
 }
@@ -2153,11 +2154,11 @@ sub get_distro_share
         $share = $dh->{basedisthash}->{distpath};
         $name  = "$dh->{basedist}_server";
     }
-    elsif ( $distro =~ /opensuse-/  ) {
-        my $dh = &baxml_distro_gethash( $distro );
-        $share = $dh->{basedisthash}->{distpath};
-        $name  = "$dh->{basedist}_server";
-    }
+#    elsif ( $distro =~ /opensuse-/  ) {
+#        my $dh = &baxml_distro_gethash( $distro );
+#        $share = $dh->{basedisthash}->{distpath};
+#        $name  = "$dh->{basedist}_server";
+#    }
     else {
         my @prods = &baxml_products_getlist( $distro );
         if ( scalar @prods > 1 ) {

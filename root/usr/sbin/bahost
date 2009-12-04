@@ -11,6 +11,9 @@ use SqlFS;
 use BaracusDB;
 use BaracusSql qw( :vars :subs :states );
 use BaracusConfig qw( :vars );
+use BaracusAux qw( :subs );
+use BaracusHost qw( :vars :subs :events );
+
 
 =pod
 
@@ -73,18 +76,7 @@ my $execname = $0;
 $execname = $1 if ( $0 =~ m|^.*/([^/].+)| );
 my $cmdline = join '::', $execname, @ARGV;
 
-my %tbl = (
-           'host'      => 'templateid',
-           'profile'   => 'profile_cfg',
-           'distro'    => 'distro_cfg',
-           'hardware'  => 'hardware_cfg',
-           'module'    => 'module_cfg',
-           'modcert'   => 'module_cert_cfg',
-           'history'   => 'templateidhist',
-           'oscert'    => 'hardwareid',
-           'build'     => 'build',
-           'mac'       => 'mac',
-           );
+my %tbl = %bahost_tbls;
 
 my %cmds = (
             'add'      => \&add,
@@ -110,6 +102,10 @@ my %sdks = (
             'sles-11-i586'     => 'sles-11-sdk-i586',
             'sles-10.2-x86_64' => 'sles-10.2-sdk-x86_64',
             'sles-10.2-i386'   => 'sles-10.2-sdk-i386',
+            'opensuse-11.1-x86_64' => 'opensuse-11.1-nonoss-x86_64',
+            'opensuse-11.1-i586'   => 'opensuse-11.1-nonoss-i586',
+            'opensuse-11.2-x86_64' => 'opensuse-11.2-nonoss-x86_64',
+            'opensuse-11.2-i586'   => 'opensuse-11.2-nonoss-i586',
             );
 
 &man()  if $man;
@@ -341,14 +337,14 @@ sub add
     # if one exists
     #    and it is deleted we overwrite
     #    and it is not deleted we exit
-    $dbref = &get_db_host_entry( $hostname );
+    $dbref = &get_db_host_entry( $dbh, $hostname );
     if ( defined $dbref ) {
         print "Attempt to add over a non-deleted entry for $hostname\n";
         exit 1;
     }
 
     # get any existing db entry - with same MAC
-    $dbref = &get_db_host_by_mac( $mac );
+    $dbref = &get_db_host_by_mac( $dbh, $mac );
     if ( defined $dbref ) {
         print "Attempt to add entry with mac identical to entry $dbref->{hostname}\n";
         exit 1;
@@ -572,8 +568,10 @@ sub add
     $hash{'basedist'} = "$href->{'os'}-$href->{'release'}-$href->{'arch'}";
     $hash{'initrd'} = "initrd.$hash{'basedist'}";
     $hash{'kernel'} = "linux.$hash{'basedist'}";
-    $hash{'state'} = BA_READY ;
+    $hash{'admin'} = BA_READY ;
     $hash{'pxestate'} = BA_READY;
+    $hash{'oper'} = BA_READY;     # will correct later - this is 'mac' state
+    $hash{'pxenext'} = BA_READY;  # will correct later - this is next pxe menu
     $hash{'autonuke'} = 'f';
 
     if ( $baVar{remote_logging} eq "yes" ) {
@@ -608,13 +606,15 @@ sub add
 #    &add_pxeboot( $href );
     &add_autoyast( $href );
 
-    &add_db_host_entry( $href );
-    my $macref = get_db_mac( $href->{mac} );
-    if ( defined $macref ) {
-        &update_db_mac_state( $href->{mac}, BA_READY, 'ready' );
-    } else {
-        &add_db_mac( $href->{mac}, BA_READY, 'ready' );
+    my $macref = get_db_mac( $dbh, $href->{mac} );
+    unless ( defined $macref ) {
+        &add_db_mac( $dbh, $href->{mac}, BA_ADDED, 'added' );
+        $macref = get_db_mac( $dbh, $href->{mac} );
     }
+
+    manage_host_states( $dbh, BA_EVENT_ADD, $macref, $href );
+
+    &add_db_host_entry( $dbh, $href );
     print "Added $hostname template \n";
 
     return 0;
@@ -666,12 +666,14 @@ sub wipe
         &help( $command );
     }
 
-    my $dbref = &get_db_host_entry( $hostname );
+    my $dbref = &get_db_host_entry( $dbh, $hostname );
 
     unless ( defined $dbref ) {
         $LASTERROR = "Unable to find template for $hostname\n";
         return 1;
     }
+
+    $dbref->{cmdline} = $cmdline;
 
     if ( $debug > 1 ) {
         while ( my ($key, $val) = each %{$dbref} ) {
@@ -681,7 +683,7 @@ sub wipe
 
     my $bootmac = &bootmac( $dbref->{'mac'} );
 
-    my $macref = &get_db_mac( $dbref->{'mac'} );
+    my $macref = &get_db_mac( $dbh, $dbref->{'mac'} );
 
     unless ( defined $macref ) {
         $LASTERROR = "Unable to find mac $dbref->{mac} entry for $hostname\n";
@@ -690,64 +692,19 @@ sub wipe
 
     my $autostring = $autowipe ? "auto" : "";
 
-    # copy dban over mac template for host in sqltftpd server
-
     # print coding example of 'constant' usage if debug
     print "$baState{ BA_DISKWIPE } = " .
         BA_DISKWIPE . "\n" if ( $debug > 1 );
 
-#    # if state is already 'wipe' and right 'nuke' don't do it all again
-#    if ( $macref->{'state'} == BA_DISKWIPE ) {
-#        print "Entering check where already in 'diskwipe' state\n" if $debug;
-#        my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
-#        print "using tempdir $tdir\n" if ($debug > 1);
-#        if ( $sqlfsOBJ->fetch( "$tdir/$bootmac" ) ) {
-#            $LASTERROR = $sqlfsOBJ->error();
-#            rmdir $tdir;
-#            return 1;
-#        }
-#        my $fh;
-#        open ( $fh, "<", "$tdir/$bootmac" ) or die "Unable to open: $!\n";
-#        my $tbootmac = join '', <$fh>;
-#        close $fh;
-#        print "removing tempdir $tdir\n" if ($debug > 1);
-#        rmdir $tdir;
-#        print $bootmac if ( $debug > 1 );
-#        my $isautonuke = ( $tbootmac =~ m|autonuke| ) ? 1 : 0;
-#        print "isautonuke: $isautonuke and autowipe $autowipe\n" if $debug;
-#        unless( ( $isautonuke && (not $autowipe) ) or
-#                ( (not $isautonuke) && $autowipe ) ) {
-#            $LASTERROR = "Host entry for $hostname already set to ${autostring}wipe.\n";
-#            return 1;
-#        }
-#    }
-
-    # noautowipe is the safe default - change only if --autowipe passed.
-#    my $autofile = "pxetemplate-noautowipe.dban";
-#    $autofile = "pxetemplate-autowipe.dban" if ( $autowipe );
-
-#    if ( $sqlfsOBJ->internalDataCopy( $autofile, $bootmac ) ) {
-#        die "Cannot update host to dban wipe\n" . $sqlfsOBJ->error();
-#    }
-
-#    if ( $sqlfsOBJ->update( { 'name' => $bootmac,
-#                              'enabled' => 1,  # boolean enable/disable
-#                              'description' =>
-#                              "pxeboot dban ${autostring}wipe" } ) ) {
-#        die "Unable to set status to enable for dban wipe\n" . $sqlfsOBJ->error();
-#    }
-
     if ( $dbref->{autonuke} != $autowipe or
-         $dbref->{'state'} != BA_DISKWIPE
+         $dbref->{'admin'} != BA_DISKWIPE
         )
     {
-        $dbref->{'state'} = BA_DISKWIPE;
+        # ensure that we serve up the wipe menu
+        $dbref->{pxestate} = BA_READY;
         $dbref->{autonuke} = $autowipe;
-        &update_db_host_entry( $dbref );
-    }
-
-    if ( $macref->{'state'} != BA_DISKWIPE ) {
-        &update_db_mac_state( $dbref->{mac}, BA_DISKWIPE, 'diskwipe' );
+        manage_host_states( $dbh, BA_EVENT_WIPE, $macref, $dbref );
+        &update_db_host_entry( $dbh, $dbref );
     }
     print "Next pxeboot harddrive of $hostname will be ${autostring}wiped.\n";
 
@@ -789,11 +746,19 @@ sub remove() {
     }
 
     if ( $hostname ) {
-        my $dbref = &get_db_host_entry( $hostname );
+        my $dbref = &get_db_host_entry( $dbh, $hostname );
         unless ( defined $dbref ) {
             $LASTERROR = "Unable to find template for $hostname\n";
             return 1;
         }
+
+        my $macref = &get_db_mac( $dbh, $dbref->{mac} );
+        unless ( defined $macref ) {
+            $LASTERROR = "Unable to find entry for $mac\n";
+            return 1;
+        }
+
+        $dbref->{cmdline} = $cmdline;
 
         if ( $debug > 1 ) {
             while ( my ($key, $val) = each %{$dbref} ) {
@@ -802,14 +767,6 @@ sub remove() {
         }
 
         # remove files from sqlfstable for sqltftpd server
-
-        #    my $bootmac = &bootmac( $dbref->{'mac'} );
-        #
-        #    if ( $sqlfsOBJ->find( "$bootmac" ) ) {
-        #        if ( $sqlfsOBJ->remove( "$bootmac" ) ) {
-        #            warn "failed to remove $bootmac from sqlfs\n";
-        #        }
-        #    }
 
         my $automac = &automac( $dbref->{'mac'} );
 
@@ -820,29 +777,29 @@ sub remove() {
         }
 
         # for proper command history update we 'update' to deleted state
-        $dbref->{'state'} = BA_DELETED;
-        &update_db_host_entry( $dbref );
-
-        &update_db_mac_state( $dbref->{mac}, BA_DELETED, 'deleted');
-
-        &remove_db_host_entry( $hostname );
+        manage_host_states($dbh, BA_EVENT_REMOVE, $macref, $dbref );
+        &update_db_host_entry( $dbh, $dbref ); # for the templateidhist
+        &remove_db_host_entry( $dbh, $hostname );
         print "Removed $hostname template\n";
     }
     else
     {
         $mac = &check_mac( $mac );
-        my $dbref = &get_db_host_by_mac( $mac );
-        if ( defined $dbref ) {
-            $LASTERROR = "Will not remove by --mac for device with host template\n";
-            return 1;
-        }
-        my $macref = &get_db_mac( $mac );
+
+        my $macref = &get_db_mac( $dbh, $mac );
         unless ( defined $macref ) {
             $LASTERROR = "Unable to find entry for $mac\n";
             return 1;
         }
 
-        &remove_db_mac( $mac );
+        my $dbref = &get_db_host_by_mac( $dbh, $mac );
+        if ( defined $dbref ) {
+            $LASTERROR = "Will not remove by --mac for device with host template\n";
+            return 1;
+        }
+        # we don't have a dbref for the template id
+        manage_host_states( $dbh, BA_EVENT_REMOVE, $macref );
+        &remove_db_mac( $dbh, $mac );
         print "Removed $mac from found db\n";
     }
     return 0;
@@ -865,6 +822,7 @@ Options
   --mac <addr>             exact mac to lookup
   --verbose                output more details related to tftp files
                            for build template.
+  --status                 when listing macs show all associated states
 
 =cut
 
@@ -875,12 +833,14 @@ sub list
 
     my $hostname;
     my $mac;
+    my $status = 0;
 
     @ARGV = @_;
 
     GetOptions(
                'hostname=s'     => \$hostname,
                'mac=s'          => \$mac,
+               'status'         => \$status,
                );
 
     if ( scalar @ARGV ) {
@@ -916,7 +876,7 @@ sub list
 
         unless ( $quiet || $nolabels ) {
             print "--------------------------------------------------------------------------------\n";
-            printf "%-16s %-10s  ", "hostname", "sts";
+            printf "%-17s %-9s ", "hostname", "state";
             if ( $verbose ) {
                 printf "distro  hardware  tftp\n";
             } else {
@@ -932,7 +892,7 @@ sub list
 #            my $bootmac = &bootmac( $href->{'mac'} );
             my $automac = &automac( $dbref->{'mac'} );
 
-            my $macref = &get_db_mac( $dbref->{'mac'} );
+            my $macref = &get_db_mac( $dbh, $dbref->{'mac'} );
 
             my $sel;
 #            $sel = $sqlfsOBJ->detail( $bootmac );
@@ -955,11 +915,11 @@ sub list
 
             # at some point we need logic for the state of the host entry
             # and the state of the related tftp files for 'verified' reporting.
-            printf "%-16s ", $dbref->{'hostname'};
+            printf "%-17s ", $dbref->{'hostname'};
             unless ( $quiet ) {
-                printf "%-8s  ", $baState{ $macref->{'state'} };
+                printf "%-9s ", $baState{ $macref->{'state'} };
                 if ( $verbose ) {
-                    my $href = &get_db_build_by_host( $dbref->{hostname} );
+                    my $href = &get_db_build_by_host( $dbh, $dbref->{hostname} );
                     printf "%s  %s  ", $href->{distroid}, $href->{hardwareid};
                     printf "pxe $pxestate %s $autostate", $automac;
 #                    printf "%s $pxestate  %s $autostate", $bootmac, $automac;
@@ -987,10 +947,13 @@ sub list
             #
             # hostname ip mac uuid state cmdline creation change
             print "$dbref->{'change'} ";
-            printf "%-16s ", $dbref->{'hostname'} ;
+            printf "%-17s ", $dbref->{'hostname'} ;
             printf "%-15s ", $dbref->{'ip'} ;
             printf "%17s ", $dbref->{'mac'} ;
-            printf "%-8s ", $baState{ $dbref->{'state'} };
+            printf "%-9s ", $baState{ $dbref->{'admin'} };
+            printf "%-9s ", $baState{ $dbref->{'oper'} };
+            printf "%-9s ", $baState{ $dbref->{'pxenext'} };
+            printf "%-9s ", $baState{ $dbref->{'pxestate'} };
             print "$dbref->{'uuid'} " if $verbose;
             print "$dbref->{'creation'} " if $verbose;
             print "\n";
@@ -1011,36 +974,70 @@ sub list
         ## List macs and show state and when time of that state
         ##
 
-        unless ( $quiet || $nolabels ) {
+        if ( $status )
+        {
             print "--------------------------------------------------------------------------------\n";
             if ( $verbose ) {
                 printf "%-20s", "time ";
             }
-            printf "%-17s %-8s %-16s %-24s %-16s\n", "mac", "sts", "hostname", "distro", "hardware";
+            printf "%-17s %-9s %-9s %-9s %-9s %-9s\n",
+                "mac", "state", "admin", "oper", "pxenext", "pxestate";
+            print "--------------------------------------------------------------------------------\n";
+        }
+        elsif (not ( $quiet or $nolabels ) ) {
+            print "--------------------------------------------------------------------------------\n";
+            if ( $verbose ) {
+                printf "%-20s", "time ";
+            }
+            printf "%-17s %-9s %-16s %-24s %s\n", "mac", "state", "hostname", "distro", "hardware";
             print "--------------------------------------------------------------------------------\n";
         }
 
         while ( $dbref = &db_list_next( $sth ) ) {
-            #
-            # mac status dbref->{ status as string }
-            my $hname = "";
-            if ( defined $dbref->{'hostname'} and $dbref->{'hostname'} ne "") {
-                $hname = $dbref->{'hostname'};
-            }
-            my $dist = "";
-            if ( defined $dbref->{'distroid'} and $dbref->{'distroid'} ne "") {
-                $dist = $dbref->{'distroid'};
-            }
-            my $hard = "";
-            if ( defined $dbref->{'hardwareid'} and $dbref->{'hardwareid'} ne "") {
-                $hard = $dbref->{'hardwareid'};
-            }
+
             my $state_str = $baState{ $dbref->{state} };
 
             if ( $verbose ) {
                 printf "%-20s", $dbref->{ $state_str };
             }
-            printf "%-17s %-8s %-16s %-24s %-16s\n", $dbref->{'mac'}, $state_str, $hname, $dist, $hard;
+
+            printf "%-18s", $dbref->{'mac'};
+
+            if ( $status ) {
+                my $admin_str   = "" ;
+                my $oper_str    = "" ;
+                my $pxenext_str = "" ;
+                my $pxestate    = "" ;
+                $admin_str   = $baState{ $dbref->{admin}   } if $dbref->{admin};
+                $oper_str    = $baState{ $dbref->{oper}    } if $dbref->{oper};
+                $pxenext_str = $baState{ $dbref->{pxenext} } if $dbref->{pxenext};
+                if ( $dbref->{pxestate} ) {
+                    $pxestate = $dbref->{pxestate} eq BA_READY ?
+                        "enabled" : "disabled";
+                }
+                printf "%-9s %-9s %-9s %-9s %-9s\n", $state_str, $admin_str, $oper_str, $pxenext_str, $pxestate;
+            }
+            else {
+                #
+                # mac status dbref->{ status as string }
+                my $hname = "";
+                if ( defined $dbref->{'hostname'} and
+                     $dbref->{'hostname'} ne "") {
+                    $hname = $dbref->{'hostname'};
+                }
+                my $dist = "";
+                if ( defined $dbref->{'distroid'} and
+                     $dbref->{'distroid'} ne "") {
+                    $dist = $dbref->{'distroid'};
+                }
+                my $hard = "";
+                if ( defined $dbref->{'hardwareid'} and
+                     $dbref->{'hardwareid'} ne "") {
+                    $hard = $dbref->{'hardwareid'};
+                }
+
+                printf "%-9s %-16s %-24s %s\n", $state_str, $hname, $dist, $hard;
+            }
         }
     }
     &db_list_finish( $sth );
@@ -1087,12 +1084,14 @@ sub _enable_disable_
         &help( $command );
     }
 
-    my $dbref = &get_db_host_entry( $hostname );
+    my $dbref = &get_db_host_entry( $dbh, $hostname );
 
     unless ( defined $dbref ) {
         $LASTERROR = "Unable to find template for $hostname\n";
         return 1;
     }
+
+    $dbref->{cmdline} = $cmdline;
 
     if ( $debug > 1 ) {
         while ( my ($key, $val) = each %{$dbref} ) {
@@ -1100,7 +1099,7 @@ sub _enable_disable_
         }
     }
 
-    my $macref = &get_db_mac( $dbref->{mac} );
+    my $macref = &get_db_mac( $dbh, $dbref->{mac} );
 
     unless ( defined $macref ) {
         $LASTERROR = "Unable to find mac $dbref->{mac} entry for $hostname\n";
@@ -1117,20 +1116,6 @@ sub _enable_disable_
 
     my $sel;
 
-    # pxeboot tftp file name
-#    my $bootmac = &bootmac( $dbref->{'mac'} );
-
-#    $sel = $sqlfsOBJ->detail( $bootmac );
-#    if ( defined $sel && $sel->{'enabled'} != $enabled ) {
-#        if ( $sqlfsOBJ->update( { 'name' => $bootmac,
-#                                  'enabled' => $enabled,
-#                                  'description' => "pxeboot bahost ${command}d",
-#                                 } ) ) {
-#            die "Unable to update status for tftp file $bootmac\n" .
-#                $sqlfsOBJ->error();
-#        }
-#    }
-
     # autoyast tftp file name
     my $automac = &automac( $dbref->{'mac'} );
 
@@ -1145,18 +1130,14 @@ sub _enable_disable_
         }
     }
 
-#    # if state is 'wipe' or same as $state do not continue - with host entry
-#    if ( $macref->{'state'} == BA_DISKWIPE or
-#         $dbref->{'pxestate'} == $baState{ $state } ) {
-#        print "Build template for $hostname is '" .
-#            $baState{ $dbref->{'pxestate'} } .
-#                "' and status is '" . $baState{ $macref->{'state'} }
-#                    . "' and will not be modified\n";
-#        return 0;
-#    } else {
-        $dbref->{'pxestate'} = $baState{ $state };
-        &update_db_host_entry( $dbref );
-#    }
+    $dbref->{'pxestate'} = $baState{ $state };
+    if ( $state eq "ready" ) {
+        manage_host_states( $dbh, BA_EVENT_ENABLE, $macref, $dbref );
+    }
+    else {
+        manage_host_states( $dbh, BA_EVENT_DISABLE, $macref, $dbref );
+    }
+    &update_db_host_entry( $dbh, $dbref );
 
     print "State of $hostname serving pxeboot and related files now ${command}d \n";
 
@@ -1233,7 +1214,10 @@ sub db_list_start
                         ip,
                         mac,
                         uuid,
-                        state,
+                        pxestate,
+                        admin,
+                        pxenext,
+                        oper,
                         cmdline,
                         creation,
                         change
@@ -1241,24 +1225,17 @@ sub db_list_start
                  WHERE hostname LIKE ?|;
     } elsif ( $type eq "macs" ) {
 
+        my $maccols = lc get_cols( $tbl{'mac'} );
+        $maccols = join "mac.", (split('\s', $maccols));
+
         $filter = $mac;
         $sql = qq|SELECT
-                  mac.mac,
-                  mac.state,
-                  mac.ready,
-                  mac.built,
-                  mac.spoofed,
-                  mac.deleted,
-                  mac.updated,
-                  mac.diskwipe,
-                  mac.disabled,
-                  mac.found,
-                  mac.building,
-                  mac.wiping,
-                  mac.wiped,
-                  mac.wipefail,
-                  mac.register,
+                  $maccols,
                   templateid.hostname,
+                  templateid.admin,
+                  templateid.oper,
+                  templateid.pxestate,
+                  templateid.pxenext,
                   build.distroid,
                   build.hardwareid
                   FROM mac
@@ -1375,288 +1352,6 @@ sub db_get_mandatory
     return $m_modules;
 }
 
-# These _db_ entry routines collect the host template db table interface
-
-sub add_db_host_entry() {
-
-    my $HashRef = shift @_;
-    my %Hash = %$HashRef;
-
-    my @fields = qw|hostname ip mac uuid loghost raccess autonuke pxestate state cmdline|;
-    my $fields = join(', ', @fields);
-    my $values = join(', ', (map { $dbh->quote($_) } @Hash{@fields}));
-    $fields .= ", creation, change";
-    $values .= ", CURRENT_TIMESTAMP(0), CURRENT_TIMESTAMP(0)";
-    my $sql = qq|INSERT INTO $tbl{'host'} ( $fields ) VALUES ( $values )|;
-
-    my $sth = $dbh->prepare( $sql )
-        or die "Cannot prepare sth: ",$dbh->errstr;
-
-    $sth->execute()
-        or die "Cannot execute sth: ", $sth->errstr;
-
-    ##
-    ##  bind mac, hostname, distro, hardware for pxe boot info
-    #
-    my %entry = (
-                 'mac'        => $Hash{'mac'},
-                 'hostname'   => $Hash{'hostname'},
-                 'distroid'   => $Hash{'distro'},
-                 'hardwareid' => $Hash{'hardware'},
-#                'profile'    => $Hash{'profile'},
-                 );
-
-    my $sql_cols = lc get_cols( 'build' );
-
-    $sql_cols =~ s/[ \t]*//g;
-    my @cols = split( /,/, $sql_cols );
-    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
-
-    $sql = qq|INSERT INTO $tbl{ 'build' }
-              ( $sql_cols )
-              VALUES ( $sql_vals )
-              |;
-    print $sql . "\n" if $debug;
-
-    $sth = $dbh->prepare( $sql )
-         or die "Cannot prepare sth: ", $dbh->errstr;
-
-    my $paramidx = 0;
-    foreach my $col (@cols) {
-        $paramidx += 1;
-        $sth->bind_param( $paramidx, $entry{ $col } );
-    }
-
-    $sth->execute()
-        or die "Cannot execute sth: ", $sth->errstr;
-
-    $sth->finish;
-    undef $sth;
-}
-
-sub get_db_host_entry() {
-
-    my $hostname = shift @_;
-
-    my $cols = lc get_cols( 'host' );
-
-    my $sql = qq|SELECT $cols FROM $tbl{ host } WHERE hostname = ? |;
-
-    print $sql . "and hostname is $hostname \n" if $debug;
-
-    my $sth = $dbh->prepare( $sql )
-        or die "Cannot prepare select statement\n" . $dbh->errstr;
-    $sth->execute( $hostname )
-        or die "Cannot execute select statement\n" . $sth->err;
-
-    return $sth->fetchrow_hashref();
-}
-
-sub get_db_host_by_mac() {
-
-    my $mac = shift;
-
-    my $cols = lc get_cols( 'host' );
-
-    my $sql = qq|SELECT $cols FROM $tbl{ host } WHERE mac = ? |;
-
-    print $sql . "and mac is $mac \n" if $debug;
-
-    my $sth = $dbh->prepare( $sql )
-        or die "Cannot prepare select statement\n" . $dbh->errstr;
-    $sth->execute( $mac )
-        or die "Cannot execute select statement\n" . $sth->err;
-
-    return $sth->fetchrow_hashref();
-}
-
-sub get_db_build_by_host() {
-
-    my $hostname = shift;
-
-    my $cols = lc get_cols( 'build' );
-
-    my $sql = qq|SELECT $cols FROM $tbl{ build } WHERE hostname = ? |;
-
-    print $sql . "and hostname is $hostname \n" if $debug;
-
-    my $sth = $dbh->prepare( $sql )
-        or die "Cannot prepare select statement\n" . $dbh->errstr;
-    $sth->execute( $hostname )
-        or die "Cannot execute select statement\n" . $sth->err;
-
-    return $sth->fetchrow_hashref();
-}
-
-sub update_db_host_entry() {
-
-    my $href = shift;  # entry passed in with any needed mods
-
-    my $sql_cols = lc get_cols( 'host' );
-    $sql_cols =~ s/[ \t]*//g;
-    my @cols = split( /,/, $sql_cols );
-    $sql_cols ="";
-    my $sql_vals = "";
-    foreach my $col ( @cols ) {
-        next if ( $col eq "hostname" );  # skip the key
-        next if ( $col eq "change"   );  # skip update col if present
-        next if ( $col eq "cmdline"  );  # skip update cmdline if present
-        if ( defined $href->{ $col } ) {
-            $sql_cols .= "$col,";
-            $sql_vals .= "'$href->{ $col }',";
-        }
-    }
-    $sql_cols .= "change, cmdline";
-    $sql_vals .= "CURRENT_TIMESTAMP(0), '$cmdline'";
-
-    my $sql = qq|UPDATE $tbl{ host }
-                SET ( $sql_cols ) = ( $sql_vals )
-                WHERE hostname = ?
-                |;
-
-    print $sql . "and hostname is $href->{ hostname }\n" if $debug;
-
-    my $sth = $dbh->prepare( $sql )
-        or die "Cannot prepare update statement\n" . $dbh->errstr;
-
-    $sth->execute( $href->{hostname} )
-        or die "Cannot execute update statement\n" . $sth->err;
-
-    $sth->finish;
-    undef $sth;
-}
-
-sub remove_db_host_entry() {
-    my $hostname = shift @_;
-
-    ##
-    ##  bind mac, hostname, distro, hardware for pxe boot info
-    #
-    my $href = &get_db_build_by_host( $hostname );
-
-    my $sql = qq|DELETE FROM $tbl{ 'build' } WHERE mac = ?|;
-    my $sth = $dbh->prepare( $sql )
-        or die "Cannot prepare sth: ",$dbh->errstr;
-    $sth->execute( $href->{mac} )
-        or die "Cannot execute sth: ",$sth->errstr;
-
-    $sql = qq|DELETE FROM $tbl{'host'} WHERE hostname=?|;
-    $sth = $dbh->prepare( $sql )
-        or die "Cannot prepare sth: ",$dbh->errstr;
-    $sth->execute( $hostname )
-        or die "Cannot execute sth: ",$sth->errstr;
-
-
-    $sth->finish();
-    undef $sth;
-}
-
-sub add_db_mac
-{
-    my $mac   = shift;
-    my $state = shift;
-    my $field = shift;
-
-    my $fields = "mac,state,$field";
-    my $values = qq|'$mac',$state,CURRENT_TIMESTAMP(0)|;
-    my $sql = qq|INSERT INTO mac ( $fields ) VALUES ( $values )|;
-    my $sth;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-    $sth->finish();
-}
-
-sub get_db_mac() {
-
-    my $mac = shift;
-
-    my $cols = lc get_cols( 'mac' );
-
-    my $sql = qq|SELECT $cols FROM $tbl{ mac } WHERE mac = ? |;
-
-    print $sql . "and mac is $mac \n" if $debug;
-
-    my $sth = $dbh->prepare( $sql )
-        or die "Cannot prepare select statement\n" . $dbh->errstr;
-    $sth->execute( $mac )
-        or die "Cannot execute select statement\n" . $sth->err;
-
-    return $sth->fetchrow_hashref();
-}
-
-sub update_db_mac_state
-{
-    my $mac   = shift;
-    my $state = shift;
-    my $field = shift;
-
-    my $fields = "state,$field";
-    my $values = qq|'$state',CURRENT_TIMESTAMP(0)|;
-    my $sth;
-    my $sql = qq|UPDATE mac SET ($fields) = ($values) WHERE mac = ?|;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( $mac ) );
-    $sth->finish();
-}
-
-sub remove_db_mac() {
-    my $mac = shift;
-    my $sql = qq|DELETE FROM $tbl{'mac'} WHERE mac=?|;
-    print $sql . "and mac is $mac \n" if $debug;
-    my $sth = $dbh->prepare( $sql )
-        or die "Cannot prepare statement\n" . $dbh->errstr;
-    $sth->execute( $mac )
-        or die "Cannot execute statement\n" . $sth->err;
-    $sth->finish();
-}
-
-sub get_cols
-{
-    my $tbl = shift;
-    my $baracustbls = get_baracus_tables()->{ $tbl{ $tbl } };
-    if ( defined $baracustbls ) {
-        return keys2columns( $baracustbls );
-    }
-    else {
-        die "Internal database table/name usage error.\n";
-    }
-}
-
-sub check_ip
-{
-    my $ip = shift;
-
-    # check for ip format or 'dhcp' string
-    if ( $ip =~ m/(\d+).(\d+).(\d+).(\d+)/ ) {
-        # check for valid ip address range values
-        if ( ( $1 < 1 or $1 > 254 or $1 == 127 ) ||
-             ( $2 < 0 or $2 > 254 ) ||
-             ( $3 < 0 or $3 > 254 ) ||
-             ( $4 < 1 or $4 > 254 ) ) {
-            print "Invalid IP address value given: $ip\n";
-            exit 1;
-        }
-    } elsif ( $ip ne "dhcp" ) {
-        print "Invalid IPv4 address format or missing 'dhcp' string.\n";
-        exit 1;
-    }
-}
-
-sub check_mac
-{
-    my $mac = shift;
-
-    $mac = uc $mac;
-    $mac =~ s|[-.]|:|g;
-    # check for mac format - normalize to %02X: format
-    unless ( $mac =~ m|([0-9A-F]{1,2}:?){6}| ) {
-        print "Invalid MAC address format or value string.\n";
-        exit 1;
-    }
-    $mac =~ m|([0-9A-F]{1,2}):([0-9A-F]{1,2}):([0-9A-F]{1,2}):([0-9A-F]{1,2}):([0-9A-F]{1,2}):([0-9A-F]{1,2})|;
-    $mac = sprintf "%02s:%02s:%02s:%02s:%02s:%02s",$1,$2,$3,$4,$5,$6 ;
-}
-
 sub check_command
 {
     my $command = shift;
@@ -1695,58 +1390,6 @@ sub check_subcommand
         print "Invalid <subcommand> '$subcommand' for <command> '$command'\n";
         exit 1;
     }
-}
-
-sub macback {
-    # get mac back from tftp file name
-    &_boot_auto_mac_( "tftp", @_ );
-}
-sub bootmac {
-    &_boot_auto_mac_( "boot", @_ );
-}
-sub automac {
-    &_boot_auto_mac_( "auto", @_ );
-}
-sub _boot_auto_mac_ {
-    my $type = shift;
-    my $mac  = shift;
-
-    if ( $type eq "tftp" ) {
-        $mac =~ s|^0\d-||;
-        $mac =~ s|-|:|g;
-    }
-    else {
-        $mac =~ s|:|-|g;
-        if ($type eq "boot") {
-            $mac = "01-" . $mac;
-        } elsif ($type eq "auto") {
-            $mac = "02-" . $mac;
-        }
-    }
-    print "type $type value $mac\n" if $debug;
-    return $mac;
-}
-
-sub get_uuid() {
-
-    ## Generate a new UUID
-    ##
-    use Data::UUID;
-
-    my $ug = new Data::UUID;
-
-    return $ug->to_string( $ug->create() );
-}
-
-sub get_rundate() {
-    use POSIX qw/strftime/;
-
-    ## Generate timestamp for run
-    ##
-    my $now = time;
-    my $rundate=strftime "%Y-%m-%d %H:%M:%S", localtime($now);
-    return $rundate;
-
 }
 
 sub load_profile
