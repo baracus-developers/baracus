@@ -38,8 +38,6 @@ BEGIN {
         get_templateid_by_mac
         update_templateid_state
         update_templateid_pxestate
-        check_ip
-        check_mac
          ) ]
        );
   Exporter::export_ok_tags('subs');
@@ -247,43 +245,6 @@ sub update_templateid_pxestate() {
 
     $sth->finish();
 }
-
-sub check_ip
-{
-    my $ip = shift;
-
-    # check for ip format or 'dhcp' string
-    if ( $ip =~ m/(\d+).(\d+).(\d+).(\d+)/ ) {
-        # check for valid ip address range values
-        if ( ( $1 < 1 or $1 > 254 or $1 == 127 ) ||
-             ( $2 < 0 or $2 > 254 ) ||
-             ( $3 < 0 or $3 > 254 ) ||
-             ( $4 < 1 or $4 > 254 ) ) {
-            print "Invalid IP address value given: $ip\n";
-            exit 1;
-        }
-    } elsif ( $ip ne "dhcp" ) {
-        print "Invalid IPv4 address format or missing 'dhcp' string.\n";
-        exit 1;
-    }
-}
-
-sub check_mac
-{
-    my $mac = shift;
-
-    $mac = uc $mac;
-    $mac =~ s|[-.]|:|g;
-    # check for mac format - normalize to %02X: format
-    unless ( $mac =~ m|([0-9A-F]{1,2}:?){6}| ) {
-        print "Invalid MAC address format or value string.\n";
-        exit 1;
-    }
-    $mac =~ m|([0-9A-F]{1,2}):([0-9A-F]{1,2}):([0-9A-F]{1,2}):([0-9A-F]{1,2}):([0-9A-F]{1,2}):([0-9A-F]{1,2})|;
-    $mac = sprintf "%02s:%02s:%02s:%02s:%02s:%02s",$1,$2,$3,$4,$5,$6 ;
-}
-
-
 
 1;
 

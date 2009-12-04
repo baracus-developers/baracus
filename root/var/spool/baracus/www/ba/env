@@ -12,6 +12,9 @@ use lib "/usr/share/baracus/perl";
 use BaracusSql qw( :vars :states );
 use BaracusConfig qw( :vars );
 use BaracusCgi qw( :subs );
+use BaracusAux qw( :subs );
+
+
 
 my $cgi = new CGI;
 

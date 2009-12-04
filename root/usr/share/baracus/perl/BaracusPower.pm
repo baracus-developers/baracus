@@ -35,7 +35,7 @@ my %powermod = (
            'ipmi'        => 'fence_ipmilan',
            'bladecenter' => 'fence_bladecenter',
            'ilo'         => 'fence_ilo',
-           'drac'        => 'fence_drac5',
+           'drac'        => 'fence_drac',
            'vmware'      => 'fence_vmware',
            'apc'         => 'fence_apc',
            'wti'         => 'fence_ati',
@@ -59,8 +59,6 @@ sub add() {
 
     my $bmc = shift;
 
-#    &check_powerdb_entry( $bmc->{'mac'}, $bmc->{'dbh'});
-
     my $result = $cmds{ add }($bmc);
 
     return $result;
@@ -69,8 +67,6 @@ sub add() {
 sub remove() {
 
     my $bmc = shift;
-
-#    &check_powerdb_entry( $bmc->{'mac'}, $bmc->{'dbh'});
 
     my $result = $cmds{ remove }($bmc);
 
@@ -201,7 +197,7 @@ sub ipmi() {
 
 }
 
-sub drac5() {
+sub drac() {
 
     my $bmcref = shift;
     my $operation = shift;
