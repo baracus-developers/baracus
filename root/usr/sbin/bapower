@@ -67,6 +67,7 @@ my $man      = 0;
 my $help     = 0;
 my $debug    = 0;
 my $verbose  = 0;
+my $quiet    = 0;
 
 my %cmds = (
             'on'     => \&on,
@@ -82,6 +83,7 @@ my %cmds = (
 
 GetOptions(
            'debug'          => \$debug,
+           'quiet'          => \$quiet,
            'help|?'         => \$help,
            'man'            => \$man,
            'verbose'        => \$verbose,
@@ -287,13 +289,20 @@ sub list_stub() {
         return 1;
     }
 
+    my $sth = &list_start( $bmcref );
+    my $href = $sth->fetchrow_hashref();
+    unless ( defined $href ) {
+        $LASTERROR = sprintf "Failed in find deviceid \n";
+        return 1;
+    }
+
+    unless ($quiet) {
     print "--------------------------------------------------------------------------------------\n";
     printf "%-8s %-16s %-18s %-18s %-16s %-16s ", "ctype", "bmcaddr", "mac", "alias", "node", "other";
     print "\n";
     print "--------------------------------------------------------------------------------------\n";
+    }
 
-    my $sth = &list_start( $bmcref );
-    my $href = $sth->fetchrow_hashref();
     while  ($href ne "null") { 
         $href->{'node'} =~ s/NULL//g;
         $href->{'other'} =~ s/NULL//g;

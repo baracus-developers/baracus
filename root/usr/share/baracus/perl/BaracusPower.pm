@@ -15,9 +15,6 @@ BEGIN {
       (
        subs => [ qw(
         add
-        remove
-        list_start
-        list_next
         off
         on
         cycle
@@ -35,7 +32,7 @@ my %powermod = (
            'ipmi'        => 'fence_ipmilan',
            'bladecenter' => 'fence_bladecenter',
            'ilo'         => 'fence_ilo',
-           'drac'        => 'fence_drac5',
+           'drac'        => 'fence_drac',
            'vmware'      => 'fence_vmware',
            'apc'         => 'fence_apc',
            'wti'         => 'fence_ati',
@@ -44,7 +41,6 @@ my %powermod = (
 
 my %cmds = (
            'add'         => \&add_powerdb_entry,
-           'remove'      => \&remove_powerdb_entry,
            'ipmi'        => \&ipmi,
            'bladecenter' => \&bladecenter,
            'ilo'         => \&ilo,
@@ -58,25 +54,10 @@ my %cmds = (
 sub add() {
 
     my $bmc = shift;
-
-#    &check_powerdb_entry( $bmc->{'mac'}, $bmc->{'dbh'});
-
     my $result = $cmds{ add }($bmc);
 
     return $result;
 }
-
-sub remove() {
-
-    my $bmc = shift;
-
-#    &check_powerdb_entry( $bmc->{'mac'}, $bmc->{'dbh'});
-
-    my $result = $cmds{ remove }($bmc);
-
-    return $result;
-}
-
 sub off() {
 
     my $bmc = shift;
@@ -113,67 +94,6 @@ sub status() {
     return $result;
 }
 
-sub list_start() {
-
-    my $bmcref = shift;
-    my $dbh = $bmcref->{ 'dbh' };
-    my $deviceid;
-
-
-    if ( ($bmcref->{'mac'}) && ($bmcref->{'alias'}) ) {
-        print "--mac and --alias not allowed together\n";
-    }
-
-    if ( $bmcref->{'mac'} ) {
-        $deviceid = $bmcref->{ 'mac' };
-    } elsif ( $bmcref->{'alias'} ) {
-        $deviceid = $bmcref->{ 'alias' };
-    } else {
-        $deviceid = "%";
-    }
-
-    $deviceid =~ s/\*/\%/g;
-
-    ## lookup bmc info for device
-    my $sth;
-
-    my $sql = qq|SELECT ctype,
-                         mac,
-                         alias,
-                         bmcaddr,
-                         login,
-                         node,
-                         other
-                  FROM power_cfg
-                |;
-    $sql .= qq|WHERE mac LIKE ?| if $bmcref->{ 'mac' };
-    $sql .= qq|WHERE alias LIKE ?| if $bmcref->{ 'alias' };
-    $sql .= qq|WHERE mac LIKE ?| unless ( ($bmcref->{ 'alias' }) || ($bmcref->{ 'mac' }) );
-
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( $deviceid ) );
-
-    return $sth;
-
-}
-
-sub list_next() {
-
-    my $sth = shift;
-    my $href;
-
-    $href = $sth->fetchrow_hashref();
-
-    unless ($href) {
-        $sth->finish;
-        undef $sth;
-        $href = "null";
-    }
-
-    return $href;
-
-}
-
 sub ipmi() {
 
     my $bmcref = shift;
@@ -188,87 +108,7 @@ sub ipmi() {
 
 
     my $command = "$powermod{ $bmcref->{'ctype'} } -a $bmcref->{'bmcaddr'} -l $bmcref->{'login'} -p $bmcref->{'passwd'} -o $action{ $operation }";
-    unless ($operation eq "status") { $command .= " >& /dev/null"; }
-    my $result = `$command`;
-
-    if ($action{ $operation } eq "status") {
-        $result = (split / /, $result)[6];
-        $result = (split /\n/, $result)[0];
-        print "Power Status: $result\n";
-    }
-
-    return 0;
-
-}
-
-sub drac5() {
-
-    my $bmcref = shift;
-    my $operation = shift;
-
-    my %action = (
-                  'on'     => 'on',
-                  'off'    => 'off',
-                  'cycle'  => 'reboot',
-                  'status' => 'status',
-                  );
-
-
-    my $command = "$powermod{ $bmcref->{'ctype'} } -a $bmcref->{'bmcaddr'} -l $bmcref->{'login'} -p $bmcref->{'passwd'} -o $action{ $operation }";
-    unless ($operation eq "status") { $command .= " >& /dev/null"; }
-    my $result = `$command`;
-
-    if ($action{ $operation } eq "status") {
-        $result = (split / /, $result)[6];
-        $result = (split /\n/, $result)[0];
-        print "Power Status: $result\n";
-    }
-
-    return 0;
-
-}
-
-sub bladecenter() {
-
-    my $bmcref = shift;
-    my $operation = shift;
-
-    my %action = (
-                  'on'     => 'on',
-                  'off'    => 'off',
-                  'cycle'  => 'reboot',
-                  'status' => 'status',
-                  );
-
-
-    my $command = "$powermod{ $bmcref->{'ctype'} } -a $bmcref->{'bmcaddr'} -l $bmcref->{'login'} -p $bmcref->{'passwd'} -o $action{ $operation }";
-    unless ($operation eq "status") { $command .= " >& /dev/null"; }
-    my $result = `$command`;
-
-    if ($action{ $operation } eq "status") {
-        $result = (split / /, $result)[6];
-        $result = (split /\n/, $result)[0];
-        print "Power Status: $result\n";
-    }
-
-    return 0;
-
-}
-
-sub ilo() {
-
-    my $bmcref = shift;
-    my $operation = shift;
-
-    my %action = (
-                  'on'     => 'on',
-                  'off'    => 'off',
-                  'cycle'  => 'reboot',
-                  'status' => 'status',
-                  );
-    
-    
-    my $command = "$powermod{ $bmcref->{'ctype'} } -a $bmcref->{'bmcaddr'} -l $bmcref->{'login'} -p $bmcref->{'passwd'} -o $action{ $operation }";
+    if ( $bmcref->{'node'} ) { $command .= " -n $bmcref->{'node'}"; }
     unless ($operation eq "status") { $command .= " >& /dev/null"; }
     my $result = `$command`;
 
@@ -290,13 +130,20 @@ sub ilo() {
 sub get_mac() {
 
     my $deviceid = shift;
+    my $type = shift;
     my $dbh = shift;
+
     my $sql;
 
-    $sql = qq| SELECT mac
-               FROM power_cfg
-               WHERE alias = ?
-             |;
+    if ($type eq "hostname") {
+        $sql = qq| SELECT mac
+                   FROM build
+                   WHERE hostname = ?
+                  |;
+    } elsif ($type eq "ip") {
+        ## handle IP case
+    }
+    
 
     my $sth;
     my $href;
@@ -309,6 +156,7 @@ sub get_mac() {
     $sth->finish;
 
     my $mac = uc $href->{'mac'};
+
     return $mac;
 
 }
@@ -361,7 +209,7 @@ sub check_powerdb_entry() {
     my $sth;
     my $href;
 
-    my $sql = qq| SELECT mac
+    my $sql = qq| SELECT mac,
                   FROM power_cfg
                   WHERE mac = ?
                 |;
@@ -371,14 +219,13 @@ sub check_powerdb_entry() {
 
     $href = $sth->fetchrow_hashref();
 
-    $sth->finish;
-
     if ($href->{'mac'}) {
-        return 0;
-    } else {
-        return 1;
+        die "bmc entry for $deviceid already exists\n";
     }
 
+    $sth->finish;
+
+    return 0;
 }
 
 sub add_powerdb_entry() {
@@ -386,11 +233,8 @@ sub add_powerdb_entry() {
     my $bmcref = shift;
     my $dbh = $bmcref->{ 'dbh' };
 
-    unless ( &check_powerdb_entry( $bmcref->{'mac'}, $dbh ) ) {
-        die "deviceid: $bmcref->{'mac'} already exists\n";
-    }
-
     my $sth;
+    my $href;
 
     my $sql = qq|INSERT INTO power_cfg
                   ( mac,
@@ -404,9 +248,6 @@ sub add_powerdb_entry() {
                   )
                  VALUES ( ?, ?, ?, ?, ?, ?, ?, ? )
                 |;
-
-    die "ctype: $bmcref->{ 'ctype'} is note supported\n" unless exists $powermod{ $bmcref->{ 'ctype'} };
-
 
     $sth = $dbh->prepare( $sql )
             or die "Cannot prepare sth: ",$dbh->errstr;
@@ -457,32 +298,6 @@ sub add_powerdb_entry() {
 
     return 0;
 }
-
-sub remove_powerdb_entry() {
-
-    my $bmcref = shift;
-    my $dbh = $bmcref->{ 'dbh' };
-
-    if ( &check_powerdb_entry( $bmcref->{'mac'}, $dbh ) ) {
-        die "deviceid: $bmcref->{'mac'} does not exist\n";
-    }
-
-    my $sth;
-
-    my $sql = qq|DELETE FROM power_cfg
-                 WHERE mac = ?
-                |;
-
-    $sth = $dbh->prepare( $sql )
-            or die "Cannot prepare sth: ",$dbh->errstr;
-
-    $sth->execute( $bmcref->{mac} )
-            or die "Cannot execute sth: ", $sth->errstr;
-
-    return 0;
-
-}
-
 
 1;
 __END__
