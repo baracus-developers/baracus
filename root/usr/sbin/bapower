@@ -230,15 +230,9 @@ sub remove_stub() {
         return 1;
     }
 
-    ## Check minimal required args
-    ## Should be broken out into ctype specific checks
-    unless ( ($bmcref->{'mac'}) ||  ($bmcref->{'alias'} )  ) {
-        $LASTERROR = sprintf "\nRequired BMC identifier not provided (mac or alias). \n";
-    }
+    my $status = &remove( $bmcref );
 
-    &remove( $bmcref );
-
-    return 0;
+    return $status;
 
 }
 
