@@ -460,8 +460,24 @@ sub remove_powerdb_entry() {
     my $bmcref = shift;
     my $dbh = $bmcref->{ 'dbh' };
 
-    if ( &check_powerdb_entry( $bmcref->{'mac'}, $dbh ) ) {
-        die "deviceid: $bmcref->{'mac'} does not exist\n";
+    unless ( ($bmcref->{'mac'}) || ($bmcref->{'alias'}) ) {
+        print "Required BMC identifier not provided (mac or alias). \n";
+        return 1;
+    }
+
+    if ( ($bmcref->{'mac'}) && ($bmcref->{'alias'}) ) {
+        print "--mac and --alias not allowed together\n";
+        return 1;
+    }
+
+    my $deviceid;
+    unless ( $bmcref->{'mac'} ) {
+        $deviceid = &get_mac( $bmcref->{'alias'}, $dbh );
+    }
+
+    if ( &check_powerdb_entry( $deviceid, $dbh ) ) {
+        print "deviceid: $deviceid does not exist\n";
+        return 1;
     }
 
     my $sth;
@@ -473,7 +489,7 @@ sub remove_powerdb_entry() {
     $sth = $dbh->prepare( $sql )
             or die "Cannot prepare sth: ",$dbh->errstr;
 
-    $sth->execute( $bmcref->{mac} )
+    $sth->execute( $deviceid )
             or die "Cannot execute sth: ", $sth->errstr;
 
     return 0;
