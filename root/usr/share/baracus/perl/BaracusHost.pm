@@ -8,7 +8,7 @@ use warnings;
 use lib "/usr/share/baracus/perl";
 
 use BaracusDB;
-use BaracusSql qw( :states :subs );
+use BaracusSql qw( :states :subs :vars );
 
 
 =pod
@@ -43,8 +43,10 @@ BEGIN {
                 BA_EVENT_PXEDISABLE
                 BA_EVENT_BUILDING
                 BA_EVENT_BUILT
+                BA_EVENT_SPOOFED
                 BA_EVENT_WIPING
                 BA_EVENT_WIPED
+                BA_EVENT_WIPEFAIL
             )],
          vars   => [qw( %bahost_tbls )],
          subs   =>
@@ -80,8 +82,10 @@ use constant  BA_EVENT_REGISTER   => 7;
 use constant  BA_EVENT_PXEDISABLE => 8;
 use constant  BA_EVENT_BUILDING   => 9;
 use constant  BA_EVENT_BUILT      => 10;
-use constant  BA_EVENT_WIPING     => 11;
-use constant  BA_EVENT_WIPED      => 12;
+use constant  BA_EVENT_SPOOFED    => 11;
+use constant  BA_EVENT_WIPING     => 12;
+use constant  BA_EVENT_WIPED      => 13;
+use constant  BA_EVENT_WIPEFAIL   => 14;
 
 use vars qw ( %bahost_tbls );
 
@@ -156,7 +160,8 @@ sub manage_host_states
             $hostref->{oper}    = BA_ADDED;
             unless ( $macref->{state} eq BA_ADDED )
             {
-                &update_db_mac_state( $dbh, $macref->{mac}, BA_ADDED, 'added');
+                &update_db_mac_state( $dbh, $macref->{mac},
+                                      BA_ADDED, $baState{ BA_ADDED });
             }
         }
 
@@ -167,7 +172,8 @@ sub manage_host_states
             $hostref->{admin}   = BA_READY;
             $hostref->{pxenext} = BA_BUILDING;
             $hostref->{oper}    = BA_READY;
-            &update_db_mac_state( $dbh, $macref->{mac}, BA_READY, 'ready');
+            &update_db_mac_state( $dbh, $macref->{mac},
+                                  BA_READY, $baState{ BA_READY } );
         }
 
         # the above are the only valid mac states to have a template added
@@ -186,7 +192,8 @@ sub manage_host_states
         $hostref->{pxenext} = BA_WIPING;   # on inventory complete
         $hostref->{oper}    = BA_DISKWIPE;
         unless ( $macref->{'state'} eq BA_DISKWIPE ) {
-            &update_db_mac_state( $dbh, $macref->{mac}, BA_DISKWIPE, 'diskwipe' );
+            &update_db_mac_state( $dbh, $macref->{mac},
+                                  BA_DISKWIPE, $baState{ BA_DISKWIPE } );
         }
     } elsif ( $event eq BA_EVENT_REMOVE ) {
         # the coup de gras
@@ -197,7 +204,8 @@ sub manage_host_states
             $hostref->{oper}    = BA_DELETED;
         }
         unless ( $macref->{'state'} eq BA_DELETED ) {
-            &update_db_mac_state( $dbh, $macref->{mac}, BA_DELETED, 'deleted');
+            &update_db_mac_state( $dbh, $macref->{mac},
+                                  BA_DELETED, $baState{ BA_DELETED } );
         }
     }
     # enable
@@ -254,16 +262,78 @@ sub manage_host_states
         ; # no-op
     }
     elsif ( $event eq BA_EVENT_REGISTER ) {
+        if ( defined $hostref and $hostref->{hostname} ne "" ) {
+            if ( $hostref->{admin} eq BA_READY ) {
+                $hostref->{pxenext} = BA_BUILDING;
+                $hostref->{oper}    = BA_REGISTER;
+            }
+        }
+        unless ( $macref->{'state'} eq BA_REGISTER ) {
+            &update_db_mac_state( $dbh, $macref->{mac},
+                                  BA_REGISTER, $baState{ BA_REGISTER } );
+        }
     }
     elsif ( $event eq BA_EVENT_PXEDISABLE ) {
     }
     elsif ( $event eq BA_EVENT_BUILDING ) {
+        if ( $hostref->{admin} eq BA_READY ) {
+            $hostref->{pxenext} = BA_BUILT;
+            $hostref->{oper}    = BA_BUILDING;
+        }
+            &update_db_mac_state( $dbh, $macref->{mac},
+                                  BA_BUILDING, $baState{ BA_BUILDING } );
     }
     elsif ( $event eq BA_EVENT_BUILT ) {
+        if ( $hostref->{admin} eq BA_READY ) {
+            $hostref->{pxenext} = BA_LOCALBOOT;
+            $hostref->{oper}    = BA_SPOOFED;
+        }
+        unless ( $macref->{'state'} eq BA_BUILT ) {
+            &update_db_mac_state( $dbh, $macref->{mac},
+                                  BA_BUILT, $baState{ BA_BUILT } );
+        }
+    }
+    elsif ( $event eq BA_EVENT_SPOOFED ) {
+        if ( $hostref->{admin} eq BA_READY ) {
+            $hostref->{pxenext} = BA_NOPXE;
+            $hostref->{oper}    = BA_SPOOFED;
+        }
+        unless ( $macref->{'state'} eq BA_SPOOFED ) {
+            &update_db_mac_state( $dbh, $macref->{mac},
+                                  BA_SPOOFED, $baState{ BA_SPOOFED } );
+        }
     }
     elsif ( $event eq BA_EVENT_WIPING ) {
+        if ( $hostref->{admin} eq BA_READY ) {
+            $hostref->{pxenext} = BA_WIPED;
+            $hostref->{oper}    = BA_WIPING;
+        }
+            &update_db_mac_state( $dbh, $macref->{mac},
+                                  BA_WIPING, $baState{ BA_WIPING } );
     }
     elsif ( $event eq BA_EVENT_WIPED ) {
+        if ( defined $hostref and $hostref->{hostname} ne "" ) {
+            if ( $hostref->{admin} eq BA_READY ) {
+                $hostref->{pxenext} = BA_NOPXE;
+                $hostref->{oper}    = BA_WIPED;
+            }
+        }
+        unless ( $macref->{'state'} eq BA_WIPED ) {
+            &update_db_mac_state( $dbh, $macref->{mac},
+                                  BA_WIPED, $baState{ BA_WIPED } );
+        }
+    }
+    elsif ( $event eq BA_EVENT_WIPEFAIL ) {
+        if ( defined $hostref and $hostref->{hostname} ne "" ) {
+            if ( $hostref->{admin} eq BA_READY ) {
+                $hostref->{pxenext} = BA_NOPXE;
+                $hostref->{oper}    = BA_WIPEFAIL;
+            }
+        }
+        unless ( $macref->{'state'} eq BA_WIPEFAIL ) {
+            &update_db_mac_state( $dbh, $macref->{mac},
+                                  BA_WIPEFAIL, $baState{ BA_WIPEFAIL } );
+        }
     }
 }
 
@@ -336,13 +406,13 @@ sub get_db_host_entry
 
     my $cols = lc get_cols( $tbl{'host'} );
 
-    my $sql = qq|SELECT $cols FROM $tbl{ host } WHERE hostname = ? |;
+    my $sql = qq|SELECT $cols FROM $tbl{ host } WHERE hostname = '$hostname' |;
 
 #    print $sql . "and hostname is $hostname \n" if $debug;
 
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare select statement\n" . $dbh->errstr;
-    $sth->execute( $hostname )
+    $sth->execute()
         or die "Cannot execute select statement\n" . $sth->err;
 
     return $sth->fetchrow_hashref();
@@ -356,13 +426,13 @@ sub get_db_host_by_mac
 
     my $cols = lc get_cols( $tbl{'host'} );
 
-    my $sql = qq|SELECT $cols FROM $tbl{ host } WHERE mac = ? |;
+    my $sql = qq|SELECT $cols FROM $tbl{ host } WHERE mac = '$mac' |;
 
 #    print $sql . "and mac is $mac \n" if $debug;
 
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare select statement\n" . $dbh->errstr;
-    $sth->execute( $mac )
+    $sth->execute()
         or die "Cannot execute select statement\n" . $sth->err;
 
     return $sth->fetchrow_hashref();
@@ -479,13 +549,13 @@ sub get_db_mac
 
     my $cols = lc get_cols( $tbl{'mac'} );
 
-    my $sql = qq|SELECT $cols FROM $tbl{ mac } WHERE mac = ? |;
+    my $sql = qq|SELECT $cols FROM $tbl{ mac } WHERE mac = '$mac' |;
 
 #    print $sql . "and mac is $mac \n" if $debug;
 
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare select statement\n" . $dbh->errstr;
-    $sth->execute( $mac )
+    $sth->execute( )
         or die "Cannot execute select statement\n" . $sth->err;
 
     return $sth->fetchrow_hashref();
@@ -501,9 +571,9 @@ sub update_db_mac_state
     my $fields = "state,$field";
     my $values = qq|'$state',CURRENT_TIMESTAMP(0)|;
     my $sth;
-    my $sql = qq|UPDATE mac SET ($fields) = ($values) WHERE mac = ?|;
+    my $sql = qq|UPDATE mac SET ( $fields ) = ( $values ) WHERE mac = '$mac'|;
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( $mac ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
     $sth->finish();
 }
 
@@ -511,11 +581,11 @@ sub remove_db_mac
 {
     my $dbh = shift;
     my $mac = shift;
-    my $sql = qq|DELETE FROM $tbl{'mac'} WHERE mac=?|;
+    my $sql = qq|DELETE FROM $tbl{'mac'} WHERE mac = '$mac'|;
 #    print $sql . "and mac is $mac \n" if $debug;
     my $sth = $dbh->prepare( $sql )
         or die "Cannot prepare statement\n" . $dbh->errstr;
-    $sth->execute( $mac )
+    $sth->execute()
         or die "Cannot execute statement\n" . $sth->err;
     $sth->finish();
 }

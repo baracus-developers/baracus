@@ -30,14 +30,7 @@ BEGIN {
         get_hardware
         get_tftpfile
         delete_tftpfile
-        add_mac
-        get_mac
-        update_mac_state
         get_build
-        get_templateid
-        get_templateid_by_mac
-        update_templateid_state
-        update_templateid_pxestate
          ) ]
        );
   Exporter::export_ok_tags('subs');
@@ -129,53 +122,6 @@ sub delete_tftpfile() {
     $sth->finish();
 }
 
-sub add_mac() {
-    my $dbh = shift;
-    my $input = shift;
-    my $statestr = shift;
-    my $state = shift;
-
-    my $fields = "mac,state,$statestr";
-    my $values = qq|'$input->{mac}',$state,CURRENT_TIMESTAMP(0)|;
-    my $sql = qq|INSERT INTO mac ( $fields ) VALUES ( $values )|;
-    my $sth;
-
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    $sth->finish();
-}
-
-sub get_mac() {
-    my $dbh = shift;
-    my $input = shift;
-
-    my $sql = qq|SELECT * FROM mac WHERE mac = '$input->{mac}' |;
-    my $sth;
-
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    return $sth->fetchrow_hashref( );
-}
-
-sub update_mac_state() {
-    my $dbh = shift;
-    my $input = shift;
-    my $statestr = shift;
-    my $state = shift;
-
-    my $fields = "state,$statestr";
-    my $values = qq|'$state',CURRENT_TIMESTAMP(0)|;
-    my $sql = qq|UPDATE mac SET ( $fields ) = ( $values ) WHERE mac = '$input->{mac}'|;
-    my $sth;
-
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    $sth->finish();
-}
-
 sub get_build() {
     my $dbh = shift;
     my $input = shift;
@@ -189,62 +135,6 @@ sub get_build() {
     return $sth->fetchrow_hashref( );
 }
 
-sub get_templateid() {
-    my $dbh = shift;
-    my $bref = shift;
-
-    my $sql = qq|SELECT * FROM templateid WHERE hostname = '$bref->{hostname}'|;
-    my $sth;
-
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    return $sth->fetchrow_hashref( );
-}
-
-sub get_templateid_by_mac() {
-    my $dbh = shift;
-    my $input = shift;
-
-    my $sql = qq|SELECT * FROM templateid WHERE mac = '$input->{mac}'|;
-    my $sth;
-
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    return $sth->fetchrow_hashref( );
-}
-
-sub update_templateid_state() {
-    my $dbh = shift;
-    my $input = shift;
-    my $state = shift;
-
-    my $fields = "state,change";
-    my $values = qq|'$state',CURRENT_TIMESTAMP(0)|;
-    my $sql = qq|UPDATE templateid SET ($fields) = ($values) WHERE mac = '$input->{mac}'|;
-    my $sth;
-
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    $sth->finish();
-}
-
-sub update_templateid_pxestate() {
-    my $dbh = shift;
-    my $hostref = shift;
-
-    my $fields = "pxestate,change";
-    my $values = qq|'$hostref->{pxestate}',CURRENT_TIMESTAMP(0)|;
-    my $sql = qq|UPDATE templateid SET ($fields) = ($values) WHERE hostname = '$hostref->{hostname}'|;
-    my $sth;
-
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    $sth->finish();
-}
 
 1;
 

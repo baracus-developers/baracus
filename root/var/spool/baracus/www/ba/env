@@ -13,6 +13,7 @@ use BaracusSql qw( :vars :states );
 use BaracusConfig qw( :vars );
 use BaracusCgi qw( :subs );
 use BaracusAux qw( :subs );
+use BaracusHost qw( :subs :events );
 
 
 
@@ -91,10 +92,12 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $input->{mac} = &check_mac($input->{mac});
         $filename = $input->{mac} . ".inventory";
 
-        $macref = &get_mac( $dbh, $input );
+        $macref = &get_db_mac( $dbh, $input->{mac} );
 
         $href = &get_tftpfile( $tftph, $filename );
 
+        # hum... always want the new inventory...
+        # so we know we have to remove the old entry first
         if (defined $href and ($href->{name} eq $filename)) {
             &delete_tftpfile( $tftph, $filename );
         }
@@ -120,14 +123,10 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $output = "upload success\n";
 
         $state = BA_REGISTER;
-        &update_mac_state( $dbh, $input, $baState{ $state }, $state );
-
-        if ( $macref->{state} eq BA_FOUND ) {
-
-            $hostref = &get_templateid_by_mac( $dbh, $input );
-            if ( defined $hostref and $hostref->{hostname} ne "" ) {
-                &update_templateid_state( $dbh, $hostref, $state );
-            }
+        $hostref = &get_db_host_by_mac( $dbh, $input->{mac} );
+        manage_host_states( $dbh, BA_EVENT_REGISTER, $macref, $hostref );
+        if ( defined $hostref and $hostref->{hostname} ne "" ) {
+            &update_db_host_entry( $dbh, $hostref );
         }
 
     } elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/wipe\s*$| ) {
@@ -142,7 +141,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         print STDERR "$input->{mac} - wipe log received\n";
 
         $input->{mac} = &check_mac($input->{mac});
-        $macref = &get_mac( $dbh, $input );
+        $macref = &get_db_mac( $dbh, $input->{mac} );
 
         $filename = $input->{mac} . ".wipelog";
         $href = &get_tftpfile( $tftph, $filename );
@@ -173,15 +172,19 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $sth->finish();
         $output = "upload success\n";
 
+        $hostref = &get_db_host_by_mac( $dbh, $input->{mac} );
+
         if ($input->{status} eq "pass") {
             $state = BA_WIPED;
+            manage_host_states( $dbh, BA_EVENT_WIPED, $macref, $hostref );
         } else {
             $state = BA_WIPEFAIL;
+            manage_host_states( $dbh, BA_EVENT_WIPEFAIL, $macref, $hostref );
         }
 
-        &update_mac_state( $dbh, $input, $baState{ $state }, $state );
-
-        &update_templateid_state( $dbh, $input, $state );
+        if ( defined $hostref and $hostref->{hostname} ne "" ) {
+            &update_db_host_entry( $dbh, $hostref );
+        }
 
     } else {
 
@@ -233,7 +236,7 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
         die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
 
         $input->{mac} = &check_mac($input->{mac});
-        $macref = &get_mac( $dbh, $input );
+        $macref = &get_db_mac( $dbh, $input->{mac} );
         if ( not defined $macref ) {
 
             ##
@@ -244,7 +247,7 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
 
             $state = BA_FOUND;
 
-            &add_mac( $dbh, $input, $baState{$state}, $state );
+            &add_db_mac( $dbh, $input->{mac}, $state, $baState{$state} );
 
             &get_inventory( $cgi, \%baVar, $input );  # exits
 
@@ -278,9 +281,14 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
             &do_localboot( $cgi );  # exits
         }
 
-        $hostref = &get_templateid( $dbh, $bref );
+        $hostref = &get_db_host_entry( $dbh, $bref->{hostname} );
+        $state = $macref->{state};
 
-        if ( $hostref->{pxestate} eq BA_DISABLED ) {
+        if ( $hostref->{admin} eq BA_DISABLED or
+             $state eq BA_NOPXE    or
+             $state eq BA_DELETED  or
+             $state eq BA_DISABLED ) {
+            # use 'bahost enable' for READY rebuild
 
             ##
             ## LOCALBOOT
@@ -288,21 +296,21 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
 
             print STDERR "$input->{mac} - pxe disabled\n";
 
-            &do_localboot( $cgi );  # exits
+            exit 0;
+            # &do_localboot( $cgi );  # exits
         }
 
         $state = $macref->{state};
 
-        if ( $state eq BA_DISABLED or
-             $state eq BA_BUILDING or   # BUILDING has 2nd stage reboot
+        if ( $state eq BA_BUILDING or   # BUILDING has 2nd stage reboot
              $state eq BA_BUILT    or   # don't re-build forever
-             $state eq BA_DELETED  ) {  # use 'bahost enable' for READY rebuild
+             $state eq BA_LOCALBOOT ) {
 
             ##
             ## LOCALBOOT
             ##
 
-            print STDERR "$input->{mac} - bahost entry building, built, deleted or disabled\n";
+            print STDERR "$input->{mac} - bahost entry building or built\n";
 
             &do_localboot( $cgi );  # exits
         }
@@ -326,7 +334,9 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
 
             $state = BA_BUILDING;
 
-            &update_mac_state( $dbh, $input, $baState{ $state }, $state );
+            manage_host_states( $dbh, BA_EVENT_BUILDING, $macref, $hostref );
+            $hostref->{cmdline} = "building";
+            &update_db_host_entry( $dbh, $hostref );
 
             my $args;
 
@@ -367,7 +377,9 @@ LABEL $bref->{hostname}
 
             $state = BA_WIPING;
 
-            &update_mac_state( $dbh, $input, $baState{ $state }, $state );
+            manage_host_states( $dbh, BA_EVENT_WIPING, $macref, $hostref );
+            $hostref->{cmdline} = "wiping";
+            &update_db_host_entry( $dbh, $hostref );
 
             my $autonuke = "";
             $autonuke = " --autonuke" if ( $hostref->{autonuke} );
@@ -383,17 +395,6 @@ LABEL wipe
 
         }
 
-        if ( defined $baVar{autodisablepxe} and
-             $baVar{autodisablepxe} eq "yes" ) {
-
-            ##
-            ## PXESTATE MODIFICATION IF NEEDED
-            ##
-
-            $hostref->{pxestate} = BA_DISABLED;
-
-            &update_templateid_pxestate( $dbh, $hostref );
-        }
     }
     elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(linux|initrd|auto)\?.*\s*$} ) {
 
@@ -406,7 +407,7 @@ LABEL wipe
         die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
 
         $input->{mac} = &check_mac($input->{mac});
-        $macref = &get_mac( $dbh, $input );
+        $macref = &get_db_mac( $dbh, $input->{mac} );
         if ( not defined $macref ) {
             $output = "$input->{mac} - race... missing mac entry in build\n";
             print STDERR $output;
@@ -455,7 +456,8 @@ LABEL wipe
         my $uuid = $input->{ uuid };
         my $ip = $ENV{ REMOTE_ADDR };
 
-        $hostref = &get_templateid( $dbh, $input ); # hash with a hostname
+        # hash with a hostname
+        $hostref = &get_db_host_entry( $dbh, $input->{hostname} );
         $input->{mac} = $hostref->{ mac };
 
         # check for spoofing of url access
@@ -464,22 +466,22 @@ LABEL wipe
              ( "dhcp" ne "$hostref->{'ip'}"  ))) {
 
             $state = BA_SPOOFED;
+            $hostref->{cmdline} = "spoofed";
+            &manage_host_states( $dbh, BA_EVENT_SPOOFED, $macref, $hostref );
             print STDERR "$input->{mac} - $hostname build complete callback spoofed\n";
             $output .= "build spoofed - spoof hook called\n";
             system( "$spoofed $hostname $ip $uuid $input->{mac} &" ) if ( -f $spoofed );
         }
         else {
             $state = BA_BUILT;
+            $hostref->{cmdline} = "built";
+            manage_host_states( $dbh, BA_EVENT_BUILT, $macref, $hostref );
             print STDERR "$input->{mac} - $hostname build complete callback verified\n";
             $output .= "build verified - verify hook called\n";
             system( "$built $hostname $ip $uuid $input->{mac} &" ) if ( -f $built );
         }
 
-        &update_mac_state( $dbh, $input, $baState{ $state }, $state );
-
-        if ( $hostref->{state} != $state ) {
-            &update_templateid_state( $dbh, $hostref, $state );
-        }
+        &update_db_host_entry( $dbh, $hostref );
     }
 
     ##
