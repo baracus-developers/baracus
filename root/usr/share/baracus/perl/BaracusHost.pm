@@ -211,6 +211,10 @@ sub manage_host_states
     # enable
     elsif ( $event eq BA_EVENT_ENABLE ) {
 
+        $hostref->{pxestate}= BA_READY;
+        $hostref->{admin}   = BA_READY;
+        $hostref->{oper}    = $macref->{state};
+
         # only way to get sanity back is not to touch mac state w/ en/dis-able
         # this is an odd seperation of mac state and host oper status
         # it also implies that the mac state should never go to disabled....
@@ -219,21 +223,21 @@ sub manage_host_states
              $macref->{state} eq BA_FOUND    # not likely cause we have template
             )
         {
-            $hostref->{admin}   = BA_READY;
             $hostref->{pxenext} = BA_REGISTER;
-            $hostref->{oper}    = $macref->{state};
         }
         elsif ( $macref->{state} eq BA_READY or
-                $macref->{state} eq BA_SPOOFED or
                 $macref->{state} eq BA_UPDATED or
-                $macref->{state} eq BA_REGISTER or
-                $macref->{state} eq BA_BUILT or
+                $macref->{state} eq BA_REGISTER
+               )
+        {
+            $hostref->{pxenext} = BA_BUILDING;
+        }
+        elsif ( $macref->{state} eq BA_BUILT or
+                $macref->{state} eq BA_SPOOFED or
                 $macref->{state} eq BA_BUILDING
                )
         {
-            $hostref->{admin}   = BA_READY;
-            $hostref->{pxenext} = BA_BUILDING;
-            $hostref->{oper}    = $macref->{state};
+            $hostref->{pxenext} = BA_LOCALBOOT;
         }
         elsif ( $macref->{state} eq BA_DISKWIPE or
                 $macref->{state} eq BA_WIPING or
@@ -241,9 +245,7 @@ sub manage_host_states
                 $macref->{state} eq BA_WIPEFAIL
                )
         {
-            $hostref->{admin}   = BA_READY;
             $hostref->{pxenext} = BA_WIPING;
-            $hostref->{oper}    = $macref->{state};
         }
         else {
             carp "unexpected mac state '$macref->{state}' in enable event";
@@ -254,6 +256,7 @@ sub manage_host_states
         $hostref->{admin}   = BA_DISABLED;
         $hostref->{pxenext} = BA_NOPXE;
         $hostref->{oper}    = BA_DISABLED;
+        $hostref->{pxestate}= BA_DISABLED;
     }
     # new mac discovered with no related host template
     elsif ( $event eq BA_EVENT_FOUND ) {
@@ -277,7 +280,7 @@ sub manage_host_states
     }
     elsif ( $event eq BA_EVENT_BUILDING ) {
         if ( $hostref->{admin} eq BA_READY ) {
-            $hostref->{pxenext} = BA_BUILT;
+            $hostref->{pxenext} = BA_LOCALBOOT;
             $hostref->{oper}    = BA_BUILDING;
         }
             &update_db_mac_state( $dbh, $macref->{mac},
@@ -286,7 +289,7 @@ sub manage_host_states
     elsif ( $event eq BA_EVENT_BUILT ) {
         if ( $hostref->{admin} eq BA_READY ) {
             $hostref->{pxenext} = BA_LOCALBOOT;
-            $hostref->{oper}    = BA_SPOOFED;
+            $hostref->{oper}    = BA_BUILT;
         }
         unless ( $macref->{'state'} eq BA_BUILT ) {
             &update_db_mac_state( $dbh, $macref->{mac},
@@ -305,8 +308,9 @@ sub manage_host_states
     }
     elsif ( $event eq BA_EVENT_WIPING ) {
         if ( $hostref->{admin} eq BA_READY ) {
-            $hostref->{pxenext} = BA_WIPED;
+            $hostref->{pxenext} = BA_NOPXE;
             $hostref->{oper}    = BA_WIPING;
+            $hostref->{pxestate}= BA_READY;
         }
             &update_db_mac_state( $dbh, $macref->{mac},
                                   BA_WIPING, $baState{ BA_WIPING } );

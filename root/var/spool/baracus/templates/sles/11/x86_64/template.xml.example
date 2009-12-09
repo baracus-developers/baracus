@@ -474,13 +474,10 @@ nameserver __DNS1__
     <init-scripts config:type="list">
       <script>
         <filename>build_notify</filename>
-        <source><![CDATA[wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></source>
+        <source><![CDATA[sleep 60
+wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></source>
       </script>
       __MODULE__
-      <script>
-        <filename>lsg_serial.sh</filename>
-        <location>http://__SERVERIP__/baracus/lsg_serial.sh</location>
-      </script>
     </init-scripts>
   </scripts>
   <partitioning config:type="list">

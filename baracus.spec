@@ -14,7 +14,7 @@ Source2:   initd.%{name}d
 Source3:   sysconfig.%{name}db
 Source4:   initd.%{name}db
 Source5:   apache.baracus.conf
-Requires:  apache2, apache2-mod_perl, perl-Apache-DBI
+Requires:  apache2, apache2-mod_perl, perl-Apache-DBI, pidentd
 Requires:  perl, perl-XML-Simple, perl-libwww-perl, perl-Data-UUID
 Requires:  perl-Config-General, perl-Config-Simple, perl-AppConfig
 Requires:  perl-TermReadKey, perl-DBI, perl-DBD-Pg, perl-Tie-IxHash

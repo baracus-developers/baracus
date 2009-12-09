@@ -88,12 +88,13 @@ sub enable_remote_logging {
     ## Add required logging for baracus
     ## Note: syslog-ng ver3.x support include files
     ##
-    print FILE "filter f_daemon     { facility(daemon); };\n\n";
+#    print FILE "filter f_daemon     { facility(daemon); };\n\n";
     print FILE "destination hosts { \n";
-    print FILE "   file(\"$logpath/\$HOST/\$YEAR-\$MONTH-\$DAY/y2log\" \n";
+    print FILE "   file(\"$logpath/\$HOST/\$YEAR-\$MONTH-\$DAY.log\" \n";
     print FILE "   owner(root) group(root) perm(0600) dir_perm(0700) create_dirs(yes)); \n ";
     print FILE "}; \n";
-    print FILE "log { source($source); filter(f_daemon); destination(hosts); };\n";
+#    print FILE "log { source($source); filter(f_daemon); destination(hosts); };\n";
+    print FILE "log { source($source); destination(hosts); };\n";
     print FILE "##BARACUS_END##\n";
     close(FILE);
 
@@ -143,7 +144,7 @@ sub enable_apparmor_logging
 
     return unless &apparmor_syslog_ng_isloaded();
 
-    ## Need to add "@{CHROOT_BASE}/var/spool/baracus/logs/YaST2/** w,"
+    ## Need to add "@{CHROOT_BASE}/var/spool/baracus/logs/remote/** w,"
     ##
 
     my ($logpath, $logconf) = @_;
@@ -188,7 +189,7 @@ sub disable_apparmor_logging
 
     return unless &apparmor_syslog_ng_isloaded();
 
-    ## Need to remove "@{CHROOT_BASE}/var/spool/baracus/logs/YaST2/** w,"
+    ## Need to remove "@{CHROOT_BASE}/var/spool/baracus/logs/remote/** w,"
     ##
 
     my ($logpath, $logconf) = @_;

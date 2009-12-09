@@ -166,7 +166,7 @@ sub config_syslog
 {
     my $logconf="/etc/syslog-ng/syslog-ng.conf";
     my $armorconf="/etc/apparmor.d/sbin.syslog-ng";
-    my $logpath = "$baDir{'logs'}/YaST2";
+    my $logpath = "$baDir{'logs'}/remote";
 
     unless ( -d $logpath ) {
         mkdir "$logpath", 0755
@@ -182,7 +182,8 @@ sub config_syslog
         if ( enable_remote_logging( $logpath,
                                     $logconf,
                                     $baVar{serverip} )) {
-            system("rcsyslog restart");
+#            system("rcsyslog restart");
+            system("rcsyslog status || rcsyslog restart");
         } else {
             print BaracusSYSLOG::error();
         }
@@ -193,14 +194,16 @@ sub config_syslog
 
         if ( enable_apparmor_logging( $logpath,
                                       $armorconf ) ) {
-            system("rcapparmor restart");
+#            system("rcapparmor restart");
+            system("rcapparmor status || rcapparmor restart");
         } else {
             print BaracusSYSLOG::error();
         }
     } else {
         print STDOUT "Disabling remote logging support in syslog-ng.conf\n";
         if ( disable_remote_logging( $logconf ) ) {
-            system("rcsyslog restart");
+#            system("rcsyslog restart");
+            system("rcsyslog status || rcsyslog restart");
         } else {
             print BaracusSYSLOG::error();
         }
@@ -210,7 +213,8 @@ sub config_syslog
         }
 
         if ( disable_apparmor_logging( $logpath, $armorconf ) ) {
-            system("rcapparmor restart");
+#            system("rcapparmor restart");
+            system("rcapparmor status || rcapparmor restart");
         } else {
             print BaracusSYSLOG::error();
         }

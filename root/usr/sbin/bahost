@@ -701,7 +701,6 @@ sub wipe
         )
     {
         # ensure that we serve up the wipe menu
-        $dbref->{pxestate} = BA_READY;
         $dbref->{autonuke} = $autowipe;
         manage_host_states( $dbh, BA_EVENT_WIPE, $macref, $dbref );
         &update_db_host_entry( $dbh, $dbref );
@@ -887,7 +886,7 @@ sub list
 
         while ( $dbref = &db_list_next( $sth ) ) {
             my $autostate = "missing";
-            my $pxestate  = "";
+#            my $pxestate  = "";
 
 #            my $bootmac = &bootmac( $href->{'mac'} );
             my $automac = &automac( $dbref->{'mac'} );
@@ -898,11 +897,11 @@ sub list
 #            $sel = $sqlfsOBJ->detail( $bootmac );
 #            if ( defined $sel ) {
 #                if ( $sel->{'enabled'} ) {
-                if ( $dbref->{'pxestate'} == BA_READY ) {
-                    $pxestate = "ok";
-                } else {
-                    $pxestate = "disabled";
-                }
+#                if ( $dbref->{'pxestate'} == BA_READY ) {
+#                    $pxestate = "ok";
+#                } else {
+#                    $pxestate = "disabled";
+#                }
 #            }
             $sel = $sqlfsOBJ->detail( $automac );
             if ( defined $sel ) {
@@ -921,13 +920,14 @@ sub list
                 if ( $verbose ) {
                     my $href = &get_db_build_by_host( $dbh, $dbref->{hostname} );
                     printf "%s  %s  ", $href->{distroid}, $href->{hardwareid};
-                    printf "pxe $pxestate %s $autostate", $automac;
+                    printf "%s $autostate", $automac;
+#                    printf "pxe $pxestate %s $autostate", $automac;
 #                    printf "%s $pxestate  %s $autostate", $bootmac, $automac;
                 } else {
                     if ( $autostate ne "ok" ) {
                         print "related tftp file(s) missing or disabled";
-                    } elsif ( $pxestate ne "ok" ) {
-                        printf "pxe $pxestate";
+#                    } elsif ( $pxestate ne "ok" ) {
+#                        printf "pxe $pxestate";
                     } elsif ( $autostate ne "ok" ) {
                         printf "%s $autostate", $automac;
                     } else {
@@ -1130,7 +1130,6 @@ sub _enable_disable_
         }
     }
 
-    $dbref->{'pxestate'} = $baState{ $state };
     if ( $state eq "ready" ) {
         manage_host_states( $dbh, BA_EVENT_ENABLE, $macref, $dbref );
     }

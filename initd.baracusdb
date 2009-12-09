@@ -113,7 +113,7 @@ case "$1" in
 	    LANG=${POSTGRES_LANG:-$RC_LANG}
 	    INITDB=/usr/bin/initdb
 	    install -d -o postgres -g postgres -m 700 ${DATADIR} && su - postgres -c \
-	    "$INITDB --locale=$LANG --auth=\"ident\" $DATADIR &> initlog" ||
+	    "$INITDB --locale=$LANG --auth=\"ident sameuser\" $DATADIR &> initlog" ||
 	    rc_failed
 	    rc_status -v
 	    rc_status || {

@@ -296,8 +296,7 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
 
             print STDERR "$input->{mac} - pxe disabled\n";
 
-            exit 0;
-            # &do_localboot( $cgi );  # exits
+            &do_localboot( $cgi );  # exits
         }
 
         $state = $macref->{state};
@@ -335,7 +334,7 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
             $state = BA_BUILDING;
 
             manage_host_states( $dbh, BA_EVENT_BUILDING, $macref, $hostref );
-            $hostref->{cmdline} = "building";
+#            $hostref->{cmdline} = "building";
             &update_db_host_entry( $dbh, $hostref );
 
             my $args;
@@ -378,7 +377,7 @@ LABEL $bref->{hostname}
             $state = BA_WIPING;
 
             manage_host_states( $dbh, BA_EVENT_WIPING, $macref, $hostref );
-            $hostref->{cmdline} = "wiping";
+#            $hostref->{cmdline} = "wiping";
             &update_db_host_entry( $dbh, $hostref );
 
             my $autonuke = "";
@@ -459,6 +458,7 @@ LABEL wipe
         # hash with a hostname
         $hostref = &get_db_host_entry( $dbh, $input->{hostname} );
         $input->{mac} = $hostref->{ mac };
+        $macref = &get_db_mac( $dbh, $input->{mac} );
 
         # check for spoofing of url access
         if (( "$uuid" ne "$hostref->{'uuid'}" ) or
@@ -466,7 +466,7 @@ LABEL wipe
              ( "dhcp" ne "$hostref->{'ip'}"  ))) {
 
             $state = BA_SPOOFED;
-            $hostref->{cmdline} = "spoofed";
+#            $hostref->{cmdline} = "spoofed";
             &manage_host_states( $dbh, BA_EVENT_SPOOFED, $macref, $hostref );
             print STDERR "$input->{mac} - $hostname build complete callback spoofed\n";
             $output .= "build spoofed - spoof hook called\n";
@@ -474,7 +474,7 @@ LABEL wipe
         }
         else {
             $state = BA_BUILT;
-            $hostref->{cmdline} = "built";
+#            $hostref->{cmdline} = "built";
             manage_host_states( $dbh, BA_EVENT_BUILT, $macref, $hostref );
             print STDERR "$input->{mac} - $hostname build complete callback verified\n";
             $output .= "build verified - verify hook called\n";
