@@ -270,8 +270,7 @@ sub get_baracus_tables
          'bootArgs'     => 'VARCHAR(64)',
          'rootDisk'     => 'VARCHAR(32)',
          'rootPart'     => 'VARCHAR(32)',
-         'pxeTemplate'  => 'VARCHAR(32)',
-         'yastTemplate' => 'VARCHAR(32)',
+         'autobuild'    => 'VARCHAR(32)',
          'hwdriver'     => 'VARCHAR(32)',
          );
 

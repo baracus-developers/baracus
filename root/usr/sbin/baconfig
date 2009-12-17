@@ -400,8 +400,7 @@ sub add_hardware
                  'bootargs'     => "",
                  'rootdisk'     => "/dev/sda",
                  'rootpart'     => "",
-                 'pxetemplate'  => "pxetemplate-auto",
-                 'yasttemplate' => "template.xml",
+                 'autobuild'    => "template.xml",
                  'description'  => "",
                  'hwdriver'     => "",
                  'oscert'       => "",
@@ -413,8 +412,7 @@ sub add_hardware
                'bootargs=s'     => \$entry{'bootargs'},
                'rootdisk=s'     => \$entry{'rootdisk'},
                'rootpart=s'     => \$entry{'rootpart'},
-               'pxetemplate=s'  => \$entry{'pxetemplate'},
-               'yasttemplate=s' => \$entry{'yasttemplate'},
+               'autobuild=s'    => \$entry{'autobuild'},
                'description=s'  => \$entry{'description'},
                'hwdriver=s'     => \&multiarg_handler,
                'oscert=s'       => \&multiarg_handler,
@@ -2038,8 +2036,7 @@ sub detail
             printf "bootArgs=%s\n",     $href->{'bootargs'};
             printf "rootDisk=%s\n",     $href->{'rootdisk'};
             printf "rootPart=%s\n",     $href->{'rootpart'};
-            printf "pxeTemplate=%s\n",  $href->{'pxetemplate'};
-            printf "yastTemplate=%s\n", $href->{'yasttemplate'};
+            printf "autobuild=%s\n",    $href->{'autobuild'};
             printf "hwdriver=%s\n",     $href->{'hwdriver'};
             $printcount += 1;
 

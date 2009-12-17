@@ -235,6 +235,9 @@ Other required parameters, which may be specified on the command-line or in a pr
 
 And further <...> optional parameters include
 
+  --autobuild <template>   Autoyast or Kickstart golden template.  --autobuild=none
+                           will drop you into the manual installer.
+
   --module <mfile>         Yast autoinstall scripts to run when the
                            host build completes.
                            You can specify this option multiple times
@@ -270,7 +273,7 @@ sub add
     my $addon = "";
     my $module="";
     my $profile="";
-    my $yasttemplate="";
+    my $autobuild="";
     my $usevnc="";
     my $vncpass="";
     my $usessh="";
@@ -287,7 +290,7 @@ sub add
                'mac=s'          => \$mac,
                'distro=s'       => \$distro,
                'hardware=s'     => \$hardware,
-               'yasttemplate=s' => \$yasttemplate,
+               'autobuild=s'    => \$autobuild,
                'profile=s'      => \$profile,
                'usevnc!'        => \$usevnc,
                'vncpass=s'      => \$vncpass,
@@ -544,7 +547,7 @@ sub add
     $hash{'sharetype'} = $baVar{sharetype} if ($baVar{sharetype});
     $hash{'shareip'} = $baVar{shareip} if ($baVar{shareip});
 
-    $hash{'yasttemplate'} = $yasttemplate if ($yasttemplate);
+    $hash{'autobuild'} = $autobuild if ($autobuild);
 
     ## If passed on command line via vars, then honor those
     ##
@@ -603,8 +606,7 @@ sub add
 
     # all user input loaded now finish processing
 
-#    &add_pxeboot( $href );
-    &add_autoyast( $href );
+    unless ( $hash{'autobuild'} eq"none" ) { &add_autoyast( $href ); }
 
     my $macref = get_db_mac( $dbh, $href->{mac} );
     unless ( defined $macref ) {
@@ -980,8 +982,8 @@ sub list
             if ( $verbose ) {
                 printf "%-20s", "time ";
             }
-            printf "%-17s %-9s %-9s %-9s %-9s %-9s\n",
-                "mac", "state", "admin", "oper", "pxenext", "pxestate";
+            printf "%-17s %-9s %-16s %-9s %-9s %-9s\n",
+                "mac", "state", "hostname", "admin", "oper", "pxenext";
             print "--------------------------------------------------------------------------------\n";
         }
         elsif (not ( $quiet or $nolabels ) ) {
@@ -1008,14 +1010,15 @@ sub list
                 my $oper_str    = "" ;
                 my $pxenext_str = "" ;
                 my $pxestate    = "" ;
+                my $hostname    = "" ;
+                $hostname    = $dbref->{hostname} if $dbref->{hostname};
                 $admin_str   = $baState{ $dbref->{admin}   } if $dbref->{admin};
                 $oper_str    = $baState{ $dbref->{oper}    } if $dbref->{oper};
                 $pxenext_str = $baState{ $dbref->{pxenext} } if $dbref->{pxenext};
-                if ( $dbref->{pxestate} ) {
-                    $pxestate = $dbref->{pxestate} eq BA_READY ?
-                        "enabled" : "disabled";
+                if ( $dbref->{pxestate} and $dbref->{pxestate} ne BA_READY ) {
+                    $admin_str .= "*";
                 }
-                printf "%-9s %-9s %-9s %-9s %-9s\n", $state_str, $admin_str, $oper_str, $pxenext_str, $pxestate;
+                printf "%-9s %-16s %-9s %-9s %-9s\n", $state_str, $hostname, $admin_str, $oper_str, $pxenext_str;
             }
             else {
                 #
@@ -1672,7 +1675,7 @@ sub add_autoyast
 
     my $href = shift;
 
-    my $autoYastTemplate = join "/", $baDir{ 'templates' }, $href->{'os'}, $href->{'release'}, $href->{'arch'}, $href->{'yasttemplate'};
+    my $autoYastTemplate = join "/", $baDir{ 'templates' }, $href->{'os'}, $href->{'release'}, $href->{'arch'}, $href->{'autobuild'};
 
     if ($debug) {
         print "autoYastTemplate = $autoYastTemplate\n";
