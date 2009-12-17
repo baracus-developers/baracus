@@ -6,8 +6,7 @@ baconfig add hardware --name default \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=/dev/sda \
 --rootpart=/dev/sda \
---pxetemplate=pxetemplate-auto \
---yasttemplate=template.xml 
+--autobuild=template.xml 
 #--oscert=SLES9:SLES10
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
@@ -18,8 +17,7 @@ baconfig add hardware --name default-hda \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=/dev/hda \
 --rootpart=/dev/hda \
---pxetemplate=pxetemplate-auto \
---yasttemplate=template.xml 
+--autobuild=template.xml 
 #--oscert=SLES9:SLES10
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
@@ -30,8 +28,7 @@ baconfig add hardware --name default-HP \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=/dev/cciss/c0d0 \
 --rootpart=/dev/cciss/c0d0p \
---pxetemplate=pxetemplate-auto \
---yasttemplate=template.xml
+--autobuild=template.xml
 #--oscert=SLES9:SLES10
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
@@ -42,8 +39,7 @@ baconfig add hardware --name default-rhel \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=hda \
 --rootpart=hda \
---pxetemplate=pxetemplate-auto \
---yasttemplate=template.xml
+--autobuild=template.xml
 #--oscert=SLES9:SLES10
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
@@ -54,8 +50,7 @@ baconfig add hardware --name kvm-sda \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=/dev/sda \
 --rootpart=/dev/sda \
---pxetemplate=pxetemplate-auto \
---yasttemplate=template.xml 
+--autobuild=template.xml 
 #--oscert=SLES9-64:SLES10-64:SLES11-64 \
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
@@ -66,8 +61,7 @@ baconfig add hardware --name kvm-hda \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=/dev/hda \
 --rootpart=/dev/hda \
---pxetemplate=pxetemplate-auto \
---yasttemplate=template.xml
+--autobuild=template.xml
 #--oscert=SLES9-64:SLES10-64:SLES11-64
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
