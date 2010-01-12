@@ -65,7 +65,7 @@ print <<HTML0
 	<body onLoad='selectThis(document.form1.host, "$name");document.form1.host.focus()'>
 		<form method="POST" name='form1' action="/$BATools::baCGI/sourceHandler">
 		<div id='config'>
-		<div id='history'>Source List</div>
+		<div id='history' style="color:black">Source List</div>
 		<div id='textEdit'>
 		$statusSel
 		<img class='search' src='/$BATools::baRoot/images/searchI.gif' onClick='sourceReload( document.form1.distro.value, \"\", document.form1.filter.value, document.form1.status.value)'/>

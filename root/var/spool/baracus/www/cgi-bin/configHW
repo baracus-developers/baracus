@@ -22,7 +22,7 @@ print <<HTML0
 	<body onLoad='selectThis(document.form1.item, "$Name")'>
 		<form name='form1'>
 		<div id='config'>
-		<div id='history'>Hardware List</div>
+		<div id='history' style="color:black">Hardware List</div>
 		<div id='textEdit'>
 		<font class='name'>Hardware</font>
 		$items

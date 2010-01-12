@@ -28,7 +28,7 @@ print <<HTML0
 	<body onLoad='selectThis(document.form1.host, "$name");document.form1.host.focus()'>
 		<form name='form1'>
 		<div id='config'>
-		<div id='history'>Host Template List</div>
+		<div id='history' style="color:black">Host Entry List</div>
 		<div id='textEdit'>
 		<img class='search' src='/$BATools::baRoot/images/searchI.gif' onClick='document.form1.submit()'/>
 		<img class='sweep' src='/$BATools::baRoot/images/sweepI.gif' onClick='document.form1.filter.value="";document.form1.submit()'/>

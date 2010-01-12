@@ -23,12 +23,12 @@ print <<HTML0
 	</head>
 	<body">
 		<div id='f-labels'>
-			<font class='history'>Currently Processing</font>	
+			<font class='history' style="color:black">Currently Processing</font>	
 			<div id='blockW'>
 			<form name='form1'>
 			$current
 			</form>
-			<font class="select">Select from list for more info:</font>
+			<font class="select" style="color:black">Select from list for more info:</font>
 			</div>
 
 			<div id='statusW'>

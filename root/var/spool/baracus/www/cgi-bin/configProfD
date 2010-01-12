@@ -26,7 +26,7 @@ print <<HTML0
 	<body onLoad='selectThis(document.form1.profile, "$Name")'>
 		<form action="/baracus/ba/configHandler" name='form1'>
 		<div id='config'>
-		<div id='history'>Profile Delete</div>
+		<div id='history' style="color:black">Profile Delete</div>
 		
 		<div id='textEdit'>
 		<font class='name'>Profile</font>

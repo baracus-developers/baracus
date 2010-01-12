@@ -25,7 +25,7 @@ print <<HTML0
 	<body onLoad='selectThis(document.form1.module, "$Name")'>
 		<form action="/baracus/ba/configHandler" name='form1'>
 		<div id='config'>
-		<div id='history'>Module Update</div>
+		<div id='history' style="color:black">Module Update</div>
 		
 		<div id='textEdit'>
 		<font class='name'>Template</font>

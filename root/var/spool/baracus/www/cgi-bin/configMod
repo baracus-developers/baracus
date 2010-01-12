@@ -25,7 +25,7 @@ print <<HTML0
 	<body onLoad='selectThis(document.form1.mTemp, "$mName")'>
 		<form action="/baracus/ba/configHandler" name='form1'>
 		<div id='config'>
-		<div id='history'>Module List</div>
+		<div id='history' style="color:black">Module List</div>
 		<div id='textEdit'>
 		<font class='name'>Module</font>
 		$items

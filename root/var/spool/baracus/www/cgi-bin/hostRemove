@@ -29,7 +29,7 @@ print <<HTML0
 	<body onLoad='selectThis(document.form1.host, "$name");document.form1.host.focus()'>
 		<form method="POST" name='form1' action="/$BATools::baCGI/hostHandler">
 		<div id='config'>
-		<div id='history'>Host Remove</div>
+		<div id='history' style="color:black">Host Remove</div>
 		<div id='textEdit'>
 		<img class='search' src='/$BATools::baRoot/images/searchI.gif' onClick='hostReload( document.form1.host.value, document.form1.filter.value)'/>
 		<img class='sweep' src='/$BATools::baRoot/images/sweepI.gif' onClick='document.form1.filter.value="";hostReload( document.form1.host.value, document.form1.filter.value);'/>
