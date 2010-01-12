@@ -1,4 +1,16 @@
 %changelog
+* Tue Jan 12 2010 dbahi@novell - 1.3
+- ba tools reworked so that the majority of code
+  is contained in functional modules
+- database cleanup and reorder
+- gpxe iscsi netbooting supported
+- rescue and norescue host modes supported
+- support for prompted install (--autobuild none) option
+* Thu Dec 10 2009 dbahi@novell - 1.2
+- enhanced functionality of bapower
+- more details of host state and transitions
+- remote logging for rhel and suse families
+- baracusdb has distinct port 5162 from pgsql
 * Fri Nov 20 2009 dwestervelt@novell - 1.11
 - Initial release of bapower BMC power control command
 - currently supports IMPI
