@@ -8,7 +8,7 @@ use Pod::Usage;
 use lib "/usr/share/baracus/perl";
 
 use BaracusDB;
-use BaracusSql;
+use BaracusSql qw( :vars :subs );
 
 =pod
 
@@ -86,16 +86,6 @@ my %multiarg; # used for processing repeatable getoptions
 # max_allowed_packets a mysql specific construct
 my $maxlen = 1048575;
 
-my %tbl = (
-           'distro'   => 'distro_cfg',
-           'hardware' => 'hardware_cfg',
-           'module'   => 'module_cfg',
-           'profile'  => 'profile_cfg',
-           'tftp'     => 'sqlfstable',
-           'oscert'   => 'hardwareid',
-           'modcert'  => 'module_cert_cfg'
-           );
-
 my %cmds = (
             'list'    => \&list,
             'add'     => \&add,
@@ -145,41 +135,6 @@ die "DOES NOT EXECUTE";
 
 ###########################################################################
 
-# START - dhb
-#
-# these constructs are duplicates of those in SqlFS.pm
-# at some point want to break out the guts of baconfig
-# into a refreshed pm and clean up our interfaces....
-
-# bytea_encode
-
-# encode bytestream for VARCHAR storage
-
-#
-
-sub bytea_encode
-{
-    my ($in, $out);
-    $in = shift;
-    $out = pack( 'u', $in);
-    return $out;
-}
-
-# bytea_decode
-
-# decode bytestream for VARCHAR storage
-
-#
-
-sub bytea_decode
-{
-    my ($in,$out);
-    $in = shift;
-    $out = unpack( 'u', $in );
-    return $out;
-}
-#
-# END - dhb
 
 sub main
 {
@@ -388,7 +343,7 @@ relate to the distro being used when creating the host entry.
     --yastTemplate file    Autoinstall [ default template.xml ]
 
     --hwdriver             Additional pkgs install for hardware.
-    --oscert <distro>      A list of supported distros, for this
+    --hwcert <distro>      A list of supported distros, for this
                            hardware. May be spcified multiple times.
 
 =cut
@@ -403,7 +358,7 @@ sub add_hardware
                  'autobuild'    => "template.xml",
                  'description'  => "",
                  'hwdriver'     => "",
-                 'oscert'       => "",
+                 'hwcert'       => "",
                  );
 
     @ARGV = @_;
@@ -415,7 +370,7 @@ sub add_hardware
                'autobuild=s'    => \$entry{'autobuild'},
                'description=s'  => \$entry{'description'},
                'hwdriver=s'     => \&multiarg_handler,
-               'oscert=s'       => \&multiarg_handler,
+               'hwcert=s'       => \&multiarg_handler,
                );
 
     if ( scalar @ARGV ) {
@@ -427,8 +382,8 @@ sub add_hardware
 
     $entry{'hwdriver'} =
         $multiarg{ 'hwdriver' } if (defined $multiarg{ 'hwdriver' });
-    $entry{'oscert'}   =
-        $multiarg{ 'oscert'   } if (defined $multiarg{ 'oscert'   });
+    $entry{'hwcert'}   =
+        $multiarg{ 'hwcert'   } if (defined $multiarg{ 'hwcert'   });
 
     &help() unless ( $entry{'hardwareid'} );
 
@@ -445,23 +400,23 @@ sub add_hardware
 
     $entry{'rootpart'} = $entry{'rootdisk'} unless ( $entry{'rootpart'} );
 
-    my $sql_cols = lc get_cols( 'hardware' );
+    my $sql_cols = lc get_cols( $baTbls{ 'hardware' } );
     $sql_cols =~ s/[ \t]*//g;
     my @cols = split( /,/, $sql_cols );
     my $sql_vals = "?," x scalar @cols; chop $sql_vals;
 
-    my $sql_cert_cols = lc get_cols( 'oscert' );
+    my $sql_cert_cols = lc get_cols( $baTbls{ 'hwcert' } );
     $sql_cert_cols =~ s/[ \t]*//g;
     my @cert_cols = split( /,/, $sql_cert_cols );
     my $sql_cert_vals = "?," x scalar @cert_cols; chop $sql_cert_vals;
-    my @cert_data = split( /\s/, $entry{ oscert });
+    my @cert_data = split( /\s/, $entry{ hwcert });
 
-    my $sql_cert = qq|INSERT INTO $tbl{ 'oscert' }
+    my $sql_cert = qq|INSERT INTO $baTbls{ 'hwcert' }
                      ( $sql_cert_cols )
                      VALUES ( $sql_cert_vals )
                      |;
 
-    my $sql = qq|INSERT INTO $tbl{ 'hardware' }
+    my $sql = qq|INSERT INTO $baTbls{ 'hardware' }
                 ( $sql_cols )
                 VALUES ( $sql_vals )
                 |;
@@ -500,7 +455,7 @@ sub add_hardware
     }
 
     unless ($success) {
-        die "Unable to execute 'add' hardware oscert statement\n" .
+        die "Unable to execute 'add' hardware hwcert statement\n" .
             $sth->errstr;
         return 1;
     }
@@ -607,23 +562,23 @@ sub add_module
     $/ = "\n";
     close FILE;
 
-    my $sql_cols = lc get_cols( 'module' );
+    my $sql_cols = lc get_cols( $baTbls{ 'module' } );
     $sql_cols =~ s/[ \t]*//g;
     my @cols = split( /,/, $sql_cols );
     my $sql_vals = "?," x scalar @cols; chop $sql_vals;
 
-    my $sql_cert_cols = lc get_cols( 'modcert' );
+    my $sql_cert_cols = lc get_cols( $baTbls{ 'modcert' } );
     $sql_cert_cols =~ s/[ \t]*//g;
     my @cert_cols = split( /,/, $sql_cert_cols );
     my $sql_cert_vals = "?," x scalar @cert_cols; chop $sql_cert_vals;
     my @cert_data = split( /\s/, $entry{ 'cert' });
 
-    my $sql_cert = qq|INSERT INTO $tbl{ 'modcert' }
+    my $sql_cert = qq|INSERT INTO $baTbls{ 'modcert' }
                      ( $sql_cert_cols )
                      VALUES ( $sql_cert_vals )
                      |;
 
-    my $sql = qq|INSERT INTO $tbl{ 'module' }
+    my $sql = qq|INSERT INTO $baTbls{ 'module' }
                 ( $sql_cols )
                 VALUES ( $sql_vals )
                 |;
@@ -748,12 +703,12 @@ sub add_profile
     $/ = "\n";
     close FILE;
 
-    my $sql_cols = lc get_cols( 'profile' );
+    my $sql_cols = lc get_cols( $baTbls{ 'profile' } );
     $sql_cols =~ s/[ \t]*//g;
     my @cols = split( /,/, $sql_cols );
     my $sql_vals = "?," x scalar @cols; chop $sql_vals;
 
-    my $sql = qq|INSERT INTO $tbl{ 'profile' }
+    my $sql = qq|INSERT INTO $baTbls{ 'profile' }
                 ( $sql_cols )
                 VALUES ( $sql_vals )
                 |;
@@ -856,7 +811,7 @@ sub add_tftp
     my $fh;
     open ($fh, "<", $file) || die "unable to open $file: $!\n";
 
-    my $sql_cols = lc get_cols( 'tftp' );
+    my $sql_cols = lc get_cols( $baTbls{ 'tftp' });
     $sql_cols =~ s/[ \t]*//g;
     my @cols = split( /,/, $sql_cols );
 
@@ -882,7 +837,7 @@ sub add_tftp
     chop $sql_cols;
     chop $sql_vals;
 
-    my $sql = qq|INSERT INTO $tbl{ 'tftp' }
+    my $sql = qq|INSERT INTO $baTbls{ 'tftp' }
                 ( $sql_cols )
                 VALUES ( $sql_vals )
                 |;
@@ -1179,12 +1134,12 @@ sub update_module
 
         # now add it
 
-        my $sql_cols = lc get_cols( 'module' );
+        my $sql_cols = lc get_cols( $baTbls{ 'module' } );
         $sql_cols =~ s/[ \t]*//g;
         my @cols = split( /,/, $sql_cols );
         my $sql_vals = "?," x scalar @cols; chop $sql_vals;
 
-        my $sql = qq|INSERT INTO $tbl{ 'module' }
+        my $sql = qq|INSERT INTO $baTbls{ 'module' }
                 ( $sql_cols )
                 VALUES ( $sql_vals )
                 |;
@@ -1386,12 +1341,12 @@ sub update_profile
 
         # now add it
 
-        my $sql_cols = lc get_cols( 'profile' );
+        my $sql_cols = lc get_cols( $baTbls{ 'profile' } );
         $sql_cols =~ s/[ \t]*//g;
         my @cols = split( /,/, $sql_cols );
         my $sql_vals = "?," x scalar @cols; chop $sql_vals;
 
-        my $sql = qq|INSERT INTO $tbl{ 'profile' }
+        my $sql = qq|INSERT INTO $baTbls{ 'profile' }
                 ( $sql_cols )
                 VALUES ( $sql_vals )
                 |;
@@ -1476,11 +1431,11 @@ sub update_tftp
     }
 
     # get the current description and enabled states to see if we need to change
-    my $sql_cols = lc get_cols( 'tftp' );
+    my $sql_cols = lc get_cols( $baTbls{ 'tftp' } );
     $sql_cols =~ s/[ \t]*//g;
 
     $sql = qq|SELECT $sql_cols
-              FROM $tbl{ $type }
+              FROM $baTbls{ $type }
               WHERE name = ?
               ORDER BY id|;
 
@@ -1570,14 +1525,14 @@ sub update_tftp
         }
 
         # delete all old entries
-        my $delete = qq|DELETE FROM $tbl{'tftp'} where name = '$entry{'name'}'|;
+        my $delete = qq|DELETE FROM $baTbls{'tftp'} where name = '$entry{'name'}'|;
         unless ( $sth = $tftph->do( $delete ) ) {
             $LASTERROR = "Unable to do 'update' tftp removal\n" .
                 $tftph->errstr;
             return 1;
         }
 
-        my $sql_cols = lc get_cols( 'tftp' );
+        my $sql_cols = lc get_cols( $baTbls{ 'tftp' });
         $sql_cols =~ s/[ \t]*//g;
         my @cols = split( /,/, $sql_cols );
 
@@ -1604,7 +1559,7 @@ sub update_tftp
         chop $sql_cols;
         chop $sql_vals;
 
-        $sql = qq|INSERT INTO $tbl{ 'tftp' }
+        $sql = qq|INSERT INTO $baTbls{ 'tftp' }
                   ( $sql_cols )
                   VALUES ( $sql_vals )
                  |;
@@ -1654,7 +1609,7 @@ sub update_tftp
         $sql_cols .= ",insertion,change";
         $sql_vals .= ",'$save{'insertion'}', CURRENT_TIMESTAMP";
 
-        $sql = qq|UPDATE $tbl{ $type }
+        $sql = qq|UPDATE $baTbls{ $type }
                   SET ( $sql_cols ) = ( $sql_vals )
                   WHERE id = ?|;
 
@@ -1695,7 +1650,7 @@ The cert options may be specified multiple times.
 
 sub update_hardware
 {
-    my $type = 'oscert';
+    my $type = 'hwcert';
 
     my %entry = (
                  'hardwareid'  => "",
@@ -1817,17 +1772,17 @@ sub export
 
     if ( $type eq "module" ) {
         $sql = qq|SELECT data
-                  FROM $tbl{ $type }
+                  FROM $baTbls{ $type }
                   WHERE moduleid = '| . $entry{'name'} . qq|'
                   AND version = '| . $entry{'version'} . qq|'|;
     } elsif ( $type eq "profile" ) {
         $sql = qq|SELECT data
-                  FROM $tbl{ $type }
+                  FROM $baTbls{ $type }
                   WHERE profileid = '| . $entry{'name'} . qq|'
                   AND version = '| . $entry{'version'} . qq|'|;
     } elsif ( $type eq "tftp" ) {
         $sql = qq|SELECT bin as data
-                  FROM $tbl{ $type }
+                  FROM $baTbls{ $type }
                   WHERE name = '| . $entry{'name'} . qq|'
                   ORDER BY id
                  |;
@@ -1912,8 +1867,8 @@ sub detail
     }
     $name =~ s|.*/||;           # only the short name for the lookup
 
-    my $sql_cols = lc get_cols( $type );
-    my $sql = qq| SELECT $sql_cols FROM $tbl{ $type } |;
+    my $sql_cols = lc get_cols( $baTbls{ $type });
+    my $sql = qq| SELECT $sql_cols FROM $baTbls{ $type } |;
     my $sql_cert;
     my $sql_man;
     my $sql_chunks;
@@ -1923,20 +1878,20 @@ sub detail
     if ( $type eq "hardware" ) {
         $sql .= "WHERE hardwareid = ?";
 
-       # $sql_cols = lc get_cols( 'oscert' );
+       # $sql_cols = lc get_cols( $baTbls{ 'hwcert' } );
         $sql_cert = qq|SELECT distroid
-                       FROM $tbl{ 'oscert' }
+                       FROM $baTbls{ 'hwcert' }
                        WHERE hardwareid = '| . $name . qq|'|;
     } elsif ( $type eq "module" ) {
         $sql .= "WHERE moduleid = ?";
         $sql .= " AND version = $version" if ( $version );
 
         $sql_cert = qq|SELECT distroid
-                       FROM $tbl{ 'modcert' }
+                       FROM $baTbls{ 'modcert' }
                        WHERE moduleid = '| . $name . qq|'|;
 
         $sql_man = qq|SELECT distroid
-                       FROM $tbl{ 'modcert' }
+                       FROM $baTbls{ 'modcert' }
                        WHERE moduleid = '| . $name . qq|'
                        AND mandatory = 't'|;
     } elsif ( $type eq "profile" ) {
@@ -1947,7 +1902,7 @@ sub detail
         $sql .= " ORDER BY id";
 
         $sql_chunks = qq|SELECT bin
-                         FROM $tbl{ $type }
+                         FROM $baTbls{ $type }
                          WHERE name =  '| . $name .
                       qq|' ORDER BY id|;
 
@@ -2040,14 +1995,14 @@ sub detail
             printf "hwdriver=%s\n",     $href->{'hwdriver'};
             $printcount += 1;
 
-            my $oscert = "";
+            my $hwcert = "";
             my $certs = $db2use->selectall_arrayref( $sql_cert, { slice => {} } );
             if ( defined $certs ) {
                 foreach my $cert ( @{$certs} ) {
-                    $oscert .= ":" if ( $oscert ne "" );
-                    $oscert .= @{$cert}[0];
+                    $hwcert .= ":" if ( $hwcert ne "" );
+                    $hwcert .= @{$cert}[0];
                 }
-            printf "oscert=%s\n", $oscert if ( defined $oscert );
+            printf "hwcert=%s\n", $hwcert if ( defined $hwcert );
             }
         }
         if ( $type eq "tftp" ) {
@@ -2140,18 +2095,18 @@ sub remove
     my $db2use = $dbh;
 
     if ( $type eq "hardware" ) {
-        @sql = ( qq|DELETE FROM $tbl{ $type } WHERE hardwareid = ?| );
+        @sql = ( qq|DELETE FROM $baTbls{ $type } WHERE hardwareid = ?| );
     } elsif ( $type eq "module" ) {
         my $check = &get_mandatory( $name, 'all' );
         if ( $check == 1 ) {
             $LASTERROR = "Cannot remove module marked as mandatory\n";
             return 1;
         }
-        @sql = ( qq|DELETE FROM $tbl{ $type } WHERE moduleid = ?|, qq|DELETE FROM $tbl{ modcert } WHERE moduleid = ?| );
+        @sql = ( qq|DELETE FROM $baTbls{ $type } WHERE moduleid = ?|, qq|DELETE FROM $baTbls{ modcert } WHERE moduleid = ?| );
     } elsif ( $type eq "profile" ) {
-        @sql = ( qq|DELETE FROM $tbl{ $type } WHERE profileid = ?| );
+        @sql = ( qq|DELETE FROM $baTbls{ $type } WHERE profileid = ?| );
     } elsif ( $type eq "tftp" ) {
-        @sql = ( qq|DELETE FROM $tbl{ $type } WHERE name = ?| );
+        @sql = ( qq|DELETE FROM $baTbls{ $type } WHERE name = ?| );
         $db2use = $tftph;
     }
 
@@ -2207,7 +2162,7 @@ sub check_type
         print "requires <type> (e.g. $type_list)\n";
         exit 1;
     }
-    unless ( defined $tbl{ $type } ) {
+    unless ( defined $baTbls{ $type } ) {
         print "invalid <type> '$type' please use: $type_list\n";
         exit 1;
     }
@@ -2253,23 +2208,23 @@ sub list_start
 
     if ( $type eq "hardware" ) {
         $sql = qq|SELECT hardwareid as name, description
-                  FROM $tbl{ $type }
+                  FROM $baTbls{ $type }
                   WHERE hardwareid LIKE ?
                   ORDER BY name
                  |;
     } elsif ( $type eq "module" ) {
         $sql = qq|SELECT moduleid as name, description, version, status
-                  FROM $tbl{ $type }
+                  FROM $baTbls{ $type }
                   WHERE moduleid LIKE ? ORDER BY moduleid, version
                  |;
     } elsif ( $type eq "profile" ) {
         $sql = qq|SELECT profileid as name, description, version, status
-                  FROM $tbl{ $type }
+                  FROM $baTbls{ $type }
                   WHERE profileid LIKE ? ORDER BY profileid, version
                  |;
     } elsif ( $type eq "tftp" ) {
         $sql = qq|SELECT name, description, COUNT( id ) as count, enabled
-                  FROM $tbl{ $type }
+                  FROM $baTbls{ $type }
                   WHERE name LIKE ?
                   GROUP BY name, description, enabled
                   ORDER BY name
@@ -2312,22 +2267,6 @@ sub list_finish
     undef $sth;
 }
 
-sub get_cols
-{
-    my $tbl = shift;
-    my $baracustbls = BaracusSql::get_baracus_tables()->{ $tbl{ $tbl } };
-    my $sqltftptbls = BaracusSql::get_sqltftp_tables()->{ $tbl{ $tbl } };
-    if ( defined $baracustbls ) {
-        return BaracusSql::keys2columns( $baracustbls );
-    }
-    elsif ( defined $sqltftptbls ) {
-        return BaracusSql::keys2columns( $sqltftptbls );
-    }
-    else {
-        die "Internal database table/name usage error.\n";
-    }
-}
-
 # get_versions
 #
 # args: type (module, hardware, profile, tftp), $name, $version
@@ -2348,8 +2287,8 @@ sub get_versions
 
     $vers = 0 unless ( defined $vers );
 
-    my $sql_cols = lc get_cols( $type );
-    my $sql = qq| SELECT $sql_cols FROM $tbl{ $type } |;
+    my $sql_cols = lc get_cols( $baTbls{ $type } );
+    my $sql = qq| SELECT $sql_cols FROM $baTbls{ $type } |;
 
     if ( $type eq "module" ) {
         $sql .= "WHERE moduleid = ?";
@@ -2411,12 +2350,12 @@ sub update_cert
             }
         }
 
-        my $sql_cols = lc get_cols( $type );
+        my $sql_cols = lc get_cols( $baTbls{ $type } );
         $sql_cols =~ s/[ \t]*//g;
         my @cols = split( /,/, $sql_cols );
         my $sql_vals = "?," x scalar @cols; chop $sql_vals;
 
-        my $add_sql = qq|INSERT INTO $tbl{ $type }
+        my $add_sql = qq|INSERT INTO $baTbls{ $type }
                          ( $sql_cols )
                          VALUES ( $sql_vals )
                         |;
@@ -2429,7 +2368,7 @@ sub update_cert
 
         my $success = 1;
         foreach my $cert_in (@cert_add) {
-           if ( $type eq "oscert") {
+           if ( $type eq "hwcert") {
                $sth->bind_param( "1", $cert_in );
                $sth->bind_param( "2", $id );
             }
@@ -2453,7 +2392,7 @@ sub update_cert
 
     if ( $action eq "rmcert" ) {
 
-        my $rm_sql = qq|DELETE FROM $tbl{ $type }
+        my $rm_sql = qq|DELETE FROM $baTbls{ $type }
                         WHERE distroid = ?
                        |;
 
@@ -2491,7 +2430,7 @@ sub check_enabled
     my $href;
 
     my $sql = qq| SELECT status
-                  FROM $tbl{ module }
+                  FROM $baTbls{ module }
                   WHERE moduleid = ?
                   AND version >= 1
                 |;
@@ -2528,7 +2467,7 @@ sub check_mandatory
     my $href;
 
     my $sql = qq| SELECT mandatory
-                  FROM $tbl{ module }
+                  FROM $baTbls{ module }
                   WHERE moduleid = ?
                   AND version >= 1
                 |;
@@ -2565,7 +2504,7 @@ sub check_distroid
     my $href;
 
     my $sql = qq| SELECT distroid
-                  FROM $tbl{ distro }
+                  FROM $baTbls{ distro }
                   WHERE distroid = ?
                 |;
 
@@ -2601,7 +2540,7 @@ sub check_hardware
     my $href;
 
     my $sql = qq| SELECT hardwareid
-                  FROM $tbl{ hardware }
+                  FROM $baTbls{ hardware }
                   WHERE hardwareid = ?
                 |;
 
@@ -2637,7 +2576,7 @@ sub check_module
     my $href;
 
     my $sql = qq| SELECT moduleid
-                  FROM $tbl{ module }
+                  FROM $baTbls{ module }
                   WHERE moduleid = ?
                 |;
 
@@ -2676,16 +2615,16 @@ sub check_cert
     my $href;
     my $sql;
 
-    if ( $type eq "oscert" ) {
+    if ( $type eq "hwcert" ) {
         $sql = qq| SELECT distroid 
-                      FROM $tbl{ $type }
+                      FROM $baTbls{ $type }
                       WHERE hardwareid = '$id'
                       AND distroid = '$cert_in'
                     |;
     }
     elsif ( $type eq "modcert" ) {
         $sql = qq| SELECT distroid 
-                      FROM $tbl{ $type }
+                      FROM $baTbls{ $type }
                       WHERE moduleid = '$id'
                       AND distroid = '$cert_in'
                     |;
@@ -2730,8 +2669,8 @@ sub redundant_data
     my $sth;
     my $href;
 
-    my $sql_cols = lc get_cols( $type );
-    my $sql = qq| SELECT $sql_cols FROM $tbl{ $type } |;
+    my $sql_cols = lc get_cols( $baTbls{ $type } );
+    my $sql = qq| SELECT $sql_cols FROM $baTbls{ $type } |;
 
     if ( $type eq "module" ) {
         $sql .= "WHERE moduleid = ?";
@@ -2804,7 +2743,7 @@ sub change_status
         exit 1;
     }
 
-    my $sql = qq|UPDATE $tbl{ $type }
+    my $sql = qq|UPDATE $baTbls{ $type }
                  SET status = '$stat'
                  WHERE $id = '$href->{ $id }'
                  AND version = '$href->{'version'}'
@@ -2832,7 +2771,7 @@ sub get_mandatory
     my $cert = shift;
 
     my $sql = qq|SELECT mandatory
-                 FROM $tbl{ modcert }
+                 FROM $baTbls{ modcert }
                  WHERE moduleid = ?
                 |;
 
@@ -2881,7 +2820,7 @@ sub change_mandatory
         return 1;
     }
 
-    my $sql = qq|UPDATE $tbl{ modcert }
+    my $sql = qq|UPDATE $baTbls{ modcert }
                  SET mandatory = '$mandatory'
                  WHERE moduleid = '$moduleid'
                  AND distroid = '$cert'
@@ -2929,7 +2868,7 @@ sub change_description
         exit 1;
     }
 
-    my $sql = qq|UPDATE $tbl{ $type }
+    my $sql = qq|UPDATE $baTbls{ $type }
                  SET description = '$desc'
                  WHERE $id = '$href->{ $id }'
                  AND version = '$href->{'version'}'

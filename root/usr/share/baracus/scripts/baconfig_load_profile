@@ -1,0 +1,6 @@
+#!/bin/bash
+
+baconfig detail profile default &> /dev/null || \
+baconfig add profile --name default \
+--description="Default profile" \
+--file=/usr/share/baracus/profile_default

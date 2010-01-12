@@ -9,7 +9,7 @@ use AppConfig;
 
 =head1 NAME
 
-BaracusConfig - load /etc/sysconfig/baracus and other settings
+BaracusConfig - load /etc/sysconfig/baracus, other settings, and multiarg handler
 
 =head1 SYNOPSIS
 
@@ -20,6 +20,9 @@ this solution.
 baVars is a hash containing all the sysconfig variables
 
 baDirs is a hash containing all the Baracus dirs of interest
+
+The subroutine -- multiarg_handler -- is used in the getops calls for
+args/opts that allow multiple invocations
 
 =cut
 
@@ -35,9 +38,19 @@ BEGIN {
   @EXPORT_OK   = qw();
   %EXPORT_TAGS =
       (
-       vars => [ qw( %baVar %baDir ) ]
+       vars =>
+       [qw(
+              %baVar
+              %baDir
+              %multiarg
+          )],
+       subs =>
+       [qw(
+              multiarg_handler
+          )],
        );
   Exporter::export_ok_tags('vars');
+  Exporter::export_ok_tags('subs');
 }
 
 our $VERSION = '0.01';
@@ -122,6 +135,46 @@ foreach my $bd (@bdirs) {
     $baDir{ $bd } = "$baracusdir/$bd";
 }
 
+###########################################################################
+
+
+use vars qw( %multiarg ); # used for processing repeatable getoptions
+
+# this arg handling will parse many variations
+# --module=doOne,doTwo --module doThree --module "doFour,doFive doSix"
+# --vars=doOne=hey,doTwo=there --vars "doThree=love,doFour=or doFive=not"
+sub multiarg_handler() {
+    my $option = $_[0];
+    my $value  = $_[1];
+    my @values;
+    if ( $value ne '' ) {
+        # arg specified - push into array
+        @values = split(/[,\s*]/,$value);
+    } else {
+        # no value profided and no defaults
+        # with ':s' should not get here
+        # we could 'die("FINISH")'
+        # but for now just return
+        @values = ( $baVar{sharetype}, "dhcpd" );
+    }
+    foreach $value (@values) {
+        $value = lc $value;
+        if ( $option eq "vars" ) {
+            # special check for key=value assignment syntax
+            die("FINISH") if ( $value !~ m/=/ );
+        }
+        if (not defined $multiarg{ $option } ){
+            # initialize
+            $multiarg{ $option } = "$value";
+        }
+        elsif ( $multiarg{ $option } !~ m/$value/ ) {
+            # append if not already present
+            $multiarg{ $option } .= " $value";
+        }
+    }
+}
+
+###########################################################################
 
 1;
 

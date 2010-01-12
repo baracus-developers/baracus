@@ -133,7 +133,7 @@ case "$1" in
 
     ## Baracus pathing could be in sysconfig
     ## make sure we have the expected role(s) and database(s) setup
-    /usr/share/baracus/perl/baracusInitDB.pl &> $DATADIR/../../logs/initlog || rc_failed
+    /usr/share/baracus/scripts/baracusInitDB.pl &> $DATADIR/../../logs/initlog || rc_failed
 	rc_status -v
     ;;
 

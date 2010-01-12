@@ -23,15 +23,13 @@ BEGIN {
   @EXPORT_OK   = qw();
   %EXPORT_TAGS =
       (
-       subs => [ qw(
-        get_inventory
-        do_localboot
-        get_distro
-        get_hardware
-        get_tftpfile
-        delete_tftpfile
-        get_build
-         ) ]
+       subs =>
+       [qw(
+              get_inventory
+              do_localboot
+              do_pxewait
+              do_netboot
+          )]
        );
   Exporter::export_ok_tags('subs');
 }
@@ -43,14 +41,15 @@ sub get_inventory() {
     my $cgi   = shift;
     my $baVar = shift;
     my $input = shift;
+    my $args  = shift;
+    $args = "" unless ( defined $args );
     my $output = qq|DEFAULT register
 PROMPT 0
 TIMEOUT 0
 
 LABEL register
         kernel http://$baVar->{serverip}/ba/linux.baracus
-        append initrd=http://$baVar->{serverip}/ba/initrd.baracus install=exec:/usr/bin/baracus.register textmode=1 baracus=$baVar->{serverip} mac=$input->{mac}
-|;
+        append initrd=http://$baVar->{serverip}/ba/initrd.baracus install=exec:/usr/bin/baracus.register textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args |;
 
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
     exit 0;
@@ -58,7 +57,7 @@ LABEL register
 
 sub do_localboot() {
     my $cgi = shift;
-    my $output = q|DEFAULT localboot
+    my $output = qq|DEFAULT localboot
 PROMPT 0
 TIMEOUT 0
 
@@ -70,69 +69,53 @@ LABEL localboot
     exit 0;
 }
 
-sub get_distro() {
-    my $dbh = shift;
-    my $bref = shift;
+# without the timeout it should wait indefinitely
+sub do_pxewait() {
+    my $cgi = shift;
+    my $output = qq|DEFAULT pxewait
+PROMPT 1
+LABEL pxewait
+        localboot 0
+|;
 
-    my $sql = qq|SELECT * FROM distro_cfg WHERE distroid = '$bref->{distroid}'|;
-    my $sth;
-
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute(  ) );
-
-    return $sth->fetchrow_hashref( );
+    print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
+    exit 0;
 }
 
-sub get_hardware() {
-    my $dbh = shift;
-    my $bref = shift;
+sub do_netboot() {
+    my $cgi = shift;
+    my $actref = shift;
+    my $serverip = shift;
+    my $output = qq|DEFAULT netboot
 
-    my $sql = qq|SELECT * FROM hardware_cfg WHERE hardwareid = '$bref->{hardwareid}'|;
-    my $sth;
+PROMPT 0
+TIMEOUT 0
+LABEL netboot
+    kernel http://$serverip/baracus/sanboot.c32
+    append iscsi:$actref->{netbootip}::::$actref->{netboot}
+|;
 
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    return $sth->fetchrow_hashref( );
+    print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
+    exit 0;
 }
 
-sub get_tftpfile() {
-    my $tftph = shift;
-    my $filename = shift;
+sub do_rescue() {
+    my $cgi = shift;
+    my $actref = shift;
+    my $mac = shift;
+    my $serverip = shift;
+    my $args = shift;
+    my $output = qq|DEFAULT rescue
 
-    my $sql = qq|SELECT COUNT(id) as count, name FROM sqlfstable WHERE name = '$filename' GROUP BY name|;
-    my $sth;
+PROMPT 0
+TIMEOUT 0
+LABEL rescue
+    kernel http://${serverip}/ba/linux?mac=${mac}
+    append initrd=http://${serverip}/ba/initrd?mac=${mac} $args
+|;
 
-    die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    return $sth->fetchrow_hashref( );
-}
-
-sub delete_tftpfile() {
-    my $tftph = shift;
-    my $filename = shift;
-
-    my $sql = qq|DELETE FROM sqlfstable WHERE name = '$filename'|;
-    my $sth;
-
-    die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    $sth->finish();
-}
-
-sub get_build() {
-    my $dbh = shift;
-    my $input = shift;
-
-    my $sql = qq|SELECT * FROM build WHERE mac = '$input->{mac}'|;
-    my $sth;
-
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    return $sth->fetchrow_hashref( );
+    print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
+    exit 0;
 }
 
 

@@ -7,6 +7,23 @@ use warnings;
 
 use Tie::IxHash;
 
+use lib "/usr/share/baracus/perl";
+
+use BaracusState qw ( :vars );
+
+=pod
+
+=head1 NAME
+
+B<BaracusSql> - hash definitions and subroutines for managing Baracus sql
+
+=head1 SYNOPSIS
+
+Another collection of routines used in Baracus
+
+=cut
+
+
 BEGIN {
     use Exporter ();
     use vars qw( @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
@@ -16,122 +33,48 @@ BEGIN {
 
     %EXPORT_TAGS =
         (
-         states =>
+         vars =>
          [qw(
                 BA_DBMAXLEN
-
-                BA_READY
-                BA_BUILT
-                BA_SPOOFED
-                BA_DELETED
-                BA_UPDATED
-                BA_DISKWIPE
-                BA_DISABLED
-                BA_FOUND
-                BA_BUILDING
-                BA_WIPING
-                BA_WIPED
-                BA_WIPEFAIL
-                BA_REGISTER
-                BA_ADDED
-                BA_LOCALBOOT
-                BA_NOPXE
+                %baTbls
             )],
-         vars => [qw( %baState )],
-#                get_cols
          subs =>
          [qw(
                 keys2columns
                 hash2columns
+                get_cols
+                bytea_encode
+                bytea_decode
                 get_sqltftp_tables
                 get_baracus_tables
                 get_baracus_functions
                 get_baracus_triggers
             )],
          );
-    Exporter::export_ok_tags('states');
     Exporter::export_ok_tags('vars');
     Exporter::export_ok_tags('subs');
 }
 
-# for sql binary file chunking 1MB blobs
+# for sql tftp db binary file chunking 1MB blobs
 use constant BA_DBMAXLEN => 1048575;
 
-use constant BA_READY     => 1;
-use constant BA_BUILT     => 2;
-use constant BA_SPOOFED   => 3;
-use constant BA_DELETED   => 4;
-use constant BA_UPDATED   => 5;
-use constant BA_DISKWIPE  => 6;
-use constant BA_DISABLED  => 7;
-use constant BA_FOUND     => 8;
-use constant BA_BUILDING  => 9;
-use constant BA_WIPING    => 10;
-use constant BA_WIPED     => 11;
-use constant BA_WIPEFAIL  => 12;
-use constant BA_REGISTER  => 13;
-use constant BA_ADDED     => 14;
-use constant BA_LOCALBOOT => 15;
-use constant BA_NOPXE     => 16;
+use vars qw ( %baTbls );
 
-=item baState
-
-here we define some state constants and a hash to make easy use of them
-
-=cut
-
-use vars qw( %baState );
-
-%baState =
+%baTbls =
     (
-     1            => 'ready',
-     2            => 'built',
-     3            => 'spoofed',
-     4            => 'deleted',
-     5            => 'updated',
-     6            => 'diskwipe',
-     7            => 'disabled',
-     8            => 'found',
-     9            => 'building',
-     10           => 'wiping',
-     11           => 'wiped',
-     12           => 'wipefail',
-     13           => 'register',
-     14           => 'added',
-     15           => 'localboot',
-     16           => 'nopxe',
-     BA_READY     => 'ready',
-     BA_BUILT     => 'built',
-     BA_SPOOFED   => 'spoofed',
-     BA_DELETED   => 'deleted',
-     BA_UPDATED   => 'updated',
-     BA_DISKWIPE  => 'diskwipe',
-     BA_DISABLED  => 'disabled',
-     BA_FOUND     => 'found',
-     BA_BUILDING  => 'building',
-     BA_WIPING    => 'wiping',
-     BA_WIPED     => 'wiped',
-     BA_WIPEFAIL  => 'wipefail',
-     BA_REGISTER  => 'register',
-     BA_ADDED     => 'added',
-     BA_LOCALBOOT => 'localboot',
-     BA_NOPXE     => 'nopxe',
-     'ready'      => BA_READY,
-     'built'      => BA_BUILT,
-     'spoofed'    => BA_SPOOFED,
-     'deleted'    => BA_DELETED,
-     'updated'    => BA_UPDATED,
-     'diskwipe'   => BA_DISKWIPE,
-     'disabled'   => BA_DISABLED,
-     'found'      => BA_FOUND,
-     'building'   => BA_BUILDING,
-     'wiping'     => BA_WIPING,
-     'wiped'      => BA_WIPED,
-     'wipefail'   => BA_WIPEFAIL,
-     'register'   => BA_REGISTER,
-     'added'      => BA_ADDED,
-     'localboot'  => BA_LOCALBOOT,
-     'nopxe'      => BA_NOPXE,
+     'tftp'      => 'sqlfstable',
+
+     'mac'       => 'mac',
+     'host'      => 'host',
+     'distro'    => 'distro',
+     'hardware'  => 'hardware',
+     'hwcert'    => 'hardware_cert',
+     'module'    => 'module',
+     'modcert'   => 'module_cert',
+     'profile'   => 'profile',
+     'action'    => 'action',
+     'history'   => 'action_hist',
+     'power'     => 'power',
      );
 
 
@@ -142,6 +85,7 @@ suitable for sql SELECT statements from
 hash keys
 
 =cut
+
 sub keys2columns
 {
     my $hash = shift;
@@ -173,6 +117,50 @@ sub hash2columns
     return $str;
 }
 
+=item get_cols
+
+wrapper to simply get the columns based of a table
+no matter which baracus related database it is from
+
+=cut
+
+sub get_cols
+{
+    my $tbl = shift;
+    my $baracustbls = get_baracus_tables()->{ $tbl };
+    my $sqltftptbls = get_sqltftp_tables()->{ $tbl };
+    if ( defined $baracustbls ) {
+        return keys2columns( $baracustbls );
+    } elsif ( defined $sqltftptbls ) {
+        return keys2columns( $sqltftptbls );
+    } else {
+        carp "Internal database table/name usage error.\n";
+        return undef;
+    }
+}
+
+# encode bytestream for binary VARCHAR storage
+
+sub bytea_encode
+{
+    my ($in, $out);
+    $in = shift;
+    $out = pack( 'u', $in);
+    return $out;
+}
+
+# decode bytestream for binary VARCHAR storage
+
+sub bytea_decode
+{
+    my ($in,$out);
+    $in = shift;
+    $out = unpack( 'u', $in );
+    return $out;
+}
+
+
+
 # sqltftp database tables
 
 sub get_sqltftp_tables
@@ -198,92 +186,37 @@ sub get_sqltftp_tables
 
 # baracus database tables
 
-
 sub get_baracus_tables
 {
     my $tbl_mac = "mac";
     my %tbl_mac_cols =
         (
          'mac'       => 'VARCHAR(17) PRIMARY KEY',
-         'state'     => 'INTEGER',     # last state
-         'ready'     => 'TIMESTAMP',
-         'built'     => 'TIMESTAMP',
-         'spoofed'   => 'TIMESTAMP',
-         'deleted'   => 'TIMESTAMP',
-         'updated'   => 'TIMESTAMP',
-         'diskwipe'  => 'TIMESTAMP',
-         'disabled'  => 'TIMESTAMP',
-         'found'     => 'TIMESTAMP',
-         'building'  => 'TIMESTAMP',
-         'wiping'    => 'TIMESTAMP',
-         'wiped'     => 'TIMESTAMP',
-         'wipefail'  => 'TIMESTAMP',
-         'register'  => 'TIMESTAMP',
-         'added'     => 'TIMESTAMP',
-         'localboot' => 'TIMESTAMP',
-         'nopxe'     => 'TIMESTAMP',
+         'state'     => 'INTEGER',
          );
+    # all states have a column here with a timestamp
+    # to show when this mac was last in the named state
+    # this tracks **ALL** admin, action, and events
 
-    my $tbl_templateid = "templateid";
-    my %tbl_templateid_columns =
+    # build this set of columns dynamically
+    # based on the baStates array from BaracusState.pm
+    foreach my $col ( @baStates ) {
+        $tbl_mac_cols{ $col } = 'TIMESTAMP';
+    }
+
+    # hostname to mac binding - hardware profile info may go here
+    # like a distro - the host relates to a box and info about the
+    # box not a combination of things currently installed on the box
+
+    my $tbl_host = "host";
+    my %tbl_host_columns =
         (
          'hostname' => 'VARCHAR(32) PRIMARY KEY',
-         'ip'       => 'VARCHAR(15)',
-         'mac'      => 'VARCHAR(17)',
-         'uuid'     => 'VARCHAR(36)',
-         'loghost'  => 'VARCHAR(32)',
-         'raccess'  => 'VARCHAR(128)',
-         'autonuke' => 'BOOLEAN',
-         'pxestate' => 'INTEGER',      # follows admin state - unless autodisable
-         'admin'    => 'INTEGER',      # admin ready / disabled
-         'pxenext'  => 'INTEGER',      # next state / action on pxeboot
-         'oper'     => 'INTEGER',      # operational state independent of admin
-         'cmdline'  => 'VARCHAR(1024)',
-         'creation' => 'TIMESTAMP',
-         'change'   => 'TIMESTAMP',
+         'mac'      => 'VARCHAR(17) REFERENCES mac',
          );
 
-    my $tbl_templateidhist = "templateidhist";
-    my %tbl_templateidhist_columns =
-        (
-         'hostname' => 'VARCHAR(32)',
-         'ip'       => 'VARCHAR(15)',
-         'mac'      => 'VARCHAR(17)',
-         'uuid'     => 'VARCHAR(36)',
-         'loghost'  => 'VARCHAR(32)',
-         'raccess'  => 'VARCHAR(128)',
-         'autonuke' => 'BOOLEAN',
-         'pxestate' => 'INTEGER',
-         'admin'    => 'INTEGER',
-         'pxenext'  => 'INTEGER',
-         'oper'     => 'INTEGER',
-         'cmdline'  => 'VARCHAR(1024)',
-         'creation' => 'TIMESTAMP',
-         'change'   => 'TIMESTAMP',
-         );
-
-    my $tbl_hardware_cfg = "hardware_cfg";
-    my %tbl_hardware_cfg_columns =
-        (
-         'hardwareid'   => 'VARCHAR(32) PRIMARY KEY',
-         'description'  => 'VARCHAR(64)',
-         'bootArgs'     => 'VARCHAR(64)',
-         'rootDisk'     => 'VARCHAR(32)',
-         'rootPart'     => 'VARCHAR(32)',
-         'autobuild'    => 'VARCHAR(32)',
-         'hwdriver'     => 'VARCHAR(32)',
-         );
-
-    my $tbl_hardwareid = "hardwareid";
-    my %tbl_hardwareid_columns =
-        (
-         'hardwareid'   => 'VARCHAR(32) REFERENCES hardware_cfg',
-         'distroid'     => 'VARCHAR(32)',
-         'CONSTRAINT'   => 'hardwareid_pk PRIMARY KEY (hardwareid, distroid)',
-         );
-
-    my $tbl_distro_cfg = "distro_cfg";
-    my %tbl_distro_cfg_columns =
+    my $tbl_distro = "distro";
+    my %tbl_distro_columns =
         (
          'distroid'    => 'VARCHAR(48) PRIMARY KEY',
          'os'          => 'VARCHAR(12)',
@@ -303,8 +236,28 @@ sub get_baracus_tables
          'change'      => 'TIMESTAMP',
          );
 
-    my $tbl_module_cfg = "module_cfg";
-    my %tbl_module_cfg_columns =
+    my $tbl_hardware = "hardware";
+    my %tbl_hardware_columns =
+        (
+         'hardwareid'   => 'VARCHAR(32) PRIMARY KEY',
+         'description'  => 'VARCHAR(64)',
+         'bootArgs'     => 'VARCHAR(64)',
+         'rootDisk'     => 'VARCHAR(32)',
+         'rootPart'     => 'VARCHAR(32)',
+         'autobuild'    => 'VARCHAR(32)', # default
+         'hwdriver'     => 'VARCHAR(32)',
+         );
+
+    my $tbl_hardware_cert = "hardware_cert";
+    my %tbl_hardware_cert_columns =
+        (
+         'hardwareid'   => 'VARCHAR(32) REFERENCES hardware',
+         'distroid'     => 'VARCHAR(32)',
+         'CONSTRAINT'   => 'hardware_cert_pk PRIMARY KEY (hardwareid, distroid)',
+         );
+
+    my $tbl_module = "module";
+    my %tbl_module_columns =
         (
          'moduleid'    => 'VARCHAR(32) NOT NULL',
          'version'     => 'INTEGER',
@@ -312,156 +265,178 @@ sub get_baracus_tables
          'interpreter' => 'VARCHAR(8)',
          'data'        => 'VARCHAR',
          'status'      => 'BOOLEAN',
-         'CONSTRAINT'  => 'module_cfg_pk PRIMARY KEY (moduleid, version)',
+         'CONSTRAINT'  => 'module_pk PRIMARY KEY (moduleid, version)',
          );
 
-    my $tbl_module_cert_cfg = "module_cert_cfg";
-    my %tbl_module_cert_cfg_columns =
+    my $tbl_module_cert = "module_cert";
+    my %tbl_module_cert_columns =
         (
          'moduleid'   => 'VARCHAR(32)',
          'distroid'   => 'VARCHAR(48)',
          'mandatory'  => 'BOOLEAN',
-         'CONSTRAINT' => 'module_cert_cfg_pk PRIMARY KEY (moduleid, distroid)',
+         'CONSTRAINT' => 'module_cert_pk PRIMARY KEY (moduleid, distroid)',
          );
 
-    my $tbl_profile_cfg = "profile_cfg";
-    my %tbl_profile_cfg_columns =
+    my $tbl_profile = "profile";
+    my %tbl_profile_columns =
         (
          'profileid'   => 'VARCHAR(32) NOT NULL',
          'version'     => 'INTEGER',
          'description' => 'VARCHAR(64)',
          'data'        => 'VARCHAR',
          'status'      => 'BOOLEAN',
-         'CONSTRAINT'  => 'profile_cfg_pk PRIMARY KEY (profileid, version)',
+         'CONSTRAINT'  => 'profile_pk PRIMARY KEY (profileid, version)',
          );
 
-    my $tbl_build_cfg = "build";
-    my %tbl_build_cfg_columns =
+    my $tbl_action = "action";
+    my %tbl_action_columns =
         (
          'mac'         => 'VARCHAR(17) PRIMARY KEY',
-         'hostname'    => 'VARCHAR(32) REFERENCES templateid',
-         'distroid'    => 'VARCHAR(48) REFERENCES distro_cfg',
-         'hardwareid'  => 'VARCHAR(32) REFERENCES hardware_cfg',
+         'hostname'    => 'VARCHAR(32)',
+         'distro'      => 'VARCHAR(48)',
+         'hardware'    => 'VARCHAR(32)',
+         'profile'     => 'VARCHAR(32)',
+
+         'modules'     => 'VARCHAR', # list of moudles to use for build
+         'addons'      => 'VARCHAR', # list of addons to use for build
+         'vars'        => 'VARCHAR', # list of additional vars for build
+
+         'oper'        => 'INTEGER', # oper state action or event driven
+         'admin'       => 'INTEGER', # admin enable / disabled / ignore
+         'autopxeoff'  => 'BOOLEAN', # has auto pxe disable been asserted
+         'pxecurr'     => 'INTEGER', # current pxestate / action on pxeboot
+         'pxenext'     => 'INTEGER', # next state / action on pxeboot
+
+         'ip'          => 'VARCHAR(15)',
+         'uuid'        => 'VARCHAR(36)',
+         'loghost'     => 'VARCHAR(32)',
+         'raccess'     => 'VARCHAR(128)',
+         'autobuild'   => 'VARCHAR',
+         'autonuke'    => 'BOOLEAN', # if asserted pass autowipe option
+         'netboot'     => 'VARCHAR', # netboot target (for iSCSI and ilk)
+         'netbootip'   => 'VARCHAR', # netboot target server ip address
+         'cmdline'     => 'VARCHAR',
+         'creation'    => 'TIMESTAMP',
+         'change'      => 'TIMESTAMP',
          );
 
-    my $tbl_power_cfg = "power_cfg";
-    my %tbl_power_cfg_columns =
-         (
-          'mac'     => 'VARCHAR(17) PRIMARY KEY',
-          'ctype'   => 'VARCHAR(16)',
-          'login'   => 'VARCHAR(16)',
-          'passwd'  => 'VARCHAR(32)',
-          'bmcaddr' => 'VARCHAR(32)',
-          'node'    => 'VARCHAR(32)',
-          'other'   => 'VARCHAR(32)',
-          'alias'   => 'VARCHAR(32)',
+    my $tbl_action_hist = "action_hist";
+    # copy the action table and modify the 'mac' to remove the "KEY"
+    my %tbl_action_hist_columns = %tbl_action_columns;
+    $tbl_action_hist_columns{mac} = 'VARCHAR(17)';
+
+    # don't define another hash
+    # we have the action table already.
+
+    my $tbl_power = "power";
+    my %tbl_power_columns =
+        (
+         'mac'     => 'VARCHAR(17) PRIMARY KEY',
+         'ctype'   => 'VARCHAR(16)',
+         'login'   => 'VARCHAR(16)',
+         'passwd'  => 'VARCHAR(32)',
+         'bmcaddr' => 'VARCHAR(32)',
+         'node'    => 'VARCHAR(32)',
+         'other'   => 'VARCHAR(32)',
+         'alias'   => 'VARCHAR(32)',
          );
 
     tie( my %baracus_tbls, 'Tie::IxHash',
-         $tbl_mac             => \%tbl_mac_cols,
-         $tbl_templateid      => \%tbl_templateid_columns,
-         $tbl_templateidhist  => \%tbl_templateidhist_columns,
-         $tbl_hardware_cfg    => \%tbl_hardware_cfg_columns,
-         $tbl_hardwareid      => \%tbl_hardwareid_columns,
-         $tbl_distro_cfg      => \%tbl_distro_cfg_columns,
-         $tbl_module_cfg      => \%tbl_module_cfg_columns,
-         $tbl_module_cert_cfg => \%tbl_module_cert_cfg_columns,
-         $tbl_profile_cfg     => \%tbl_profile_cfg_columns,
-         $tbl_build_cfg       => \%tbl_build_cfg_columns,
-         $tbl_power_cfg       => \%tbl_power_cfg_columns,
+         $tbl_mac           => \%tbl_mac_cols,
+         $tbl_host          => \%tbl_host_columns,
+         $tbl_distro        => \%tbl_distro_columns,
+         $tbl_hardware      => \%tbl_hardware_columns,
+         $tbl_hardware_cert => \%tbl_hardware_cert_columns,
+         $tbl_module        => \%tbl_module_columns,
+         $tbl_module_cert   => \%tbl_module_cert_columns,
+         $tbl_profile       => \%tbl_profile_columns,
+         $tbl_action        => \%tbl_action_columns,
+         $tbl_action_hist   => \%tbl_action_hist_columns,
+         $tbl_power         => \%tbl_power_columns,
         );
     return \%baracus_tbls;
 }
 
 sub get_baracus_functions
 {
-    my $func_add_delete = q|
-RETURNS TRIGGER AS $template_state_trigger$
+    my $histtbl  = get_baracus_tables()->{ action_hist };
+
+    my $declare = "";
+    my $insert  = "";
+    my $values  = "";
+
+    while ( my ( $col, $val ) = each %{ $histtbl } ) {
+        # crude skip of SQL constraints
+        next if ( $col =~ m|^[A-Z]+| );
+        next if ( $col eq "change" );
+        $val =~ s/[(|\s)].*//;  # strip off len or other constraints
+        $insert .= ',' if $insert;
+        $insert .= "${col}";
+        $declare .= "new_${col} ${val} ; ";
+        $values  .= ',' if $values;
+        $values  .= "NEW.${col}";
+    }
+    $insert .= ",change";
+    $values .= ",CURRENT_TIMESTAMP";
+
+    my $func_add_delete = qq|
+RETURNS TRIGGER AS \$host_state_trigger\$
     DECLARE
-        new_hostname VARCHAR;
-        new_ip       VARCHAR;
-        new_mac      VARCHAR;
-        new_uuid     VARCHAR;
-        new_pxestate INTEGER;
-        new_admin    INTEGER;
-        new_pxenext  INTEGER;
-        new_oper     INTEGER;
-        new_cmdline  VARCHAR;
-        new_creation TIMESTAMP;
+        $declare
     BEGIN
-    INSERT INTO templateidhist ( hostname,
-                                 ip,
-                                 mac,
-                                 uuid,
-                                 pxestate,
-                                 admin,
-                                 pxenext,
-                                 oper,
-                                 cmdline,
-                                 creation,
-                                 change )
-    VALUES ( NEW.hostname,
-             NEW.ip,
-             NEW.mac,
-             NEW.uuid,
-             NEW.pxestate,
-             NEW.admin,
-             NEW.pxenext,
-             NEW.oper,
-             NEW.cmdline,
-             NEW.creation,
-             CURRENT_TIMESTAMP(0) );
+    INSERT INTO action_hist ( $insert )
+    VALUES ( $values );
     RETURN NEW;
     END;
-$template_state_trigger$ LANGUAGE 'plpgsql';
+\$host_state_trigger\$ LANGUAGE 'plpgsql';
 |;
 
-    my $func_update = q|
-RETURNS TRIGGER AS $template_state_trigger$
-    DECLARE
-        new_hostname VARCHAR;
-        new_ip       VARCHAR;
-        new_mac      VARCHAR;
-        new_uuid     VARCHAR;
-        new_pxestate INTEGER;
-        new_admin    INTEGER;
-        new_pxenext  INTEGER;
-        new_oper     INTEGER;
-        new_cmdline  VARCHAR;
-        new_creation TIMESTAMP;
-    BEGIN
-    INSERT INTO templateidhist ( hostname,
-                                 ip,
-                                 mac,
-                                 uuid,
-                                 pxestate,
-                                 admin,
-                                 pxenext,
-                                 oper,
-                                 cmdline,
-                                 creation,
-                                 change )
-    VALUES ( NEW.hostname,
-             NEW.ip,
-             NEW.mac,
-             NEW.uuid,
-             NEW.pxestate,
-             NEW.admin,
-             NEW.pxenext,
-             NEW.oper,
-             NEW.cmdline,
-             NEW.creation,
-             CURRENT_TIMESTAMP(0) );
-    RETURN NEW;
-    END;
-$template_state_trigger$ LANGUAGE 'plpgsql';
-|;
+    #     my $func_update = q|
+    # RETURNS TRIGGER AS $host_state_trigger$
+    #     DECLARE
+    #         new_hostname VARCHAR;
+    #         new_ip       VARCHAR;
+    #         new_mac      VARCHAR;
+    #         new_uuid     VARCHAR;
+    #         new_pxestate INTEGER;
+    #         new_admin    INTEGER;
+    #         new_pxenext  INTEGER;
+    #         new_oper     INTEGER;
+    #         new_cmdline  VARCHAR;
+    #         new_creation TIMESTAMP;
+    #     BEGIN
+    #     INSERT INTO action_hist ( hostname,
+    #                                  ip,
+    #                                  mac,
+    #                                  uuid,
+    #                                  pxestate,
+    #                                  admin,
+    #                                  pxenext,
+    #                                  oper,
+    #                                  cmdline,
+    #                                  creation,
+    #                                  change )
+    #     VALUES ( NEW.hostname,
+    #              NEW.ip,
+    #              NEW.mac,
+    #              NEW.uuid,
+    #              NEW.pxestate,
+    #              NEW.admin,
+    #              NEW.pxenext,
+    #              NEW.oper,
+    #              NEW.cmdline,
+    #              NEW.creation,
+    #              CURRENT_TIMESTAMP(0) );
+    #     RETURN NEW;
+    #     END;
+    # $host_state_trigger$ LANGUAGE 'plpgsql';
+    # |;
 
 
     my %baracus_functions =
         (
-         'template_state_add_delete()' => $func_add_delete,
-         'template_state_update()'     => $func_update,
+         'action_state_add_delete()' => $func_add_delete,
+         'action_state_update()'     => $func_add_delete,
          );
 
     return \%baracus_functions;
@@ -469,18 +444,18 @@ $template_state_trigger$ LANGUAGE 'plpgsql';
 
 sub get_baracus_triggers
 {
-    my $trigger_add_delete = q|AFTER INSERT ON templateid
-FOR EACH ROW EXECUTE PROCEDURE template_state_add_delete()
+    my $trigger_add_delete = q|AFTER INSERT ON action
+FOR EACH ROW EXECUTE PROCEDURE action_state_add_delete()
 |;
 
-    my $trigger_update = q|AFTER UPDATE ON templateid
-FOR EACH ROW EXECUTE PROCEDURE template_state_update()
+    my $trigger_update = q|AFTER UPDATE ON action
+FOR EACH ROW EXECUTE PROCEDURE action_state_update()
 |;
 
     my %baracus_triggers =
         (
-         'template_state_add_delete_trigger' => $trigger_add_delete,
-         'template_state_update_trigger' => $trigger_update,
+         'action_state_add_delete_trigger' => $trigger_add_delete,
+         'action_state_update_trigger'     => $trigger_update,
          );
 
     return \%baracus_triggers;

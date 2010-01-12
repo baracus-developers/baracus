@@ -140,7 +140,7 @@ sub list_start() {
                          login,
                          node,
                          other
-                  FROM power_cfg
+                  FROM power
                 |;
     $sql .= qq|WHERE mac LIKE ?| if $bmcref->{ 'mac' };
     $sql .= qq|WHERE alias LIKE ?| if $bmcref->{ 'alias' };
@@ -291,7 +291,7 @@ sub get_mac() {
     my $sql;
 
     $sql = qq| SELECT mac
-               FROM power_cfg
+               FROM power
                WHERE alias = ?
              |;
 
@@ -336,7 +336,7 @@ sub get_bmc() {
                          bmcaddr,
                          node,
                          other
-                  FROM power_cfg
+                  FROM power
                   WHERE mac = ?
                 |;
 
@@ -359,7 +359,7 @@ sub check_powerdb_entry() {
     my $href;
 
     my $sql = qq| SELECT mac
-                  FROM power_cfg
+                  FROM power
                   WHERE mac = ?
                 |;
 
@@ -389,7 +389,7 @@ sub add_powerdb_entry() {
 
     my $sth;
 
-    my $sql = qq|INSERT INTO power_cfg
+    my $sql = qq|INSERT INTO power
                   ( mac,
                     ctype,
                     login,
@@ -482,7 +482,7 @@ sub remove_powerdb_entry() {
 
     my $sth;
 
-    my $sql = qq|DELETE FROM power_cfg
+    my $sql = qq|DELETE FROM power
                  WHERE mac = ?
                 |;
 

@@ -9,13 +9,16 @@ use DBI ();
 
 use lib "/usr/share/baracus/perl";
 
-use BaracusSql qw( :vars :states );
+use BaracusSql qw( :vars );
+use BaracusState qw( :vars :subs :admin :actions :events );
 use BaracusConfig qw( :vars );
 use BaracusCgi qw( :subs );
+use BaracusCore qw( :subs );
 use BaracusAux qw( :subs );
-use BaracusHost qw( :subs :events );
+use BaracusHost qw( :subs );
 
-
+use lib '/var/spool/baracus/www/modules';
+use BATools qw( :standard );
 
 my $cgi = new CGI;
 
@@ -48,21 +51,24 @@ my $tftph = DBI->connect
       }
      );
 
-my $sth;
-my $key;
-my $state;
-my %values;
-my @fields;
-my $fields;
-my $values;
-my $sql;
-my $href;
-my $bref;
-my $macref;
-my $hostref;
-my $distref;
-my $hardref;
-my $filename;
+my $state = 0;
+my $pxenext = 0;
+my $admin = 0;
+
+my %values = ();
+my @fields = ();
+my $fields = "";
+my $values = "";
+my $sql = "";
+my $sth = 0;
+
+my $href    = {};
+my $macref  = {};
+my $actref  = {};
+my $chkref  = {};
+my $distref = {};
+my $hardref = {};
+my $filename = "";
 my $output = "";
 
 
@@ -93,6 +99,12 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $filename = $input->{mac} . ".inventory";
 
         $macref = &get_db_mac( $dbh, $input->{mac} );
+        unless ( $macref ) {
+            # user deleted entry while system was doing what baracus told it
+            $state = BA_EVENT_FOUND;
+            &add_db_mac( $dbh, $input->{mac}, $state );
+            $macref = &get_db_mac( $dbh, $input->{mac} );
+        }
 
         $href = &get_tftpfile( $tftph, $filename );
 
@@ -122,11 +134,18 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $sth->finish();
         $output = "upload success\n";
 
-        $state = BA_REGISTER;
-        $hostref = &get_db_host_by_mac( $dbh, $input->{mac} );
-        manage_host_states( $dbh, BA_EVENT_REGISTER, $macref, $hostref );
-        if ( defined $hostref and $hostref->{hostname} ne "" ) {
-            &update_db_host_entry( $dbh, $hostref );
+        $state = BA_EVENT_REGISTER;
+
+        $chkref = &get_db_action( $dbh, $input->{mac} );
+        $actref = $chkref if ( defined $chkref );
+        $actref->{cmdline} = "inventory uploaded";
+        &event_state_change( $dbh, $state, $macref, $actref );
+        &update_db_mac_state( $dbh, $input->{mac}, $state );
+        if ( defined $chkref ) {
+            &update_db_action( $dbh, $actref );
+        } else {
+            $actref->{mac} = $input->{mac};
+            &update_db_action( $dbh, $actref );
         }
 
     } elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/wipe\s*$| ) {
@@ -142,6 +161,12 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
 
         $input->{mac} = &check_mac($input->{mac});
         $macref = &get_db_mac( $dbh, $input->{mac} );
+        unless ( $macref ) {
+            # user deleted entry while system was doing what baracus told it
+            $state = BA_EVENT_FOUND;
+            &add_db_mac( $dbh, $input->{mac}, $state );
+            $macref = &get_db_mac( $dbh, $input->{mac} );
+        }
 
         $filename = $input->{mac} . ".wipelog";
         $href = &get_tftpfile( $tftph, $filename );
@@ -172,18 +197,22 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $sth->finish();
         $output = "upload success\n";
 
-        $hostref = &get_db_host_by_mac( $dbh, $input->{mac} );
-
         if ($input->{status} eq "pass") {
-            $state = BA_WIPED;
-            manage_host_states( $dbh, BA_EVENT_WIPED, $macref, $hostref );
+            $state = BA_EVENT_WIPED;
         } else {
-            $state = BA_WIPEFAIL;
-            manage_host_states( $dbh, BA_EVENT_WIPEFAIL, $macref, $hostref );
+            $state = BA_EVENT_WIPEFAIL;
         }
 
-        if ( defined $hostref and $hostref->{hostname} ne "" ) {
-            &update_db_host_entry( $dbh, $hostref );
+        $chkref = &get_db_action( $dbh, $input->{mac} );
+        $actref = $chkref if ( defined $chkref );
+        $actref->{cmdline} = "wipe log uploaded";
+        &event_state_change( $dbh, $state, $macref, $actref );
+        &update_db_mac_state( $dbh, $input->{mac}, $state );
+        if ( defined $chkref ) {
+            &update_db_action( $dbh, $actref );
+        } else {
+            $actref->{mac} = $input->{mac};
+            &update_db_action( $dbh, $actref );
         }
 
     } else {
@@ -237,111 +266,228 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
 
         $input->{mac} = &check_mac($input->{mac});
         $macref = &get_db_mac( $dbh, $input->{mac} );
-        if ( not defined $macref ) {
-
+        $actref = &get_db_action( $dbh, $input->{mac} );
+        if ( not defined $macref or
+             not defined $actref
+            )
+        {
             ##
-            ## INVENTORY
+            ## INVENTORY - missing 'mac' or 'action' entry (or entries)
             ##
 
             print STDERR "$input->{mac} - found and need inventory\n";
 
-            $state = BA_FOUND;
+            # add the mac entry as found... if it's the one missing
+            unless ( defined $macref ) {
+                $state = BA_EVENT_FOUND;
+                &add_db_mac( $dbh, $input->{mac}, $state );
+                $macref = &get_db_mac( $dbh, $input->{mac} );
+            }
+            # set the check if we already have an action entry
+            $chkref = $actref if ( defined $actref );
 
-            &add_db_mac( $dbh, $input->{mac}, $state, $baState{$state} );
+            $actref->{cmdline} = "pxeboot found";
 
-            &get_inventory( $cgi, \%baVar, $input );  # exits
+            # this is where a state is first created by a trigger
+            # and that trigger has to show movement to the next state
+            # because we serve the inventory pxe now
+            $state = BA_ACTION_INVENTORY;
+            &action_state_change( $dbh, $state, $macref, $actref );
 
+            &update_db_mac_state( $dbh, $input->{mac}, $state );
+            if ( defined $chkref ) {
+                # should never be the case that we have
+                # action w/o mac first... but this don't hurt
+                &update_db_action( $dbh, $actref );
+            } else {
+                $actref->{mac} = $input->{mac};
+                &add_db_action( $dbh, $actref );
+            }
+
+            &get_inventory( $cgi, \%baVar, $input ); # routine exits
         }
+
+        # found a mac and action entry - get the pxenext
+        $pxenext = $actref->{pxenext};
+
+        # if admin is DISABLED or IGNORED then
+        # do not care about serving anything
+        $admin = $actref->{admin};
+
+        # don't do list
+        #
+        # bahost remove - no mac will be found again
+        # bado empty    - removes action entry, will be found again
+        #
+        # ignored, none ( also pxe auto disabled )
+        # disabled, pxewait ( wiped, wipefail - push next action to pxewait )
+
+        if ( $admin eq BA_ADMIN_IGNORED or
+             $pxenext eq BA_ACTION_NONE or
+             $actref->{autopxeoff}
+            ) {
+            # we shouldn't be here - we've already fed host pxe info...
+            print STDERR "$input->{mac} - bad tftp daemon, bad.\n";
+            exit 1;
+        }
+
+        if ( $admin eq BA_ADMIN_DISABLED or
+             $pxenext eq BA_ACTION_PXEWAIT
+            ) {
+
+            print STDERR "$input->{mac} - serving pxewait\n";
+            &do_pxewait( $cgi );
+            # do_pxewait call exits
+        }
+
+        if ( $pxenext eq BA_ACTION_NETBOOT ) {
+
+            print STDERR "$input->{mac} - netboot $actref->{netbootip} $actref->{netboot}\n";
+            &update_db_mac_state( $dbh, $macref->{mac}, $pxenext );
+            if ( $actref->{oper} ne $pxenext or
+                 $actref->{pxecurr} ne $pxenext
+                ) {
+                $actref->{oper} = $pxenext;
+                $actref->{pxecurr} = $pxenext;
+                $actref->{cmdline} = "pxeboot network image";
+                &update_db_action( $dbh, $actref );
+            }
+
+            &do_netboot( $cgi, $actref, $baVar{serverip} );
+            # do_netboot exits
+        }
+
+        if ( $pxenext eq BA_ACTION_RESCUE ) {
+
+            print STDERR "$input->{mac} - rescue mode\n";
+
+            $distref = &get_distro( $dbh, $actref );
+            $hardref = &get_hardware( $dbh, $actref );
+
+            unless ( defined $distref and defined $hardref ) {
+                print STDERR "$input->{mac} - missing distro or hardware in db\n";
+                exit 1;
+            }
+
+            &update_db_mac_state( $dbh, $macref->{mac}, $pxenext );
+            if ( $actref->{oper} ne $pxenext or
+                 $actref->{pxecurr} ne $pxenext
+                ) {
+                $actref->{oper} = $pxenext;
+                $actref->{pxecurr} = $pxenext;
+                $actref->{cmdline} = "pxeboot rescue mode";
+                &update_db_action( $dbh, $actref );
+            }
+
+            my $args;
+            my $rescue;
+
+            if ( $distref->{os} eq "opensuse" or
+                 $distref->{os} eq "sles"     or
+                 $distref->{os} eq "sled"   ) {
+                $rescue = qq|rescue=$distref->{sharetype}://$distref->{shareip}$distref->{basepath} rescue=1 textmode=1 |;
+
+            } elsif ( $distref->{os} eq "fedora" or
+                      $distref->{os} eq "centos" or
+                      $distref->{os} eq "rhel" ) {
+                $rescue = qq|text rescue ks=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
+            }
+
+            $args = "$hardref->{bootargs} $actref->{raccess} $actref->{loghost}";
+
+            &do_rescue( $cgi, $input->{mac}, $baVar{serverip}, "$args $rescue" );
+            # do_rescue exits
+        }
+
+        # have we been directed to fetch inventory
+        # or is it missing ? if so - get it now.
 
         $filename = $input->{mac} . ".inventory";
         $href = &get_tftpfile( $tftph, $filename );
-        if ( not defined $href or
-             $href->{name} ne $filename or
-             not defined $macref->{register} or
-             $macref->{register} eq "" )
+        if ( $pxenext eq BA_ACTION_INVENTORY
+             or
+             (not defined $href
+              or $href->{name} ne $filename
+              or not defined $macref->{register}
+              or $macref->{register} eq ""
+              )
+            ) {
+            ##
+            ## INVENTORY - have 'mac' but still missing inventory
+            ##
+            my $args = "";
+
+            $args = $actref->{raccess};
+
+            print STDERR "$input->{mac} - get inventory from host\n";
+
+            &update_db_mac_state( $dbh, $macref->{mac}, $pxenext );
+            if ( $actref->{oper} ne $pxenext or
+                 $actref->{pxecurr} ne $pxenext
+                ) {
+                $actref->{oper} = $pxenext;
+                $actref->{pxecurr} = $pxenext;
+                $actref->{cmdline} = "pxeboot inventory request";
+                &update_db_action( $dbh, $actref );
+            }
+
+            &get_inventory( $cgi, \%baVar, $input, $args );
+            # get_inventory call exits
+        }
+
+        if ( $pxenext eq BA_ACTION_LOCALBOOT )
         {
             ##
-            ## INVENTORY
+            ## LOCALBOOT - host built so just have it boot from localdisk
             ##
 
-            print STDERR "$input->{mac} - get missing inventory file\n";
+            print STDERR "$input->{mac} - building, built, localboot\n";
 
-            &get_inventory( $cgi, \%baVar, $input );  # exits
+            &update_db_mac_state( $dbh, $macref->{mac}, $pxenext );
+            if ( $actref->{oper} ne $pxenext or
+                 $actref->{pxecurr} ne $pxenext
+                ) {
+                $actref->{oper} = $pxenext;
+                $actref->{pxecurr} = $pxenext;
+                $actref->{cmdline} = "pxeboot directing to localdisk";
+                &update_db_action( $dbh, $actref );
+            }
+
+            &do_localboot( $cgi );
+            # do_localboot exits
         }
 
-        $bref = &get_build( $dbh, $input );
-        if (not defined $bref ) {
-
-            ##
-            ## LOCALBOOT
-            ##
-
-            print STDERR "$input->{mac} - need bahost to describe build params\n";
-
-            &do_localboot( $cgi );  # exits
-        }
-
-        $hostref = &get_db_host_entry( $dbh, $bref->{hostname} );
-        $state = $macref->{state};
-
-        if ( $hostref->{admin} eq BA_DISABLED or
-             $state eq BA_NOPXE    or
-             $state eq BA_DELETED  or
-             $state eq BA_DISABLED ) {
-            # use 'bahost enable' for READY rebuild
-
-            ##
-            ## LOCALBOOT
-            ##
-
-            print STDERR "$input->{mac} - pxe disabled\n";
-
-            &do_localboot( $cgi );  # exits
-        }
-
-        $state = $macref->{state};
-
-        if ( $state eq BA_BUILDING or   # BUILDING has 2nd stage reboot
-             $state eq BA_BUILT    or   # don't re-build forever
-             $state eq BA_LOCALBOOT ) {
-
-            ##
-            ## LOCALBOOT
-            ##
-
-            print STDERR "$input->{mac} - bahost entry building or built\n";
-
-            &do_localboot( $cgi );  # exits
-        }
-
-        $distref = &get_distro( $dbh, $bref );
-
-        $hardref = &get_hardware( $dbh, $bref );
-
-        if ( $state eq BA_FOUND    or
-             $state eq BA_ADDED    or
-             $state eq BA_READY    or
-             $state eq BA_SPOOFED  or
-             $state eq BA_UPDATED  or
-             $state eq BA_REGISTER ) {
-
+        if ( $pxenext eq BA_ACTION_BUILD )
+        {
             ##
             ## BUILD
             ##
 
             print STDERR "$input->{mac} - building\n";
 
-            $state = BA_BUILDING;
+            $state = BA_EVENT_BUILDING;
 
-            manage_host_states( $dbh, BA_EVENT_BUILDING, $macref, $hostref );
-#            $hostref->{cmdline} = "building";
-            &update_db_host_entry( $dbh, $hostref );
+            &event_state_change( $dbh, $state, $macref, $actref );
+            &update_db_mac_state( $dbh, $macref->{mac}, $state );
+            $actref->{cmdline} = "pxeboot directing to network install";
+            &update_db_action( $dbh, $actref );
 
             my $args;
+
+            $distref = &get_distro( $dbh, $actref );
+#            while ( my ($key, $val) = each %{$distref} ) {
+#                print STDERR "dist $key => " . $val eq "" ? "" : $val . "\n";
+#            }
+
+            $hardref = &get_hardware( $dbh, $actref );
+#            while ( my ($key, $val) = each %{$hardref} ) {
+#                print STDERR "hard $key => " . $val eq "" ? "" : $val . "\n";
+#            }
 
             if ( $distref->{os} eq "opensuse" or
                  $distref->{os} eq "sles"     or
                  $distref->{os} eq "sled"   ) {
+#                $args = qq|textmode=1 install=$distref->{sharetype}://$distref->{shareip}$distref->{basepath} netsetup=1 WithISCSI=1|;
                 $args = qq|textmode=1 install=$distref->{sharetype}://$distref->{shareip}$distref->{basepath} autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
 
 
@@ -352,36 +498,36 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
             }
 
             $output =
-                qq|DEFAULT $bref->{hostname}
+                qq|DEFAULT label_$actref->{hostname}
 PROMPT 0
 TIMEOUT 0
 
-LABEL $bref->{hostname}
+LABEL label_$actref->{hostname}
     kernel http://$baVar{serverip}/ba/linux?mac=$input->{mac}
-    append initrd=http://$baVar{serverip}/ba/initrd?mac=$input->{mac} $hardref->{bootargs} $hostref->{raccess} $hostref->{loghost} $args
+    append initrd=http://$baVar{serverip}/ba/initrd?mac=$input->{mac} $hardref->{bootargs} $actref->{raccess} $args $actref->{loghost}
 |;
 
         }
 
-        if ( $state eq BA_DISKWIPE or
-             $state eq BA_WIPING   or
-             $state eq BA_WIPEFAIL or
-             $state eq BA_WIPED ) {
-
+        if ( $pxenext eq BA_ACTION_DISKWIPE )
+        {
             ##
             ## WIPE
             ##
 
             print STDERR "$input->{mac} - wiping\n";
 
-            $state = BA_WIPING;
+            $state = BA_EVENT_WIPING;
 
-            manage_host_states( $dbh, BA_EVENT_WIPING, $macref, $hostref );
-#            $hostref->{cmdline} = "wiping";
-            &update_db_host_entry( $dbh, $hostref );
+            &event_state_change( $dbh, $state, $macref, $actref );
+            &update_db_mac_state( $dbh, $macref->{mac}, $pxenext );
+            if ( $actref->{oper} ne $state ) {
+                $actref->{cmdline} = "pxeboot directing to wipe disk";
+                &update_db_action( $dbh, $actref );
+            }
 
             my $autonuke = "";
-            $autonuke = " --autonuke" if ( $hostref->{autonuke} );
+            $autonuke = " --autonuke" if ( $actref->{autonuke} );
             $output =
                 qq|DEFAULT wipe
 PROMPT 0
@@ -408,7 +554,7 @@ LABEL wipe
         $input->{mac} = &check_mac($input->{mac});
         $macref = &get_db_mac( $dbh, $input->{mac} );
         if ( not defined $macref ) {
-            $output = "$input->{mac} - race... missing mac entry in build\n";
+            $output = "$input->{mac} - user vs cgi... missing db mac entry\n";
             print STDERR $output;
             print $cgi->header( -type => "text/plain",
                                 -content_length => length
@@ -417,9 +563,9 @@ LABEL wipe
             exit 0;
         }
 
-        $bref = &get_build( $dbh, $input );
-        if (not defined $bref ) {
-            $output = "$input->{mac} - race... missing build entry in build\n";
+        $actref = &get_db_action( $dbh, $input->{mac} );
+        if (not defined $actref ) {
+            $output = "$input->{mac} - user vs cgi... missing db action entry\n";
             print STDERR $output;
             print $cgi->header( -type => "text/plain",
                                 -content_length => length
@@ -433,7 +579,7 @@ LABEL wipe
             $file =~ s|:|-|g;
             $file = "02-" . $file;
         } else {
-            $file = "$file.$bref->{distroid}";
+            $file = "$file.$actref->{distro}";
         }
 
         print STDERR "$input->{mac} - serving $file\n";
@@ -456,32 +602,58 @@ LABEL wipe
         my $ip = $ENV{ REMOTE_ADDR };
 
         # hash with a hostname
-        $hostref = &get_db_host_entry( $dbh, $input->{hostname} );
-        $input->{mac} = $hostref->{ mac };
+        $actref = &get_db_action_by_hostname( $dbh, $input->{hostname} );
+        unless ( defined $actref ) {
+            $output = "$input->{hostname} - build callback unable to find $hostname\n";
+            print STDERR $output;
+            print $cgi->header( -type => "text/plain",
+                                -content_length => length
+                                ($output)
+                               ), $output;
+            exit 0;
+        }
+        $input->{mac} = $actref->{ mac };
         $macref = &get_db_mac( $dbh, $input->{mac} );
 
         # check for spoofing of url access
-        if (( "$uuid" ne "$hostref->{'uuid'}" ) or
-            (( "$ip"  ne "$hostref->{'ip'}"  ) and
-             ( "dhcp" ne "$hostref->{'ip'}"  ))) {
+        if (( "$uuid" ne "$actref->{'uuid'}" ) or
+            (( "$ip"  ne "$actref->{'ip'}"  ) and
+             ( "dhcp" ne "$actref->{'ip'}"  ))) {
 
-            $state = BA_SPOOFED;
-#            $hostref->{cmdline} = "spoofed";
-            &manage_host_states( $dbh, BA_EVENT_SPOOFED, $macref, $hostref );
-            print STDERR "$input->{mac} - $hostname build complete callback spoofed\n";
-            $output .= "build spoofed - spoof hook called\n";
-            system( "$spoofed $hostname $ip $uuid $input->{mac} &" ) if ( -f $spoofed );
+            $state = BA_EVENT_SPOOFED;
+            $actref->{cmdline} = "build complete callback spoofed";
+
+            print STDERR "$input->{mac} - $hostname $actref->{cmdline}\n";
+            $output = "build spoofed - spoof hook called\n";
+
+            if ( -f $spoofed ) {
+                my $cmd = "$spoofed $hostname $ip $uuid $input->{mac}";
+#                print STDERR $cmd;
+#                system($cmd);
+                my $rfile = BATools::generate_random_string();
+                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd." $rfile";
+                my $output = `$cmd`;
+            }
         }
         else {
-            $state = BA_BUILT;
-#            $hostref->{cmdline} = "built";
-            manage_host_states( $dbh, BA_EVENT_BUILT, $macref, $hostref );
-            print STDERR "$input->{mac} - $hostname build complete callback verified\n";
-            $output .= "build verified - verify hook called\n";
-            system( "$built $hostname $ip $uuid $input->{mac} &" ) if ( -f $built );
+            $state = BA_EVENT_BUILT;
+            $actref->{cmdline} = "build complete callback verified";
+            print STDERR "$input->{mac} - $hostname $actref->{cmdline}\n";
+            $output = "build verified - verify hook called\n";
+
+            if ( -f $built ) {
+                my $cmd = "$built $hostname $ip $uuid $input->{mac}";
+#                print STDERR $cmd;
+#                system($cmd);
+                my $rfile = BATools::generate_random_string();
+                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd." $rfile";
+                my $output = `$cmd`;
+            }
         }
 
-        &update_db_host_entry( $dbh, $hostref );
+        &event_state_change( $dbh, $state, $macref, $actref );
+        &update_db_mac_state( $dbh, $input->{mac}, $state );
+        &update_db_action( $dbh, $actref );
     }
 
     ##
@@ -498,6 +670,7 @@ LABEL wipe
             $output .= unpack( 'u', $href->{'bin'} );
         }
     }
+
     else {
         # shoudld be some 401 or something
         $output = "invalid URL";

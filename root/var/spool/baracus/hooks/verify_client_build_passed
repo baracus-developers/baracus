@@ -6,4 +6,5 @@ ip=$2
 # uuid=$3
 # mac=$4 - maybe
 
-ssh root@blade9 /etc/nagios/objects/prod/add_hosts $host $ip
+ssh root@vss.lsg.lab.novell.com /etc/nagios/objects/prod/add_hosts $host $ip
+#ssh root@blade9.lsg.lab.novell.com /etc/nagios/objects/prod/add_hosts $host $ip

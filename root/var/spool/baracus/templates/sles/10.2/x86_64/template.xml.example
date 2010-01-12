@@ -451,13 +451,14 @@ nameserver __DNS1__]]></file_contents>
   </networking>
   <scripts>
     <post-scripts config:type="list">
+    </post-scripts>
+    <init-scripts config:type="list">
       <script>
         <filename>build_notify</filename>
         <interpreter>shell</interpreter>
-        <source><![CDATA[tftp -m binary __BUILDIP__ -c get /baracus/uuid/__UUID__?__HOSTNAME__]]></source>
+        <source><![CDATA[sleep 60
+wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></source>
       </script>
-    </post-scripts>
-    <init-scripts config:type="list">
       __MODULE__
     </init-scripts>
   </scripts>
@@ -523,7 +524,7 @@ nameserver __DNS1__]]></file_contents>
       <pattern>ccb</pattern>
     </patterns>
     <packages config:type="list">
-      <package>tftp</package>
+      <package>wget</package>
     </packages>
   </software>
   <timezone>

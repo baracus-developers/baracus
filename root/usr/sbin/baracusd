@@ -21,7 +21,7 @@ open(STDOUT, ">>$baDir{'logs'}/baracusd")
 open(STDERR, ">>$baDir{'logs'}/baracusd")
     or die "Unable to open log file: $!\n";
 
-#my $uphoststate = "$baDir{'data'}/perl/baracusd_update_host_state.pl";
+#my $uphoststate = "$baDir{'data'}/scripts/baracusd_update_host_state.pl";
 #
 #my $dovalidate = 1;
 #my $validatepass = "$baDir{'hooks'}/verify_client_build_passed";
