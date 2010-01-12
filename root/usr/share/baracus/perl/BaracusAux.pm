@@ -47,6 +47,7 @@ BEGIN {
                 load_modules
                 add_autobuild
                 remove_autobuild
+                remove_inventory
                 db_get_mandatory
 
                 check_hwcert
@@ -438,7 +439,6 @@ sub add_autobuild
 
 sub remove_autobuild
 {
-    use File::Temp qw/ tempdir /;
 
     my $opts    = shift;
     my $hostref = shift;
@@ -453,6 +453,23 @@ sub remove_autobuild
     my $automac = &automac( $hostref->{'mac'} );
 
     $sqlfsOBJ->remove( $automac );
+}
+
+sub remove_inventory
+{
+    my $opts    = shift;
+    my $mac     = shift;
+    my $dbtftp  = "sqltftp";
+
+    my $deepdebug = $opts->{debug} > 2 ? 1 : 0;
+    my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp;port=5162",
+                               'User' => "baracus",
+                               'debug' => $deepdebug )
+        or die "Unable to create new instance of SqlFS\n";
+
+    my $inventory = "${mac}.inventory";
+
+    $sqlfsOBJ->remove( $inventory );
 }
 
 sub db_get_mandatory

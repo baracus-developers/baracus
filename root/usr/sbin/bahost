@@ -298,6 +298,8 @@ sub remove()
         remove_db_host_by_mac( $dbh, $mac );
     }
 
+    remove_inventory( $opts, $mac );
+
     my $macref = get_db_mac( $dbh, $mac );
     if ( defined $macref ) {
         remove_db_mac( $dbh, $mac );
@@ -365,7 +367,7 @@ sub list
 
         unless ( $opts->{quiet} || $opts->{nolabels} ) {
             print "---------------------------------------------------------------------------\n";
-            printf "%-17s %-17s %-9s\n ", "mac", "hostname", "tftp";
+            printf "%-17s %-17s %-9s\n", "mac", "hostname", "tftp";
             print "---------------------------------------------------------------------------\n";
         }
 
@@ -386,7 +388,9 @@ sub list
                 }
             }
 
-            printf "%-17s %-17s ", $dbref->{'mac'}, $dbref->{'hostname'};
+            my $hname = "";
+            $hname = $dbref->{'hostname'} if ( defined $dbref->{'hostname'} );
+            printf "%-17s %-17s ", $dbref->{'mac'}, $hname;
             if ( $autostate ne "ok" ) {
                 print "autobuild 'none' or disabled";
             } else {

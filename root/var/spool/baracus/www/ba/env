@@ -65,7 +65,6 @@ my $sth = 0;
 my $href    = {};
 my $macref  = {};
 my $actref  = {};
-my $chkref  = {};
 my $distref = {};
 my $hardref = {};
 my $filename = "";
@@ -136,7 +135,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
 
         $state = BA_EVENT_REGISTER;
 
-        $chkref = &get_db_action( $dbh, $input->{mac} );
+        my $chkref = &get_db_action( $dbh, $input->{mac} );
         $actref = $chkref if ( defined $chkref );
         $actref->{cmdline} = "inventory uploaded";
         &event_state_change( $dbh, $state, $macref, $actref );
@@ -145,7 +144,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             &update_db_action( $dbh, $actref );
         } else {
             $actref->{mac} = $input->{mac};
-            &update_db_action( $dbh, $actref );
+            &add_db_action( $dbh, $actref );
         }
 
     } elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/wipe\s*$| ) {
@@ -203,7 +202,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             $state = BA_EVENT_WIPEFAIL;
         }
 
-        $chkref = &get_db_action( $dbh, $input->{mac} );
+        my $chkref = &get_db_action( $dbh, $input->{mac} );
         $actref = $chkref if ( defined $chkref );
         $actref->{cmdline} = "wipe log uploaded";
         &event_state_change( $dbh, $state, $macref, $actref );
@@ -212,7 +211,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             &update_db_action( $dbh, $actref );
         } else {
             $actref->{mac} = $input->{mac};
-            &update_db_action( $dbh, $actref );
+            &add_db_action( $dbh, $actref );
         }
 
     } else {
@@ -284,7 +283,7 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
                 $macref = &get_db_mac( $dbh, $input->{mac} );
             }
             # set the check if we already have an action entry
-            $chkref = $actref if ( defined $actref );
+            my $chkref = $actref if ( defined $actref );
 
             $actref->{cmdline} = "pxeboot found";
 

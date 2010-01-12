@@ -29,6 +29,7 @@ BEGIN {
               do_localboot
               do_pxewait
               do_netboot
+              do_rescue
           )]
        );
   Exporter::export_ok_tags('subs');
@@ -101,7 +102,6 @@ LABEL netboot
 
 sub do_rescue() {
     my $cgi = shift;
-    my $actref = shift;
     my $mac = shift;
     my $serverip = shift;
     my $args = shift;

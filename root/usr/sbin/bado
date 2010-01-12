@@ -1117,7 +1117,7 @@ sub localboot
 }
 
 
-=head2 netboot { --mac <macaddr> | --hostname <name> } --ip <addr> --target <iqn>
+=head2 netboot { --mac <macaddr> | --hostname <name> } --targetip <addr> --targetid <iqn>
 
 After running this command, the pxeboot entry for the host is enabled, and when that host PXE boots again it will use the network storage device target.
 
@@ -1126,8 +1126,8 @@ Arguments
   --mac <macaddr>          Specify device by mac address
   --hostname <name>        Specify device by hostname ( if available )
 
-  --ip <addr>              IP address of the target share server.
-  --target <iqn>           Network share target specifier.
+  --targetip <addr>        IP address of the target share server.
+  --targetid <iqn>         Network share target specifier.
 
 At this time the only supported format is iSCSI Qualified Name (iqn)
 
@@ -1149,8 +1149,8 @@ sub netboot
 
     my $mac      = "";
     my $hostname = "";
-    my $ip       = "";
-    my $target   = "";
+    my $targetip = "";
+    my $targetid = "";
 
     my $macref;
     my $actref;
@@ -1161,8 +1161,8 @@ sub netboot
     GetOptions(
                'mac=s'      => \$mac,
                'hostname=s' => \$hostname,
-               'ip=s'       => \$ip,
-               'target=s'   => \$target,
+               'targetip=s' => \$targetip,
+               'targetid=s' => \$targetid,
               );
 
     if ( scalar @ARGV ) {
@@ -1179,17 +1179,23 @@ sub netboot
         return 1;
     }
 
-    if ( $target eq "" ) {
-        $opts->{LASTERROR} = "Target --target needed for netboot\n";
+    if ( $targetid eq "" ) {
+        $opts->{LASTERROR} = "Target --targetid needed for netboot\n";
         return 1;
     }
 
-    if ( $ip eq "" ) {
-        $opts->{LASTERROR} = "Target --ip needed for netboot target server\n";
+    if ( my $val = &check_target( $targetid ) ) {
+        print "return $val \n";
+        $opts->{LASTERROR} = "Invalid targetid. Please use format iqn.<YYYY-MM>.<com.domain.reversed>[:<string>].\n";
         return 1;
     }
 
-    &check_ip( $ip );
+    if ( $targetip eq "" ) {
+        $opts->{LASTERROR} = "Target --targetip needed for netboot target server\n";
+        return 1;
+    }
+
+    &check_ip( $targetip );
 
     $macref = &get_db_mac( $dbh, $mac );
     unless ( defined $macref ) {
@@ -1213,7 +1219,10 @@ sub netboot
     }
 
     if ( defined $chkref and
-         $chkref->{pxenext} eq BA_ACTION_NETBOOT ) {
+         $chkref->{pxenext} eq BA_ACTION_NETBOOT and
+         $chkref->{netbootip} eq $targetip and
+         $chkref->{netboot} eq $targetid
+        ) {
         $opts->{LASTERROR} = "device in NETBOOT state using $chkref->{netboot}\n";
         return 1;
     }
@@ -1221,8 +1230,8 @@ sub netboot
     ##
     ## ALL CHECKS DONE - DO MODS
 
-    $actref->{netbootip} = $ip;
-    $actref->{netboot} = $target;
+    $actref->{netbootip} = $targetip;
+    $actref->{netboot} = $targetid;
 
     $actref->{cmdline} = $cmdline;
     $actref->{mac} = $mac;
@@ -1247,8 +1256,8 @@ sub netboot
     }
 
     if ( $opts->{verbose} ) {
-        printf "Netboot set.\nNext pxeboot of %s will use network target %s.\n",
-            $hostname ne "" ? $hostname : $mac, $target;
+        printf "Netboot set.\nNext pxeboot of %s will use server ip %s and target %s.\n",
+            $hostname ne "" ? $hostname : $mac, $targetip, $targetid;
     }
 
     return 0;
@@ -1690,26 +1699,6 @@ sub rescue
         }
     }
 
-    $chkref = &get_db_action( $dbh, $mac );
-    if ( defined $chkref ) {
-        if ( $opts->{debug} > 1 ) {
-            while ( my ($key, $val) = each %{$chkref} ) {
-                print "check $key => " . $val eq "" ? "" : $val . "\n";
-            }
-        }
-        # store a copy of the ref found for modification
-        $actref = $chkref;
-    }
-
-    if ( defined $chkref and
-         $chkref->{pxenext} eq BA_ACTION_RESCUE ) {
-        $opts->{LASTERROR} = "device already in rescue boot mode.\n";
-        return 1;
-    }
-
-    ##
-    ## ALL CHECKS DONE - DO MODS
-
     # create a host table entry if missing
     unless ( &get_db_host( $dbh, $hostname ) ) {
         &add_db_host( $dbh, $actref );
@@ -1719,11 +1708,43 @@ sub rescue
 
     &update_db_mac_state( $dbh, $mac, BA_ACTION_RESCUE );
 
-    # for proper command history update we update
-    if ( defined $chkref ) {
-        &update_db_action( $dbh, $actref );
+    # find existing action relation and update it or create if not found
+    # avoid overwrite of the carefully constructed $actref hash
+    my $tmpref = get_db_action( $dbh, $actref->{mac} );
+    if ( defined $tmpref ) {
+        # here's a rather involved check
+        # to make sure we're not updating a dup
+        my $gotdiff = 0;
+        while ( my ($key, $val) = each %{$tmpref} ) {
+            next if $key eq "uuid";     # changes every invocation
+            next if $key eq "creation";
+            next if $key eq "change";
+            next if $key eq "cmdline";  # order diff and -d -v -q don't matter
+            unless ( defined $val ) {
+                if ( defined $actref->{$key} ) {
+                    # relation doesn't have a value we've got on cmd line
+                    $gotdiff = 1;
+                    last;
+                } else {
+                    next;
+                }
+            }
+            print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val '$val'\n"
+                if $opts->{debug};
+            if ( "$actref->{$key}" ne "$val" ) {
+                # relation value not the same as what we got on cmd line
+                $gotdiff = 1;
+                last;
+            }
+        }
+        if ( $gotdiff != 0 ) {
+            &update_db_action( $dbh, $actref);
+        }
     } else {
-        &add_db_action( $dbh, $actref );
+        &add_db_action( $dbh, $actref);
+        unless ( $actref->{'autobuild'} eq "none" ) {
+            &add_autobuild( $opts, $actref );
+        }
     }
 
     if ( $opts->{verbose} ) {

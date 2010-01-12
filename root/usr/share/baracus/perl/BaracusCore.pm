@@ -256,13 +256,23 @@ sub check_target
     my $ldh = '[-a-zA-Z0-9]';
 
     my $name = qr/(?:$l(?:(($ld|$ldh){1,61})$ld)?)/;
-    my $yyyy = '[19|20|21][0-9]{2}';
-    my $mm   = '[0][1-9]|[1][0-2]';
+    my $yyyy = qr/(19|20|21)([0-9]){2}/;
+    my $mm   = qr/(([0][1-9])|([1][0-2]))/;
 
-    my $iqn  = qr/iqn.$yyyy-$mm.${name}[.$name]*[:\S+]?/;
+    my ( $id, $date, $rest ) = split ( /\./, $target, 3 );
 
-    return 0 if ($target =~ m/^$iqn$/);
-    return 1;
+    if ( $id !~ m/^iqn$/ ) {
+        return 1;
+    }
+    if ( $date !~ m/^$yyyy-$mm$/ ) {
+        return 2;
+    }
+    my ( $domain, $rest2 ) = split ( /:/, $rest, 2 );
+
+    if ( $domain !~ m/^${name}(\.${name}){0,16}$/ ) {
+        return 3;
+    }
+    return 0;
 }
 
 # mac manipulations
