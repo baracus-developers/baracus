@@ -31,8 +31,8 @@ if ( defined $reverse_flag ) {
 } else {
     &main();
     system ( "basource prepdbwithxml" );
-    system ( "/usr/share/baracus/perl/baconfig_load_hardware" );
-    system ( "/usr/share/baracus/perl/baconfig_load_profile" );
+    system ( "/usr/share/baracus/scripts/baconfig_load_hardware" );
+    system ( "/usr/share/baracus/scripts/baconfig_load_profile" );
     my $perl_reload = &add_apache2_perl();
     my $listen_reload = &apache2_listen_conf();
     system ( "service apache2 reload" ) if ( $perl_reload or $listen_reload );
