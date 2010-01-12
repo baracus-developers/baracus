@@ -1,0 +1,1885 @@
+#!/usr/bin/perl -w
+
+use strict;
+use warnings;
+
+use Getopt::Long qw( :config pass_through );
+use AppConfig;
+use Pod::Usage;
+
+use lib "/usr/share/baracus/perl";
+
+use SqlFS;
+
+use BaracusDB;
+use BaracusSql qw( :subs :vars );
+use BaracusCore qw( :subs  );
+use BaracusConfig qw( :vars :subs );
+use BaracusHost qw( :subs );
+use BaracusSource qw( :vars );
+use BaracusState qw( :admin :actions :subs :vars );
+use BaracusAux qw( :subs );
+
+=pod
+
+=head1 NAME
+
+B<bado> - Baracus "do" some action with things Baracus knows about
+
+=head1 SYNOPSIS
+
+B<bado> E<lt>commandE<gt> [options]
+
+Where E<lt>commandE<gt> is
+
+    build     <...>  Boot and use autobuild recipe to install a distro
+    empty     <...>  Clear relations and PXEBOOT presents infinite wait screen
+    inventory <...>  Force re/collection of inventory next pxeboot
+    localboot <...>  Boot from localdisk
+    netboot   <...>  Boot a network image
+    norescue  <...>  Restore device to boot in non-rescue mode
+    rescue    <...>  Boot device into a rescue mode
+    wipe      <...>  Use Darik's Boot and Nuke to wipe connected drive(s)
+
+    help    This 'Usage' summary message.
+    man     Detailed man page.
+
+Use 'man' or 'help <command>' for more details.
+
+=head1 DESCRIPTION
+
+This tool allows for specifying actions for hosts.  For example, virtual machines can be network booted with an iscsi target; or re-directed to boot from a localdisk.
+
+=head1 OPTIONS
+
+=over 4
+
+=item -v --verbose  Be verbose with output
+
+=back
+
+=cut
+
+my $man      = 0;
+my $help     = 0;
+
+# no add / remove here - all cmds add or update as needed
+# to 'mac', 'build', and 'templateid' tables
+
+my $cmds = {
+            'build'         => \&build,
+            'empty'         => \&empty,
+            'inventory'     => \&inventory,
+            'localboot'     => \&localboot,
+            'netboot'       => \&netboot,
+            'norescue'      => \&norescue,
+            'rescue'        => \&rescue,
+            'wipe'          => \&wipe,
+
+            'list'          => \&list,  # temp for debug
+
+            'help'          => \&help,
+            'man'           => \&man,
+            };
+
+my $opts = {
+            verbose    => 0,
+            quiet      => 0,
+#            all        => 0,
+#            nolabels   => 0,
+            debug      => 0,
+            execname   => "",
+            LASTERROR  => "",
+            };
+
+# Build command line for help, historical reference and point-in-time rebuilding
+$opts->{execname} = $0;
+$opts->{execname} = $1 if ( $0 =~ m|^.*/([^/].+)| );
+my $cmdline = join '::', $opts->{execname}, @ARGV;
+
+GetOptions(
+           'verbose'   => \$opts->{verbose},
+           'quiet'     => \$opts->{quiet},
+#           'all'       => \$opts->{all},
+#           'nolabels'  => \$opts->{nolabels},
+           'debug+'    => \$opts->{debug},
+           'man'       => \$man,
+           'help|?'    => \$help,
+           );
+
+&man()  if $man;
+&help( $opts, $cmds ) if $help;
+&help( $opts, $cmds ) unless ( scalar @ARGV );
+if ($ARGV[0] eq "man"  ) { &man(); }
+if ($ARGV[0] eq "help" ) { shift @ARGV; &help( $opts, $cmds, @ARGV ); }
+
+my $dbname = "baracus";
+my $dbrole = $dbname;
+
+print "setting uid to $dbrole\n" if ($opts->{debug} > 2);
+
+my $uid = BaracusDB::su_user( $dbrole );
+die BaracusDB::errstr unless ( defined $uid );
+
+my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
+die BaracusDB::errstr unless( $dbh );
+
+my $status = &main( $opts, $cmds, @ARGV );
+
+die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+
+print $opts->{LASTERROR} if $status;
+
+exit $status;
+
+die "DOES NOT EXECUTE";
+
+
+###############################################################################
+##
+## commands
+##
+
+=head1 COMMANDS
+
+=head2 build --mac <macaddr> --hostname <name> --ip <ipaddr> <...>
+
+Where
+
+  --mac <macaddr>          Network interface card physical address
+                           (in hexidecimal xx:xx:xx:xx:xx:xx format).
+  --hostname <name>        Hostname (conforming to DNS without domainname)
+                           to identify the box containing the network
+                           interface card with the specified <macaddr>.
+  --ip <ipaddr>            Client static, or dhcp bound, IP address.
+                           Use string 'dhcp' if dynamically assigned.
+
+
+A profile can be used to accumlate all the other parameters for a similar collection of hosts and can contain networking, distro, and hardware information.
+
+  --profile <pfile>        File with networking and/or other template
+                           parameters.  To see content of the 'default'
+                           profile use
+                             > baconfig detail profile default
+
+Other required parameters, which may be specified on the command-line or in a profile are:
+
+  --distro <os-rev-arch>   Operating system to install on build client.
+                           To be sure network install server has distro
+                           specified availiable for use
+                             > basource add --distro <base-arch>
+
+                           See possible distros to use with
+                             > baconfig list distro
+                           and
+                             > basource list [--distro='*match*']
+
+  --addon <os-rev-addos[-addrev]-arch>
+
+                           Add-ons to layer over the base operating
+                           system install for this build client.  May
+                           be a list or specified multiple times.
+
+
+  --hardware <hwteplate>   Hardware template that describes build client
+                             > baconfig list hardware
+
+  --module <mfile>         Post-install scripts to run when the host
+                           build completes.
+
+                           You can specify this option multiple times
+                           for more than one script to run.
+
+                           See all modules available with command:
+                             > baconfig list module
+
+And further <...> optional parameters include
+
+  --autobuild <template>   Autoyast or Kickstart golden template. A value of
+                           'none' will drop you into the manual installer.
+
+  --usevnc                 allow vnc build access
+  --vncpass                defines vnc password for remote access
+
+  --usessh                 allow ssh build access
+  --sshpass                defines ssh password for remote access
+                           These ssh options are only valid for SuSE distros.
+
+  --serialtty              configure serial tty for remote access
+  --serialbaud             configure serial line rate for remote access
+
+  --vars <variable=value>  Method to specify a command-line parameter
+                           that will override those found in the
+                           config files.  You can specify this option
+                           multiple times
+
+=cut
+
+sub build
+{
+    my $command = "add";
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $mac="";
+    my $hostname="";
+
+    my $macref;
+    my $hostref;
+    my $actref;
+
+    my $ip="";
+    my $profile="";
+    my $distro="";
+    my $addon = "";
+    my $hardware="";
+    my $module="";
+    my $autobuild="";
+    my $usevnc="";
+    my $vncpass="";
+    my $usessh="";
+    my $sshpass="";
+    my $serialtty="";
+    my $serialbaud="";
+    my $vars;
+
+    @ARGV = @_;
+
+    GetOptions(
+               'mac=s'          => \$mac,
+               'hostname=s'     => \$hostname,
+               'ip=s'           => \$ip,
+               'profile=s'      => \$profile,
+               'distro=s'       => \$distro,
+               'addon=s'        => \&multiarg_handler,
+               'hardware=s'     => \$hardware,
+               'module=s'       => \&multiarg_handler,
+               'autobuild=s'    => \$autobuild,
+               'usevnc!'        => \$usevnc,
+               'vncpass=s'      => \$vncpass,
+               'usessh!'        => \$usessh,
+               'sshpass=s'      => \$sshpass,
+               'serialtty=s'    => \$serialtty,
+               'serialbaud=s'   => \$serialbaud,
+               'vars=s'         => \&multiarg_handler,
+               );
+
+    if ( scalar @ARGV ) {
+        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    $addon  = $multiarg{ 'addon'  } if (defined $multiarg{ 'addon'  });
+    $module = $multiarg{ 'module' } if (defined $multiarg{ 'module' });
+    $vars   = $multiarg{ 'vars'   } if (defined $multiarg{ 'vars'   });
+
+    ## Verify Mandatory parameters
+    ##
+    if ( $hostname eq "" ) {
+        $opts->{LASTERROR} = "Missing  --hostname\n";
+        return 1;
+    }
+    if ( $ip eq "" ) {
+        $opts->{LASTERROR} = "Missing  --ip\n";
+        return 1;
+    }
+    if ( $mac eq "" ) {
+        $opts->{LASTERROR} = "Missing  --mac\n";
+        return 1;
+    }
+
+    $ip = lc $ip;
+    &check_ip( $ip );
+
+    # this routine checks for mac and hostname args
+    # and if hostname passed finds related mac entry
+    # returns undef on error (e.g., unable to find hostname)
+    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
+    unless ( defined $mac ) {
+        # $opts->{LASTERROR} set in subroutine
+        return 1;
+    }
+
+    # hosts <=> mac relations checked in get_mac_by_hostname above
+    # now get any existing action db entry
+
+    # lookup by MAC
+    $actref = &get_db_action( $dbh, $mac );
+    if ( defined $actref
+         and defined $actref->{hostname}
+         and $hostname ne $actref->{hostname} ) {
+        print "Attempt to create entry for $hostname with mac identical to existing 'action' entry $actref->{hostname}\n";
+        exit 1;
+    }
+    # lookup by hostname
+    $actref = get_db_action_by_hostname( $dbh, $hostname );
+    if ( defined $actref
+         and defined $actref->{mac}
+         and $mac ne $actref->{mac} ) {
+        print "Attempt to create entry for $mac with hostname identical to existing 'action' entry $actref->{mac}\n";
+        exit 1;
+    }
+
+    # done with all checking of hostname/mac/ip
+    # begin loading of hash used for remainder of processing command
+    undef $actref;
+
+    $profile = "default" unless ($profile);
+    $actref->{'profile'} = $profile;
+    &load_profile( $opts, $dbh, $actref );
+    if ($opts->{debug} > 1) {
+        foreach my $key ( sort ( keys %{$actref} )) {
+            print "add post-profile:  $key => $actref->{$key}\n";
+        }
+    }
+
+    # distro file may be in profile *and* on command line
+    # command line wins over profile entry
+    $actref->{'distro'} = $distro if ($distro);
+
+    die "Need --distro via commandline or distro= in profile.\n"
+        unless ($actref->{'distro'});
+
+    &load_distro( $opts, $dbh, $actref );
+    if ($opts->{debug} > 1) {
+        foreach my $key ( sort ( keys %{$actref} )) {
+            print "add post-distro:  $key => $actref->{$key}\n";
+        }
+    }
+
+    my $addons_in;
+    # addons may be in profile
+    $addons_in = $actref->{'addon'};
+    # command line wins over profile entry
+    $addons_in = $addon if ($addon);
+
+    if ( defined $sdks{$actref->{distro}} ) {
+        if ( $opts->{debug} )
+        {
+            print "lumping in sdk addon $sdks{$actref->{distro}} for $actref->{distro}\n";
+        }
+
+        if ( $addons_in ) {
+            $addons_in = "$sdks{$actref->{distro}} " . $addons_in;
+        } else {
+            $addons_in = $sdks{$actref->{distro}};
+        }
+    }
+    # we're going to store this list of addons in the db
+    $actref->{addons} = $addons_in;
+
+    # if actref->{'addon'} was set by reading a profile addon= line
+    # we need to clear it from $hash as that is for the yast xml
+    $actref->{'addon'} = '';
+    if ( defined $addons_in and $addons_in ) {
+        print "add pre-addons:  $addons_in\n" if ($opts->{debug} > 1);
+        &load_addons( $opts, $dbh, $actref, $addons_in );
+    }
+    if ($opts->{debug} > 1) {
+        foreach my $key ( sort ( keys %{$actref} )) {
+            print "add post-addons:  $key => $actref->{$key}\n";
+        }
+    }
+
+    # hardware file may be in profile *and* on command line
+    # command line wins over profile entry
+    $actref->{'hardware'}= $hardware if ($hardware);
+
+    die "Need --hardware via commandline or hardware= in profile.\n"
+        unless ($actref->{'hardware'});
+
+    &load_hardware( $opts, $dbh, $actref );
+    if ($opts->{debug} > 1) {
+        foreach my $key ( sort ( keys %{$actref} )) {
+            print "add post-hardware:  $key => $actref->{$key}\n";
+        }
+    }
+
+    # Remote Access configurations
+    my @raccess;
+    # vnc remote access may be specified in profile *and* on command line
+    # command line wins over profile entry
+    if (($vncpass) and !($usevnc)) {
+        die "--vncpass requires --usevnc\n";
+    } elsif (!($vncpass) and ($usevnc)) {
+        die "--usevnc requires --vncpass\n";
+    }
+
+    if ($vncpass) {
+        if ( length( $vncpass) < 8 ) {
+            $opts->{LASTERROR} = "minimum password length of 8 chars required\n";
+            return 1;
+        }
+        $vncpass =~ s/$vncpass/vncpassword=$vncpass/;
+        if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|fedora| or
+             $actref->{os} =~ m|centos| ) {
+            push(@raccess, "vnc", $vncpass);
+        }
+        else {
+            push(@raccess, "vnc=1", $vncpass);
+        }
+    }
+
+    # ssh remote access may be specified in profile *and* on command line
+    # command line wins over profile entry
+    if (($sshpass) or ($usessh)) {
+        if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|fedora| or
+             $actref->{os} =~ m|centos| ) {
+            $opts->{LASTERROR} = "RHEL, Fedora, CentOS do not support ssh install\n";
+            return 1;
+        }
+    }
+    if (($sshpass) and !($usessh)) {
+        die "--sshpass requires --usessh\n";
+    }
+    elsif (!($sshpass) and ($usessh)) {
+        die "--usessh requires --sshpass\n";
+    }
+
+    if ($usessh) {
+        $sshpass =~ s/$sshpass/sshpassword=$sshpass/;
+        push(@raccess, "usessh=1", $sshpass);
+    }
+
+    # serial remote access may be specified in profile *and* on command line
+    # command line wins over profile entry
+    $actref->{console} = "";
+    if (($serialtty) and !($serialbaud)) {
+            die "--serialtty requires --serialbaud\n";
+    } elsif (!($serialtty) and ($serialbaud)) {
+            die "--serialbaud requires --serialtty\n";
+    }
+
+    if (($serialbaud) and ($serialtty)) {
+        if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|fedora| or
+             $actref->{os} =~ m|centos| or
+             $actref->{distro} =~ m|sles-9| ) {
+            ##
+            ##  INCLUDE SLES9 FOR MINIMAL CMD LINE TXT
+            ##
+            my $serialopts = "console=tty0 console=$serialtty,$serialbaud";
+            push(@raccess, $serialopts);
+            $actref->{console} = $serialopts;
+        }
+        else {
+            my $serialopts = "console=tty0 console=$serialtty,$serialbaud";
+            $serialopts .= " earlyprintk=serial,$serialtty,$serialbaud";
+            push(@raccess, $serialopts);
+            $actref->{console} = $serialopts;
+        }
+    }
+
+
+    # Join all raccess args
+    $actref->{'raccess'} = join " ", @raccess;
+
+    # modules may be specified in profile
+    my $modules_in;
+    $modules_in = $actref->{'module'} if ( defined $actref->{'module'} );
+    # command line wins over profile entry
+    $modules_in = $module if ($module);
+
+    # Check for and add mandatory modules
+    my $mandatory_in = &db_get_mandatory( $opts, $dbh, $distro );
+    if ($modules_in) {
+        $modules_in = $modules_in . " $mandatory_in";
+    }
+    else {
+        $modules_in = $mandatory_in;
+    }
+    # we're going to store this list of addons in the db
+    $actref->{modules} = $modules_in;
+
+    # if hash{'module'} was set by reading a profile module= line
+    # we need to clear it from $hash as that is for the yast xml
+    $actref->{'module'}="";
+
+    print "modules to load: '$modules_in'\n" if ( defined $modules_in and $opts->{debug} );
+    # modules are optional do notattempt to load if none specified
+    if ( defined $modules_in and $modules_in ne "" ) {
+        &check_modules( $opts, $dbh, $distro, $modules_in );
+        &load_modules( $opts, $dbh, $actref, $modules_in );
+    }
+    if ($opts->{debug} > 1) {
+        foreach my $key ( sort ( keys %{$actref} )) {
+            print "add post-modules:  $key => $actref->{$key}\n";
+        }
+    }
+
+    ## Commandline options
+    ##   - comes after reading profile
+    ##   - harware, distro override profile values
+    ##   - cmdline values override any file values
+    ##   - --vars overrides everything else
+    ## Mandatory: hostname ip mac
+    ##
+
+    $actref->{'serverip'}  = $baVar{serverip}  if ($baVar{serverip});
+    $actref->{'sharetype'} = $baVar{sharetype} if ($baVar{sharetype});
+    $actref->{'shareip'}   = $baVar{shareip}   if ($baVar{shareip});
+
+    $actref->{'autobuild'} = $autobuild if ($autobuild);
+
+    ## If passed on command line via vars, then honor those
+    ##
+    if ($vars) {
+        $actref->{vars} = $vars;
+        my @varray = split(/ /, $vars);
+        foreach my $item (@varray) {
+            (my $key, my $value) = split(/=/, $item);
+            $actref->{$key} = $value;
+        }
+    }
+
+    # do not want any setting to override these values
+
+    $actref->{'cmdline'} = $cmdline;
+    $actref->{'hostname'} = $hostname;
+    $actref->{'ip'} = $ip;
+    $actref->{'mac'} = $mac;
+    $actref->{'uuid'} = &get_uuid;
+    $actref->{'buildroot'} = $baDir{'builds'};
+    $actref->{'autoinst'} = &automac( $mac );
+    $actref->{'basedist'} = "$actref->{'os'}-$actref->{'release'}-$actref->{'arch'}";
+    $actref->{'initrd'} = "initrd.$actref->{'basedist'}";
+    $actref->{'kernel'} = "linux.$actref->{'basedist'}";
+
+    $actref->{'admin'}   = BA_ADMIN_ENABLED;
+    $actref->{'oper'}    = BA_ADMIN_ADDED;
+    $actref->{'pxecurr'} = BA_ACTION_INVENTORY;
+    $actref->{'pxenext'} = BA_ACTION_BUILD;
+
+    $actref->{'autonuke'} = 0;
+
+    if ( $baVar{remote_logging} eq "yes" ) {
+        if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|fedora| or
+             $actref->{os} =~ m|centos| ) {
+            $actref->{'loghost'} = "syslog=$baVar{serverip}";
+        } else {
+            $actref->{'loghost'} = "loghost=$baVar{serverip}";
+        }
+    } else {
+        $actref->{'loghost'} = ""
+    }
+
+    if ($opts->{debug}) {
+        print "settings to use:\n";
+        foreach my $key ( sort keys %{$actref} ) {
+            printf "actref:  $key => %s\n",
+                defined $actref->{$key} ? $actref->{$key} : "";
+        }
+    }
+
+    ## Test to see if oscert approved
+    ##
+
+    if ( &check_cert( $opts, $dbh, 'hwcert',
+                      $actref->{'hardware'},
+                      $actref->{'distro'} ) )
+    {
+        print "$actref->{'hardware'} not certified for $actref->{'distro'}\n";
+        exit 1;
+    }
+
+    $macref = get_db_mac( $dbh, $actref->{mac} );
+    unless ( defined $macref ) {
+        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED);
+        $macref = get_db_mac( $dbh, $actref->{mac} );
+    }
+
+    $hostref = &get_db_host( $dbh, $hostname );
+    unless ( defined $hostref ) {
+        &add_db_host( $dbh, $actref );
+#        $hostref = get_db_host( $dbh, $hostname );
+    }
+#    &update_db_host( $opts, $dbh, $actref );
+
+    action_state_change( $dbh, BA_ACTION_BUILD, $macref, $actref );
+
+    &update_db_mac_state ( $dbh, $actref->{mac}, BA_ACTION_BUILD);
+
+    # find existing action relation and update it or create if not found
+    # avoid overwrite of the carefully constructed $actref hash
+    my $tmpref = get_db_action( $dbh, $actref->{mac} );
+    if ( defined $tmpref ) {
+        # here's a rather involved check
+        # to make sure we're not updating a dup
+        my $gotdiff = 0;
+        while ( my ($key, $val) = each %{$tmpref} ) {
+            next if $key eq "uuid";     # changes every invocation
+            next if $key eq "creation";
+            next if $key eq "change";
+            next if $key eq "cmdline";  # order diff and -d -v -q don't matter
+            unless ( defined $val ) {
+                if ( defined $actref->{$key} ) {
+                    $gotdiff = 1;
+                    last;
+                } else {
+                    next;
+                }
+            }
+            print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val '$val'\n"
+                if $opts->{debug};
+            if ( "$actref->{$key}" ne "$val" ) {
+                $gotdiff = 1;
+                last;
+            }
+        }
+        if ( $gotdiff != 0 ) {
+            &remove_autobuild( $opts, $actref );
+            unless ( $actref->{'autobuild'} eq "none" ) {
+                &add_autobuild( $opts, $actref );
+            }
+            &update_db_action( $dbh, $actref);
+        }
+    } else {
+        &add_db_action( $dbh, $actref);
+        unless ( $actref->{'autobuild'} eq "none" ) {
+            &add_autobuild( $opts, $actref );
+        }
+    }
+
+    if ( $opts->{verbose} )
+    {
+        printf "Build recipe set.\nNext pxeboot of $hostname will start install cycle.\n";
+    }
+
+    return 0;
+}
+
+
+=head2 empty { --mac <macaddr>  --hostname <name> }
+
+When a device has been completely decommisioned, or an actionalbe entry for it is no longer desired, this command will remove all build and boot relations.
+
+This command does not delete the mac address itself but instead marks the device doing pxeboot with that mac to wait and boot no further.
+
+Arguments
+
+     --mac <macaddr>     specify device by mac address
+     --hostname <name>   specify device by hostname ( if available )
+
+=cut
+
+sub empty
+{
+    my $command = "empty";
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $mac="";
+    my $hostname="";
+
+    my $macref;
+    my $actref;
+    my $chkref;
+
+    @ARGV = @_;
+
+    GetOptions(
+               'mac=s'          => \$mac,
+               'hostname=s'     => \$hostname,
+               );
+
+    if ( scalar @ARGV ) {
+        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    # this routine checks for mac and hostname args
+    # and if hostname passed finds related mac entry
+    # returns undef on error (e.g., unable to find hostname)
+    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
+    unless ( defined $mac ) {
+        # $opt->{LASTERROR} set in subroutine
+        return 1;
+    }
+
+    $macref = &get_db_mac( $dbh, $mac );
+    unless ( defined $macref ) {
+        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
+    }
+    if ( $opts->{debug} > 1 ) {
+        while ( my ($key, $val) = each %{$macref} ) {
+            print "mac $key => " . $val eq "" ? "" : $val . "\n";
+        }
+    }
+
+    $chkref = &get_db_action( $dbh, $mac );
+    if ( defined $chkref ) {
+        if ( $opts->{debug} > 1 ) {
+            while ( my ($key, $val) = each %{$chkref} ) {
+                print "host $key => " . $val eq "" ? "" : $val . "\n";
+            }
+        }
+        # store a copy of the ref found for modification
+        $actref = $chkref;
+    }
+
+    if ( defined $chkref and
+         $chkref->{pxenext} eq BA_ACTION_NONE ) {
+        $opts->{LASTERROR} = "baracus already cleared of host info.\n";
+        return 1;
+    }
+
+    ##
+    ## ALL CHECKS DONE - DO MODS
+
+    $actref->{cmdline} = $cmdline;
+    $actref->{hostname} = $hostname if ( $hostname ne "" );
+    $actref->{mac} = $mac;
+
+    &action_state_change( $dbh, BA_ACTION_NONE, $macref, $actref );
+
+    &update_db_mac_state( $dbh, $mac, BA_ACTION_NONE );
+
+    # for proper command history update we update
+    &remove_autobuild( $opts, $actref );
+    if ( defined $chkref ) {
+        &update_db_action( $dbh, $actref );
+    }
+    else {
+        &add_db_action( $dbh, $actref );
+    }
+
+    # delete the host and action entries
+    &remove_db_action( $dbh, $mac );
+    &remove_db_host_by_mac( $dbh, $mac );
+
+    if ( $opts->{verbose} )
+    {
+        printf "Clear complete.\nNext pxeboot of %s will rediscover host.\n",
+            $hostname ne "" ? $hostname : $mac;
+    }
+
+    return 0;
+}
+
+=head2 inventory { --mac <macaddr | --hostname <name> }
+
+Set a device so that it collect basic inventory information on the next pxeboot cycle.
+
+Arguments
+
+     --mac <macaddr>     specify device by mac address
+     --hostname <name>   specify device by hostname ( if available )
+
+=cut
+
+sub inventory
+{
+    my $command = "inventory";
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $mac="";
+    my $hostname="";
+
+    my $macref;
+    my $actref;
+    my $chkref;
+
+    @ARGV = @_;
+
+    GetOptions(
+               'mac=s'          => \$mac,
+               'hostname=s'     => \$hostname,
+               );
+
+    if ( scalar @ARGV ) {
+        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    # this routine checks for mac and hostname args
+    # and if hostname passed finds related mac entry
+    # returns undef on error (e.g., unable to find hostname)
+    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
+    unless ( defined $mac ) {
+        # $opt->{LASTERROR} set in subroutine
+        return 1;
+    }
+
+    $macref = &get_db_mac( $dbh, $mac );
+    unless ( defined $macref ) {
+        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
+    }
+    if ( $opts->{debug} > 1 ) {
+        while ( my ($key, $val) = each %{$macref} ) {
+            print "mac $key => " . $val eq "" ? "" : $val . "\n";
+        }
+    }
+
+    $chkref = &get_db_action( $dbh, $mac );
+    if ( defined $chkref ) {
+        if ( $opts->{debug} > 1 ) {
+            while ( my ($key, $val) = each %{$chkref} ) {
+                print "check $key => " . $val eq "" ? "" : $val . "\n";
+            }
+        }
+        # store a copy of the ref found for modification
+        $actref = $chkref;
+    }
+
+    if ( defined $chkref and
+         $chkref->{pxenext} eq BA_ACTION_INVENTORY ) {
+        $opts->{LASTERROR} = "device already set to inventory.\n";
+        return 1;
+    }
+
+    ##
+    ## ALL CHECKS DONE - DO MODS
+
+    $actref->{cmdline} = $cmdline;
+    $actref->{mac} = $mac;
+
+    # if passed both mac and hostname create a host table entry
+    if ( $hostname ne "" ) {
+        $actref->{hostname} = $hostname;
+        unless ( &get_db_host( $dbh, $hostname ) ) {
+            &add_db_host( $dbh, $actref );
+        }
+    }
+
+    action_state_change( $dbh, BA_ACTION_INVENTORY, $macref, $actref );
+
+    &update_db_mac_state( $dbh, $mac, BA_ACTION_INVENTORY );
+
+    # for proper command history update we update
+    if ( defined $chkref ) {
+        &update_db_action( $dbh, $actref );
+    } else {
+        &add_db_action( $dbh, $actref );
+    }
+
+    if ( $opts->{verbose} )
+    {
+        printf "IOnventory set\nNext pxeboot of %s will collect inventory.\n",
+            $hostname ne "" ? $hostname : $mac;
+    }
+
+    return 0;
+}
+
+
+=head2 wipe { --mac <macaddr> | --hostname <name> } [ --autowipe | --noautowipe ]
+
+At the end of the life cycle for a build client this command is used to erase the harddrives on the host.
+
+After running this command, the pxeboot entry for the host is enabled, and when that host PXE boots again it will download and run the disk wipe program.
+
+Arguments
+
+  --mac <macaddr>          Specify device by mac address
+  --hostname <name>        Specify device by hostname ( if available )
+
+Options
+
+  --autowipe               Use with EXTREAM caution. Not for network storage.
+
+                           If --autowipe is used on PXE boot
+                           the host will IMMEDIATELY begin to erase
+                           (write 0s and 1s multiple times)
+                           ALL CONNECTED STORAGE MEDIA.
+
+                           *** Including SANS and iSCSI ***
+
+  --noautowipe             If --noautowipe is used on PXE boot the user
+                           is presented a menu to select the devices to
+                           irrecoverably erase. [default --noautowipe]
+
+=cut
+
+sub wipe
+{
+    use File::Temp qw/ tempdir /;
+
+    my $command = "wipe";
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $mac="";
+    my $hostname="";
+    my $autowipe = 0;
+
+    my $macref;
+    my $actref;
+    my $chkref;
+
+    @ARGV = @_;
+
+    GetOptions(
+               'mac=s'          => \$mac,
+               'hostname=s'     => \$hostname,
+               'autowipe!'      => \$autowipe,
+               );
+
+    if ( scalar @ARGV ) {
+        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    # this routine checks for mac and hostname args
+    # and if hostname passed finds related mac entry
+    # returns undef on error (e.g., unable to find hostname)
+    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
+    unless ( defined $mac ) {
+        # $opt->{LASTERROR} set in subroutine
+        return 1;
+    }
+
+    $macref = &get_db_mac( $dbh, $mac );
+    unless ( defined $macref ) {
+        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
+    }
+    if ( $opts->{debug} > 1 ) {
+        while ( my ($key, $val) = each %{$macref} ) {
+            print "mac $key => " . $val eq "" ? "" : $val . "\n";
+        }
+    }
+
+    $chkref = &get_db_action( $dbh, $mac );
+    if ( defined $chkref ) {
+        if ( $opts->{debug} > 1 ) {
+            while ( my ($key, $val) = each %{$chkref} ) {
+                print "check $key => " . $val eq "" ? "" : $val . "\n";
+            }
+        }
+        # store a copy of the ref found for modification
+        $actref = $chkref;
+    }
+
+    my $autostring = $autowipe ? "auto" : "";
+
+    if ( defined $chkref and
+         (defined $chkref->{autonuke} and $chkref->{autonuke} eq $autowipe ) and
+         (defined $chkref->{pxenext}  and $chkref->{pxenext}  eq BA_ACTION_DISKWIPE ) ) {
+        $opts->{LASTERROR} = "device already set to ${autostring}wipe disk.\n";
+        return 1;
+    }
+
+    ##
+    ## ALL CHECKS DONE - DO MODS
+
+    $actref->{autonuke} = $autowipe;
+
+    $actref->{cmdline} = $cmdline;
+    $actref->{mac} = $mac;
+
+    # if passed both mac and hostname create a host table entry
+    if ( $hostname ne "" ) {
+        $actref->{hostname} = $hostname;
+        unless ( &get_db_host( $dbh, $hostname ) ) {
+            &add_db_host( $dbh, $actref );
+        }
+    }
+
+    action_state_change( $dbh, BA_ACTION_DISKWIPE, $macref, $actref );
+
+    &update_db_mac_state( $dbh, $mac, BA_ACTION_DISKWIPE );
+
+    # for proper command history update we update
+    if ( defined $chkref ) {
+        &update_db_action( $dbh, $actref );
+    } else {
+        &add_db_action( $dbh, $actref );
+    }
+
+
+    if ( $opts->{verbose} )
+    {
+        printf "Wipe set.\nNext pxeboot of %s and the hardrive will be ${autostring}wiped.\n",
+            $hostname ne "" ? $hostname : $mac;
+    }
+
+    return 0;
+}
+
+
+=head2 localboot { --mac <macaddr> | --hostname <name> }
+
+Boot from localdisk on the next pxeboot of the specified device.
+
+Options
+
+  --mac <macaddr>          Specify device by mac address
+  --hostname <name>        Specify device by hostname ( if available )
+
+=cut
+
+sub localboot
+{
+    my $command = "localboot";
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $mac       = "";
+    my $hostname  = "";
+
+
+    my $macref;
+    my $actref;
+    my $chkref;
+
+
+    @ARGV = @_;
+
+    GetOptions(
+               'mac=s'          => \$mac,
+               'hostname=s'     => \$hostname,
+              );
+
+    if ( scalar @ARGV ) {
+        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    # this routine checks for mac and hostname args
+    # and if hostname passed finds related mac entry
+    # returns undef on error (e.g., unable to find hostname)
+    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
+    unless ( defined $mac ) {
+        # $opts->{LASTERROR} set in subroutine
+        return 1;
+    }
+
+    $macref = &get_db_mac( $dbh, $mac );
+    unless ( defined $macref ) {
+        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
+    }
+    if ( $opts->{debug} > 1 ) {
+        while ( my ($key, $val) = each %{$macref} ) {
+            print "mac $key => " . $val eq "" ? "" : $val . "\n";
+        }
+    }
+
+    $chkref = &get_db_action( $dbh, $mac );
+    if ( defined $chkref ) {
+        if ( $opts->{debug} > 1 ) {
+            while ( my ($key, $val) = each %{$chkref} ) {
+                print "check $key => " . $val eq "" ? "" : $val . "\n";
+            }
+        }
+        # store a copy of the ref found for modification
+        $actref = $chkref;
+    }
+
+    if ( defined $chkref and
+         $chkref->{pxenext} eq BA_ACTION_LOCALBOOT ) {
+        $opts->{LASTERROR} = "device already in localboot state\n";
+        return 1;
+    }
+
+    ##
+    ## ALL CHECKS DONE - DO MODS
+
+    $actref->{cmdline} = $cmdline;
+    $actref->{mac} = $mac;
+
+    # if passed both mac and hostname create a host table entry
+    if ( $hostname ne "" ) {
+        $actref->{hostname} = $hostname;
+        unless ( &get_db_host( $dbh, $hostname ) ) {
+            &add_db_host( $dbh, $actref );
+        }
+    }
+    &action_state_change( $dbh, BA_ACTION_LOCALBOOT, $macref, $actref );
+
+    &update_db_mac_state( $dbh, $mac, BA_ACTION_LOCALBOOT );
+
+    # for proper command history update we update
+    if ( defined $chkref ) {
+        &update_db_action( $dbh, $actref );
+    } else {
+        &add_db_action( $dbh, $actref );
+    }
+
+    if ( $opts->{verbose} ) {
+        printf "Localboot set.\nNext pxeboot of %s will use local disk.\n",
+            $hostname ne "" ? $hostname : $mac;
+    }
+
+    return 0;
+}
+
+
+=head2 netboot { --mac <macaddr> | --hostname <name> } --ip <addr> --target <iqn>
+
+After running this command, the pxeboot entry for the host is enabled, and when that host PXE boots again it will use the network storage device target.
+
+Arguments
+
+  --mac <macaddr>          Specify device by mac address
+  --hostname <name>        Specify device by hostname ( if available )
+
+  --ip <addr>              IP address of the target share server.
+  --target <iqn>           Network share target specifier.
+
+At this time the only supported format is iSCSI Qualified Name (iqn)
+
+IQN follows syntax iqn.YYYY-MM.{reversed domain name}[:arbitrary naming string]
+
+Where the owner of the domain name is responsible for everything after the colon in the bracketed optional string.
+
+For example:  iqn.2009-12.com.novell:baracus.uniquehostname.disk1
+
+=cut
+
+sub netboot
+{
+    my $command = "netboot";
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $mac      = "";
+    my $hostname = "";
+    my $ip       = "";
+    my $target   = "";
+
+    my $macref;
+    my $actref;
+    my $chkref;
+
+    @ARGV = @_;
+
+    GetOptions(
+               'mac=s'      => \$mac,
+               'hostname=s' => \$hostname,
+               'ip=s'       => \$ip,
+               'target=s'   => \$target,
+              );
+
+    if ( scalar @ARGV ) {
+        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    # this routine checks for mac and hostname args
+    # and if hostname passed finds related mac entry
+    # returns undef on error (e.g., unable to find hostname)
+    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
+    unless ( defined $mac ) {
+        # $opts->{LASTERROR} set in subroutine
+        return 1;
+    }
+
+    if ( $target eq "" ) {
+        $opts->{LASTERROR} = "Target --target needed for netboot\n";
+        return 1;
+    }
+
+    if ( $ip eq "" ) {
+        $opts->{LASTERROR} = "Target --ip needed for netboot target server\n";
+        return 1;
+    }
+
+    &check_ip( $ip );
+
+    $macref = &get_db_mac( $dbh, $mac );
+    unless ( defined $macref ) {
+        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
+    }
+    if ( $opts->{debug} > 1 ) {
+        while ( my ($key, $val) = each %{$macref} ) {
+            print "mac $key => " . $val eq "" ? "" : $val . "\n";
+        }
+    }
+
+    $chkref = &get_db_action( $dbh, $mac );
+    if ( defined $chkref ) {
+        if ( $opts->{debug} > 1 ) {
+            while ( my ($key, $val) = each %{$chkref} ) {
+                print "check $key => " . $val eq "" ? "" : $val . "\n";
+            }
+        }
+        # store a copy of the ref found for modification
+        $actref = $chkref;
+    }
+
+    if ( defined $chkref and
+         $chkref->{pxenext} eq BA_ACTION_NETBOOT ) {
+        $opts->{LASTERROR} = "device in NETBOOT state using $chkref->{netboot}\n";
+        return 1;
+    }
+
+    ##
+    ## ALL CHECKS DONE - DO MODS
+
+    $actref->{netbootip} = $ip;
+    $actref->{netboot} = $target;
+
+    $actref->{cmdline} = $cmdline;
+    $actref->{mac} = $mac;
+
+    # if passed both mac and hostname create a host table entry
+    if ( $hostname ne "" ) {
+        $actref->{hostname} = $hostname;
+        unless ( &get_db_host( $dbh, $hostname ) ) {
+            &add_db_host( $dbh, $actref );
+        }
+    }
+
+    &action_state_change( $dbh, BA_ACTION_NETBOOT, $macref, $actref );
+
+    &update_db_mac_state( $dbh, $mac, BA_ACTION_NETBOOT );
+
+    # for proper command history update we update
+    if ( defined $chkref ) {
+        &update_db_action( $dbh, $actref );
+    } else {
+        &add_db_action( $dbh, $actref );
+    }
+
+    if ( $opts->{verbose} ) {
+        printf "Netboot set.\nNext pxeboot of %s will use network target %s.\n",
+            $hostname ne "" ? $hostname : $mac, $target;
+    }
+
+    return 0;
+}
+
+
+=head2 norescue { --mac <mac> | --hostname <name> }
+
+Resume normal inventory, building or booting in non-rescue mode.
+
+Arguments
+
+  --mac <macaddr>             Specify device by mac address
+  --hostname <name>           Specify device by hostname ( if available )
+
+=cut
+
+sub norescue
+{
+    my $command = "norescue";
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $mac       = "";
+    my $hostname  = "";
+
+    my $macref;
+    my $actref;
+    my $chkref;
+
+    @ARGV = @_;
+
+    GetOptions(
+               'mac=s'          => \$mac,
+               'hostname=s'     => \$hostname,
+              );
+
+    if ( scalar @ARGV ) {
+        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    # this routine checks for mac and hostname args
+    # and if hostname passed finds related mac entry
+    # returns undef on error (e.g., unable to find hostname)
+    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
+    unless ( defined $mac ) {
+        # $opts->{LASTERROR} set in subroutine
+        return 1;
+    }
+
+    $macref = &get_db_mac( $dbh, $mac );
+    unless ( defined $macref ) {
+        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
+    }
+    if ( $opts->{debug} > 1 ) {
+        while ( my ($key, $val) = each %{$macref} ) {
+            print "mac $key => " . $val eq "" ? "" : $val . "\n";
+        }
+    }
+
+    $chkref = &get_db_action( $dbh, $mac );
+    if ( defined $chkref ) {
+        if ( $opts->{debug} > 1 ) {
+            while ( my ($key, $val) = each %{$chkref} ) {
+                print "check $key => " . $val eq "" ? "" : $val . "\n";
+            }
+        }
+        # store a copy of the ref found for modification
+        $actref = $chkref;
+    }
+
+    if ( defined $chkref and
+         $chkref->{pxenext} ne BA_ACTION_RESCUE ) {
+        $opts->{LASTERROR} = "device already in non-rescue boot mode.\n";
+        return 1;
+    }
+
+    ##
+    ## ALL CHECKS DONE - DO MODS
+
+    $actref->{cmdline} = $cmdline;
+    $actref->{mac} = $mac;
+
+    # if passed both mac and hostname create a host table entry
+    if ( $hostname ne "" ) {
+        $actref->{hostname} = $hostname;
+        unless ( &get_db_host( $dbh, $hostname ) ) {
+            &add_db_host( $dbh, $actref );
+        }
+    }
+
+    # recover previous non-rescue state and assign to mac state
+    &action_state_change( $dbh, BA_ACTION_NORESCUE, $macref, $actref );
+
+    &update_db_mac_state( $dbh, $mac, $macref->{state} );
+
+    # for proper command history update we update
+    if ( defined $chkref ) {
+        &update_db_action( $dbh, $actref );
+    } else {
+        &add_db_action( $dbh, $actref );
+    }
+
+    if ( $opts->{verbose} ) {
+        printf "Set complete. State of %s modified to support rescue mode on next boot.\n",
+            $hostname ne "" ? $hostname : $mac;
+    }
+
+    return 0;
+}
+
+
+=head2 rescue { --mac <mac> | --hostname <name> }
+
+Rescue boot on the next pxeboot of the specified device.
+
+Where
+
+  --mac <macaddr>          Network interface card physical address
+                           (in hexidecimal xx:xx:xx:xx:xx:xx format).
+  --hostname <name>        Hostname (conforming to DNS without domainname)
+                           to identify the box containing the network
+                           interface card with the specified <macaddr>.
+  --ip <ipaddr>            Client static, or dhcp bound, IP address.
+                           Use string 'dhcp' if dynamically assigned.
+
+
+A profile can be used to accumlate all the other parameters for a similar collection of hosts and can contain networking, distro, and hardware information.
+
+  --profile <pfile>        File with networking and/or other template
+                           parameters.  To see content of the 'default'
+                           profile use
+                             > baconfig detail profile default
+
+Other required parameters, which may be specified on the command-line or in a profile are:
+
+  --distro <os-rev-arch>   Operating system to install on build client.
+                           To be sure network install server has distro
+                           specified availiable for use
+                             > basource add --distro <base-arch>
+
+                           See possible distros to use with
+                             > baconfig list distro
+                           and
+                             > basource list [--distro='*match*']
+
+  --hardware <hwteplate>   Hardware template that describes build client
+                             > baconfig list hardware
+
+And further <...> optional parameters include
+
+  --usevnc                 allow vnc build access
+  --vncpass                defines vnc password for remote access
+
+  --usessh                 allow ssh build access
+  --sshpass                defines ssh password for remote access
+                           These ssh options are only valid for SuSE distros.
+
+  --serialtty              configure serial tty for remote access
+  --serialbaud             configure serial line rate for remote access
+
+=cut
+
+sub rescue
+{
+    my $command = "rescue";
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $mac       = "";
+    my $hostname  = "";
+
+    my $macref;
+    my $actref;
+    my $chkref;
+
+    my $ip="";
+    my $profile="";
+    my $distro="";
+    my $hardware="";
+    my $usevnc="";
+    my $vncpass="";
+    my $usessh="";
+    my $sshpass="";
+    my $serialtty="";
+    my $serialbaud="";
+
+    @ARGV = @_;
+
+    GetOptions(
+               'mac=s'          => \$mac,
+               'hostname=s'     => \$hostname,
+               'ip=s'           => \$ip,
+               'profile=s'      => \$profile,
+               'distro=s'       => \$distro,
+               'hardware=s'     => \$hardware,
+               'usevnc!'        => \$usevnc,
+               'vncpass=s'      => \$vncpass,
+               'usessh!'        => \$usessh,
+               'sshpass=s'      => \$sshpass,
+               'serialtty=s'    => \$serialtty,
+               'serialbaud=s'   => \$serialbaud,
+               );
+
+    if ( scalar @ARGV ) {
+        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    ## Verify Mandatory parameters
+    ##
+    if ( $hostname eq "" ) {
+        $opts->{LASTERROR} = "Missing  --hostname\n";
+        return 1;
+    }
+    if ( $ip eq "" ) {
+        $opts->{LASTERROR} = "Missing  --ip\n";
+        return 1;
+    }
+    if ( $mac eq "" ) {
+        $opts->{LASTERROR} = "Missing  --mac\n";
+        return 1;
+    }
+
+    &check_ip( $ip );
+
+    # this routine checks for mac and hostname args
+    # and if hostname passed finds related mac entry
+    # returns undef on error (e.g., unable to find hostname)
+    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
+    unless ( defined $mac ) {
+        # $opts->{LASTERROR} set in subroutine
+        return 1;
+    }
+
+    # hosts <=> mac relations checked in get_mac_by_hostname above
+    # now get any existing action db entry
+
+    # lookup by MAC
+    $actref = &get_db_action( $dbh, $mac );
+    if ( defined $actref
+         and defined $actref->{hostname}
+         and $hostname ne $actref->{hostname} ) {
+        print "Attempt to create entry for $hostname with mac identical to existing 'action' entry $actref->{hostname}\n";
+        exit 1;
+    }
+    # lookup by hostname
+    $actref = get_db_action_by_hostname( $dbh, $hostname );
+    if ( defined $actref
+         and defined $actref->{mac}
+         and $mac ne $actref->{mac} ) {
+        print "Attempt to create entry for $mac with hostname identical to existing 'action' entry $actref->{mac}\n";
+        exit 1;
+    }
+
+    # done with all checking of hostname/mac/ip
+    # begin loading of hash used for remainder of processing command
+    undef $actref;
+
+    $profile = "default" unless ($profile);
+    $actref->{'profile'} = $profile;
+    &load_profile( $opts, $dbh, $actref );
+    if ($opts->{debug} > 1) {
+        foreach my $key ( sort ( keys %{$actref} )) {
+            print "add post-profile:  $key => $actref->{$key}\n";
+        }
+    }
+
+    # distro file may be in profile *and* on command line
+    # command line wins over profile entry
+    $actref->{'distro'} = $distro if ($distro);
+
+    die "Need --distro via commandline or distro= in profile.\n"
+        unless ($actref->{'distro'});
+
+    &load_distro( $opts, $dbh, $actref );
+    if ($opts->{debug} > 1) {
+        foreach my $key ( sort ( keys %{$actref} )) {
+            print "add post-distro:  $key => $actref->{$key}\n";
+        }
+    }
+
+    # hardware file may be in profile *and* on command line
+    # command line wins over profile entry
+    $actref->{'hardware'}= $hardware if ($hardware);
+
+    die "Need --hardware via commandline or hardware= in profile.\n"
+        unless ($actref->{'hardware'});
+
+    &load_hardware( $opts, $dbh, $actref );
+    if ($opts->{debug} > 1) {
+        foreach my $key ( sort ( keys %{$actref} )) {
+            print "add post-hardware:  $key => $actref->{$key}\n";
+        }
+    }
+
+    # Remote Access configurations
+    my @raccess;
+    # vnc remote access may be specified in profile *and* on command line
+    # command line wins over profile entry
+    if (($vncpass) and !($usevnc)) {
+        die "--vncpass requires --usevnc\n";
+    } elsif (!($vncpass) and ($usevnc)) {
+        die "--usevnc requires --vncpass\n";
+    }
+
+    if ($vncpass) {
+        if ( length( $vncpass) < 8 ) {
+            $opts->{LASTERROR} = "minimum password length of 8 chars required\n";
+            return 1;
+        }
+        $vncpass =~ s/$vncpass/vncpassword=$vncpass/;
+        if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|fedora| or
+             $actref->{os} =~ m|centos| ) {
+            push(@raccess, "vnc", $vncpass);
+        }
+        else {
+            push(@raccess, "vnc=1", $vncpass);
+        }
+    }
+
+    # ssh remote access may be specified in profile *and* on command line
+    # command line wins over profile entry
+    if (($sshpass) or ($usessh)) {
+        if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|fedora| or
+             $actref->{os} =~ m|centos| ) {
+            $opts->{LASTERROR} = "RHEL, Fedora, CentOS do not support ssh install\n";
+            return 1;
+        }
+    }
+    if (($sshpass) and !($usessh)) {
+        die "--sshpass requires --usessh\n";
+    }
+    elsif (!($sshpass) and ($usessh)) {
+        die "--usessh requires --sshpass\n";
+    }
+
+    if ($usessh) {
+        $sshpass =~ s/$sshpass/sshpassword=$sshpass/;
+        push(@raccess, "usessh=1", $sshpass);
+    }
+
+    # serial remote access may be specified in profile *and* on command line
+    # command line wins over profile entry
+    $actref->{console} = "";
+    if (($serialtty) and !($serialbaud)) {
+            die "--serialtty requires --serialbaud\n";
+    } elsif (!($serialtty) and ($serialbaud)) {
+            die "--serialbaud requires --serialtty\n";
+    }
+
+    if (($serialbaud) and ($serialtty)) {
+        if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|fedora| or
+             $actref->{os} =~ m|centos| or
+             $actref->{distro} =~ m|sles-9| ) {
+            ##
+            ##  INCLUDE SLES9 FOR MINIMAL CMD LINE TXT
+            ##
+            my $serialopts = "console=tty0 console=$serialtty,$serialbaud";
+            push(@raccess, $serialopts);
+            $actref->{console} = $serialopts;
+        }
+        else {
+            my $serialopts = "console=tty0 console=$serialtty,$serialbaud";
+            $serialopts .= " earlyprintk=serial,$serialtty,$serialbaud";
+            push(@raccess, $serialopts);
+            $actref->{console} = $serialopts;
+        }
+    }
+
+    # Join all raccess args
+    $actref->{'raccess'} = join " ", @raccess;
+
+    ## Commandline options
+    ##   - comes after reading profile
+    ##   - harware, distro override profile values
+    ##   - cmdline values override any file values
+
+    $actref->{'serverip'}  = $baVar{serverip}  if ($baVar{serverip});
+    $actref->{'sharetype'} = $baVar{sharetype} if ($baVar{sharetype});
+    $actref->{'shareip'}   = $baVar{shareip}   if ($baVar{shareip});
+
+    $actref->{cmdline} = $cmdline;
+    $actref->{hostname} = $hostname;
+    $actref->{ip} = $ip;
+    $actref->{mac} = $mac;
+    $actref->{buildroot} = $baDir{builds};
+    $actref->{basedist} = "$actref->{os}-$actref->{release}-$actref->{arch}";
+    $actref->{initrd} = "initrd.$actref->{basedist}";
+    $actref->{kernel} = "linux.$actref->{basedist}";
+
+    if ( $baVar{remote_logging} eq "yes" ) {
+        if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|fedora| or
+             $actref->{os} =~ m|centos| ) {
+            $actref->{'loghost'} = "syslog=$baVar{serverip}";
+        } else {
+            $actref->{'loghost'} = "loghost=$baVar{serverip}";
+        }
+    } else {
+        $actref->{'loghost'} = ""
+    }
+
+    if ($opts->{debug}) {
+        print "settings to use:\n";
+        foreach my $key ( sort keys %{$actref} ) {
+            printf "actref:  $key => %s\n",
+                defined $actref->{$key} ? $actref->{$key} : "";
+        }
+    }
+
+    ## Test to see if oscert approved
+    ##
+
+    if ( &check_cert( $opts, $dbh, 'hwcert',
+                      $actref->{'hardware'},
+                      $actref->{'distro'} ) )
+    {
+        print "$actref->{'hardware'} not certified for $actref->{'distro'}\n";
+        exit 1;
+    }
+
+    $macref = get_db_mac( $dbh, $actref->{mac} );
+    unless ( defined $macref ) {
+        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED);
+        $macref = get_db_mac( $dbh, $actref->{mac} );
+    }
+    if ( $opts->{debug} > 1 ) {
+        while ( my ($key, $val) = each %{$macref} ) {
+            print "mac $key => " . $val eq "" ? "" : $val . "\n";
+        }
+    }
+
+    $chkref = &get_db_action( $dbh, $mac );
+    if ( defined $chkref ) {
+        if ( $opts->{debug} > 1 ) {
+            while ( my ($key, $val) = each %{$chkref} ) {
+                print "check $key => " . $val eq "" ? "" : $val . "\n";
+            }
+        }
+        # store a copy of the ref found for modification
+        $actref = $chkref;
+    }
+
+    if ( defined $chkref and
+         $chkref->{pxenext} eq BA_ACTION_RESCUE ) {
+        $opts->{LASTERROR} = "device already in rescue boot mode.\n";
+        return 1;
+    }
+
+    ##
+    ## ALL CHECKS DONE - DO MODS
+
+    # create a host table entry if missing
+    unless ( &get_db_host( $dbh, $hostname ) ) {
+        &add_db_host( $dbh, $actref );
+    }
+
+    &action_state_change( $dbh, BA_ACTION_RESCUE, $macref, $actref );
+
+    &update_db_mac_state( $dbh, $mac, BA_ACTION_RESCUE );
+
+    # for proper command history update we update
+    if ( defined $chkref ) {
+        &update_db_action( $dbh, $actref );
+    } else {
+        &add_db_action( $dbh, $actref );
+    }
+
+    if ( $opts->{verbose} ) {
+        printf "Set complete. State of %s modified to support rescue mode on next boot.\n",
+            $hostname ne "" ? $hostname : $mac;
+    }
+
+    return 0;
+}
+
+
+=head2 list [--mac <macaddr> | --hostname <name>]
+
+List the mac and actiion relations
+
+=cut
+
+sub list()
+{
+    my $command = "list";
+
+    my $argref = {
+                  'mac'      => "",
+                  'hostname' => "",
+                  };
+    @ARGV = @_;
+
+    GetOptions(
+               'mac=s'      => \$argref->{'mac'},
+               'hostname=s' => \$argref->{'hostname'},
+              );
+
+    if ( scalar @ARGV ) {
+        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    if ( $opts->{debug} ) {
+        while ( my ($key, $val) = each %{$argref} ) {
+            print "key '$key' => has val '$val'\n";
+        }
+    }
+
+    my $type = "mac";
+    my $name = "";
+
+    if ( defined $argref->{hostname} and $argref->{hostname} ) {
+        $type = "hostname";
+        $name = $argref->{hostname};
+    }
+    elsif ( defined $argref->{mac} and $argref->{mac} ) {
+        $name = $argref->{mac};
+    }
+
+    my $sth = &list_start( $type, $name );
+
+    unless( defined $sth ) {
+        # $opts->{LASTERROR} returned from db_list_start
+        return 1;
+    }
+
+    unless ($opts->{quiet}) {
+    print "--------------------------------------------------------------------------------------\n";
+    printf "%-18s %-9s %-16s %-9s %-9s %-9s %-9s\n", "mac", "state", "hostname", "pxecurr", "pxenext", "oper", "admin";
+    print "--------------------------------------------------------------------------------------\n";
+    }
+
+    my $actref;
+    my $hostname;
+    my $netboot;
+    my $curr;
+    my $next;
+    my $oper;
+    my $admin;
+
+    while ( $actref = &list_next( $sth ) ) {
+        $hostname = defined $actref->{hostname} ? $actref->{hostname} : "";
+        $netboot  = defined $actref->{netboot}  ? $actref->{netboot}  : "";
+
+        $curr  = defined $actref->{pxecurr} ? $baState{$actref->{pxecurr}} : "";
+        $next  = defined $actref->{pxenext} ? $baState{$actref->{pxenext}} : "";
+        $oper  = defined $actref->{oper}    ? $baState{$actref->{oper}}    : "";
+        $admin = defined $actref->{admin}   ? $baState{$actref->{admin}}   : "";
+
+        printf "%-18s %-9s %-16s %-9s %-9s %-9s %-9s\n",
+            $actref->{'mac'}, $baState{$actref->{state}}, $hostname,
+                $curr, $next, $oper, $admin ;
+    }
+
+    &list_finish( $sth );
+
+    return 0;
+}
+
+
+###############################################################################
+##
+## helper subroutines
+##
+
+sub list_start
+{
+    my $type  = shift;
+    my $name  = shift;
+
+    if ( $type ne "hostname" and  $type ne "mac" ) {
+        $opts->{LASTERROR} = "somehow the list type is off. should be 'hostname' or 'mac'\n";
+        return 1;
+    }
+
+    $type = "hostname" if $type eq "hostname";
+
+    if (defined $name) {
+        $name =~ s|.*/||;       # only the short name for the lookup
+        $name = "%" . $name . "%";
+    } else {
+        $name = "%";
+    }
+
+    my $cols = lc get_cols( 'action' );
+    $cols =~ s/[ \t]*//g;
+#    my $maccols = lc get_cols( 'mac' );
+#    $maccols =~ s/[ \t]*//g;
+
+    $cols = join(',', (map { "action." . $_ } split(',', $cols)));
+    my $maccols = join(',', (map { "mac." . $_ } ( 'mac', 'state' ) ));
+
+    my $sql = qq|SELECT $cols, $maccols
+                 FROM mac LEFT OUTER JOIN action
+                 ON ( mac.mac = action.mac )
+                 WHERE action.$type LIKE '$name'
+                 ORDER BY mac.mac|;
+
+    print $sql, "\n" if $opts->{debug};
+    my $sth;
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
+
+    return $sth;
+}
+
+sub list_next
+{
+    my $sth = shift;
+
+    return $sth->fetchrow_hashref();
+}
+
+sub list_finish
+{
+    my $sth = shift;
+    $sth->finish;
+    undef $sth;
+}
+
+
+die "ABSOLUTELY DOES NOT EXECUTE";
+
+__END__

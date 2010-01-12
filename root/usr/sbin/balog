@@ -1,0 +1,366 @@
+#!/usr/bin/perl -w
+
+use strict;
+
+use Getopt::Long qw( :config pass_through );
+use Pod::Usage;
+
+use lib "/usr/share/baracus/perl";
+
+use SqlFS;
+use BaracusDB;
+use BaracusState qw( :vars :states :events );
+use BaracusSql qw( :vars :subs );
+use BaracusCore qw( :subs );
+use BaracusConfig qw( :vars );
+use BaracusHost qw( :subs );
+
+=pod
+
+=head1 NAME
+
+B<bastate> - baracus tool to view host state
+
+=head1 SYNOPSIS
+
+B<bastate> E<lt>commandE<gt> [subcommand] [options and arguments]
+
+Where E<lt>commandE<gt> is one of
+
+  list templates                list host templates
+  list history                  list build client template history
+  list commands                 list commands used to modify hosts
+  list macs                     list all known mac addrs
+
+And, where <...> indicates additional required arguments.
+
+Use 'man' or 'help <command> [<type>]' for more details.
+
+=head1 DESCRIPTION
+
+This tool displays the current state of all known hosts
+
+=head1 OPTIONS
+
+=over 4
+
+=item -v --verbose  Be verbose with output
+
+=item -q --quiet Be as quiet as possible
+
+=item -n --nolabels  Do not print headers/footers
+
+=back
+
+=cut
+
+my $opts =
+{
+ 'verbose'   => 0,
+ 'quiet'     => 0,
+ 'all'       => 0,
+ 'nolabels'  => 0,
+ 'debug'     => 0,
+ 'execname'  => "",
+ 'LASTERROR' => "",
+ };
+
+my $man      = 0;
+my $help     = 0;
+
+my %multiarg; # used for processing repeatable getoptions
+
+# Build command line for historical reference and point-in-time rebuilding
+$opts->{execname} = $0;
+$opts->{execname} = $1 if ( $0 =~ m|^.*/([^/].+)| );
+my $cmdline = join '::', $opts->{execname}, @ARGV;
+
+my $cmds = {
+            'list'     => \&list,
+            'export'   => \&export,
+            };
+
+GetOptions(
+           'verbose'   => \$opts->{verbose},
+           'quiet'     => \$opts->{quiet},
+           'debug+'    => \$opts->{debug},,
+           'man'       => \$man,
+           'help|?'    => \$help,
+           );
+
+&man()  if $man;
+&help() if $help;
+&help() unless ( scalar @ARGV );
+if ($ARGV[0] eq "man"  ) { &man(); }
+if ($ARGV[0] eq "help" ) { shift @ARGV; &help(@ARGV); }
+
+# wait till here to barf on this so help is available even with bad sysconfig
+unless ($baVar{serverip}) {
+    print "Please edit /etc/sysconfig/baracus and set SERVER_IP=<server>\n";
+    exit 1;
+}
+
+my $dbname = "baracus";
+my $dbrole = $dbname;
+
+my $dbtftp = "sqltftp";
+
+my $uid = BaracusDB::su_user( $dbrole );
+die BaracusDB::errstr unless ( defined $uid );
+
+my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
+die BaracusDB::errstr unless( $dbh );
+
+my $hashoftbls = get_baracus_tables();
+
+print "bastate debug=$opts->{debug};\n" if $opts->{debug};
+my $deepdebug = $opts->{debug} > 2 ? 1 : 0;
+my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp;port=5162",
+                           'User' => "baracus",
+                           'debug' => $deepdebug )
+    or die "Unable to create new instance of SqlFS\n";
+
+my $status = &main( $opts, $cmds, @ARGV );
+
+$sqlfsOBJ->discard();
+
+die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+
+print $opts->{LASTERROR} if $status;
+
+exit $status;
+
+die "DOES NOT EXECUTE";
+
+###########################################################################
+
+sub check_subcommand
+{
+    my $command = shift;
+    my $subcommand = shift;
+
+    unless ( defined $command && defined $subcommand ) {
+        print "requires <command> <subcommand> (e.g. list history)\n";
+        &help();
+    }
+
+    unless ( $command eq "list"  or
+             $command eq "export" ) {
+        print "Command $command not expecting any subcommand.\n";
+        exit 1;
+    }
+
+    unless ( $subcommand eq "states" or
+             $subcommand eq "commands" ) {
+        print "Invalid <subcommand> '$subcommand' for <command> '$command'\n";
+        exit 1;
+    }
+}
+
+sub db_list_start
+{
+
+    my $type  = shift;  # 'templates' or 'history'
+    my $filter = shift; # generic filter
+
+    my $table = "history";
+    my $fkey;
+
+    if ( $filter eq "" ) {
+        $fkey = "mac";
+        $filter = "%";
+    } else {
+        $fkey = ( split/::/,$filter)[0];
+        $filter = ( split/::/,$filter)[1];
+        $filter =~ s/\*/\%/g;
+    }
+
+    unless ( $fkey eq "mac" or $fkey eq "hostname" ) {
+        print print "Filter key not valid.\n";
+        exit 1;
+    } 
+
+    my $sql;
+    my $sth;
+
+    print "db_list_start name: $table fkey: $fkey filter: $filter\n" if $opts->{debug};
+
+    $sql = qq|SELECT *
+              FROM $baTbls{$table}
+              WHERE $fkey LIKE ?|;
+
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( $filter ) );
+
+    return $sth;
+}
+
+sub db_list_next
+{
+    my $sth = shift;
+
+    return $sth->fetchrow_hashref();
+}
+
+sub db_list_finish
+{
+    my $sth = shift;
+    $sth->finish;
+    undef $sth;
+}
+
+sub export
+{
+    my $command = "export";
+    my $subcommand = shift;
+
+    my $file="";
+    my $long;
+    my $filter="";
+
+    @ARGV = @_;
+
+    GetOptions(
+               'file=s'    => \$file,
+               'long'      => \$long,      
+               'filter'    => \$filter,
+               );
+
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help( $command );
+    }
+
+    $subcommand = lc $subcommand;
+    &check_subcommand( $command, $subcommand);
+
+    my $sth = db_list_start ( $subcommand );
+
+    unless( defined $sth ) {
+        # $LASTERROR returned from db_list_start
+        return 1;
+    }
+
+    my $dbref;
+
+    open (FILE, ">$file") || die "unable to open $file: $!\n";
+
+    ## print csv header
+    my $header = "";
+    if ( $opts->{verbose} ) { $header = "timestamp,"; }
+    $header .= "mac,hostname,ip,pxecurr,pxenext,state,active";
+    if ( $long ) { $header .= ",hardwareid,profileid,distroid,modules,addons,netboot,loghost,raccess,autonuke"; }
+    $header .= "\n";
+    print FILE $header;
+
+    while ( $dbref = &db_list_next( $sth ) ) {
+            my $csv = "";
+            if ( $dbref->{'creation'} and $opts->{verbose} ) { $csv .= $dbref->{'creation'} . ","; }
+            if ( $dbref->{'mac'} )      { $csv .= $dbref->{'mac'} . ","; }                     else { $csv .= ","; }
+            if ( $dbref->{'hostname'} ) { $csv .= $dbref->{'hostname'} . ","; }               else { $csv .= ","; }
+            if ( $dbref->{'ip'} )       { $csv .= $dbref->{'ip'} . ","; }                     else { $csv .= ","; }
+            if ( $dbref->{'pxecurr'} )  { $csv .= $baState{ $dbref->{'pxecurr'} } . ","; }    else { $csv .= ","; }
+            if ( $dbref->{'pxenext'} )  { $csv .= $baState{ $dbref->{'pxenext'} } . ","; }    else { $csv .= ","; }
+            if ( $dbref->{'oper'} )     { $csv .= $baState{ $dbref->{'oper'} } . ","; }       else { $csv .= ","; }
+            if ( $dbref->{'admin'} )    { $csv .= $baState{ $dbref->{'admin'} } . ","; }      else { $csv .= ","; }
+            if ( $dbref->{'hardwareid'} and $long ) { $csv .= $dbref->{'hardwareid'} . ","; } elsif ( $long ) { $csv .= ","; }
+            if ( $dbref->{'profileid'} and $long )  { $csv .= $dbref->{'profileid'} . ","; }  elsif ( $long ) { $csv .= ","; }
+            if ( $dbref->{'distroid'} and $long )   { $csv .= $dbref->{'distroid'} . ","; }   elsif ( $long ) { $csv .= ","; }
+            if ( $dbref->{'modules'} and $long )    { $csv .= $dbref->{'modules'} . ","; }    elsif ( $long ) { $csv .= ","; }
+            if ( $dbref->{'addons'} and $long )     { $csv .= $dbref->{'addons'} . ","; }     elsif ( $long ) { $csv .= ","; }
+            if ( $dbref->{'netboot'} and $long )    { $csv .= $dbref->{'netboot'} . ","; }    elsif ( $long ) { $csv .= ","; }
+            if ( $dbref->{'loghost'} and $long )    { $csv .= $dbref->{'loghost'} . ","; }    elsif ( $long ) { $csv .= ","; }
+            if ( $dbref->{'raccess'} and $long )    { $csv .= $dbref->{'raccess'} . ","; }    elsif ( $long ) { $csv .= ","; }
+            if ( $dbref->{'autonuke'} and $long )   { $csv .= $dbref->{'autonuke'} . ","; }   elsif ( $long ) { $csv .= ","; }
+            if ( $dbref->{'autopxe'} and $long )    { $csv .= $dbref->{'autopxe'} . ","; }    elsif ( $long ) { $csv .= ","; }
+            print FILE $csv . "\n";
+        }
+        close(FILE);
+
+    return 0;
+}
+
+sub list
+{
+    my $command = "list";
+    my $subcommand = shift;
+
+    my $filter="";
+    my $long;
+
+    @ARGV = @_;
+
+    GetOptions(
+               'filter=s'       => \$filter,
+               'long'           => \$long,
+               );
+
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help( $command );
+    }
+
+    $subcommand = lc $subcommand;
+    &check_subcommand( $command, $subcommand);
+
+    my $sth = db_list_start ( $subcommand, $filter );
+
+    unless( defined $sth ) {
+        # $LASTERROR returned from db_list_start
+        return 1;
+    }
+
+    my $dbref;
+
+    if ( $subcommand eq "states" ) {
+        if ( not ( $opts->{quiet} or $opts->{nolabels} ) ) {
+            my $line = "-----------------------------------------------------------------------------------------";
+            if ( $long ) { $line .= "----------------------------------------------------------------------------------------------------------------"; }
+            if ( $opts->{verbose} ) { $line .= "----------------------"; }
+
+            print $line . "\n";
+            if ( $opts->{verbose} ) { printf "%-21s", "timestamp"; }
+            printf "%-17s %-17s %-15s %-9s %-9s %-9s %-9s", "mac", "hostname", "ip", "pxecurr", "pxenext", "state", "active";
+            if ( $long ) { printf "%-12s %-12s %-12s %-9s %-9s %-16s %-16s %-2s %-2s", "hardwareid", "profileid", "distroid", "modules",
+                                  "addons", "netboot", "loghost", "raccess", "autonuke", "autopxe"; }
+            print "\n";
+            print $line . "\n"; 
+        }
+
+        while ( $dbref = &db_list_next( $sth ) ) {
+            if ( $dbref->{'creation'} and $opts->{verbose} ) { printf  "%-20s ", $dbref->{'creation'} }  elsif ($long) { printf "%-20s ", " "; }
+            if ( $dbref->{'mac'} )      { printf "%-17s ", $dbref->{'mac'} }                 else { printf "%-17s ", " "; }
+            if ( $dbref->{'hostname'} ) { printf "%-17s ", $dbref->{'hostname'} }            else { printf "%-17s ", " "; }
+            if ( $dbref->{'ip'} )       { printf "%-15s ", $dbref->{'ip'} }                  else { printf "%-15s ", " "; }
+            if ( $dbref->{'pxecurr'} )  { printf "%-9s ",  $baState{ $dbref->{'pxecurr'} } } else { printf "%-9s ", " "; }
+            if ( $dbref->{'pxenext'} )  { printf "%-9s ",  $baState{ $dbref->{'pxenext'} } } else { printf "%-9s ", " "; }
+            if ( $dbref->{'oper'} )     { printf "%-9s ",  $baState{ $dbref->{'oper'} } }    else { printf "%-9s ", " "; }
+            if ( $dbref->{'admin'} )    { printf "%-9s ",  $baState{ $dbref->{'admin'} } }   else { printf "%-9s ", " "; }
+            if ( $dbref->{'hardwareid'} and $long )  { printf "%-16s ", $dbref->{'hardwareid'} } elsif ($long) { printf "%-16s ", " "; }
+            if ( $dbref->{'profileid'} and $long )   { printf "%-16s ", $dbref->{'profileid'} }  elsif ($long) { printf "%-16s ", " "; }
+            if ( $dbref->{'distroid'} and $long )    { printf "%-16s ", $dbref->{'distroid'} }   elsif ($long) { printf "%-16s ", " "; }
+            if ( $dbref->{'modules'} and $long )     { printf "%-9s ", $dbref->{'modules'} }    elsif ($long) { printf "%-16s ", " "; }
+            if ( $dbref->{'addons'} and $long )      { printf "%-9s ", $dbref->{'addons'} }     elsif ($long) { printf "%-16s ", " "; }
+            if ( $dbref->{'netboot'} and $long )     { printf "%-9s ", $dbref->{'netboot'} }    elsif ($long) { printf "%-24s ", " "; }
+            if ( $dbref->{'loghost'} and $long )     { printf "%-16s ", $dbref->{'loghost'} }   elsif ($long) { printf "%-15s ", " "; }
+            if ( $dbref->{'raccess'} and $long )     { printf "%-16s ", $dbref->{'raccess'} }   elsif ($long) { printf "%-36s ", " "; }
+            if ( $dbref->{'autonuke'} and $long )    { printf "%-10s ", $dbref->{'autonuke'} }  elsif ($long) { printf "%-10s ", " "; }
+            if ( $dbref->{'autopxe'} and $long )     { printf "%-10s ", $dbref->{'autopxe'} }   elsif ($long) { printf "%-10s ", " "; }
+            printf "\n";
+        }
+    }
+    elsif ( $subcommand eq "commands" ) {
+        ## List commands filtered by hostname if provided
+        ##
+
+        while ( $dbref = &db_list_next( $sth ) ) {
+            #
+            # hostname ip mac uuid state cmdline creation change
+            print "$dbref->{'change'} " if $opts->{verbose};
+            printf "%s\n", join ' ', ( split /::/, $dbref->{'cmdline'} );
+        }
+    }
+    &db_list_finish( $sth );
+
+    return 0;
+}
