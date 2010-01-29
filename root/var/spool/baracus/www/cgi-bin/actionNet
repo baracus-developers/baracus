@@ -1,0 +1,95 @@
+#!/usr/bin/perl
+
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+use BAdb qw(:standard);
+use CGI qw(:standard);
+
+print "Content-type: text/html\n\n";
+
+our $host = param('host');
+our $mac = param('mac');
+
+our $storageList = "";
+
+our $status = "statusLeft";
+our $createContent;
+
+debugPrint( "storage: $storage");
+$storageList = BATools::getStorageSelectionList( );
+$createContent = infoWindow();
+
+###########################################################################
+#  Print HTML 
+###########################################################################
+
+print <<HTML0;
+
+<html>
+	<head>
+		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
+		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
+		<script type="text/javascript" src="/baracus/script/ajax.js"></script>
+		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
+	</head>
+	<body onLoad="storageUpdate(document.createAdd.storage)">
+
+	<div id='f-labels'>
+	<form method="get" name="createAdd" action="/$BATools::baCGI/actionHandler">
+	<div id='blockY'>
+		<h1>Hostname:</h1>
+		<br><input class="text" type="text" size="25" maxlength="15" name="host" value="$host" $dhost>
+		<br>
+		<h1>MAC Address:</h1><br><input class="text" type="text" size="25" name="mac" value="$mac" $macD onkeypress="return mac_only(event)">
+		<br>
+		<h1>Network Storage:</h1><br>
+		$storageList
+	</div>
+
+	<div id='blockZ'>
+		<input type="submit" value="Network Root" name="netBoot" width="300">
+		<input class="clear" type="button" value="Clear" onClick="location.href='/baracus/ba/actionNet'">
+        <input type=hidden name="rurl" value="actionNet">
+        <input type=hidden name="sub" value="netBoot" >
+	</div>
+
+	<div id='$status'>
+$createContent
+	</div>
+
+	</form>
+	</div>
+</body>
+</html>
+HTML0
+
+sub infoWindow
+{
+	my $cc = "";
+	my $ccurl = "/$BATools::baCGI/createContent?caller=create&attr=storage&val=$storage";
+
+	if( !scalar( @errors))
+	{
+		$cc = "<iframe src=\"$ccurl\" scrolling='no' height='100%' width='100%' frameborder='0' id='infoBox' ></iframe>";
+	}
+	else
+	{
+		$status = "error";
+		$cc = "<textarea name='comments' class='tbox' readonly='yes' disabled>\n";
+		foreach $err( @errors)
+		{
+			$cc = $cc.$err."\n";
+		}
+		$cc = $cc."</textarea>";
+	}
+	return $cc;
+}
+
+sub debugPrint
+{
+	if( $BATools::debug)
+	{
+		push( @errors, $_[0]);
+	}
+}

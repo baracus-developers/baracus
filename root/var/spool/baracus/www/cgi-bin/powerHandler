@@ -1,0 +1,152 @@
+#!/usr/bin/perl
+
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+use CGI qw(:standard);
+
+my $rURL = "power";
+my $ref = "no";
+my $seconds = 3;
+my $qStr = "";
+my $applet = "";
+my $title = "Power Control";
+my $autoClose = "onblur='window.close()'";
+my $close = "<input style='position:absolute;left:10px;top:100px' type='button' name='close' value='Close' onclick='window.close()'>";
+our $refresh = "";
+
+
+print "Content-type: text/html\n\n";
+
+my $alias = param('alias');
+my $mac = param('mac');
+my $op = param('submit');
+if( $op eq "")
+{
+	$op = param('submit2');
+}
+
+my $content = "$mac $op\n\n";
+
+my $header="Power Control";
+my $headError = "<font class='error'>Error</font>";
+
+if( $op eq "On")
+{
+	#$content = $content.onContent( $mac);
+	$content = $content . onContent( $mac );
+	$header = onHeader();
+}
+elsif( $op eq "Off")
+{
+	$content = $content . offContent( $mac);
+	$header = offHeader();
+}
+elsif( $op eq "Status")
+{
+	$content = $content . statusContent( $mac);
+	$header = statusHeader();
+}
+elsif( $op eq "VNC")
+{
+	$header = vncHeader();
+	$applet = vncContent( $alias);
+	$title = $alias;
+	$autoClose = "";
+	$close = "";
+}
+else
+{
+	$content = $content."Invalid Operation: $op";
+	$header = $headError;
+}
+
+if( $ref eq "yes")
+{
+	$refresh = "onLoad=\"doLoad( '$rURL', '$qStr', $seconds)\"";
+}
+
+$content = $content."\n\n\n";
+
+print <<HTML0
+
+<html>
+	<head>
+		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
+		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
+		<title>$title</title>
+	</head>
+	<div id='output'>
+	<body $refresh $autoClose>
+	<pre>$content</pre>
+	<h1>$header</h1>
+	$applet
+	$close
+	</body>
+	</div>
+</html>
+
+HTML0
+;
+
+########################################################################################################
+#  
+########################################################################################################
+
+sub onHeader()
+{
+	return "Power On";
+}
+sub onContent($)
+{
+	my $cmd = "sudo bapower on --mac=$_[0]";
+	my $r = `$cmd`;
+	return $r;
+}
+
+sub offHeader()
+{
+	return "Power Off";
+}
+sub offContent($)
+{
+	my $cmd = "sudo bapower off --mac=$_[0]";
+	my $r = `$cmd`;
+	return $r;
+}
+
+sub statusHeader()
+{
+	return "Power Status";
+}
+sub statusContent($)
+{
+	my $cmd = "sudo bapower status --mac=$_[0]";
+	my $r = `$cmd`;
+	return $r;
+}
+
+sub vncHeader()
+{
+	return "Power VNC";
+}
+sub vncContent($)
+{
+	my $host;
+	my $port;
+	my $cmd = "sudo virsh vncdisplay $_[0]";
+	my $vncInfo = `$cmd`; 
+
+	my @tokens = split(/:/,$vncInfo);
+    $host = $tokens[0];
+	$port = "59" . $tokens[1];
+
+	my $r = "<APPLET CODE='VncViewer.class' ARCHIVE='/baracus/VncViewer.jar' WIDTH=1024 HEIGHT=768>
+	 	<PARAM NAME='HOST' VALUE=$host>
+	 	<PARAM NAME='PORT' VALUE=$port>
+	 	</APPLET>\n";
+	return $r;
+}
+
+
+;

@@ -186,6 +186,7 @@ sub man
 {
     pod2usage( -verbose    => 2,
                -sections   => "NAME|SYNOPSIS|DESCRIPTION",
+               -noperldoc  => 1,
                -exitstatus => 0 );
 }
 
@@ -1951,8 +1952,9 @@ sub detail
                         $modcert .= @{$cert}[0];
                     }
                 }
-                printf "# ba cert=%s\n", $modcert if ( defined $modcert );
-
+                unless ( $nolabels ) {
+                    printf "# ba cert=%s\n", $modcert if ( defined $modcert );
+                }
                 my $modman = "";
                 my $mancerts = $db2use->selectall_arrayref( $sql_man, { slice => {} } );
                 if ( defined $mancerts ) {
@@ -1961,8 +1963,9 @@ sub detail
                         $modman .= @{$mancert}[0];
                     }
                 }
-                printf "# ba mandatory=%s\n", $modman if ( defined $modman );
-
+                unless ( $nolabels ) {
+                    printf "# ba mandatory=%s\n", $modman if ( defined $modman );
+                }
                 print  $href->{'data'};
                 $printcount += 1;
             }

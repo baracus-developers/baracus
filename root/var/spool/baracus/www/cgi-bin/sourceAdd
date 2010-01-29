@@ -45,7 +45,7 @@ elsif( $addonSelected)
 	$curStatus = BAdb::getDistroStatus( $addon); 
 }
 
-if( $curStatus eq "deleted")
+if( $curStatus eq "removed")
 {
 	$opButtonValue = "Add";
 	$ipDisplay = "block";

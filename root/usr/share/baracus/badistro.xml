@@ -1371,4 +1371,24 @@
     </product>
   </distro>
 
+<!-- Windows 7 -->
+
+  <distro name="windows_ent-7-x86_64">
+        <os>windows_ent</os>
+        <release>7</release>
+        <arch>x86_64</arch>
+        <description>Windows Enterprise 7 64bit</description>
+        <autodownload>no</autodownload>
+    <product name="dvd">
+          <addon>base</addon>
+          <iso name="en_windows_7_enterprise_x64_dvd_x15-70749.iso">
+            <path/>
+            <kernel>isolinux/vmlinuz</kernel>
+            <initrd>isolinux/initrd.img</initrd>
+            <md5>45d3a80e3c73a4b064ff6fedb4e2dc5b</md5>
+            <url><![CDATA[]]></url>
+          </iso>
+    </product>
+  </distro>
+
 </config>

@@ -1,38 +1,76 @@
 #!/usr/bin/perl
 
+use strict;
 use lib '/var/spool/baracus/www/modules';
 use BATools qw(:standard);
 use CGI qw(:standard);
 
 my $name = param('host') || "";
-my $filter = param('filter') || "";
+my $filterVal = param('filter') || "";
+my $filterKey = param('filterKey') || "hostname";
+my $ltype = param('ltype') || "nodes";
+my $inv = param('inv') || "no";
+my $invState = "disabled";
 
-my $items = getItems( $name, $filter);
-my $content;
+my $items = getItems( $name, $filterVal, $filterKey, $ltype);
+my $content = "";
+my $mac = "";
 
 if( $items =~ m/selected/)
 {
-	$content = getContent( $name);
+	$mac = (split(/ /, $name))[0];
+	$content = getContent( $mac);
+	if( hasInventory($mac) eq "yes")
+	{
+		$invState = "enabled";
+	}
+	
 }
 
 print "Content-type: text/html\n\n";
-
+	
 print <<HTML0
 
 <html>
 	<head>
 		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
-		<link rel='stylesheet' href='/$BATools::baRoot/css/host.css' type='text/css' >
-		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
+		<script type="text/javascript" src="/baracus/script/common.js"></script>
+		<link rel='stylesheet' href='/$BATools::baRoot/css/host.css' type='text/css'>
+		<script type="text/JavaScript">
+		<!--
+			function popResponse( name)
+			{
+				win = window.open("/baracus/ba/inventoryHandler?mac=" + name,
+									"myWin",
+									"");
+				return true;
+			}			
+			
+		//-->
+		</script>		
 	</head>
-	<body onLoad='selectThis(document.form1.host, "$name");document.form1.host.focus()'>
-		<form name='form1'>
+	<body onLoad='selectThis(document.form1.host, "$name");document.form1.host.focus();selectRadio(document.form1.filterKey, "$filterKey");selectRadio(document.form1.ltype, "$ltype")'>
+		<form name='form1' method="POST">
 		<div id='config'>
 		<div id='history' style="color:black">Host Entry List</div>
 		<div id='textEdit'>
+		<div id='ltype'>
+			<input class="radio" type="radio" name="ltype" value="nodes" checked onclick='document.form1.submit()'>Nodes
+			<input class="radio" type="radio" name="ltype" value="templates" onclick='document.form1.submit()'>Templates
+			<input class="radio" type="radio" name="ltype" value="states" onclick='document.form1.submit()'>States		
+		</div>
+		<div id='fkey'>
+			Filter:  
+			<input type="radio" name="filterKey" value="hostname" onclick='document.form1.submit()'>Hostname
+			<input type="radio" name="filterKey" value="mac" checked onclick='document.form1.submit()'>Mac
+		</div>
 		<img class='search' src='/$BATools::baRoot/images/searchI.gif' onClick='document.form1.submit()'/>
 		<img class='sweep' src='/$BATools::baRoot/images/sweepI.gif' onClick='document.form1.filter.value="";document.form1.submit()'/>
-		<input type='text' class='filter' name='filter' value='$filter'>
+		<input type='text' class='filter' name='filter' value='$filterVal'>
+		
+		<input style="position:absolute;top:315px;left:470px;width:100px;disabled="$invState" name="inventory" type="button" value="Inventory" onClick='popResponse(\"$mac\")'>
+		
+		
 		<font class='name'>Host Name</font><br>
 		$items
 		<br><br>
@@ -49,17 +87,46 @@ HTML0
 sub getItems
 {
 	my $name = $_[0];
-	my $filter = $_[1];
+	my $fVal = $_[1];
+	my $fKey = $_[2];
+	my $lType = $_[3];
+	my $ filter = "";
+	if( $fVal ne "" && $fKey ne "")
+	{
+		$filter = "--filter $fKey\:\:$fVal";
+	}
+	else
+	{
+		$filter = "";
+	}
 	my $r = "";
 	my $selected;
-	
-	$r = $r."<select class='nameWide' name='host' size='16' onChange='doSubmit( this)'>";
-	
-	my @items = BAdb::getHostTemplates( $filter);
+
+	my @items;
+	if( $lType eq "templates")
+	{
+		$r = $r."<select class='nameWide' name='host' size='16' disabled>";
+		@items = BAdb::getHostTemplates( $filter);
+	}
+	elsif( $lType eq "nodes")
+	{
+		$r = $r."<select class='nameWide' name='host' size='16' onChange='doSubmit( this)'>";
+		@items = BAdb::getHostNodes( $filter);
+	}
+	elsif( $lType eq "states")
+	{
+		$r = $r."<select class='nameWide' name='host' size='16' disabled>";
+		@items = BAdb::getHostStates( $filter);
+	}
+	else
+	{
+		$r = $r."<select class='nameWide' name='host' size='16'>";
+	}
+
 	foreach( @items)
 	{
 		$selected = $_ eq $name ? "selected" : "";
-		$r = $r."<option value='$_' $selected>$_</option>\n";	
+		$r = $r."<option value=\"$_\" $selected>$_</option>\n";	
 	}
 	
 	$r = $r."</select>";
@@ -69,15 +136,22 @@ sub getItems
 
 sub getContent
 {
-	my $name = $_[0];
+    my $r;
+	my $name = shift @_;
 	if( $name eq "")
 	{
-		$r = "";
+	    $r = "";
 	}
 	else
 	{
-		$r = BAdb::getHostTemplate( $name);
+		$r = BAdb::getNodeDetail( $name);
 	}
 	return $r;
 }
 
+sub hasInventory
+{
+	my $mac = shift @_;
+	return BAdb::getNodeInventory( $mac) ne "" ? "yes" : "no";
+}
+;

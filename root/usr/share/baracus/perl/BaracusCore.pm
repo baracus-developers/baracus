@@ -88,6 +88,7 @@ sub man
 {
     pod2usage( -verbose    => 2,
                -sections   => "NAME|SYNOPSIS|DESCRIPTION|OPTIONS|COMMANDS",
+               -noperldoc  => 1,
                -exitstatus => 0 );
 }
 

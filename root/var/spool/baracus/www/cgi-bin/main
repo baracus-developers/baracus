@@ -26,16 +26,20 @@ $op = param('op') || '<i>(No input)</i>';
 $data = param('data');
 
 @menunames = ( "Host Entries",
+			   "Host Boot Action",
                "Source Entries",
                "Configuration",
                "Power Controller",
+               "Log Information",
                "Processing",
                "About" );
 
 @menucmd = ( "/$BATools::baCGI/host.iframe",
+             "/$BATools::baCGI/action.iframe",
              "/$BATools::baCGI/source.iframe",
              "/$BATools::baCGI/config.iframe",
              "/$BATools::baCGI/power.iframe",
+			 "/$BATools::baCGI/log.iframe",             
              "/$BATools::baCGI/procHandler.iframe",
              "/$BATools::baCGI/about.iframe" );
 
@@ -56,10 +60,10 @@ print <<HTML1;
 		<link rel='stylesheet' href='/$BATools::baRoot/css/formsx.css' type='text/css' >
 		<link rel='stylesheet' href='/baracus/css/tabs.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
+		<title>Baracus</title>
 	</head>
 	
 	<body bgcolor="gainsboro" onClick="parent_disable();">
-        <div id="nvlogo"><a href="http://www.novell.com"><img src="/$BATools::baRoot/images/nov_blk.gif"\></a></div>
         <div id='mextend'>&nbsp;&nbsp;&nbsp;<img src="/baracus/images/baracuslogo1.gif" height="35" \></div>
 	<div id='mmenu'>
 	$menuHTML
@@ -67,6 +71,7 @@ print <<HTML1;
 	<div id='content'>
 	$content
 	</div>
+	<div id="nvlogo"><a href="http://www.novell.com"><img src="/$BATools::baRoot/images/nov_blk.gif"\></a></div> 
 	$randImage
 	</body>
 </html>

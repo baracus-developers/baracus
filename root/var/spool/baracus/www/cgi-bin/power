@@ -6,13 +6,13 @@ use BATools qw(:standard);
 use vars qw( %hash @array);
 use CGI qw(:standard);
 
-my $op = param('op') || "List";
+my $op = param('op') || "Control";
 my $current = "";
 
-my @tmenu = ( "List", "Add", "Remove", "Status");
-my @tlink = ( "hostList", "hostCreate", "hostRemove", "hostStatus");		
+my @tmenu = ( "Control");
+my @tlink = ( "powerControl");		
 
-my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, "host");
+my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, "power");
 		 
 print "Content-type: text/html\n\n";
 

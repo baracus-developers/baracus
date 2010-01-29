@@ -217,7 +217,7 @@ And further <...> optional parameters include
 
 sub build
 {
-    my $command = "add";
+    my $command = "build";
 
     unless ( scalar @_ ) {
         &help( $opts, $cmds, $command );

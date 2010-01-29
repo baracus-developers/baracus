@@ -677,7 +677,9 @@ sub detail() {
 
   List distribution state.
 
-  If a distribution has not been added, or has been removed, it is not displayed in the output.  To see all Baracus managable distributions and their state use the --all option.
+  If a distribution has not been added, or has been removed, it is not
+  displayed in the output.  To see all Baracus managable distributions
+  and their state use the --all option.
 
 Options
 

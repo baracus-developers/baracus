@@ -13,15 +13,6 @@ use BaracusPower qw( :subs );
 use BaracusDB;
 use BaracusSql;
 
-my $dbname = "baracus";
-my $dbrole = $dbname;
-
-my $uid = BaracusDB::su_user( $dbrole );
-die BaracusDB::errstr unless ( defined $uid );
-
-my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
-die BaracusDB::errstr unless( $dbh );
-
 =pod
 
 =head1 NAME
@@ -95,6 +86,15 @@ GetOptions(
 if ($ARGV[0] eq "man"  ) { &man(); }
 if ($ARGV[0] eq "help" ) { shift @ARGV; &help(@ARGV); }
 
+my $dbname = "baracus";
+my $dbrole = $dbname;
+
+my $uid = BaracusDB::su_user( $dbrole );
+die BaracusDB::errstr unless ( defined $uid );
+
+my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
+die BaracusDB::errstr unless( $dbh );
+
 my $status = &main(@ARGV);
 
 die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
@@ -160,6 +160,7 @@ sub man
 {
     pod2usage( -verbose    => 2,
                -sections   => "NAME|SYNOPSIS|DESCRIPTION|OPTIONS|COMMANDS",
+               -noperldoc  => 1,
                -exitstatus => 0 );
 }
 

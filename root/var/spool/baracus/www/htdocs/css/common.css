@@ -113,8 +113,8 @@
 {
 	width:100;	
 	position:absolute;
-	top:680px;
-	left:25px;
+	top:640px;
+	left:45px;
 	border:none;
 }
 #title
@@ -161,6 +161,7 @@
 	top:40px;
 	left: 10px;
 	padding:5px 5px 5px 5px;
+	color:black;
 }
 #output h1
 {
@@ -202,6 +203,17 @@
 	left:320px;
 	border:2px dotted #B2D68C;
 }
+
+#statusLeft
+{
+	width:300;
+	height:290;
+	position:absolute;
+	top:310px;
+	left:20px;
+	border:2px dotted #B2D68C;
+}
+
 #status textarea
 {
 	background-color: E4E5E6;
@@ -219,7 +231,7 @@
 #inStatus textarea
 {
 	background-color: #d8d8d8;
-	font-family:arial;
+	font-family:Courier;
 	font-size:9pt;
     font-weight:bold;
 	position:absolute;
@@ -236,8 +248,9 @@
 {
 	width:580;
 	height:280;
-    margin-left: auto;
-    margin-right: auto;
+	position:relative:
+	left:40px;
+	top:20px;
 	margin-top: 20px;
 	border:2px dotted black;
 }
@@ -277,7 +290,7 @@
 	margin-top:10;
 	margin-right:30;
 	position:relative;
-	float:right;
+	float:right;_
 	cursor:hand;
 	color:green;
 	size:12pt;

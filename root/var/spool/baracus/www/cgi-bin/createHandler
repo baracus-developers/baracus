@@ -15,7 +15,7 @@ my @vars = ( "netmask", "gateway", "dnsdomain", "dns1");
 my $varlist;
 my $redir = ' 2>&1';
 
-my $command = "sudo bahost add ";
+my $command = "sudo bado build ";
 
 foreach $myname ( @names)
 {

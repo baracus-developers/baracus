@@ -1,0 +1,170 @@
+#!/usr/bin/perl
+
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+use CGI qw(:standard);
+
+our $rURL = "action";
+our $ref = "yes";
+our $seconds = 3;
+our $qStr = "";
+
+my $refresh = "";
+
+
+print "Content-type: text/html\n\n";
+
+my $sub = param('sub');
+my $rurl = param('rurl');
+my $value = param('value');
+my $host = param('host') || "";
+my $mac = param('mac') || "";
+my $content = "";
+
+my $headError = "<font class='error'>Error</font>";
+
+if( $sub eq "noRescue")
+{
+	$content = $content . noRescueContent( $host, $mac );
+	$header = noRescueHeader();
+}
+elsif( $sub eq "localBoot")
+{
+	$content = $content . localBootContent( $host, $mac );
+	$header = localBootHeader();
+}
+elsif( $sub eq "netBoot")
+{
+    my $storage = param('storage');
+
+	$content = $content . netBootContent( $host, $mac, $storage );
+	$header = netBootHeader();
+}
+elsif( $sub eq "wipe")
+{
+	$content = $content . wipeContent( $host, $mac );
+	$header = wipeHeader();
+}
+else
+{
+    $rURL = $rurl;
+	$content = $content."Invalid Action: sub: $sub host: $host mac: $mac";
+	$header = $headError;
+}
+
+if( $ref eq "yes")
+{
+	$refresh = "onLoad=\"doLoad( '$rURL', '$qStr', $seconds)\"";
+}
+
+$content = $content."\n\n\n";
+
+print <<HTML0
+
+<html>
+	<head>
+		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
+		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
+	</head>
+	<div id='output'>
+	<body background="/baracus/images/bg-grad.jpg" $refresh>
+	<pre>$content</pre>
+	<h1>$header</h1>
+	<h3>$proc</h3>
+	<body>
+	</div>
+</html>
+
+HTML0
+
+;
+########################################################################################################
+#  Subfunction = del (Delete Install Source)
+########################################################################################################
+
+sub noRescueHeader()
+{
+	return "No Rescue Boot - Resume former boot method and actions";
+}
+
+sub noRescueContent()
+{
+    my $host = shift;
+    my $mac = shift;
+	$rURL = $rURL."NoRescue";
+	my $cmd = "sudo bado norescue ";
+    if ( $host ne "" ) {
+        $cmd .= " --hostname $host";
+    }
+    else {
+        $cmd .= " --mac $mac";
+    }
+	my $r = `$cmd`;
+	return $r;
+}
+
+sub localBootHeader()
+{
+	return "Do Local Boot";
+}
+
+sub localBootContent()
+{
+    my $host = shift;
+    my $mac = shift;
+	$rURL = $rURL."Local";
+	my $cmd = "sudo bado localboot ";
+    if ( $host ne "" ) {
+        $cmd .= " --hostname $host";
+    }
+    else {
+        $cmd .= " --mac $mac";
+    }
+	my $r = `$cmd`;
+	return $r;
+}
+
+sub netBootHeader()
+{
+	return "Do Network Boot";
+}
+
+sub netBootContent()
+{
+	my $host = shift;
+    my $mac = shift;
+    my $storage = shift;
+
+	$rURL = $rURL."Net";
+	my $cmd = "sudo bado netboot $storage ";
+    if ( $host ne "" ) {
+        $cmd .= " --hostname $host";
+    }
+    else {
+        $cmd .= " --mac $mac";
+    }
+	my $r = `$cmd`;
+	return $r;
+}
+
+sub wipeHeader()
+{
+	return "Do Disk Wipe";
+}
+
+sub wipeContent()
+{
+    my $host = shift;
+    my $mac = shift;
+	$rURL = $rURL."Wipe";
+	my $cmd = "sudo bado wipe ";
+    if ( $host ne "" ) {
+        $cmd .= " --hostname $host";
+    }
+    else {
+        $cmd .= " --mac $mac";
+    }
+	my $r = `$cmd`;
+	return $r;
+}

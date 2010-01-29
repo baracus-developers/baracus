@@ -90,6 +90,13 @@ sub getContent
 			$r = $r.`$cmd`."\n\n";
 		}
 	}
+	elsif( $a eq "storage")
+	{
+        my ( undef, $id ) = split( '\s', $v );
+		$cmd = "sudo bastorage detail --id $id";
+		$r .= "Storage Detail\n\n";
+		$r = $r.`$cmd`."\n\n";
+	}
 	else
 	{
 		$r = "\n\nInvalid Attribute";

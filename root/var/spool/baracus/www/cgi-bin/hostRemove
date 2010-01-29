@@ -5,9 +5,11 @@ use BATools qw(:standard);
 use CGI qw(:standard);
 
 my $name = param('host') || "";
-my $filter = param('filter') || "";
+my $filterVal = param('filter') || "";
+my $filterKey = param('filterKey') || "hostname";
+my $ltype = param('ltype') || "nodes";
 
-my $items = getItems( $name, $filter);
+my $items = getItems( $name, $filterVal, $filterKey, $ltype);
 my $content;
 
 if( $items =~ m/selected/)
@@ -16,27 +18,33 @@ if( $items =~ m/selected/)
 }
 
 print "Content-type: text/html\n\n";
-
+	
 print <<HTML0
-
 
 <html>
 	<head>
 		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<script type="text/javascript" src="/baracus/script/common.js"></script>
 		<link rel='stylesheet' href='/$BATools::baRoot/css/host.css' type='text/css' >
-		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 	</head>
-	<body onLoad='selectThis(document.form1.host, "$name");document.form1.host.focus()'>
-		<form method="POST" name='form1' action="/$BATools::baCGI/hostHandler">
+	<body onLoad='selectThis(document.form1.host, "$name");document.form1.host.focus();selectRadio(document.form1.filterKey, "$filterKey");selectRadio(document.form1.ltype, "$ltype")'>
+		<form name='form1' method="POST" action="/$BATools::baCGI/hostHandler">
 		<div id='config'>
-		<div id='history' style="color:black">Host Remove</div>
+		<div id='history' style="color:black">Host Entry Remove</div>
 		<div id='textEdit'>
-		<img class='search' src='/$BATools::baRoot/images/searchI.gif' onClick='hostReload( document.form1.host.value, document.form1.filter.value)'/>
-		<img class='sweep' src='/$BATools::baRoot/images/sweepI.gif' onClick='document.form1.filter.value="";hostReload( document.form1.host.value, document.form1.filter.value);'/>
-		<input type='text' class='filter' name='filter' value='$filter' onKeyPress='return hostRemoveEnterKey(event)'>
+		<div id='ltype'><br></div>
+		<div id='fkey'>
+			Filter:  
+			<input type="radio" name="filterKey" value="hostname" onclick='hostReload( document.form1.host.value, this.value, document.form1.filter.value)'>Hostname
+			<input type="radio" name="filterKey" value="mac" checked onclick='hostReload( document.form1.host.value, this.value, document.form1.filter.value)'>Mac
+		</div>
 
+		<img class='search' src='/$BATools::baRoot/images/searchI.gif' onClick='hostReload( document.form1.host.value, "$filterKey", document.form1.filter.value)'/>
+		<img class='sweep' src='/$BATools::baRoot/images/sweepI.gif' onClick='document.form1.filter.value="";hostReload( document.form1.host.value, "$filterKey", document.form1.filter.value);'/>
+		<input type='text' class='filter' name='filter' value='$filterVal' onKeyPress='return hostRemoveEnterKey(event, "$filterKey")'>
+		
 		<input type="hidden" name="sub" value="del">
-		<input class="submit" name="submit" type="submit" value="Remove" onClick='return verifyDelete( this.form.host.value)'>
+		<input style="position:absolute;top:315px;left:470px;width:100px" name="submit" type="submit" value="Remove" onClick='return verifyDelete( this.form.host.value)'>
 		
 		<font class='name'>Host Name</font><br>
 		$items
@@ -54,17 +62,31 @@ HTML0
 sub getItems
 {
 	my $name = $_[0];
-	my $filter = $_[1];
+	my $fVal = $_[1];
+	my $fKey = $_[2];
+	my $lType = $_[3];
+	my $ filter = "";
+	if( $fVal ne "" && $fKey ne "")
+	{
+		$filter = "--filter $fKey\:\:$fVal";
+	}
+	else
+	{
+		$filter = "";
+	}
 	my $r = "";
 	my $selected;
 	
-	$r = $r."<select class='nameWide' name='host' size='16' onChange='hostReload( document.form1.host.value, document.form1.filter.value)'>";
 	
-	my @items = BAdb::getHostTemplates( $filter);
+	my @items;
+
+	$r = $r."<select class='nameWide' name='host' size='16' onChange='hostReload( document.form1.host.value, \"$filterKey\", document.form1.filter.value);'>";
+	@items = BAdb::getHostNodes( $filter);
+
 	foreach( @items)
 	{
 		$selected = $_ eq $name ? "selected" : "";
-		$r = $r."<option value='$_' $selected>$_</option>\n";	
+		$r = $r."<option value=\"$_\" $selected>$_</option>\n";	
 	}
 	
 	$r = $r."</select>";
@@ -81,7 +103,8 @@ sub getContent
 	}
 	else
 	{
-		$r = BAdb::getHostTemplate( $name);
+		my $mac = (split(/ /, $name))[0];
+		$r = BAdb::getNodeDetail( $mac);
 	}
 	return $r;
 }

@@ -1,0 +1,59 @@
+#!/usr/bin/perl
+
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+use BAdb qw(:standard);
+use CGI qw(:standard);
+
+print "Content-type: text/html\n\n";
+
+
+our $host = param('host');
+our $mac = param('mac');
+our $status = "status";
+
+###########################################################################
+#  Print HTML 
+###########################################################################
+
+print <<HTML0;
+
+<html>
+	<head>
+		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
+		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
+		<script type="text/javascript" src="/baracus/script/ajax.js"></script>
+		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
+	</head>
+	<body>
+
+	<div id='f-labels'>
+	<form method="get" name="createAdd" action="/$BATools::baCGI/hostHandler">
+	<div id='blockY'>
+		<h1>MAC Address:</h1><br>
+		<input class="text" type="text" size="25" name="mac" value="$mac" $macD onkeypress="return mac_only(event)"><br>
+		<h1>Hostname:</h1><br>
+		<input class="text" type="text" size="25" maxlength="15" name="host" value="$host" $dhost><br>
+	</div>
+
+	<div id='blockZ'>
+		<input type="submit" value="Add" name="addHost" width="300">
+		<input class="clear" type="button" value="Clear" onClick="location.href='/baracus/ba/hostAdd'">
+        <input type=hidden name="rurl" value="hostAdd">
+        <input type=hidden name="sub" value="addHost" >
+	</div>
+
+	</form>
+	</div>
+</body>
+</html>
+HTML0
+
+sub debugPrint
+{
+	if( $BATools::debug)
+	{
+		push( @errors, $_[0]);
+	}
+}

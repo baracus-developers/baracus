@@ -33,6 +33,7 @@ our $VERSION = '0.01';
 
 my %powermod = (
            'ipmi'        => 'fence_ipmilan',
+           'virsh'       => 'virsh',
            'bladecenter' => 'fence_bladecenter',
            'ilo'         => 'fence_ilo',
            'drac'        => 'fence_drac',
@@ -46,6 +47,7 @@ my %cmds = (
            'add'         => \&add_powerdb_entry,
            'remove'      => \&remove_powerdb_entry,
            'ipmi'        => \&ipmi,
+           'virsh'       => \&virsh,
            'bladecenter' => \&bladecenter,
            'ilo'         => \&ilo,
            'drac'        => \&fence_drac,
@@ -197,6 +199,41 @@ sub ipmi() {
 
 }
 
+sub virsh() {
+
+    my $bmcref = shift;
+    my $operation = shift;
+
+    my $command;
+
+    my %action = (
+                  'on'     => 'start',
+#                  'off'    => 'shutdown',
+                  'off'    => 'destroy',
+                  'cycle'  => 'reboot',
+                  'status' => 'domstate',
+                  );
+
+
+    $command = "$powermod{ $bmcref->{'ctype'} } $action{ $operation } $bmcref->{'alias'}";
+    unless ($operation eq "status") { $command .= " >& /dev/null"; }
+
+
+    my $result;
+    if ( $operation eq "status") {
+        my $olduid = $>;
+        $> = 0;
+        $result = `$command`;
+        chomp $result;
+        print "Power status: $result";
+        $> = $olduid;
+    } else {
+        $result = `$command`;
+    }
+
+    return 0;
+}
+
 sub drac() {
 
     my $bmcref = shift;
@@ -331,6 +368,7 @@ sub get_bmc() {
     my $href;
 
     my $sql = qq| SELECT ctype,
+                         alias,
                          login,
                          passwd,
                          bmcaddr,

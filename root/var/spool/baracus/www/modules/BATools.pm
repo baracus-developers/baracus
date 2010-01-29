@@ -7,10 +7,11 @@ use XML::Simple;
 our $profilePath = "/etc/baracus.d/profiles/";
 our $poolPath = "/var/spool/baracus/www/htdocs/pool/";
 our $baPath = "/var/spool/baracus/www";
+our $baLogPath = "/var/spool/baracus/logs/remote";
 our $baCGI = "baracus/ba";
 our $baRoot = "baracus";
 our	$debug = 0;
-our @statusList = ( "all", "ready", "disabled", "deleted");
+our @statusList = ( "all", "enabled", "disabled", "removed");
 
 sub hello_message
 {
@@ -143,6 +144,29 @@ sub getHardwareSelectionList
 }
 
 ###########################################################################################
+#  Generate storage selection list for form based on bastorage
+#
+###########################################################################################
+sub getStorageSelectionList
+{
+	my $storage = $_[0];
+
+	$retString = "<select name='storage' onChange='storageUpdate(this)'>\n";
+	@storearray = BAdb::getStorageList();
+	foreach $val (@storearray)
+	{
+		if( length($val) > 1)
+		{
+            my ($id, $ip, $name, $rest) = split ('\s', $val, 4);
+			$option = "<option name=target value='--targetid $id --targetip $ip'> $name </option>\n";	
+			$retString = $retString . $option;
+		}
+	}
+	$retString = $retString."</select><br>\n";
+	return $retString;
+}
+
+###########################################################################################
 #  Toggle Source Entry Status              
 ###########################################################################################
 sub toggleStatus
@@ -155,7 +179,7 @@ sub toggleStatus
 	{
 		$r = BAdb::enableSource( $distro);
 	}
-	elsif( $status eq "ready")
+	elsif( $status eq "enabled")
 	{
 		$r = BAdb::disableSource( $distro);
 	}

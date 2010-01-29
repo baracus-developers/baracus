@@ -74,17 +74,17 @@ sub getDistrosFromCL
 		$all = "";
 		$status = "";
 	}
-	elsif( $status eq "ready")
+	elsif( $status eq "enabled")
 	{
-		$status = "| grep ready";
+		$status = "| grep enabled";
 	}
 	elsif( $status eq "disabled")
 	{
 		$status = "| grep disabled";
 	}
-	elsif( $status eq "deleted")
+	elsif( $status eq "removed")
 	{
-		$status = "| grep deleted";
+		$status = "| grep removed";
 	}
 	else
 	{
@@ -419,6 +419,25 @@ sub getModuleVersionList
 	return @vArray;
 }
 
+
+###########################################################################################
+# Storage Functions
+###########################################################################################
+
+sub getStorageList
+{
+	my $storecmd = "sudo bastorage list --quiet";
+	
+	my $string = `$storecmd`; 
+	my @array = split("\n", $string);
+	foreach( @array)
+	{
+		$_ = BATools::trim($_);
+	}
+	
+	return @array;
+}
+
 ###########################################################################################
 # Hardware Functions
 ###########################################################################################
@@ -445,23 +464,59 @@ sub getHardware
 
 sub getHostTemplates
 {
+	$filter = shift @_;
+	return getHostList( $filter, "templates");
+}
+
+sub getHostNodes
+{
+	$filter = shift @_;
+	return getHostList( $filter, "nodes");
+}
+
+sub getHostStates
+{
+	$filter = shift @_;
+	return getHostList( $filter, "states -n");
+}
+
+sub getHostList
+{
 	my $filter = shift @_;
-	$filter = $filter eq "" ? "" : "--host='*$filter*'";
+	my $listType = shift @_;
+	#$filter = $filter eq "" ? "" : "--host='*$filter*'";
 	my @hostArray;
-	my $hostCmd = "sudo bahost list templates $filter --quiet";
+	my $hostCmd = "sudo bahost list $listType $filter --quiet";
 	my $hosts = BATools::execute( $hostCmd);
 	@hostArray = split("\n", $hosts);
 	foreach( @hostArray)
 	{
 		$_ = BATools::trim($_);
 	}
+	#push( @hostArray, $hostCmd);
 	return @hostArray;
+}
+
+sub getNodeDetail
+{
+	my $mac = shift @_;
+	my $hostCmd = "sudo bahost detail node --mac='$mac' -q";
+	my $data = BATools::execute( $hostCmd);
+	return $data;
 }
 sub getHostTemplate
 {
 	my $name = shift @_;
 	my $hostCmd = "sudo bahost list templates --hostname='$name' --nolabels";
 	my $data = BATools::execute( $hostCmd);
+	return $data;
+}
+
+sub getNodeInventory
+{
+	my $mac = shift @_;
+	my $cmd = "sudo baconfig list tftp $mac.inventory -q";
+	my $data = `$cmd`;
 	return $data;
 }
 
@@ -490,5 +545,44 @@ sub disableSource
 	my $distro = shift @_;
 	my $cmd = "sudo basource disable --distro $distro";
 	return BATools::execute( $cmd);
+}
+
+###########################################################################################
+# Power Functions
+###########################################################################################
+
+sub getPowerList
+{
+	my $filter = shift @_;
+	#$filter = $filter eq "" ? "" : "--host='*$filter*'";
+	my @hostArray;
+	my $hostCmd = "sudo bapower list $filter --quiet";
+	my $hosts = BATools::execute( $hostCmd);
+	@hostArray = split("\n", $hosts);
+	foreach( @hostArray)
+	{
+		$_ = BATools::trim($_);
+	}
+	return @hostArray;
+}
+
+###########################################################################################
+# Log Functions
+###########################################################################################
+
+sub getCommandLog
+{
+	my $mac = shift @_;
+	my $cmd = "sudo balog list commands --filter mac\:\:$mac";
+	my $log = BATools::execute( $cmd);
+	return $log	
+}
+
+sub getStateLog
+{
+	my $mac = shift @_;
+	my $cmd = "sudo balog list states --filter mac\:\:$mac";
+	my $log = BATools::execute( $cmd);
+	return $log	
 }
 1;

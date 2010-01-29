@@ -1,0 +1,345 @@
+#!/usr/bin/perl
+
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+use BAdb qw(:standard);
+use CGI qw(:standard);
+
+print "Content-type: text/html\n\n";
+
+
+our $hostname = param('hostname');
+our $mac = param('mac');
+our $ip = param('ip');
+
+our $netmask = param('netmask') || "netmask";
+our $netmaskD;
+our $gateway = param('gateway') || "gateway";
+our $gatewayD;
+our $dnsdomain = param('dnsdomain') || "dnsdomain";
+our $dnsdomainD;
+our $dns1 = param('dns1') || "dns1";
+our $dns1D;
+our $distro = param('distro') || "distro";
+our $distroD;
+our $hardware = param('hardware') || "hardware";
+our $hardwareD;
+our $module = param('module') || "module";
+our $moduleD;
+our $addon = param('addon') || "addon";
+our $addonD;
+our $gateway;
+our $gatewayD;
+our @errors = ();
+our $profilePath = $BATools::profilePath;
+our $prof = param('prof') || 'default';
+our $createContent;
+our $status = "status";
+our $moduleList = "";
+our $addonList = "";
+our $distroList = "";
+our $hardwareList = "";
+our $found;
+our @profModules = ();
+our @distAddons = ();
+our @profileOptions = (	$netmask,$gateway,$dnsdomain,$dns1,$distro,$hardware,$module,$addon);
+				  		
+########################################################################################################
+#  Setup Data
+########################################################################################################
+  
+
+our $profiles = generateProfiles();
+
+chomp($distro);
+
+initProfileOptions();
+createProfileVars();
+
+$dasize = @distAddons;
+if( $dasize eq 0)
+{
+	$axScript = "ajaxFunction('axAddon', 'distro='+document.createAdd.distro.value, 'blockc');";
+	$addonList = "";
+}
+else
+{
+	$axScript = "";
+	$addonList = getProfileAddons();
+}
+
+debugPrint( "distro: $distro");
+$distroList = BATools::getDistroSelectionList( $distro, 
+				$distroD,
+				"onClick=\"$axScript distUpdate(document.createAdd.distro.value)\"",
+				"ready");
+
+$hardwareList = BATools::getHardwareSelectionList( $hardware, $hardwareD, "onClick='hwUpdate( this)'");
+
+getAndCheckModules();
+$createContent = infoWindow();
+########################################################################################################
+#  Print HTML 
+########################################################################################################
+
+print <<HTML0;
+
+<html>
+	<head>
+		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
+		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
+		<script type="text/javascript" src="/baracus/script/ajax.js"></script>
+		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
+	</head>
+	<body onLoad="$axScript">
+
+	<div id='f-labels'>
+	<form method="get" name="createAdd" action="/$BATools::baCGI/actionBuildHandler">
+	<div id='block1'>
+		<h1>Hostname:</h1>
+		<br><input class="text" type="text" size="25" maxlength="15" name="hostname" value="$hostname" $dhost>
+		<br>
+		<h1>MAC Address:</h1><br><input class="text" type="text" size="25" name="mac" value="$mac" $macD onkeypress="return mac_only(event)">
+		<br>
+		<h1>IP Address:</h1><br><input class="text" type="text" size="25" name="ip" value="$ip" $ipD>
+	</div>
+
+	<div id='blockb'>
+		<h1>Profile:</h1>
+		<br>			
+		<select name='profile' onChange='profileChange()'>
+		$profiles
+		</select>
+		<br>
+		<h1 class="$distroD">Distribution:</h1><br>
+		$distroList
+		<h1 class="$hardwareD">Hardware Type:</h1><br>
+		$hardwareList
+	</div>
+
+	<div id='blockc'>
+		$addonListx
+	</div>
+
+	<div id='blockd'>
+		<h1 class="$moduleD">Modules:</h1><h4>(hold ctrl for multiple)</h4>
+		<br>
+		<select name='module' multiple size='4' $moduleD onClick='modUpdate()'>$moduleList</select>
+	</div>
+	
+	<div id='block3'>
+		<h1 class="$netmaskD">Subnet Mask:</h1><br><input class="text" type="text" size="25" name="netmask" value="$netmask" $netmaskD>
+		<br>
+		<h1 class="$gatewayD">Gateway:</h1><br><input class="text" type="text" size="25" name="gateway" value="$gateway" $gatewayD>
+		<br><br>
+		<h1 class="$dnsdomainD">DNS Domain:</h1><br><input class="text" type="text" size="25" name="dnsdomain" value="$dnsdomain" $dnsdomainD>
+		<br>
+		<h1 class="$dns1D">DNS Server Address:</h1><br><input class="text" type="text" size="25" name="dns1" value="$dns1" $dns1D>
+	</div>
+	
+	<div id='block4'>
+		<input type="submit" value="Rescue" width="300">
+		<input type=hidden name=sub value=rescue>
+		<input class="clear" type="button" value="Clear" onClick="location.href='/baracus/ba/actionRescue'">
+	</div>
+
+	<div id='$status'>
+		$createContent
+	</div>
+	
+	</form>
+	</div>
+</body>
+</html>
+HTML0
+
+########################################################################################################
+#  Profile - Distribution - Hardware list generation functions
+########################################################################################################
+
+sub initProfileOptions()
+{
+	foreach( @profileOptions)
+	{
+		#$$_ = "";
+		$tmp = $_."D";
+		$$tmp = "";
+	}
+}
+
+sub createProfileVars
+{
+	my $name;
+	my $val;
+	
+	debugPrint("createProfileVars");
+	$profile = BAdb::getProfile( $prof, -1, "yes");
+	my @profileLines = split( "\n", $profile);
+	foreach $record ( @profileLines)
+   	{
+    	foreach (@profileOptions)
+		{
+	    	if( $record =~ m/^$_/)
+    		{
+    			@pair = split( "=", $record, 2);
+    			
+    			$name = BATools::trim(@pair[0]);
+    			$val = BATools::trim(@pair[1]);
+    			
+    			$$_ = $val;
+				
+				debugPrint("$_=$val");		
+
+				$slen = length $val;
+				
+				if ($slen > 1)
+				{
+					$tmp = $_."D";
+					$$tmp = "disabled";
+					
+					debugPrint("$tmp $$tmp");		
+					
+					if( $_ eq "module")
+					{
+						$val = BATools::removeQuotes( $val);
+						@vals = split( " ", $val);
+						foreach $v1 ( @vals)
+						{
+							push( @profModules, $v1);
+						}
+					}
+					elsif( $_ eq "addon")
+					{
+						$val = BATools::removeQuotes( $val);
+						@vals = split( " ", $val);
+						foreach $v1 ( @vals)
+						{
+							push( @distAddons, $v1);
+						}
+					}
+				}
+	    	}
+	    	else
+	    	{
+			    	if( $$_ eq $_)
+			    	{
+			    		$$_ = "";
+			    	}
+	    	}
+	    }
+   	}
+   	debugPrint( "distro: $distro");
+}
+
+sub generateProfiles
+{
+	my $retString = "";
+	my $isSelected;
+	
+	@profiles = BAdb::getProfileList();
+
+	foreach (@profiles)
+	{
+	
+		if( $_ eq $prof)
+		{
+			$isSelected = "selected";
+		}
+		else
+		{
+			$isSelected = "";
+		}	
+		$retString = $retString."\t<option " . $isSelected . " value='" . $_ . "' >" . $_ . "</option>\n";
+	}	
+	return $retString;
+}
+
+sub getAndCheckModules
+{
+	if( $moduleD eq "disabled")
+	{
+		if( scalar(@profModules))
+		{
+			foreach $pMod( @profModules)
+			{
+				$found = 0;
+				foreach $fMod( BAdb::getModuleList())
+				{
+						if( $pMod eq $fMod)
+						{
+							$moduleList = $moduleList."<option>$pMod</option>\n";
+							$found = 1;
+						}
+				}
+				if( !$found)
+				{
+					debugPrint( "Module \"$pMod\" in \"$prof\" NOT found\n(non critical).\n");
+				}
+			}
+			if( !$found)
+			{
+				$moduleD = "enabled";
+				getAndCheckModules();
+			}
+		}
+		else
+		{
+			$moduleList = "<option>See Profile: $prof</option>";
+		}
+	}
+	else
+	{
+		$moduleList = BATools::getModuleSelectionList();
+	}
+}
+
+sub getProfileAddons
+{
+	my $r = "";
+	if( $addonD eq "disabled")
+	{
+		if( scalar(@distAddons))
+		{
+			$r = $r."<h1 class='$addonD'>AddOns:</h1><h4>(hold ctrl for multiple)</h4><br>\n";
+			$r = $r."<select  name='addon' multiple size='4' disabled >\n";	
+
+			foreach ( @distAddons)
+			{
+					$r = $r."<option value='$_'>$_</option>";
+			}
+			$r = $r."</select>\n";
+		}
+	}
+	return $r;
+}
+
+sub infoWindow
+{
+	my $cc = "";
+	my $ccurl = "/$BATools::baCGI/createContent?caller=create&attr=profile&val=$prof";
+	
+	if( !scalar( @errors))
+	{
+		$cc = "<iframe src=\"$ccurl\" scrolling='no' height='100%' width='100%' frameborder='0' id='infoBox' ></iframe>";
+	}
+	else
+	{
+		$status = "error";
+		$cc = "<textarea name='comments' class='tbox' readonly='yes' disabled>\n";
+		foreach $err( @errors)
+		{
+			$cc = $cc.$err."\n";
+		}
+		$cc = $cc."</textarea>";
+	}
+	return $cc;
+}
+
+sub debugPrint
+{
+	if( $BATools::debug)
+	{
+		push( @errors, $_[0]);
+	}
+}

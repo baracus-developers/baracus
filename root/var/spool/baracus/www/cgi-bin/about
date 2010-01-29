@@ -6,21 +6,22 @@ use BATools qw(:standard);
 use vars qw( %hash @array);
 use CGI qw(:standard);
 
-my $op = param('op') || "RPM";
+my $op = param('op') || "version";
 my $current = "";
 
-my @tmenu = ( "RPM", "Man Page");
-my @tlink = ( "aboutRPM", "aboutMan");		
+my @tmenu = ( "version", "basource", "baconfig", "bahost", "bado", "bapower", "balog");
+my @tlink = ( "aboutVersion", "aboutBASource", "aboutBAConfig", "aboutBAHost", "aboutBADo", "aboutBAPower", "aboutBALog");
 
 my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, "about");
-		 
+
 print "Content-type: text/html\n\n";
 
 print <<HTML;
 
 <html>
 <head>
-	<link rel='stylesheet' href='/baracus/css/tabs.css' type='text/css' >
+	<link rel='stylesheet' href='/$BATools::baRoot/css/tabs.css' type='text/css' >
+	<link rel='stylesheet' href='/$BATools::baRoot/css/about.css' type='text/css' >
 </head>
 <body>
 <br>

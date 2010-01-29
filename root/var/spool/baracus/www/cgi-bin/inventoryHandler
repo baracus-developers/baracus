@@ -1,0 +1,79 @@
+#!/usr/bin/perl -w
+
+use strict;
+use warnings;
+
+use XML::LibXSLT;
+use XML::LibXML;
+use CGI qw(:standard);
+
+use lib "/usr/share/baracus/perl";
+
+use SqlFS;
+use BaracusDB;
+
+my $dbname = "baracus";
+my $dbrole = "wwwrun";
+my $dbtftp = "sqltftp";
+
+my $tftph = BaracusDB::connect_db( $dbtftp, $dbrole );
+die BaracusDB::errstr unless( $tftph );
+
+my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp;port=5162",
+                           'User' => $dbrole,
+                           'debug' => 0 )
+    or die "Unable to create new instance of SqlFS\n";
+
+print "Content-type: text/html\n\n";
+
+my $mac = param('mac') || "";
+my $title = "inventory $mac";
+
+my $inventory = $mac . ".inventory";
+my $inventoryFH = $sqlfsOBJ->readFH( $inventory );
+my $htmlin = join '', <$inventoryFH>;
+
+$sqlfsOBJ->discard();
+die BaracusDB::errstr unless BaracusDB::disconnect_db( $tftph );
+
+my $htmlout =" ";
+
+$htmlout =  qq|
+<html>
+<head>
+<title>$title</title>
+<META HTTP-EQUIV="Expires" CONTENT="Mon, 25 Dec 1993 21:29:02 GMT">
+<link rel='stylesheet' href='/baracus/css/styles.css' type='text/css' >
+</head>
+<body>
+|;
+
+$htmlout .= &xml_to_html($htmlin, "/var/spool/baracus/www/cgi-bin/lshw.xsl");
+
+$htmlout .= qq|
+</body>
+</html>
+|;
+
+print $htmlout;
+
+sub xml_to_html
+{
+    my $xml_string = shift;
+    my $xsl_file   = shift;
+    return undef if (not defined $xml_string or not defined $xsl_file);
+
+    my $xslt_file = "./" . $xsl_file;
+
+    my $parser = XML::LibXML->new();
+    my $xslt   = XML::LibXSLT->new();
+
+    my $source    = $parser->parse_string($xml_string);
+    my $style_doc = $parser->parse_file($xslt_file);
+
+    my $stylesheet = $xslt->parse_stylesheet($style_doc);
+
+    my $results = $stylesheet->transform($source);
+
+    return $stylesheet->output_string($results);
+}

@@ -85,7 +85,30 @@ function selectThis( s, v)
    		}
    	}
 }
-function hostRemoveEnterKey(e)
+
+function selectRadio( radioObj, newValue)
+{
+		if(!radioObj)
+		{
+			return;
+		}
+		var radioLength = radioObj.length;
+		if(radioLength == undefined)
+		{
+			radioObj.checked = (radioObj.value == newValue.toString());
+			return;
+		}
+		for(var i = 0; i < radioLength; i++)
+		{
+			radioObj[i].checked = false;
+			if(radioObj[i].value == newValue.toString())
+			{
+				radioObj[i].checked = true;
+			}
+		}
+}
+
+function hostRemoveEnterKey(e, filterKey)
 {
      var key;
 
@@ -99,7 +122,7 @@ function hostRemoveEnterKey(e)
      }
      if(key == 13)
      {
-          hostReload( document.form1.host.value, document.form1.filter.value)
+    	 hostReload( document.form1.host.value, filterKey, document.form1.filter.value)
           return false;
      }
      else
@@ -108,9 +131,9 @@ function hostRemoveEnterKey(e)
      }
 }
 
-function hostReload( host, filter)
+function hostReload( host, filterKey, filter)
 {
-	var url = rURL + "?host=" + host + "&filter=" + filter;
+	var url = rURL + "?host=" + host + "&filter=" + filter + "&filterKey=" + filterKey;
 	refresh( url);
 }
 
@@ -211,7 +234,8 @@ function procChange()
 function profileChange()
 {
 	
- 	var myURL = "/baracus/ba/hostCreate?prof=" + document.createAdd.profile.value + 
+
+ 	var myURL = rURL + "?prof=" + document.createAdd.profile.value + 
  		"&hostname=" + document.createAdd.hostname.value +
  		"&mac=" + document.createAdd.mac.value +
  		"&ip=" + document.createAdd.ip.value;
@@ -222,6 +246,13 @@ function hwUpdate( sel)
 {
 	var selection = sel.value;
 	var url = "/baracus/ba/createContent?caller=create&attr=hardware&val=" + selection;
+	document.getElementById("infoBox").src=url;
+}
+
+function storageUpdate( sel)
+{
+	var selection = sel.value;
+	var url = "/baracus/ba/createContent?caller=storeNet&attr=storage&val=" + selection;
 	document.getElementById("infoBox").src=url;
 }
 

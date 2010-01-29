@@ -75,6 +75,7 @@ use vars qw ( %baTbls );
      'action'    => 'action',
      'history'   => 'action_hist',
      'power'     => 'power',
+     'lun'       => 'lun',
      );
 
 
@@ -341,6 +342,19 @@ sub get_baracus_tables
          'alias'   => 'VARCHAR(32)',
          );
 
+    my $tbl_lun = "lun";
+    my %tbl_lun_columns =
+        (
+         'targetid'    => 'VARCHAR(64) PRIMARY KEY',
+         'targetip'    => 'VARCHAR(15)',
+         'size'        => 'VARCHAR',
+         'type'        => 'INTEGER', # 1 ISCSI, 2 AOE, 3 NFS, 4 FC <<-- should be embedded in the targetid / URI
+         'username'    => 'VARCHAR(32)',
+         'passwd'      => 'VARCHAR(32)',
+         'name'        => 'VARCHAR(32)',
+         'description' => 'VARCHAR(124)',
+         );
+
     tie( my %baracus_tbls, 'Tie::IxHash',
          $tbl_mac           => \%tbl_mac_cols,
          $tbl_host          => \%tbl_host_columns,
@@ -353,6 +367,7 @@ sub get_baracus_tables
          $tbl_action        => \%tbl_action_columns,
          $tbl_action_hist   => \%tbl_action_hist_columns,
          $tbl_power         => \%tbl_power_columns,
+         $tbl_lun           => \%tbl_lun_columns,
         );
     return \%baracus_tbls;
 }

@@ -12,6 +12,12 @@ body
 	padding-top:10;
 	border:2px solid #B2D68C;
 }
+#textEdit input.power
+{
+	position:relative;
+	left:20px;
+	top:250px;	
+}
 #textEdit textarea.short
 {
 	position:absolute;
@@ -22,6 +28,32 @@ body
 	background-color: white;
 	color:black;
 	padding:5;
+}
+#textEdit #fkey
+{
+	position:relative;
+	top:-30px;
+	left:300px;
+	font-size:9pt;
+	width:200px;
+}
+
+#textEdit #log
+{
+	position:relative;
+	top:220px;
+	left:300px;
+	font-size:9pt;
+	width:380px;
+}
+
+#textEdit #ltype
+{
+	position:relative;
+	top:-10px;
+	left:20px;
+	font-size:9pt;
+	width:250px;
 }
 #config input.filter
 {

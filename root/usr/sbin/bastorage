@@ -1,0 +1,378 @@
+#!/usr/bin/perl -w
+
+use strict;
+use warnings;
+
+use Getopt::Long qw( :config pass_through );
+use AppConfig;
+use Pod::Usage;
+
+use lib "/usr/share/baracus/perl";
+
+use SqlFS;
+
+use BaracusDB;
+use BaracusCore qw( :subs  );
+use BaracusConfig qw( :vars :subs );
+use BaracusLUN qw( :subs );
+
+
+#     update    <...>  Update a storage name or description
+
+=pod
+
+=head1 NAME
+
+B<bastorage> - Baracus "storage" for SAN and NAS identification and handling
+
+=head1 SYNOPSIS
+
+B<bastorage> E<lt>commandE<gt> [options and arguments]
+
+Where E<lt>commandE<gt> is
+
+    add       <...>  Add an identifier, name and description for media or share
+    remove    <...>  Remove Baracus knowledge of media or share
+    list      <...>  List the known non-local storage shares and media available
+    detail    <...>  Show all known information about storage
+
+    help    This 'Usage' summary message.
+    man     Detailed man page.
+
+Use 'man' or 'help <command>' for more details.
+
+=head1 DESCRIPTION
+
+This tool allows for the identification of disserperate network storage (Network Attached Storage or Storage Area Networks) for potential use with baracus hosts as available disks for network boot targets (e.g. nfsroot, ibft/iscsi).
+
+=head1 OPTIONS
+
+=over 4
+
+=item -v --verbose  Be verbose with output
+
+=back
+
+=cut
+
+my $man      = 0;
+my $help     = 0;
+
+# no add / remove here - all cmds add or update as needed
+# to 'mac', 'build', and 'templateid' tables
+
+my $cmds = {
+            'add'           => \&add,
+            'remove'        => \&remove,
+            'list'          => \&list,
+            'detail'        => \&detail,
+
+            'help'          => \&help,
+            'man'           => \&man,
+            };
+
+my $opts = {
+            verbose    => 0,
+            quiet      => 0,
+#            all        => 0,
+#            nolabels   => 0,
+            debug      => 0,
+            execname   => "",
+            LASTERROR  => "",
+            };
+
+# Build command line for help, historical reference and point-in-time rebuilding
+$opts->{execname} = $0;
+$opts->{execname} = $1 if ( $0 =~ m|^.*/([^/].+)| );
+my $cmdline = join '::', $opts->{execname}, @ARGV;
+
+GetOptions(
+           'verbose'   => \$opts->{verbose},
+           'quiet'     => \$opts->{quiet},
+#           'all'       => \$opts->{all},
+#           'nolabels'  => \$opts->{nolabels},
+           'debug+'    => \$opts->{debug},
+           'man'       => \$man,
+           'help|?'    => \$help,
+           );
+
+&man()  if $man;
+&help( $opts, $cmds ) if $help;
+&help( $opts, $cmds ) unless ( scalar @ARGV );
+if ($ARGV[0] eq "man"  ) { &man(); }
+if ($ARGV[0] eq "help" ) { shift @ARGV; &help( $opts, $cmds, @ARGV ); }
+
+my $dbname = "baracus";
+my $dbrole = $dbname;
+
+print "setting uid to $dbrole\n" if ($opts->{debug} > 2);
+
+my $uid = BaracusDB::su_user( $dbrole );
+die BaracusDB::errstr unless ( defined $uid );
+
+my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
+die BaracusDB::errstr unless( $dbh );
+
+my $status = &main( $opts, $cmds, @ARGV );
+
+die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+
+print $opts->{LASTERROR} if $status;
+
+exit $status;
+
+die "DOES NOT EXECUTE";
+
+
+###############################################################################
+##
+## commands
+##
+
+=head1 COMMANDS
+
+=head2 add --id <unique uri> --ip <server> --username <username> --password <password> --name <name> --description <"text">
+
+Where
+
+  --id <unique uri>        Globally unique share locator URI.
+  --ip <server>            Address of the network storage server.
+  --username <username>    username for LUN authentication
+  --passwd <password>      password for LUN authentication
+  --name <name>            Handy user defined name.
+  --description <"text">   Quoted descriptive text for the share.
+
+=cut
+
+#
+#  jeez should we be doing
+#
+#  iscsi://username@server:port/id/or/path
+#  nfs://username@server/path/to/export
+#
+#
+
+sub add
+{
+    my $command = "add";
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $lunref = {
+                  targetid => "",
+                  targetip => "",
+                  };
+    my $chkref;
+
+    @ARGV = @_;
+
+    GetOptions(
+               'id=s'          => \$lunref->{'targetid'},
+               'ip=s'          => \$lunref->{'targetip'},
+               'username=s'    => \$lunref->{'username'},
+               'passwd=s'      => \$lunref->{'passwd'},
+               'size=s'        => \$lunref->{'size'},
+               'name=s'        => \$lunref->{'name'},
+               'description=s' => \$lunref->{'description'},
+              );
+
+    if ( scalar @ARGV ) {
+        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    ## Verify Mandatory parameters
+    ##
+    if ( $lunref->{'targetid'} eq "" ) {
+        $opts->{LASTERROR} = "Missing  --id\n";
+        return 1;
+    }
+    if ( $lunref->{targetip} eq "" ) {
+        $opts->{LASTERROR} = "Missing  --ip\n";
+        return 1;
+    }
+
+    &check_ip( $lunref->{targetip} );  # exits on error
+
+    # check for pre-exsisting id
+    $chkref = &get_db_lun( $dbh, $lunref->{targetid} );
+    if ( defined $chkref ) {
+        my $name = defined $chkref->{'name'} ? $chkref->{'name'} : "";
+        $opts->{LASTERROR} = "lun: $lunref->{targetid} already exists $name\n";
+        return 1;
+    }
+
+    # done with all checking
+    # begin loading of hash used for remainder of processing command
+
+    $lunref->{name} = $lunref->{id} unless ( defined $lunref->{name} );
+
+    &add_db_lun( $dbh, $lunref );
+
+    if ( $opts->{verbose} )
+    {
+        printf "lun: $lunref->{id} added\n";
+    }
+
+    return 0;
+}
+
+
+=head2 remove --targetid <id>
+
+This command does not remove any data from the network storage device. Instead this only removes the info from Baracus so that it cannot easily be assigned to a host.
+
+Also note this does not remove any existing relations of this share with existing host entries.
+
+=cut
+
+sub remove
+{
+    my $command = "remove";
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $id="";
+
+    my $chkref;
+
+    @ARGV = @_;
+
+    GetOptions(
+               'id=s' => \$id,
+               );
+
+    if ( scalar @ARGV ) {
+        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    $chkref = &get_db_lun( $dbh, $id );
+    if ( defined $chkref ) {
+        &remove_db_lun( $dbh, $id );
+    }
+
+    return 0;
+}
+
+=head2 list [ --filter <id|name>::<partial*|specific> ]
+
+List the network storage for which Baracus has information.
+
+Option
+
+     --filter id::'partial*'  filter results based on wildcard
+     --filter name::specific  filter for a single match
+
+=cut
+
+sub list
+{
+    my $command = "list";
+
+    my $filter = "";
+
+    @ARGV = @_;
+
+    GetOptions(
+               'filter=s'   => \$filter,
+              );
+
+    if ( scalar @ARGV ) {
+        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    my $sth = list_start_lun ( $dbh, $filter );
+
+    unless( defined $sth ) {
+        # well - we've likely died in list_start if logic would get here
+        return 1;
+    }
+
+
+    unless ($opts->{quiet}) {
+    print "--------------------------------------------------------------------------------------\n";
+    printf "%-18s %-15s %-6s %-12s %-12s %-20s\n", "targetid", "targetip", "name", "size", "user", "desc";
+    print "--------------------------------------------------------------------------------------\n";
+    }
+
+    my $id;
+    my $ip;
+    my $size;
+    my $user;
+    my $name;
+    my $desc;
+
+    my $dbref;
+    while ( $dbref = &list_next_lun( $sth ) ) {
+        $size  = defined $dbref->{size}         ? $dbref->{size}         : "";
+        $user  = defined $dbref->{username}     ? $dbref->{username}     : "";
+        $name  = defined $dbref->{name}         ? $dbref->{name}         : "";
+        $desc  = defined $dbref->{description}  ? $dbref->{description}  : "";
+
+        printf "%-18s %-15s %-6s %-12s %-12s %-20s\n",
+            $dbref->{'targetid'}, $dbref->{targetip}, $name, $size, $user, $desc ;
+    }
+
+    return 0;
+}
+
+=head2 detail --id <targetid>
+
+Show details for specified network storage device
+
+=cut
+
+sub detail
+{
+    my $command = "list";
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $lunref;
+    my $id = "";
+
+    @ARGV = @_;
+
+    GetOptions(
+               'id=s' => \$id,
+               );
+
+    if ( scalar @ARGV ) {
+        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    $lunref = &get_db_lun( $dbh, $id );
+    unless ( defined $lunref ) {
+        $opts->{LASTERROR} = "No storage found with id: $id\n";
+        return 1;
+    }
+
+    printf "%-12s %s\n", "Name",        $lunref->{'name'}     ;
+    printf "%-12s %s\n", "Target ID",   $lunref->{'targetid'} ;
+    printf "%-12s %s\n", "Target IP",   $lunref->{'targetip'} ;
+    printf "%-12s %s\n", "Size",        $lunref->{'size'}     ;
+    print "\n";
+    printf "%-12s %s\n", "Description", $lunref->{'description'} ;
+    print "\n";
+    if ( defined $lunref->{'username'} and $lunref->{'username'} ne "" ) {
+        printf "%-12s %s\n", "Username", $lunref->{'username'} ;
+    }
+    if ( defined $lunref->{'passwd'} and $lunref->{'passwd'} ne "" ) {
+        printf "%-12s %s\n", "Password", "....." ;
+    }
+    return 0;
+}
+
+
+die "ABSOLUTELY DOES NOT EXECUTE";
+
+__END__

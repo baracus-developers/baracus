@@ -19,26 +19,22 @@ use BaracusHost qw( :subs );
 
 =head1 NAME
 
-B<bastate> - baracus tool to view host state
+B<balog> - baracus tool to view host logs
 
 =head1 SYNOPSIS
 
-B<bastate> E<lt>commandE<gt> [subcommand] [options and arguments]
+B<balog> E<lt>commandE<gt> [subcommand] [options and arguments]
 
 Where E<lt>commandE<gt> is one of
 
-  list templates                list host templates
-  list history                  list build client template history
-  list commands                 list commands used to modify hosts
-  list macs                     list all known mac addrs
-
-And, where <...> indicates additional required arguments.
+  list commands                 commands and host events
+  list states                   history of state changes for hosts
 
 Use 'man' or 'help <command> [<type>]' for more details.
 
 =head1 DESCRIPTION
 
-This tool displays the current state of all known hosts
+This tool displays historical information related to hosts managed by Baracus.
 
 =head1 OPTIONS
 

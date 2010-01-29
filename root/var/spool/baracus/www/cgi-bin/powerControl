@@ -1,0 +1,108 @@
+#!/usr/bin/perl
+
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+use CGI qw(:standard);
+
+my $name = param('mac') || "";
+my $filter = param('filter') || "";
+
+my $items = getItems( $name, $filter);
+my $content;
+
+if( $items =~ m/selected/)
+{
+	$content = getContent( $name);
+}
+
+print "Content-type: text/html\n\n";
+
+print <<HTML0
+
+
+<html>
+	<head>
+		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<link rel='stylesheet' href='/$BATools::baRoot/css/host.css' type='text/css' >
+		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
+		<script type="text/JavaScript">
+		<!--
+			function checkVNC( name)
+			{
+				var element = document.getElementsByName( name);
+				var type = element[0].value;
+				if( type == "virsh")
+				{
+					document.form1.submit2.disabled=false;
+					document.form1.alias.value=element[0].id;
+				}
+				else
+				{
+					document.form1.submit2.disabled=true;
+				}
+			}
+			function setTarget( target)
+			{
+					document.form1.target = target;
+			}
+			function popResponse()
+			{
+				win = window.open("",
+									"myWin",
+									"toolbar=no,directories=no,location=1,status=yes,menubar=no,resizable=no,scrollbars=no,width=300,height=150");
+				
+				document.form1.action='powerHandler';
+				document.form1.target='myWin';
+				document.form1.submit();
+				return false;
+			}			
+			
+		//-->
+		</script>
+		<title>Baracus</title>
+	</head>
+	<body onLoad='selectThis(document.form1.mac, "$name");document.form1.mac.focus()'>
+		<form name='form1' action='powerHandler' target="">
+		<div id='config'>
+		<div id='history' style="color:black">Power Control</div>
+		<div id='textEdit'>
+		<font class='name'>Host Name</font><br>
+		$items
+		<br><br>
+		<input type=hidden value="" name='alias'>
+		<input class='power' type=submit value='On' name='submit' onClick="popResponse();">
+		<input class='power' type=submit value='Off' name='submit' onClick="popResponse()">
+		<input class='power' type=submit value='Status' name='submit' onClick="popResponse()">
+		<input class='power' type=submit value='VNC' disabled name='submit2' onClick="setTarget('_blank')"'>
+		</div>
+		</div>
+		</form>
+	</body>
+</html>
+HTML0
+;
+
+sub getItems
+{
+	my $name = $_[0];
+	my $filter = $_[1];
+	my $r = "";
+	my $selected;
+	
+	$r = $r."<select class='nameWide' name='mac' size='16' onClick=\"checkVNC(document.form1.mac.value)\">";
+	
+	my @items = BAdb::getPowerList( $filter);
+	my $types = "";
+	foreach $item ( @items)
+	{
+		@powerEntry = split(" ", $item);
+		$selected = @powerEntry[2] eq $name ? "selected" : "";
+		$r = $r."<option name='mac' value='@powerEntry[2]' $selected>@powerEntry[3] @powerEntry[2] @powerEntry[0]</option>\n";	
+		$types = $types."<input type=hidden name='@powerEntry[2]' value='@powerEntry[0]' id='@powerEntry[3]' disabled>\n";
+	}
+	
+	$r = $r."</select>"."\n$types";
+	
+	return $r;	
+}
+

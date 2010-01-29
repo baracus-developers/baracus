@@ -1,0 +1,203 @@
+#!/usr/bin/perl
+
+use strict;
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+use vars qw( %hash @array);
+use CGI qw(:standard);
+
+my $name = param('host') || "";
+my $filterVal = param('filter') || "";
+my $filterKey = param('filterKey') || "hostname";
+my $ltype = param('ltype') || "nodes";
+my $log = param('log') || "command";
+my $bl = param('bl') || "";
+my $logSelList = "";
+my $items = getItems( $name, $filterVal, $filterKey, $ltype);
+my $content;
+my $blFirst = "";
+my $pStatus = "disabled";
+
+if( $items =~ m/selected/)
+{
+	if( $log eq "build")
+	{
+		my $host = (split(/ /, $name))[1];
+		$logSelList = getLogSelList( $host, $bl, \$blFirst);
+		$bl = $bl eq "" ? $blFirst : $bl;
+		$pStatus = "";
+	}
+	else
+	{
+		$bl = "";
+	}
+	$content = getContent( $name, $log, $bl);
+}
+
+print "Content-type: text/html\n\n";
+	
+print <<HTML0
+
+<html>
+	<head>
+		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<script type="text/javascript" src="/baracus/script/common.js"></script>
+		<link rel='stylesheet' href='/$BATools::baRoot/css/host.css' type='text/css' >
+		<STYLE type="text/css">
+   		#logdata
+   		{
+   			background-color:white;color:grey;
+   			position:absolute;top:350;left:18;
+   			width:550px;height:180px;
+   			overflow:auto;margin:5px;
+   			border:1px inset black;
+   		}
+   		#textEdit #log
+		{
+			position:relative;top:220px;left:195px;
+			font-size:9pt;
+		}
+   		
+ 		</STYLE>
+		
+	</head>
+	<body onLoad='selectThis(document.form1.host, "$name");document.form1.host.focus();selectRadio(document.form1.filterKey, "$filterKey");selectRadio(document.form1.ltype, "$ltype");selectRadio(document.form1.log, "$log")'>
+		<form name='form1' method="POST">
+		<div id='config'>
+		<div id='history' style="color:black">Log Viewer</div>
+		<div id='textEdit'>
+		<div id='ltype'>
+			<br>
+		</div>
+		<div id='fkey'>
+			Filter:  
+			<input type="radio" name="filterKey" value="hostname" checked onclick='document.form1.submit()'>Hostname
+			<input type="radio" name="filterKey" value="mac"  onclick='document.form1.submit()'>Mac
+		</div>
+		<img class='search' src='/$BATools::baRoot/images/searchI.gif' onClick='document.form1.submit()'/>
+		<img class='sweep' src='/$BATools::baRoot/images/sweepI.gif' onClick='document.form1.filter.value="";document.form1.submit()'/>
+		<input type='text' class='filter' name='filter' value='$filterVal'>
+		<font class='name'>Host Name</font><br>
+		$items
+		<br><br>
+		<div id='log'>
+			Log Type:
+			<input type="radio" name="log" value="command" onclick='document.form1.bl.value=\"\";document.form1.submit()' checked>Command
+			<input type="radio" name="log" value="state" checked onclick='document.form1.bl.value=\"\";document.form1.submit()'>State
+			<input type="radio" name="log" value="build" checked onclick='document.form1.bl.value=\"\";document.form1.submit()'>Build
+			
+			<select $pStatus name="bl" style="width:130px" onChange='document.form1.submit()'>
+			$logSelList
+			</select>
+		</div>
+		<font class='dataShort'>Log Data</font>
+		<div id='logdata'><pre>$content</pre></div>
+		</div>
+		</div>
+		</form>
+	</body>
+</html>
+HTML0
+;
+
+sub getItems
+{
+	my $name = shift;
+	my $fVal = shift;
+	my $fKey = shift;
+	my $lType = shift;
+	my $ filter = "";
+	if( $fVal ne "" && $fKey ne "")
+	{
+		$filter = "--filter $fKey\:\:$fVal";
+	}
+	else
+	{
+		$filter = "";
+	}
+	my $r = "";
+	my $selected;
+	
+	
+	my @items;
+	if( $lType eq "nodes")
+	{
+		$r = $r."<select class='nameWide' name='host' size='16' onChange='document.form1.bl.value=\"\";document.form1.submit()'>";
+		@items = BAdb::getHostNodes( $filter);
+	}
+	else
+	{
+		$r = $r."<select class='nameWide' name='host' size='16'>";
+	}
+
+	foreach( @items)
+	{
+		$selected = $_ eq $name ? "selected" : "";
+		$r = $r."<option value=\"$_\" $selected>$_</option>\n";	
+	}
+	
+	$r = $r."</select>";
+	
+	return $r;	
+}
+
+sub getContent
+{
+	my $name = shift;
+	my $log = shift;
+	my $bl = shift;
+	my $r = "";
+	
+	if( $name eq "")
+	{
+		$r = "";
+	}
+	else
+	{
+		my @splitName =split(/ /, $name); 
+		my $mac = @splitName[0];
+		my $host = @splitName[1];
+		if( $log eq "command")
+		{
+			$r = BAdb::getCommandLog( $mac);
+		}
+		elsif( $log eq "state")
+		{
+			$r = BAdb::getStateLog( $mac);
+		}
+		elsif( $log eq "build")
+		{
+			my $data_file="$BATools::baLogPath/$host/$bl";
+			$r = `sudo less $data_file`;
+		}
+		
+	}
+	return $r;
+}
+
+sub getLogSelList
+{
+	my $r = "";
+	my $name = shift;
+	my $bl = shift;
+	my $blFirst = shift;
+	
+	my $cmd = "sudo bash -c \"ls $BATools::baLogPath/$name | sort -r -n\"";
+	my $dirlist = `$cmd`;
+	my @logs = split(/\n/, $dirlist);
+	my $first = 0;
+	my $selected = "";
+	foreach $log ( @logs)
+	{
+		if( $first eq 0)
+		{
+			$$blFirst = $log;
+		}
+		++ $first;
+		$selected = $log eq $bl ? "selected" : "";
+		$r = $r."<option $selected>$log</option>\n";
+	}
+	return $r;
+}
+
+

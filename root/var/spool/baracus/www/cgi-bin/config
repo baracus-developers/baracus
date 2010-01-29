@@ -11,12 +11,12 @@ my $sub = param('sub') || "";
 my $current = "";
 
 my @tmenu = ( 	"Hardware",
-				"Module/list/status/update/add/delete",
-				"Profile/list/status/update/add/delete");
+				"Module/status/update/add/delete",
+				"Profile/status/update/add/delete");
 				
 my @tlink = ( 	"configHW",
-				"configMod/configMod/configModS/configModU/configModA/configModD",
-				"configProf/configProf/configProfS/configProfU/configProfA/configProfD");		
+				"configModS/configModS/configModU/configModA/configModD",
+				"configProfS/configProfS/configProfU/configProfA/configProfD");		
 
 my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, $sub, "/baracus/ba/config");
 		 

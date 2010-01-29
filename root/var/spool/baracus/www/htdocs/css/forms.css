@@ -3,7 +3,7 @@
 /********************************************************************/
 body
 {
-	color:GainsBoro;
+	background-color:#d8d8d8;
 }
 #f-labels font.history
 {
@@ -244,8 +244,9 @@ body
 {
 	width:580;
 	height:250;
-    margin-left: auto;
-    margin-right: auto;
+	position:relative:
+	left:30px;
+	top:30px;
 	border:2px solid #B2D68C;
 	padding-top:10;
 	margin-top:50px
@@ -259,6 +260,50 @@ body
 	color:white;
 	font-size:9pt;
 	margin-left:25;
+}
+
+#blockY
+{
+	width:260;
+	height:220;
+	position:absolute;
+	top:10px;
+	left:20px;
+	border:2px solid #B2D68C;
+	padding-top:10;
+}
+#blockY input.button
+{
+	width:100px;
+	position:absolute;
+	left: 130px;
+	top: 115px;
+}
+
+#blockZ
+{
+	width:260;
+	height:30;
+	position:absolute;
+	top:255px;
+	left:20px;
+	text-align:bottom;
+	border:2px solid #B2D68C;
+	padding-top:10;
+}
+#blockZ input
+{
+	color:green;
+	width:100;
+	position:absolute;
+	left:130;
+}
+#blockZ input.clear
+{
+	color:red;
+	width:100;
+	position:absolute;
+	left:20;
 }
 
 #result

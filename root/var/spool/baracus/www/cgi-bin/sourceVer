@@ -6,7 +6,7 @@ use CGI qw(:standard);
 
 my $name = param('distro') || "";
 my $filter = param('filter') || "";
-my $status = param('status') || "ready";
+my $status = param('status') || "enabled";
 my $addon = param('addon') || "";
 my $togButtonStatus = "";
 
@@ -47,7 +47,7 @@ elsif( $addonSelected)
 	$curStatus = BAdb::getDistroStatus( $addon); 
 }
 
-if( $curStatus eq "deleted")
+if( $curStatus eq "removed")
 {
 	$togButtonStatus = "disabled";
 }

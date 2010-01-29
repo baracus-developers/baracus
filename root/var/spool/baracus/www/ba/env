@@ -137,7 +137,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
 
         my $chkref = &get_db_action( $dbh, $input->{mac} );
         $actref = $chkref if ( defined $chkref );
-        $actref->{cmdline} = "inventory uploaded";
+        $actref->{cmdline} = "# inventory uploaded";
         &event_state_change( $dbh, $state, $macref, $actref );
         &update_db_mac_state( $dbh, $input->{mac}, $state );
         if ( defined $chkref ) {
@@ -204,7 +204,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
 
         my $chkref = &get_db_action( $dbh, $input->{mac} );
         $actref = $chkref if ( defined $chkref );
-        $actref->{cmdline} = "wipe log uploaded";
+        $actref->{cmdline} = "# wipe log uploaded";
         &event_state_change( $dbh, $state, $macref, $actref );
         &update_db_mac_state( $dbh, $input->{mac}, $state );
         if ( defined $chkref ) {
@@ -285,7 +285,7 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
             # set the check if we already have an action entry
             my $chkref = $actref if ( defined $actref );
 
-            $actref->{cmdline} = "pxeboot found";
+            $actref->{cmdline} = "# pxeboot found";
 
             # this is where a state is first created by a trigger
             # and that trigger has to show movement to the next state
@@ -348,7 +348,7 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
                 ) {
                 $actref->{oper} = $pxenext;
                 $actref->{pxecurr} = $pxenext;
-                $actref->{cmdline} = "pxeboot network image";
+                $actref->{cmdline} = "# pxeboot network image";
                 &update_db_action( $dbh, $actref );
             }
 
@@ -374,7 +374,7 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
                 ) {
                 $actref->{oper} = $pxenext;
                 $actref->{pxecurr} = $pxenext;
-                $actref->{cmdline} = "pxeboot rescue mode";
+                $actref->{cmdline} = "# pxeboot rescue mode";
                 &update_db_action( $dbh, $actref );
             }
 
@@ -426,7 +426,7 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
                 ) {
                 $actref->{oper} = $pxenext;
                 $actref->{pxecurr} = $pxenext;
-                $actref->{cmdline} = "pxeboot inventory request";
+                $actref->{cmdline} = "# pxeboot inventory request";
                 &update_db_action( $dbh, $actref );
             }
 
@@ -448,7 +448,7 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
                 ) {
                 $actref->{oper} = $pxenext;
                 $actref->{pxecurr} = $pxenext;
-                $actref->{cmdline} = "pxeboot directing to localdisk";
+                $actref->{cmdline} = "# pxeboot directing to localdisk";
                 &update_db_action( $dbh, $actref );
             }
 
@@ -468,7 +468,7 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
 
             &event_state_change( $dbh, $state, $macref, $actref );
             &update_db_mac_state( $dbh, $macref->{mac}, $state );
-            $actref->{cmdline} = "pxeboot directing to network install";
+            $actref->{cmdline} = "# pxeboot directing to network install";
             &update_db_action( $dbh, $actref );
 
             my $args;
@@ -521,7 +521,7 @@ LABEL label_$actref->{hostname}
             &event_state_change( $dbh, $state, $macref, $actref );
             &update_db_mac_state( $dbh, $macref->{mac}, $pxenext );
             if ( $actref->{oper} ne $state ) {
-                $actref->{cmdline} = "pxeboot directing to wipe disk";
+                $actref->{cmdline} = "# pxeboot directing to wipe disk";
                 &update_db_action( $dbh, $actref );
             }
 
@@ -620,7 +620,7 @@ LABEL wipe
              ( "dhcp" ne "$actref->{'ip'}"  ))) {
 
             $state = BA_EVENT_SPOOFED;
-            $actref->{cmdline} = "build complete callback spoofed";
+            $actref->{cmdline} = "# build complete callback spoofed";
 
             print STDERR "$input->{mac} - $hostname $actref->{cmdline}\n";
             $output = "build spoofed - spoof hook called\n";
@@ -636,7 +636,7 @@ LABEL wipe
         }
         else {
             $state = BA_EVENT_BUILT;
-            $actref->{cmdline} = "build complete callback verified";
+            $actref->{cmdline} = "# build complete callback verified";
             print STDERR "$input->{mac} - $hostname $actref->{cmdline}\n";
             $output = "build verified - verify hook called\n";
 

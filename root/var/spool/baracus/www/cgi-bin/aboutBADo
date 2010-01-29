@@ -13,11 +13,10 @@ print <<HTML;
 <html>
 
 <head>
-	<link rel='stylesheet' href='/$BATools::baRoot/css/tabs.css' type='text/css' >
+	<link rel='stylesheet' href='/$BATools::baRoot/css/about.css' type='text/css' >
 </head>
-
-<body background="/baracus/images/bg-grad.jpg">
-<pre class="content">$content</pre>
+<body>
+<pre>$content</pre>
 </body>
 </html>
 
@@ -26,6 +25,6 @@ HTML
 
 sub getContent
 {
-	my $r = `rpm -qi baracus`;
+	my $r = `bado man`;
 	return $r;
 }

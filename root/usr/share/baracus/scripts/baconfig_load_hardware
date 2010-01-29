@@ -14,10 +14,10 @@ baconfig add hardware --name default \
 baconfig detail hardware default-iscsi &> /dev/null || \
 baconfig add hardware --name default-iscsi \
 --description="default-iscsi" \
---bootargs="acpi=on selinux=0 apm=off netsetup=1 WithISCSI=1" \
+--bootargs="acpi=on selinux=0 apm=off WithISCSI=1" \
 --rootdisk=/dev/sda \
 --rootpart=/dev/sda \
---autobuild=template.xml 
+--autobuild=template-iscsi.xml 
 #--oscert=SLES9:SLES10
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
