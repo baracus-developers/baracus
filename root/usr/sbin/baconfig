@@ -759,6 +759,7 @@ sub add_tftp
                  'name'         => "",
                  'description'  => "",
                  'bin'          => "",
+                 'size'         => "",
                  'enabled'      => "t",
                  'insertion'    => "CURRENT_TIMESTAMP",
                  'change'       => "NULL",
@@ -810,6 +811,12 @@ sub add_tftp
     }
 
     my $fh;
+    open ($fh, "<", $file) || die "unable to open $file: $!\n";
+    undef $/;
+    my $content_tmp = <$fh>;  # slurp mode
+    $/ = "\n";
+    close $fh;
+    $entry{'size'} = length( $content_tmp );
     open ($fh, "<", $file) || die "unable to open $file: $!\n";
 
     my $sql_cols = lc get_cols( $baTbls{ 'tftp' });
@@ -1407,6 +1414,7 @@ sub update_tftp
     my %entry = (
                  'name'         => "",
                  'description'  => "",
+                 'size'         => "",
                  'enabled'      => "",
                  'insertion'    => "",
                  'change'       => "CURRENT_TIMESTAMP",
@@ -1518,6 +1526,8 @@ sub update_tftp
         my $file_data = <FILE>;  # slurp mode
         $/ = "\n";
         close FILE;
+
+        $save{'size'} = length ( $file_data );
 
         # must check first - for refusing to 'update' with duplicate data
         if ( $file_data eq $entry_data ) {
@@ -2031,7 +2041,7 @@ sub detail
                     foreach my $chunk ( @{$chunks} ) {
                         $tftpdata .= &bytea_decode( @{$chunk}[0] );
                     }
-                    if ( ( length $tftpdata ) < 512 ) {
+                    if ( $href->{'size'} < 512 ) {
                         print $tftpdata;
                     } else {
                         print "\n# File content will not be displayed.\n";

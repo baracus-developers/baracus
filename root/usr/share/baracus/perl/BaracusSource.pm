@@ -501,11 +501,24 @@ sub baxml_load
     my $opts    = shift;
     my $xmlfile = shift;
 
-    my $xs = XML::Simple->new ( SuppressEmpty => 1,
-                                ForceArray => [ qw (distro product iso) ],
-                                KeyAttr => { distro => 'name',
-                                             product => 'name',
-                                             iso => 'name' } );
+    my $xs = XML::Simple->new
+        ( SuppressEmpty => 1,
+          ForceArray =>
+          [ qw
+            ( distro
+              product
+              iso
+              sharefile
+            )
+           ],
+          KeyAttr =>
+          {
+           distro    => 'name',
+           product   => 'name',
+           iso       => 'name',
+           sharefile => 'name',
+           },
+         );
     my $baXML = $xs->XMLin( $xmlfile );
 
     # sanity checking
@@ -523,12 +536,20 @@ sub baxml_load
         print "XML working with distro $distro\n" if ($opts->{debug} > 2);
         print "XML described as $dh->{description}\n" if ($opts->{debug} > 2);
         $dh->{basedisthash} = $baXML->{distro}->{ $dh->{basedist} };
+
+        # start all pathing below the ~baracus/bulids/os/version/arch
         $dh->{distpath} = join "/", $baDir{'builds'}, @baseparts;
+
+        # add-ons have 'requires' specifiers
+        # this no longer describes the base distro needed - it's just a flag
         if ( defined $dh->{'requires'} ) {
             if ( $distro eq $dh->{basedist} ) {
                 die "Malformed $xmlfile\nAdd-on $distro (has 'requires') only has base components as part of its name\n";
             }
             print "XML distro is addon for base $dh->{basedist}\n" if ($opts->{debug} > 2);
+
+            # addons are placed in sub directories of the base distro
+            # ~baracus/bulids/os/version/arch/product/addos[/addrel]
             $dh->{distpath} = join "/", $dh->{distpath}, $dh->{addos};
             $dh->{distpath} = join "/", $dh->{distpath}, $dh->{addrel}
                 if ( defined $dh->{addrel} );
@@ -541,54 +562,109 @@ sub baxml_load
             die "non-addon $distro hash $dh not equal to $dh->{basedisthash} ?!\n";
         }
         print "XML distro path $dh->{distpath}\n" if ($opts->{debug} > 2);
+
         # every non-addon distro needs one product of addon type "base"
+        # basefound indicates that <addon>base</addon> was found in product
+        # but we also set this flag for addon that 'requires' a base
+        # because it should be found thru that product.
         my $basefound = 0;
         $basefound = 1 if ( defined $dh->{'requires'} ); # spoof check for addons
+
         # a distro with base product needs one iso with "kernel" and "initrd"
+        # the loaderfound flag indicates that these files have been found
+        # in one, and there can only be one with these, iso of the product
         my $loaderfound = 1;
+
         foreach my $product ( keys %{$dh->{product}} ) {
             my $ph = $dh->{product}->{$product};
+
+            # product name becomes part of the path for the mount / cp point
+            # typically this is 'dvd' but can be more elaborate (as for sles 9)
             $ph->{prodpath} = join "/", $dh->{distpath}, $product;
             print "XML working with product $product\n" if ($opts->{debug} > 2);
             print "XML product path $ph->{prodpath}\n" if ($opts->{debug} > 2);
+
             if ( defined $ph->{'addon'} and $ph->{'addon'} eq "base" ) {
                 if ( $basefound ) {
                     die "Malformed $xmlfile\nDistro $distro has more than one product with <addon>base</addon>\n";
                 }
                 $basefound = 1;
                 $loaderfound = 0;
+
+                # set the base product information for every distro
                 $dh->{baseprod} = $product;
                 $dh->{baseprodhash} = $ph;
-                $dh->{baseprodpath} = join "/", $baDir{'builds'}, @baseparts,
-                    $product;
+                $dh->{baseprodpath} = $ph->{prodpath};
+
                 print "XML base prod path $dh->{baseprodpath}\n" if ($opts->{debug} > 2);
             }
             foreach my $iso ( keys %{$ph->{iso}} ) {
+                # iso specific info for mounting, copying
+                # and extracting files to network shares
+
+                # hash pointing to struct at iso level and below
+                # we add our own helper key/value pairs here
                 my $ih = $ph->{iso}->{$iso};
+
+                # iso path starts with product path and adds any iso specific
                 $ih->{isopath} = $ph->{prodpath};
                 $ih->{isopath} = join "/", $ih->{isopath}, $ih->{'path'}
                     if ( defined $ih->{'path'} );
                 print "XML iso path $ih->{isopath}\n" if ($opts->{debug} > 2);
-                if ( defined $ih->{'kernel'} and defined $ih->{'initrd'} ) {
+                if ( defined $ih->{sharefiles} ) {
                     if ( $loaderfound ) {
                         die "Malformed $xmlfile\nDistro $distro product $product has more than one iso with <kernel> and <initrd>\n";
                     }
+
+                    # distro 1:n products n:m isos
+                    # at most 1 product is <addon>base</addon>
+                    # at most 1 iso has loader files <kernel> and <initrd>
+                    # and it is expected that iso is a member of the base prod
+                    # so this info can be bubbled up for a base distro 
                     $loaderfound = 1 ;
                     $dh->{baseiso} = $iso;
                     $dh->{baseisohash} = $ih;
                     $dh->{baseisopath} = $ih->{isopath};
-                    $dh->{baselinux}  = join "/", $ih->{isopath}, $ih->{kernel};
-                    $dh->{baseinitrd} = join "/", $ih->{isopath}, $ih->{initrd};
-                    my $path = "";
-                    $path .= $ih->{path} . "/" if ( defined $ih->{'path'} );
-                    $dh->{basekernelsubpath} = "${path}$ih->{kernel}";
-                    $dh->{baseinitrdsubpath} = "${path}$ih->{initrd}";
+
+                    # new method of describing more generically 
+                    # multiple files for network installs
+                    # and the method required for making them available
+                    if ( defined $ih->{sharefiles} ) {
+                        foreach my $sname ( keys %{$ih->{sharefiles}->{sharefile}} ) {
+                            my $sh = $ih->{sharefiles}->{sharefile}->{$sname};
+
+                            # iso path or builds relative if starts with '/'
+                            if ( $sh->{file} =~ m|^/| ) {
+                                $dh->{baseshares}->{$sname}->{file} = $baDir{builds} . $sh->{file};
+                            } else {
+                                $dh->{baseshares}->{$sname}->{file} = join "/", $ih->{isopath}, $sh->{file};
+                            }
+                            $dh->{baseshares}->{$sname}->{sharetype} = $sh->{sharetype};
+                            print "XML sharefile $sname $sh->{sharetype}  $dh->{baseshares}->{$sname}->{file}\n" if ($opts->{debug} > 2);
+                        }
+                    }
+
+                    # isopath will get us to the mount / cp point of the iso
+                    # the kernel and initrd values have pathing info embedded
+                    # (relative to the root of the iso)
 
                     print "XML base iso path $dh->{baseisopath}\n" if ($opts->{debug} > 2);
-                    print "XML $dh->{baselinux}\n" if ($opts->{debug} > 2);
-                    print "XML $dh->{baseinitrd}\n" if ($opts->{debug} > 2);
-                    print "XML sub $dh->{basekernelsubpath}\n" if ($opts->{debug} > 2);
-                    print "XML sub $dh->{baseinitrdsubpath}\n" if ($opts->{debug} > 2);
+
+                    my $path = "";
+                    $path .= $ih->{path} . "/" if ( defined $ih->{'path'} );
+
+                    if ( defined $dh->{baseshares}->{kernel} ) {
+                        $dh->{baselinux}  = $dh->{baseshares}->{kernel}->{file};
+                        $dh->{basekernelsubpath} = "${path}$dh->{baseshares}->{kernel}->{file}";
+                        print "XML linux $dh->{baselinux}\n" if ($opts->{debug} > 2);
+                        print "XML sub $dh->{basekernelsubpath}\n" if ($opts->{debug} > 2);
+                    }
+                    if ( defined $dh->{baseshares}->{initrd} ) {
+                        $dh->{baseinitrd} = $dh->{baseshares}->{initrd}{file};
+                        $dh->{baseinitrdsubpath} = "${path}$dh->{baseshares}->{initrd}->{file}";
+                        print "XML initrd $dh->{baseinitrd}\n" if ($opts->{debug} > 2);
+                        print "XML sub $dh->{baseinitrdsubpath}\n" if ($opts->{debug} > 2);
+                    }
                 }
             }
             unless ( $loaderfound ) {
@@ -598,6 +674,7 @@ sub baxml_load
         unless ( $basefound ) {
             die "Malformed $xmlfile\nEntry $distro is missing a product containing <addon>base</addon>\n";
         }
+        print "\n" if ($opts->{debug} > 2);
     }
 
     return $baXML;
@@ -1173,39 +1250,68 @@ sub add_bootloader_files
     my $bh = $dh->{basedisthash};
 
     my $basedist = $dh->{basedist};
-    if ( &sqlfs_getstate( $opts, "linux.$distro" ) ) {
-        print "found bootloader linux.$basedist in tftp database\n" if $opts->{verbose};
-    } else {
-        print "cp from $bh->{baselinux} to $tdir/linux.$basedist\n"
-            if ( $opts->{debug} > 1 );
-        copy($bh->{baselinux},"$tdir/linux.$basedist") or die "Copy failed: $!";
-        &sqlfs_store( $opts, "$tdir/linux.$basedist" );
-        unlink ( "$tdir/linux.$basedist" );
-    }
-    if( &sqlfs_getstate( $opts, "initrd.$basedist" ) ) {
-        print "found bootloader initrd.$basedist in tftp database\n"
-            if $opts->{verbose};
-    } else {
-        print "cp from $bh->{baseinitrd} to $tdir/initrd.gz\n" if ( $opts->{debug} > 1 );
-        copy($bh->{baseinitrd},"$tdir/initrd.gz") or die "Copy failed: $!";
-        if ( $distro =~ /sles-11/ ) {
-            system("gunzip", "$tdir/initrd.gz");
-            copy("$baDir{data}/gpghome/.gnupg/my-key.gpg", "$tdir/my-key.gpg") or
-                     die "Copy failed: $!";
-            my $result = `cd $tdir; find my-key.gpg | cpio --quiet -o -A -F initrd -H newc >> /dev/null`;
-            unlink( "$tdir/my-key.gpg" );
-            system("gzip", "$tdir/initrd");
-        }
-        print "cp from $tdir/initrd.gz to $tdir/initrd.$basedist\n"
-            if ( $opts->{debug} > 1 );
-        copy("$tdir/initrd.gz", "$tdir/initrd.$basedist") or
-            die "Copy failed: $!";
-        unlink( "$tdir/initrd.gz" );
 
-        &sqlfs_store( $opts, "$tdir/initrd.$basedist" );
-        unlink( "$tdir/initrd.$basedist" );
-    }
+    if ( $distro =~ m/win/i )  {
+	while ( my ($fname, $fh) = each ( %{$bh->{baseshares}} ) ) {
+	    unless ( -f $fh->{file} ) {
+		my $winstall_msg = qq|
+Missing $fh->{file}
 
+Network install files for Win products may need to be generated.
+To do this you need an instance of Win running and to mount the
+share "winstall" then run "bawinstall.bat"
+
+Afterwards try this basource command again.
+|;
+		print $winstall_msg;
+                exit;
+	    }
+	    if ( &sqlfs_getstate( $opts, $fname ) ) {
+		print "found $fname in tftp database\n" if $opts->{verbose};
+	    } else {
+		print "cp from $fh->{file} to $tdir/$fname\n"
+		    if ( $opts->{debug} > 1 );
+		# we don't go from $fh->{file} to sqlfs_store directly
+		# there may be a name change / difference from $fname
+		copy($fh->{file},"$tdir/$fname") or die "Copy failed: $!";
+		&sqlfs_store( $opts, "$tdir/$fname" );
+		unlink( "$tdir/$fname" );
+	    }
+	}
+    } else {
+	if ( &sqlfs_getstate( $opts, "linux.$distro" ) ) {
+	    print "found bootloader linux.$basedist in tftp database\n" if $opts->{verbose};
+	} else {
+	    print "cp from $bh->{baselinux} to $tdir/linux.$basedist\n"
+		if ( $opts->{debug} > 1 );
+	    copy($bh->{baselinux},"$tdir/linux.$basedist") or die "Copy failed: $!";
+	    &sqlfs_store( $opts, "$tdir/linux.$basedist" );
+	    unlink ( "$tdir/linux.$basedist" );
+	}
+	if( &sqlfs_getstate( $opts, "initrd.$basedist" ) ) {
+	    print "found bootloader initrd.$basedist in tftp database\n"
+		if $opts->{verbose};
+	} else {
+	    print "cp from $bh->{baseinitrd} to $tdir/initrd.gz\n" if ( $opts->{debug} > 1 );
+	    copy($bh->{baseinitrd},"$tdir/initrd.gz") or die "Copy failed: $!";
+	    if ( $distro =~ /sles-11/ ) {
+		system("gunzip", "$tdir/initrd.gz");
+		copy("$baDir{data}/gpghome/.gnupg/my-key.gpg", "$tdir/my-key.gpg") or
+		    die "Copy failed: $!";
+		my $result = `cd $tdir; find my-key.gpg | cpio --quiet -o -A -F initrd -H newc >> /dev/null`;
+		unlink( "$tdir/my-key.gpg" );
+		system("gzip", "$tdir/initrd");
+	    }
+	    print "cp from $tdir/initrd.gz to $tdir/initrd.$basedist\n"
+		if ( $opts->{debug} > 1 );
+	    copy("$tdir/initrd.gz", "$tdir/initrd.$basedist") or
+		die "Copy failed: $!";
+	    unlink( "$tdir/initrd.gz" );
+
+	    &sqlfs_store( $opts, "$tdir/initrd.$basedist" );
+	    unlink( "$tdir/initrd.$basedist" );
+	}
+    }
     print "removing tempdir $tdir\n" if ($opts->{debug} > 1);
     rmdir $tdir;
 }
@@ -1247,6 +1353,11 @@ sub add_build_service
     my $addons = shift;
 
     print "+++++ add_build_service\n" if ( $opts->{debug} > 1 );
+
+    my $dh = &baxml_distro_gethash( $opts, $distro );
+    if ( $dh->{'sharetype'} ) {
+        $baVar{sharetype} = $dh->{'sharetype'};
+    }
 
     my @dalist;
 
@@ -1293,6 +1404,28 @@ sub add_build_service
                     close(FILE);
 
                 }
+
+                if ($baVar{sharetype} eq "cifs") {
+                    open(FILE, "<$baDir{'data'}/templates/samba.conf.in") or
+                        die ("Cannot open file\n");
+                    my $sambaconf = join '', <FILE>;
+                    close(FILE);
+
+                    unless ( -d "/etc/samba/" ) {
+                        mkpath "/etc/samba/" || die ("Cannot create directory\n");
+                    }
+
+                    open(FILE, ">$file") || die ("Cannot open $file\n");
+                    $sambaconf =~ s|%DISTRO%|$distro|g;
+                    $sambaconf =~ s|%PATH%|$share|g;
+                    print FILE $sambaconf;
+                    close(FILE);
+
+                    open(SAMBA, ">>/etc/samba/smb.conf") || die ("Cannot open $file\n");
+                    print SAMBA "\ninclude = $file\n";
+                    close(SAMBA);
+
+                }
             }
         }
     }
@@ -1302,6 +1435,9 @@ sub add_build_service
         }
         if ($baVar{sharetype} eq "http") {
             system("/etc/init.d/apache2 reload");
+        }
+        if ($baVar{sharetype} eq "cifs") {
+            system("/etc/init.d/smb reload");
         }
     }
 }
@@ -1314,6 +1450,11 @@ sub remove_build_service
     my $addons = shift;
 
     print "+++++ remove_build_service\n" if ( $opts->{debug} > 1 );
+
+    my $dh = &baxml_distro_gethash( $opts, $distro );
+    if ( $dh->{'sharetype'} ) {
+        $baVar{sharetype} = $dh->{'sharetype'};
+    }
 
     my @dalist;
 
@@ -1352,6 +1493,21 @@ sub remove_build_service
                 if ($baVar{sharetype} eq "http") {
                     unlink( $file );
                 }
+
+                if ($baVar{sharetype} eq "cifs") {
+                    unlink $file;
+                    copy("/etc/samba/smb.conf", "/etc/samba/smb.conf.baback");
+                    open(OUTFILE, ">/etc/samba/smb.conf") || die ("Cannot open file\n");
+                    open(INFILE, "</etc/samba/smb.conf.baback") || die ("Cannot open file\n");
+                    while (<INFILE>) {
+                        unless (m|$distro|) {
+                            print OUTFILE $_;
+                        }
+                    }
+                    close(INFILE);
+                    close(OUTFILE);
+                    unlink("/etc/samba/smb.conf.baback");
+                }
             }
         }
     }
@@ -1361,6 +1517,9 @@ sub remove_build_service
         }
         if ($baVar{sharetype} eq "http") {
             system("/etc/init.d/apache2 reload");
+        }
+        if ($baVar{sharetype} eq "http") {
+            system("/etc/init.d/smb reload");
         }
     }
 }
@@ -1398,6 +1557,10 @@ sub check_service_product
         $file = "/etc/apache2/conf.d/$name.conf";
         $state = 1 if ( -f $file);
     }
+    if ($sharetype eq "cifs") {
+        $file = "/etc/samba/$name.conf";
+        $state = 1 if ( -f $file);
+    }
 
     return $file, $share, $state;
 }
@@ -1412,6 +1575,7 @@ sub enable_service
     if ($opts->{verbose}) {
         print "Enabling $sharetype ... \n";
     }
+    $sharetype =~ s/cifs/smb/;
     $sharetype =~ s/http/apache2/;
     $sharetype =~ s/nfs/nfsserver/;
     system("chkconfig $sharetype on");
@@ -1430,6 +1594,7 @@ sub disable_service
     if ($opts->{verbose}) {
         print "Disabling $sharetype ... \n";
     }
+    $sharetype =~ s/cifs/smb/;
     $sharetype =~ s/http/apache2/;
     $sharetype =~ s/nfs/nfsserver/;
     system("chkconfig $sharetype off");

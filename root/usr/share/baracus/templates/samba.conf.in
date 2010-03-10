@@ -1,0 +1,8 @@
+[%DISTRO%]
+        comment = %DISTRO%
+        writable = no
+        locking = no
+        path = %PATH%
+        guest ok = yes
+        read only = yes
+        null passwords = true

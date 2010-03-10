@@ -1,0 +1,297 @@
+<?xml version="1.0"?>
+<!DOCTYPE profile>
+<profile xmlns="http://www.suse.com/1.0/yast2ns" xmlns:config="http://www.suse.com/1.0/configns">
+  <!-- ADD-ON {{{ -->
+  <add-on>
+    <add_on_products config:type="list">
+      __ADDON__
+    </add_on_products>
+  </add-on>
+  <!-- }}} ADD-ON -->
+  <!-- SCRIPTS {{{ -->
+  <scripts>
+    <post-scripts config:type="list">
+    </post-scripts>
+    <init-scripts config:type="list">
+      <script>
+        <filename>build_notify</filename>
+        <source><![CDATA[sleep 60
+wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></source>
+      </script>
+      __MODULE__
+      <script>
+        <filename>lsg_serial.sh</filename>
+        <location>http://__SERVERIP__/baracus/lsg_serial.sh</location>
+      </script>
+    </init-scripts>
+  </scripts>
+  <!-- }}} SCRIPTS -->
+  <networking>
+  <!--   <start_immediately config:type="boolean">false</start_immediately> -->
+    <dns>
+      <dhcp_hostname config:type="boolean">false</dhcp_hostname>
+      <dhcp_resolv config:type="boolean">false</dhcp_resolv>
+      <domain>__DNSDOMAIN__</domain>
+      <hostname>__HOSTNAME__</hostname>
+      <nameservers config:type="list">
+        <nameserver>__DNS1__</nameserver>
+      </nameservers>
+      <searchlist config:type="list">
+        <search>__DNSDOMAIN__</search>
+      </searchlist>
+    </dns>
+    <interfaces config:type="list">
+      <interface>
+        <bootproto>STATIC</bootproto>
+        <device>eth-id-__MAC__</device>
+        <ipaddr>__IP__</ipaddr>
+        <netmask>__NETMASK__</netmask>
+        <network>__IP__</network>
+        <lladdr>__MAC__</lladdr>
+        <startmode>onboot</startmode>
+      </interface>
+    </interfaces>
+    <managed config:type="boolean">false</managed>
+    <!--
+    <net-udev config:type="list">
+      <rule>
+        <name>eth0</name>
+        <rule>ATTR{address}</rule>
+        <value>00:11:22:33:44:50</value>
+      </rule>
+    </net-udev>
+    -->
+    <routing>
+      <ip_forward config:type="boolean">false</ip_forward>
+      <routes config:type="list">
+        <route>
+          <destination>default</destination>
+          <device>-</device>
+          <gateway>__GATEWAY__</gateway>
+          <netmask>-</netmask>
+        </route>
+      </routes>
+    </routing>
+  </networking>
+  <runlevel>
+    <default>3</default>
+  </runlevel>
+  <user_defaults>
+    <expire></expire>
+    <group>100</group>
+    <groups>video</groups>
+    <home>/home</home>
+    <inactive>-1</inactive>
+    <shell>/bin/bash</shell>
+    <skel>/etc/skel</skel>
+  </user_defaults>
+  <users config:type="list">
+    <user>
+      <encrypted config:type="boolean">false</encrypted>
+      <fullname>baracus</fullname>
+      <gid>100</gid>
+      <home>/home/baracus</home>
+      <password_settings>
+        <expire></expire>
+        <flag></flag>
+        <inact></inact>
+        <max>99999</max>
+        <min>0</min>
+        <warn>7</warn>
+      </password_settings>
+      <shell>/bin/bash</shell>
+      <uid>1000</uid>
+      <user_password>baracus</user_password>
+      <username>baracus</username>
+    </user>
+    <user>
+      <encrypted config:type="boolean">true</encrypted>
+      <fullname>root</fullname>
+      <gid>0</gid>
+      <home>/root</home>
+      <password_settings>
+        <expire></expire>
+        <flag></flag>
+        <inact></inact>
+        <max></max>
+        <min></min>
+        <warn></warn>
+      </password_settings>
+      <shell>/bin/bash</shell>
+      <uid>0</uid>
+      <user_password>$2a$05$rF4MD.QZZ7GXzXcqGktFFua6/Z23qaTXKv4T37PRDvZbRa8ZgYk5i</user_password>
+      <username>root</username>
+    </user>
+  </users>
+  <bootloader>
+    <device_map config:type="list">
+      <device_map_entry>
+        <firmware>hd0</firmware>
+        <linux>__ROOTDISK__</linux>
+      </device_map_entry>
+    </device_map>
+    <global>
+      <activate>true</activate>
+      <default>0</default>
+      <generic_mbr>true</generic_mbr>
+      <lines_cache_id>2</lines_cache_id>
+      <timeout config:type="integer">8</timeout>
+    </global>
+    <initrd_modules config:type="list">
+      <initrd_module>
+        <module>ext4</module>
+      </initrd_module>
+    </initrd_modules>
+    <loader_type>grub</loader_type>
+    <sections config:type="list">
+      <section>
+        <append>__BOOTARGS__ resume=__ROOTPART__1 splash=silent quiet showopts</append>
+        <image>/boot/vmlinuz-2.6.31.5-0.1-desktop</image>
+        <initial>1</initial>
+        <initrd>/boot/initrd-2.6.31.5-0.1-desktop</initrd>
+        <lines_cache_id>0</lines_cache_id>
+        <name>Desktop -- openSUSE 11.2 - 2.6.31.5-0.1</name>
+        <original_name>linux</original_name>
+        <root>__ROOTPART__2</root>
+        <type>image</type>
+      </section>
+      <section>
+        <append>showopts apm=off noresume edd=off powersaved=off nohz=off highres=off processor.max_cstate=1 x11failsafe</append>
+        <image>/boot/vmlinuz-2.6.31.5-0.1-desktop</image>
+        <initrd>/boot/initrd-2.6.31.5-0.1-desktop</initrd>
+        <lines_cache_id>1</lines_cache_id>
+        <name>Failsafe -- openSUSE 11.2 - 2.6.31.5-0.1</name>
+        <original_name>failsafe</original_name>
+        <root>__ROOTPART__2</root>
+        <type>image</type>
+      </section>
+    </sections>
+  </bootloader>
+  <timezone>
+    <hwclock>UTC</hwclock>
+    <timezone>__TIMEZONE__</timezone>
+  </timezone>
+  <language>
+    <language>__LANG__</language>
+    <languages></languages>
+  </language>
+  <general>
+    <ask-list config:type="list"/>
+    <mode>
+      <confirm config:type="boolean">false</confirm>
+    </mode>
+    <proposals config:type="list"/>
+    <signature-handling>
+      <accept_file_without_checksum config:type="boolean">true</accept_file_without_checksum>
+      <accept_non_trusted_gpg_key config:type="boolean">true</accept_non_trusted_gpg_key>
+      <accept_unknown_gpg_key config:type="boolean">true</accept_unknown_gpg_key>
+      <accept_unsigned_file config:type="boolean">true</accept_unsigned_file>
+      <accept_verification_failed config:type="boolean">false</accept_verification_failed>
+      <import_gpg_key config:type="boolean">true</import_gpg_key>
+    </signature-handling>
+  </general>
+  <iscsi-client>
+    <initiatorname>iqn.2010-01.lab.lsg:01:6211b9f98b95</initiatorname>
+    <targets config:type="list">
+      <listentry>
+        <authmethod>None</authmethod>
+        <portal>151.155.230.116:3260,1</portal>
+        <startup>automatic</startup>
+        <target>iqn.2010-01.lab.lsg:gfs-b1</target>
+      </listentry>
+    </targets>
+    <version>1.0</version>
+  </iscsi-client>
+  <partitioning config:type="list">
+    <drive>
+      <device>__ROOTDISK__</device>
+      <initialize config:type="boolean">true</initialize>
+      <partitions config:type="list">
+        <partition>
+          <create config:type="boolean">true</create>
+          <crypt_fs config:type="boolean">false</crypt_fs>
+          <filesystem config:type="symbol">swap</filesystem>
+          <format config:type="boolean">true</format>
+          <mount>swap</mount>
+          <mountby config:type="symbol">device</mountby>
+          <partition_id config:type="integer">130</partition_id>
+          <partition_nr config:type="integer">1</partition_nr>
+          <raid_options/>
+          <size>auto</size>
+        </partition>
+        <partition>
+          <create config:type="boolean">true</create>
+          <crypt_fs config:type="boolean">false</crypt_fs>
+          <filesystem config:type="symbol">ext4</filesystem>
+          <format config:type="boolean">true</format>
+          <fstopt>acl,user_xattr</fstopt>
+          <loop_fs config:type="boolean">false</loop_fs>
+          <mount>/</mount>
+          <partition_id config:type="integer">131</partition_id>
+          <partition_nr config:type="integer">2</partition_nr>
+          <size>max</size>
+        </partition>
+      </partitions>
+      <pesize></pesize>
+      <type config:type="symbol">CT_DISK</type>
+      <use>all</use>
+    </drive>
+  </partitioning>
+  <report>
+    <errors>
+      <log config:type="boolean">true</log>
+      <show config:type="boolean">true</show>
+      <timeout config:type="integer">0</timeout>
+    </errors>
+    <messages>
+      <log config:type="boolean">true</log>
+      <show config:type="boolean">true</show>
+      <timeout config:type="integer">0</timeout>
+    </messages>
+    <warnings>
+      <log config:type="boolean">true</log>
+      <show config:type="boolean">true</show>
+      <timeout config:type="integer">0</timeout>
+    </warnings>
+    <yesno_messages>
+      <log config:type="boolean">true</log>
+      <show config:type="boolean">true</show>
+      <timeout config:type="integer">0</timeout>
+    </yesno_messages>
+  </report>
+  <software>
+    <patterns config:type="list">
+      <pattern>base</pattern>
+      <pattern>enhanced_base</pattern>
+      <pattern>fonts</pattern>
+      <pattern>gnome</pattern>
+      <pattern>gnome_basis</pattern>
+      <pattern>non_oss</pattern>
+      <pattern>sw_management</pattern>
+      <pattern>x11</pattern>
+      <pattern>yast2_basis</pattern>
+    <packages config:type="list">
+      <package>open-iscsi</package>
+    </packages>
+    </patterns>
+  </software>
+  <!-- X11 {{{ -->
+  <x11>
+    <color_depth config:type="integer">16</color_depth>
+    <configure_x11 config:type="boolean">true</configure_x11>
+    <display_manager>gdm</display_manager>
+    <enable_3d config:type="boolean">false</enable_3d>
+    <monitor>
+      <display>
+        <frequency config:type="integer">60</frequency>
+        <height config:type="integer">768</height>
+        <width config:type="integer">1024</width>
+      </display>
+      <monitor_device>1024X768@60HZ</monitor_device>
+      <monitor_vendor>VESA</monitor_vendor>
+    </monitor>
+    <resolution>1024x768</resolution>
+    <window_manager>gnome</window_manager>
+  </x11>
+  <login_settings/>
+</profile>

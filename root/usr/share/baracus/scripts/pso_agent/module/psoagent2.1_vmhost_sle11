@@ -1,0 +1,63 @@
+#!/bin/bash
+
+BARACUS_SERVER="blade10"
+
+PSO_SERVER="blade3"
+
+#
+# Install the PSO Agent Software (VMHOST)
+#
+zypper -n ar -f http://$BARACUS_SERVER/psoagent_2.1-sle-11-x86_64 psoagent_2.1-sle-11-x86_64
+
+zypper -n in chntpw novell-zenworks-zos-agent novell-zenworks-zos-clients novell-zenworks-orch-config novell-zenworks-orch-config-gui novell-zenworks-monitor-gmond novell-zenworks-zos-java ntfs-3g ntfs-3g-devel
+
+#
+# Copy the Server Certificate so the Agent can be configured to use it.
+# Note: we just need to specify the filename below in one of the config
+# options; once the agent is configured, the cert filename will be
+# changed and will automatically be located in:
+#         /opt/novell/zenworks/zos/agent/tls/server.pem
+#
+CERT_DIR=/var/spool/baracus/www/htdocs
+CERT_FILE=pso_server_cert.pem
+
+# Make sure the wget package is installed
+zypper -n in wget
+
+wget http://$BARACUS_SERVER/baracus/$CERT_FILE
+
+#
+#Configure the PSO Agent.  This script can be used for both
+#vmhosts and vm's; the only difference is whether the variable
+#IS_THIS_A_VM" is set to yes or no
+
+PSOAGENT_CONFIG_FILE="/etc/opt/novell/novell_zenworks_orch_install.conf"
+cp $PSOAGENT_CONFIG_FILE ${PSOAGENT_CONFIG_FILE}.pre_baracus_mod
+
+IS_VM_HOST=yes
+IS_VM_BUILDER=no
+IS_VM=no
+
+echo -e \
+    "CONFIG_INSTALL_COMPONENT_SELECTION=finish"           \
+    "\nCONFIG_INSTALL_EDIT_SUMMARY=Finish and Install"    \
+    "\nCONFIG_INSTALL_EXPRESS=no"                         \
+    "\nCONFIG_INSTALL_POSTGLOBAL_ROUTINES=yes"            \
+    "\nCONFIG_INSTALL_PREGLOBAL_ROUTINES=yes"             \
+    "\nCONFIG_INSTALL_VIEW_SUMMARY=yes"                   \
+    "\nCONFIG_VMBUILDER=$IS_VM_BUILDER"                   \
+    "\nCONFIG_ZENWORKS_MONITOR=no"                        \
+    "\nCONFIG_ZOS_AGENT=$IS_VM_HOST"                      \
+    "\nCONFIG_ZOS_AGENT_HAVE_SERVER_CERT=yes"             \
+    "\nCONFIG_ZOS_AGENT_SERVER_CERT=$CERT_FILE"           \
+    "\nCONFIG_ZOS_AGENT_IP="                              \
+    "\nCONFIG_ZOS_AGENT_IS_VM=$IS_VM"                     \
+    "\nCONFIG_ZOS_AGENT_NODE=`hostname`"                  \
+    "\nCONFIG_ZOS_AGENT_PORT=8100"                        \
+    "\nCONFIG_ZOS_AGENT_SERVER=$PSO_SERVER"               \
+    "\nCONFIG_ZOS_SERVER=no"                              \
+> $PSOAGENT_CONFIG_FILE
+
+/opt/novell/zenworks/orch/bin/config -s -C $PSOAGENT_CONFIG_FILE > /tmp/out.psoagent
+
+rm $CERT_FILE

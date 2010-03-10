@@ -7,12 +7,25 @@ use Data::Dumper;
 
 my $debug = 0;
 
-my $xs = XML::Simple->new ( SuppressEmpty => 1,
-                            ForceArray => [ qw (distro product iso) ],
-                            KeyAttr => { distro => 'name',
-                                         product => 'name',
-                                         iso => 'name' },
-                           );
+my $xs = XML::Simple->new
+    (
+     SuppressEmpty => 1,
+     ForceArray =>
+     [ qw
+       ( distro
+	 product
+	 iso
+	 sharefile
+       )
+     ],
+     KeyAttr =>
+     {
+	 distro    => 'name',
+	 product   => 'name',
+	 iso       => 'name',
+	 sharefile => 'name',
+     },
+    );
 
 my $ref = $xs->XMLin( "/usr/share/baracus/badistro.xml" );
 
@@ -42,6 +55,15 @@ foreach my $dname
              ) {
             print "        iso => $iname\n";
             &showiso( '            ', $dname, $pname, $iname );
+	    foreach my $sname
+		(
+		 sort
+		 keys
+		 %{$ref->{'distro'}->{$dname}->{'product'}->{$pname}->{'iso'}->{$iname}->{sharefiles}->{sharefile}}
+		) {
+		    print "          share => $sname\n";
+		    &showshare( '              ', $dname, $pname, $iname, $sname );
+	    }
         }
     }
     print "\n";
@@ -55,18 +77,17 @@ sub showdistro {
     my $indent = shift;
     my $dname = shift;
     while ( my ($key, $val) = each %{$ref->{'distro'}->{$dname}} ) {
-        if ( $key ne "product" ) {
-            my $error = &checkval( \$key, \$val );
-            if ( defined $val ) {
-                print "${indent}$key => $val\n";
-            } else {
-                print "\nWARNING $key HAS NO ASSIGNED VALUE\n";
-            }
-            if ($error) {
-                print "ERROR <<<<<\n";
-                exit 1;
-            }
-        }
+        next if ( $key eq "product" );
+	my $error = &checkval( \$key, \$val );
+	if ( defined $val ) {
+	    print "${indent}$key => $val\n";
+	} else {
+	    print "\nWARNING $key HAS NO ASSIGNED VALUE\n";
+	}
+	if ($error) {
+	    print "ERROR <<<<<\n";
+	    exit 1;
+	}
     }
 }
 
@@ -75,18 +96,17 @@ sub showproduct {
     my $dname = shift;
     my $pname = shift;
     while ( my ($key, $val) = each %{$ref->{'distro'}->{$dname}->{'product'}->{$pname}} ) {
-        if ( $key ne "iso" ) {
-            my $error = &checkval( \$key, \$val );
-            if ( defined $val ) {
-                print "${indent}$key => $val\n";
-            } else {
-                print "\nWARNING $key HAS NO ASSIGNED VALUE\n";
-            }
-            if ($error) {
-                print "ERROR <<<<<\n";
-                exit 1;
-            }
-        }
+        next if ( $key eq "iso" );
+	my $error = &checkval( \$key, \$val );
+	if ( defined $val ) {
+	    print "${indent}$key => $val\n";
+	} else {
+	    print "\nWARNING $key HAS NO ASSIGNED VALUE\n";
+	}
+	if ($error) {
+	    print "ERROR <<<<<\n";
+	    exit 1;
+	}
     }
 }
 
@@ -96,6 +116,7 @@ sub showiso {
     my $pname = shift;
     my $iname = shift;
     while ( my ($key, $val) = each %{$ref->{'distro'}->{$dname}->{'product'}->{$pname}->{'iso'}->{$iname}} ) {
+        next if ( $key eq "sharefiles" );
         my $error = &checkval( \$key, \$val );
         if ( defined $val ) {
             print "${indent}$key => $val\n";
@@ -106,6 +127,27 @@ sub showiso {
             print "ERROR <<<<<\n";
             exit 1;
         }
+    }
+}
+
+sub showshare {
+    my $indent = shift;
+    my $dname = shift;
+    my $pname = shift;
+    my $iname = shift;
+    my $sname = shift;
+    while ( my ($key, $val) = each %{$ref->{'distro'}->{$dname}->{'product'}->{$pname}->{'iso'}->{$iname}->{sharefiles}->{sharefile}->{$sname}} ) {
+	
+#        my $error = &checkval( \$key, \$val );
+        if ( defined $val ) {
+            print "${indent}$key => $val\n";
+        } else {
+            print "\nWARNING $key HAS NO ASSIGNED VALUE\n";
+        }
+#        if ($error) {
+#            print "ERROR <<<<<\n";
+#            exit 1;
+#        }
     }
 }
 

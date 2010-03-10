@@ -12,6 +12,7 @@ use lib "/usr/share/baracus/perl";
 use BaracusPower qw( :subs );
 use BaracusDB;
 use BaracusSql;
+use BaracusCore qw( :subs );
 
 =pod
 
@@ -25,16 +26,19 @@ B<bapower> E<lt>commandE<gt> [options]
 
 Where E<lt>commandE<gt> is
 
-    off    --mac=<mac> --alias=alias    poweroff hardware.
-    on     --mac=<mac> --alias=alias    poweron hardware.
-    cycle  --mac=<mac> --alias=alias    powercycle hardware.
-    status --mac=<mac> --alias=alias    power status.
-    list   --mac=<mac>|--alias <alias>  List BMC entries
-    remove --mac=<mac>|--alias <alias>  Remove BMC entry
-    add    --mac=<mac> --bmcaddr=<bmc ip> --ctype <BMC type> --login <username> --passwd <password> --alias <alias>  Add BMC entry
+  off    --mac <mac> | --hostname <host>  power off hardware.
+  on     --mac <mac> | --hostname <host>  power on hardware.
+  cycle  --mac <mac> | --hostname <host>  power cycle hardware.
+  status --mac <mac> | --hostname <host>  power status.
+  remove --mac <mac> | --hostname <host>  Remove BMC entry
 
-    help                      This 'Usage' summary message.
-    man                       Detailed man page.
+  add    --mac <mac> [--hostname <host>] --bmcaddr=<bmc ip> --ctype <BMC type> --login <username> --passwd <password>
+         Add BMC entry
+
+  list   [ --mac <mac> | --hostname <host> ] List BMC entries with optional filter
+
+  help   This 'Usage' summary message.
+  man    Detailed man page.
 
 Use 'man' or 'help <command>' for more details.
 
@@ -68,8 +72,8 @@ my %cmds = (
             'add'    => \&add_stub,
             'remove' => \&remove_stub,
             'list'   => \&list_stub,
-            'help'   => \&help,
-            'man'    => \&man,
+            'help'   => \&myhelp,
+            'man'    => \&myman,
             );
 
 GetOptions(
@@ -80,11 +84,11 @@ GetOptions(
            'verbose'        => \$verbose,
            );
 
-&man()  if $man;
-&help() if $help;
-&help() unless ( scalar @ARGV );
-if ($ARGV[0] eq "man"  ) { &man(); }
-if ($ARGV[0] eq "help" ) { shift @ARGV; &help(@ARGV); }
+&myman()  if $man;
+&myhelp() if $help;
+&myhelp() unless ( scalar @ARGV );
+if ($ARGV[0] eq "man"  ) { &myman(); }
+if ($ARGV[0] eq "help" ) { shift @ARGV; &myhelp(@ARGV); }
 
 my $dbname = "baracus";
 my $dbrole = $dbname;
@@ -95,7 +99,7 @@ die BaracusDB::errstr unless ( defined $uid );
 my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
 die BaracusDB::errstr unless( $dbh );
 
-my $status = &main(@ARGV);
+my $status = &mymain(@ARGV);
 
 die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
 
@@ -110,7 +114,7 @@ die "DOES NOT EXECUTE";
 # subroutines
 #
 
-sub main
+sub mymain
 {
     my $command = shift;
 
@@ -120,7 +124,7 @@ sub main
     printf "Executing $command with \"@_\".\n" if $debug;
 
     $command = lc $command;
-    &check_command( $command );
+    &mycheck_command( $command );
     
     if ( ( $command eq "add") || ( $command eq "remove") || ( $command eq "update" ) || ( $command eq "list" ) ) {
         $bmc->{'dbh'} = $dbh;
@@ -136,7 +140,7 @@ sub main
     }
 }
 
-sub help() {
+sub myhelp() {
     my $command = shift;
 
     unless ( defined $command ) {
@@ -145,7 +149,7 @@ sub help() {
     }
 
     $command = lc $command;
-    &check_command( $command );
+    &mycheck_command( $command );
 
     my $execname = $0;
     $execname = $1 if ( $0 =~ m|^.*/([^/].+)| );
@@ -156,7 +160,7 @@ sub help() {
                -exitstatus => 0 );
 }
 
-sub man
+sub myman
 {
     pod2usage( -verbose    => 2,
                -sections   => "NAME|SYNOPSIS|DESCRIPTION|OPTIONS|COMMANDS",
@@ -168,32 +172,32 @@ sub arg_handler() {
 
     my %entry = (
                  'mac'      => "",
-                 'alias'    => "",
+                 'hostname' => "",
                 );
     @ARGV = @_;
     GetOptions(
                'mac=s'      => \$entry{'mac'},
-               'alias=s'    => \$entry{'alias'},
+               'hostname=s'    => \$entry{'hostname'},
               );
 
     if ( scalar @ARGV ) {
         printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &help();
+        &myhelp();
     }
 
-    if ( ($entry{'mac'}) && ($entry{'alias'}) ) {
-        $LASTERROR = sprintf "\n--mac and --alias not allowed together\n";
+    if ( ($entry{'mac'}) && ($entry{'hostname'}) ) {
+        $LASTERROR = sprintf "\n--mac and --hostname not allowed together\n";
         return 1;
     }
 
     my $deviceid = 0;
 
     if ($entry{'mac'}) {
-        $deviceid = $entry{'mac'};
-    } elsif ($entry{'alias'}) {
-        $deviceid = &get_mac( $entry{'alias'}, $dbh );
+        $deviceid = &check_mac( $entry{'mac'} );
+    } elsif ($entry{'hostname'}) {
+        $deviceid = &get_mac( $entry{'hostname'}, $dbh );
     } else {
-        $LASTERROR = sprintf "\n--mac or --alias required\n";
+        $LASTERROR = sprintf "\n--mac or --hostname required\n";
         return 1;
     }
 
@@ -201,14 +205,14 @@ sub arg_handler() {
 
 }
 
-sub check_command
+sub mycheck_command
 {
     my $command = shift;
 
     my $cmd_list = join ', ', (sort keys %cmds);
     unless ( defined $command ) {
         print "Requires <command> (e.g. $cmd_list)\n";
-        &help();
+        &myhelp();
     }
 
     unless ( defined $cmds{ $command } ) {
@@ -223,7 +227,7 @@ sub remove_stub() {
     @ARGV = @_;
     GetOptions(
                'mac=s'         => \$bmcref->{'mac'},
-               'alias=s'       => \$bmcref->{'alias'},
+               'hostname=s'    => \$bmcref->{'hostname'},
                );
 
     if ( scalar @ARGV ) {
@@ -243,13 +247,13 @@ sub add_stub() {
     @ARGV = @_;
     GetOptions(
                'mac=s'         => \$bmcref->{'mac'},
+               'hostname=s'    => \$bmcref->{'hostname'},
                'ctype=s'       => \$bmcref->{'ctype'},
                'login=s'       => \$bmcref->{'login'},
                'passwd=s'      => \$bmcref->{'passwd'},
                'bmcaddr=s'     => \$bmcref->{'bmcaddr'},
                'node=s'        => \$bmcref->{'node'},
                'other=s'       => \$bmcref->{'other'},
-               'alias=s'       => \$bmcref->{'alias'},
                );
 
     if ( scalar @ARGV ) {
@@ -276,7 +280,7 @@ sub list_stub() {
     @ARGV = @_;
     GetOptions(
                'mac=s'         => \$bmcref->{'mac'},
-               'alias=s'       => \$bmcref->{'alias'},
+               'hostname=s'    => \$bmcref->{'hostname'},
                );
 
     if ( scalar @ARGV ) {
@@ -287,13 +291,13 @@ sub list_stub() {
     my $sth = &list_start( $bmcref );
     my $href = $sth->fetchrow_hashref();
     unless ( defined $href ) {
-        $LASTERROR = sprintf "Failed in find deviceid \n";
+        $LASTERROR = sprintf "No entries found.\n";
         return 1;
     }
 
     unless ($quiet) {
     print "--------------------------------------------------------------------------------------\n";
-    printf "%-8s %-16s %-18s %-18s %-16s %-16s ", "ctype", "bmcaddr", "mac", "alias", "node", "other";
+    printf "%-8s %-16s %-18s %-18s %-16s %-16s ", "ctype", "bmcaddr", "mac", "hostname", "node", "other";
     print "\n";
     print "--------------------------------------------------------------------------------------\n";
     }
@@ -301,7 +305,7 @@ sub list_stub() {
     while  ($href ne "null") { 
         $href->{'node'} =~ s/NULL//g;
         $href->{'other'} =~ s/NULL//g;
-        printf "%-8s %-16s %-18s %-18s %-16s %-16s ", "$href->{'ctype'}", "$href->{'bmcaddr'}", "$href->{'mac'}", "$href->{'alias'}", "$href->{'node'}", "$href->{'other'}";
+        printf "%-8s %-16s %-18s %-18s %-16s %-16s ", "$href->{'ctype'}", "$href->{'bmcaddr'}", "$href->{'mac'}", "$href->{'hostname'}", "$href->{'node'}", "$href->{'other'}";
         print "\n";
         $href = &list_next( $sth );
     }

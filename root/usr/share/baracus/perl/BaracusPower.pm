@@ -118,14 +118,14 @@ sub list_start() {
     my $deviceid;
 
 
-    if ( ($bmcref->{'mac'}) && ($bmcref->{'alias'}) ) {
-        print "--mac and --alias not allowed together\n";
+    if ( ($bmcref->{'mac'}) && ($bmcref->{'hostname'}) ) {
+        print "--mac and --hostname not allowed together\n";
     }
 
     if ( $bmcref->{'mac'} ) {
         $deviceid = $bmcref->{ 'mac' };
-    } elsif ( $bmcref->{'alias'} ) {
-        $deviceid = $bmcref->{ 'alias' };
+    } elsif ( $bmcref->{'hostname'} ) {
+        $deviceid = $bmcref->{ 'hostname' };
     } else {
         $deviceid = "%";
     }
@@ -137,7 +137,7 @@ sub list_start() {
 
     my $sql = qq|SELECT ctype,
                          mac,
-                         alias,
+                         hostname,
                          bmcaddr,
                          login,
                          node,
@@ -145,8 +145,8 @@ sub list_start() {
                   FROM power
                 |;
     $sql .= qq|WHERE mac LIKE ?| if $bmcref->{ 'mac' };
-    $sql .= qq|WHERE alias LIKE ?| if $bmcref->{ 'alias' };
-    $sql .= qq|WHERE mac LIKE ?| unless ( ($bmcref->{ 'alias' }) || ($bmcref->{ 'mac' }) );
+    $sql .= qq|WHERE hostname LIKE ?| if $bmcref->{ 'hostname' };
+    $sql .= qq|WHERE mac LIKE ?| unless ( ($bmcref->{ 'hostname' }) || ($bmcref->{ 'mac' }) );
 
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
     die "$!$sth->err\n" unless ( $sth->execute( $deviceid ) );
@@ -208,14 +208,13 @@ sub virsh() {
 
     my %action = (
                   'on'     => 'start',
-#                  'off'    => 'shutdown',
                   'off'    => 'destroy',
                   'cycle'  => 'reboot',
                   'status' => 'domstate',
                   );
 
 
-    $command = "$powermod{ $bmcref->{'ctype'} } $action{ $operation } $bmcref->{'alias'}";
+    $command = "$powermod{ $bmcref->{'ctype'} } $action{ $operation } $bmcref->{'hostname'}";
     unless ($operation eq "status") { $command .= " >& /dev/null"; }
 
 
@@ -329,7 +328,7 @@ sub get_mac() {
 
     $sql = qq| SELECT mac
                FROM power
-               WHERE alias = ?
+               WHERE hostname = ?
              |;
 
     my $sth;
@@ -368,7 +367,7 @@ sub get_bmc() {
     my $href;
 
     my $sql = qq| SELECT ctype,
-                         alias,
+                         hostname,
                          login,
                          passwd,
                          bmcaddr,
@@ -435,7 +434,7 @@ sub add_powerdb_entry() {
                     bmcaddr,
                     node,
                     other,
-                    alias
+                    hostname
                   )
                  VALUES ( ?, ?, ?, ?, ?, ?, ?, ? )
                 |;
@@ -481,8 +480,8 @@ sub add_powerdb_entry() {
     } else {
         $sth->bind_param( 7, 'NULL' );
     }
-    if ( defined $bmcref->{alias} ) {
-        $sth->bind_param( 8, $bmcref->{alias} );
+    if ( defined $bmcref->{hostname} ) {
+        $sth->bind_param( 8, $bmcref->{hostname} );
     } else {
         $sth->bind_param( 8, 'NULL' );
     }
@@ -498,19 +497,21 @@ sub remove_powerdb_entry() {
     my $bmcref = shift;
     my $dbh = $bmcref->{ 'dbh' };
 
-    unless ( ($bmcref->{'mac'}) || ($bmcref->{'alias'}) ) {
-        print "Required BMC identifier not provided (mac or alias). \n";
+    unless ( ($bmcref->{'mac'}) || ($bmcref->{'hostname'}) ) {
+        print "Required BMC identifier not provided (mac or hostname). \n";
         return 1;
     }
 
-    if ( ($bmcref->{'mac'}) && ($bmcref->{'alias'}) ) {
-        print "--mac and --alias not allowed together\n";
+    if ( ($bmcref->{'mac'}) && ($bmcref->{'hostname'}) ) {
+        print "--mac and --hostname not allowed together\n";
         return 1;
     }
 
     my $deviceid;
-    unless ( $bmcref->{'mac'} ) {
-        $deviceid = &get_mac( $bmcref->{'alias'}, $dbh );
+    if ( defined $bmcref->{'mac'} ) {
+	$deviceid = $bmcref->{'mac'};
+    } else {
+        $deviceid = &get_mac( $bmcref->{'hostname'}, $dbh );
     }
 
     if ( &check_powerdb_entry( $deviceid, $dbh ) ) {

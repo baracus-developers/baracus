@@ -7,6 +7,9 @@ use warnings;
 
 use DBI;
 
+# for sql tftp db binary file chunking 1MB blobs
+use constant BA_DBMAXLEN => 1048575;
+
 
 =head1 NAME
 
@@ -90,14 +93,14 @@ sub new
                       |;
 
     # sql for file detail - cannot use sum(length(bin)) as 'text' its encoded
-    my $file_detail = qq|SELECT id, name, description, enabled, insertion, change, bin
+    my $file_detail = qq|SELECT id, name, description, size, enabled, insertion, change, bin
                          FROM $cfg{'TableName'}
                          WHERE name = ?
                         |;
 
     # sql for file list - had to hack / avg insertion times that vary with id ?
     my $file_list = qq|SELECT
-                       COUNT( id ) as blobs, name, enabled,
+                       COUNT( id ) as blobs, name, size, enabled,
                        TIMESTAMP 'epoch' + (AVG(EXTRACT(EPOCH FROM insertion)) * interval '1 second') as create
                        FROM $cfg{'TableName'}
                        WHERE name LIKE ?
@@ -108,12 +111,12 @@ sub new
     my $file_delete = qq|DELETE FROM $cfg{'TableName'} where name = ?|;
 
     my $file_store = qq|INSERT INTO $cfg{'TableName'}
-                        (name, description, bin, enabled, insertion, change)
-                        VALUES ( ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL)
+                        (name, description, bin, size, enabled, insertion, change)
+                        VALUES ( ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL)
                        |;
 
     # select for fetch
-    my $file_fetch = qq|SELECT bin
+    my $file_fetch = qq|SELECT bin, size
                         FROM $cfg{'TableName'}
                         WHERE name = ?
                         ORDER BY id
@@ -272,16 +275,18 @@ sub detail
     $hash->{'binsize'} = 0;
     my $flag_first = 1;
     foreach my $ar ( @{ $array_lol } ) {
-        my ($id, $nm, $des, $ena, $idate, $cdate, $bin) = @{ $ar };
-        $hash->{'rowcount'} += 1;
-        $hash->{'binsize'} += length &bytea_decode( $bin );
+        my ($id, $nm, $des, $size, $ena, $idate, $cdate, $bin) = @{ $ar };
         if ( $flag_first == 1 ) {
             $flag_first = 0;
+            $hash->{'rowcount'} = $size / BA_DBMAXLEN; + 1;
+            $hash->{'rowcount'} += 1 if ( $size % BA_DBMAXLEN );
             $hash->{'name'} = $nm;
+            $hash->{'binsize'} = $size;
             $hash->{'enabled'} = $ena;
             $hash->{'insertdate'} = $idate;
             $hash->{'changedate'} = $cdate;
             $hash->{'description'} = $des;
+            last;
         }
     }
 
@@ -405,10 +410,17 @@ sub store
         $LASTERROR = "Unable to open $name: $!\n";
         return 1;
     }
+    my $tmp = join '', <$fh>;
+    my $size = length ( $tmp );
+    close $fh;
+    if (not open( $fh, "<", $name ) ) {
+        $LASTERROR = "Unable to open $name: $!\n";
+        return 1;
+    }
 
     binmode $fh;
 
-    $self->finishStore( $sth, $fh, $name, $description, 1 );
+    $self->finishStore( $sth, $fh, $name, $description, $size, 1 );
 
     close $fh;
 
@@ -539,6 +551,13 @@ sub update
             $LASTERROR = "Unable to open $file: $!\n";
             return 1;
         }
+        my $tmp = join '', <$fh>;
+        my $size = length ( $tmp );
+        close $fh;
+        unless ( open( $fh, "<", $file ) ) {
+            $LASTERROR = "Unable to open $file: $!\n";
+            return 1;
+        }
 
         # remove all entries before 'new' update
         $self->remove( $hash{ 'name' } );
@@ -559,7 +578,7 @@ sub update
         }
 
         $self->finishStore( $sth, $fh, $name,
-                            $save{'description'}, $save{'enabled'} );
+                            $save{'description'}, $size, $save{'enabled'} );
 
         close $fh;
 
@@ -777,10 +796,11 @@ sub storeScalar
         $LASTERROR = "Unable to open $name: $!\n";
         return 1;
     }
+    my $size = length( $refcontent );
 
     binmode $fh;
 
-    $self->finishStore( $sth, $fh, $name, $description, 1 );
+    $self->finishStore( $sth, $fh, $name, $description, $size, 1 );
 
     close $fh;
 
@@ -818,6 +838,7 @@ sub finishStore
     my $fh   = shift;
     my $name = shift;
     my $desc = shift;
+    my $size = shift;
     my $status = shift;
 
     $name =~ s|.*/||;           # again only the short name
@@ -829,7 +850,7 @@ sub finishStore
     while ( $bytes ) {
         read $fh, $bytes, $chunk_size;
         $byteas = &bytea_encode( $bytes );
-        $sth->execute( $name, $desc, $byteas, $status)
+        $sth->execute( $name, $desc, $byteas, $size, $status)
             if ( $bytes );
     }
 }

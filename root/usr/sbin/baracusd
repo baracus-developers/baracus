@@ -268,13 +268,15 @@ sub config_syslog
 sub upcasepxefilename {
     my $request = shift;
 
-    unless ( $request->{'_REQUEST_'}{'FileName'} =~ m|01-((([0-9a-fA-F]){2}-?){6})| ) {
-        return;
+    if ( $request->{'_REQUEST_'}{'FileName'} =~ m|01-((([0-9a-fA-F]){2}-?){6})| ) {
+        $request->{'_REQUEST_'}{'FileName'} =~ s|^([^/]*)/||; # match prefix and rm
+        $request->{'_REQUEST_'}{'FileName'} =~ tr|a-z|A-Z|;   # upcase
+        $request->{'_REQUEST_'}{'FileName'} =
+            "$1/" . $request->{'_REQUEST_'}{'FileName'}; # put prefix back
+    } else {
+        $request->{'_REQUEST_'}{'FileName'} =~ s|.*\\||;
+        $request->{'_REQUEST_'}{'FileName'} =~ s|^\\||;
     }
-    $request->{'_REQUEST_'}{'FileName'} =~ s|^([^/]*)/||;  # match prefix and rm
-    $request->{'_REQUEST_'}{'FileName'} =~ tr|a-z|A-Z|;    # upcase
-    $request->{'_REQUEST_'}{'FileName'} =
-        "$1/" . $request->{'_REQUEST_'}{'FileName'};       # put prefix back
 }
 
 #sub deliverPXE {

@@ -1,0 +1,8 @@
+#!/bin/bash
+
+BUILD=psoagent2.1_vmbuild_sle11
+HOST=psoagent2.1_vmhost_sle11
+
+baconfig add module --name $BUILD --file $PWD/module/$BUILD    --desc "PSO 2.1 VM build host for SLE11"
+baconfig add module --name $HOST  --file $PWD/module/$HOST     --desc "PSO 2.1 VM job host for SLE11"
+baconfig add module --name reboot --file $PWD/module/reboot.sh --desc "reboot host (specify last in chain)"

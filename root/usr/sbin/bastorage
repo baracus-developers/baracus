@@ -141,6 +141,7 @@ Where
   --passwd <password>      password for LUN authentication
   --name <name>            Handy user defined name.
   --description <"text">   Quoted descriptive text for the share.
+  --size <"text">          Describe the size of the partition.
 
 =cut
 
@@ -359,9 +360,13 @@ sub detail
     printf "%-12s %s\n", "Name",        $lunref->{'name'}     ;
     printf "%-12s %s\n", "Target ID",   $lunref->{'targetid'} ;
     printf "%-12s %s\n", "Target IP",   $lunref->{'targetip'} ;
-    printf "%-12s %s\n", "Size",        $lunref->{'size'}     ;
+    if ( defined $lunref->{'size'} and $lunref->{'size'} ne "" ) {
+        printf "%-12s %s\n", "Size",        $lunref->{'size'}     ;
+    }
     print "\n";
-    printf "%-12s %s\n", "Description", $lunref->{'description'} ;
+    if ( defined $lunref->{'description'} and $lunref->{'description'} ne "" ) {
+        printf "%-12s %s\n", "Description", $lunref->{'description'} ;
+    }
     print "\n";
     if ( defined $lunref->{'username'} and $lunref->{'username'} ne "" ) {
         printf "%-12s %s\n", "Username", $lunref->{'username'} ;

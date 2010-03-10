@@ -113,15 +113,15 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             &delete_tftpfile( $tftph, $filename );
         }
 
-        $fields = "name,bin,description,enabled,insertion";
-        $values = qq|'$filename',?,'lshw xml','1',CURRENT_TIMESTAMP(0)|;
+        $fields = "name,bin,description,size,enabled,insertion";
+        $values = qq|'$filename',?,'lshw xml',$ENV{CONTENT_LENGTH},'1',CURRENT_TIMESTAMP(0)|;
         $sql = qq|INSERT INTO sqlfstable ( $fields ) VALUES ( $values )|;
         die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
 
         my $bin;
         my $bytes = 1;
         while ( $bytes ) {
-            read( STDIN, $bytes, BA_DBMAXLEN ); # $ENV{CONTENT_LENGTH}
+            read( STDIN, $bytes, BA_DBMAXLEN ); # 
             if ( $bytes ) {
                 $bin = pack( 'u', $bytes );
                 unless ( $sth->execute( $bin ) ) {
@@ -176,8 +176,8 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             &delete_tftpfile( $tftph, $filename );
         }
 
-        $fields = "name,bin,description,enabled,insertion";
-        $values = qq|'$filename',?,'dban wipe log','1',CURRENT_TIMESTAMP(0)|;
+        $fields = "name,bin,description,size,enabled,insertion";
+        $values = qq|'$filename',?,'dban wipe log',$ENV{CONTENT_LENGTH},'1',CURRENT_TIMESTAMP(0)|;
         $sql = qq|INSERT INTO sqlfstable ( $fields ) VALUES ( $values )|;
         die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
 
@@ -418,6 +418,8 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
 
             $args = $actref->{raccess};
 
+#            $args .= " netsetup=1 ";
+
             print STDERR "$input->{mac} - get inventory from host\n";
 
             &update_db_mac_state( $dbh, $macref->{mac}, $pxenext );
@@ -487,17 +489,12 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
                  $distref->{os} eq "sles"     or
                  $distref->{os} eq "sled"   ) {
 #                $args = qq|textmode=1 install=$distref->{sharetype}://$distref->{shareip}$distref->{basepath} netsetup=1 WithISCSI=1|;
-                $args = qq|textmode=1 install=$distref->{sharetype}://$distref->{shareip}$distref->{basepath} autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
+                $args = qq|textmode=1 install=$distref->{sharetype}://$distref->{shareip}$distref->{basepath}|;
+                if ( $actref->{autobuild} ne "none" ) {
+                    $args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
+                }
 
-
-            } elsif ( $distref->{os} eq "fedora" or
-                      $distref->{os} eq "centos" or
-                      $distref->{os} eq "rhel" ) {
-                $args = qq|text ks=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
-            }
-
-            $output =
-                qq|DEFAULT label_$actref->{hostname}
+                $output = qq|DEFAULT label_$actref->{hostname}
 PROMPT 0
 TIMEOUT 0
 
@@ -506,6 +503,39 @@ LABEL label_$actref->{hostname}
     append initrd=http://$baVar{serverip}/ba/initrd?mac=$input->{mac} $hardref->{bootargs} $actref->{raccess} $args $actref->{loghost}
 |;
 
+            } elsif ( $distref->{os} eq "fedora" or
+                      $distref->{os} eq "centos" or
+                      $distref->{os} eq "rhel" ) {
+                $args = qq|text|;
+                if ( $actref->{autobuild} ne "none" ) {
+                    $args .= qq| ks=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
+                }
+
+                $output = qq|DEFAULT label_$actref->{hostname}
+PROMPT 0
+TIMEOUT 0
+
+LABEL label_$actref->{hostname}
+    kernel http://$baVar{serverip}/ba/linux?mac=$input->{mac}
+    append initrd=http://$baVar{serverip}/ba/initrd?mac=$input->{mac} $hardref->{bootargs} $actref->{raccess} $args $actref->{loghost}
+|;
+
+            } elsif ( $distref->{os} =~ m/win/i ) {
+
+# the mac isn't required here for operation but it identifies the requesting device 
+
+                $output = qq|DEFAULT label_$actref->{hostname}
+PROMPT 0
+TIMEOUT 0
+
+LABEL label_$actref->{hostname}
+    kernel tftp://$baVar{serverip}/startrom.0
+|;
+#    kernel http://$baVar{serverip}/baracus/startrom.0
+#    kernel http://$baVar{serverip}/ba/startrom.0?mac=$input->{mac}
+#    kernel http://$baVar{serverip}/ba/linux?mac=$input->{mac}
+
+            }
         }
 
         if ( $pxenext eq BA_ACTION_DISKWIPE )
@@ -540,7 +570,36 @@ LABEL wipe
         }
 
     }
-    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(linux|initrd|auto)\?.*\s*$} ) {
+    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(winst)\?.*\s*$} ) {
+
+        die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
+
+        $input->{mac} = &check_mac($input->{mac});
+        $macref = &get_db_mac( $dbh, $input->{mac} );
+        $actref = &get_db_action( $dbh, $input->{mac} );
+        $distref = &get_distro( $dbh, $actref );
+        if ( not defined $macref or
+             not defined $actref or
+             not defined $distref
+            )
+        {
+            ##
+            ## WINST - missing 'mac' or 'action' entry (or entries)
+            ##
+            print STDERR "$input->{mac} - missing mac, action, distro in db\n";
+            exit 1;
+        }
+
+        $output = qq|\@echo off
+\@echo curl.exe -G http://$baVar{serverip}/ba/auto?mac=$input->{mac} -o X:\\Autounattend.xml
+curl.exe -G http://$baVar{serverip}/ba/auto?mac=$input->{mac} -o X:\\Autounattend.xml
+
+net use n: \\\\$distref->{shareip}\\$actref->{distro}
+n:\\setup.exe /unattend:X:\\Autounattend.xml
+|;
+    }
+
+    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(linux|initrd|auto|startrom.0)\?.*\s*$} ) {
 
         my $file = $1;
 
@@ -577,7 +636,9 @@ LABEL wipe
             $file = $input->{mac};
             $file =~ s|:|-|g;
             $file = "02-" . $file;
-        } else {
+        } elsif ( $file eq "startrom.0" ) {
+	    ; # nada
+	} else {
             $file = "$file.$actref->{distro}";
         }
 
@@ -592,8 +653,8 @@ LABEL wipe
             $output .= unpack( 'u', $href->{'bin'} );
         }
         $sth->finish();
-
     }
+
     elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/built\?.*\s*$| ) {
 
         my $hostname = $input->{ hostname };

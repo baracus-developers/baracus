@@ -171,6 +171,7 @@ sub get_sqltftp_tables
         (
          'id'          => 'SERIAL PRIMARY KEY',
          'name'        => 'VARCHAR(64) NOT NULL',
+         'size'        => 'VARCHAR',
          'description' => 'VARCHAR(32)',
          'bin'         => 'VARCHAR',
          'enabled'     => 'INTEGER',
@@ -333,13 +334,13 @@ sub get_baracus_tables
     my %tbl_power_columns =
         (
          'mac'     => 'VARCHAR(17) PRIMARY KEY',
+         'hostname'=> 'VARCHAR(32)',
          'ctype'   => 'VARCHAR(16)',
          'login'   => 'VARCHAR(16)',
          'passwd'  => 'VARCHAR(32)',
          'bmcaddr' => 'VARCHAR(32)',
          'node'    => 'VARCHAR(32)',
          'other'   => 'VARCHAR(32)',
-         'alias'   => 'VARCHAR(32)',
          );
 
     my $tbl_lun = "lun";

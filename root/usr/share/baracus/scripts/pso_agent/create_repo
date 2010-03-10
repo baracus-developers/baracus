@@ -1,0 +1,16 @@
+#!/bin/bash
+
+ISO=/home/baracus/isos/PSO_Agent-2.1.0-SLE11.x86_64.iso
+
+MNT=/tmp/pso2.1
+
+# RPO name is in the PSO modules - do not modify
+
+RPO=psoagent_2.1-sle-11-x86_64 
+
+barepo remove $PSO
+mkdir -p $MNT
+mount -o loop $ISO $MNT
+barepo create $RPO $MNT/suse/*/*.rpm
+umount $MNT
+rmdir  $MNT

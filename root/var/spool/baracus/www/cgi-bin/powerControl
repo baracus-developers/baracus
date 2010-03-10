@@ -34,7 +34,7 @@ print <<HTML0
 				if( type == "virsh")
 				{
 					document.form1.submit2.disabled=false;
-					document.form1.alias.value=element[0].id;
+					document.form1.hostname.value=element[0].id;
 				}
 				else
 				{
@@ -69,7 +69,7 @@ print <<HTML0
 		<font class='name'>Host Name</font><br>
 		$items
 		<br><br>
-		<input type=hidden value="" name='alias'>
+		<input type=hidden value="" name='hostname'>
 		<input class='power' type=submit value='On' name='submit' onClick="popResponse();">
 		<input class='power' type=submit value='Off' name='submit' onClick="popResponse()">
 		<input class='power' type=submit value='Status' name='submit' onClick="popResponse()">
