@@ -231,12 +231,13 @@ sub get_baracus_tables
          'shareip'     => 'VARCHAR(15)',
          'sharetype'   => 'VARCHAR(8)',
          'basepath'    => 'VARCHAR(128)',
-         'kernel'      => 'VARCHAR(32)',
-         'initrd'      => 'VARCHAR(32)',
          'status'      => 'INTEGER',
          'creation'    => 'TIMESTAMP',
          'change'      => 'TIMESTAMP',
          );
+
+#         'kernel'      => 'VARCHAR(32)',
+#         'initrd'      => 'VARCHAR(32)',
 
     my $tbl_hardware = "hardware";
     my %tbl_hardware_columns =

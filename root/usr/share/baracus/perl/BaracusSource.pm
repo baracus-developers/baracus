@@ -186,14 +186,16 @@ sub add_db_source_entry
                     shareip,
                     sharetype,
                     basepath,
-                    kernel,
-                    initrd,
                     status,
                     creation,
                     change
                   )
-                  VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                  VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                            CURRENT_TIMESTAMP(0), NULL ) |;
+
+#                  VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+#                    kernel,
+#                    initrd,
 
         $sth = $dbh->prepare( $sql )
             or die "Cannot prepare sth: ",$dbh->errstr;
@@ -211,15 +213,15 @@ sub add_db_source_entry
             } else {
                 $sth->bind_param( 8, 'NULL' );
             }
-            $sth->bind_param( 12, 'NULL' );  # no kernel for addon
-            $sth->bind_param( 13, 'NULL' );  # no initrd for addon
+#            $sth->bind_param( 12, 'NULL' );  # no kernel for addon
+#            $sth->bind_param( 13, 'NULL' );  # no initrd for addon
         } else {
             $sth->bind_param( 6, 0 );
             $sth->bind_param( 7, 'NULL' );
             $sth->bind_param( 8, 'NULL' );
 
-            $sth->bind_param( 12, $dh->{basekernelsubpath} );
-            $sth->bind_param( 13, $dh->{baseinitrdsubpath} );
+#            $sth->bind_param( 12, $dh->{basekernelsubpath} );
+#            $sth->bind_param( 13, $dh->{baseinitrdsubpath} );
         }
         $sth->bind_param( 9,  $baVar{shareip}    );
         $sth->bind_param( 10, $baVar{sharetype}  );
@@ -357,14 +359,14 @@ sub prepdbwithxml
             $entry{'addos'  } = $dh->{addos};
             $entry{'addrel' } = $dh->{addrel}
                 if ( defined $dh->{addrel} );
-            $entry{'kernel'} = "";
-            $entry{'initrd'} = "";
+#            $entry{'kernel'} = "";
+#            $entry{'initrd'} = "";
         } else {
             $entry{'addon'  } = 0;
             $entry{'addos'  } = "";
             $entry{'addrel' } = "";
-            $entry{'kernel'} = $dh->{basekernelsubpath};
-            $entry{'initrd'} = $dh->{baseinitrdsubpath};
+#            $entry{'kernel'} = $dh->{basekernelsubpath};
+#            $entry{'initrd'} = $dh->{baseinitrdsubpath};
         }
 
         if ( $opts->{debug} > 1 ) {
@@ -1257,11 +1259,24 @@ sub add_bootloader_files
 		my $winstall_msg = qq|
 Missing $fh->{file}
 
-Network install files for Win products may need to be generated.
-To do this you need an instance of Win running and to mount the
-share "winstall" then run "bawinstall.bat"
+Network install files for Win products need to be generated.
 
-Afterwards try this basource command again.
+Make sure you have the helper cifs share available:
+
+  > grep winstall.conf /etc/samba/smb.conf
+  include = /etc/samba/winstall.conf
+  > service smb start       # if not already running
+  > smbclient -L localhost  # look for winstall
+
+Then in a running instance of Win 7/2008/Vista to mount the
+share "winstall" and run "bawinstall.bat" as follows:
+
+  c: net use x: \\\\$baVar{shareip}\\winstall
+  x:
+  bawinstall.bat x
+
+Afterwards, stop smb ( rcsmb stop ) unless you have need of
+samba for other shares, and then try this basource command again.
 |;
 		print $winstall_msg;
                 exit;

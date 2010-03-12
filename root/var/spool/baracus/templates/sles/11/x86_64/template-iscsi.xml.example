@@ -22,38 +22,6 @@ __ADDON__
       <lines_cache_id>2</lines_cache_id>
       <timeout config:type="integer">8</timeout>
     </global>
-    <initrd_modules config:type="list">
-      <initrd_module>
-        <module>processor</module>
-      </initrd_module>
-      <initrd_module>
-        <module>thermal</module>
-      </initrd_module>
-      <initrd_module>
-        <module>ata_piix</module>
-      </initrd_module>
-      <initrd_module>
-        <module>ata_generic</module>
-      </initrd_module>
-      <initrd_module>
-        <module>piix</module>
-      </initrd_module>
-      <initrd_module>
-        <module>ide_pci_generic</module>
-      </initrd_module>
-      <initrd_module>
-        <module>fan</module>
-      </initrd_module>
-      <initrd_module>
-        <module>jbd</module>
-      </initrd_module>
-      <initrd_module>
-        <module>ext3</module>
-      </initrd_module>
-      <initrd_module>
-        <module>edd</module>
-      </initrd_module>
-    </initrd_modules>
     <loader_type>grub</loader_type>
     <sections config:type="list">
       <section>
@@ -112,218 +80,6 @@ __ADDON__
       <import_gpg_key config:type="boolean">true</import_gpg_key>
     </signature-handling>
   </general>
-  <groups config:type="list">
-    <group>
-      <group_password>x</group_password>
-      <groupname>users</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>floppy</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>bin</groupname>
-      <userlist>daemon</userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>xok</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>nobody</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>modem</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>lp</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>tty</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>postfix</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>uuidd</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>nogroup</groupname>
-      <userlist>nobody</userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>maildrop</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>messagebus</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>video</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>sys</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>shadow</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>console</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>cdrom</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>haldaemon</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>trusted</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>dialout</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>polkituser</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>wheel</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>www</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>games</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>disk</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>audio</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>suse-ncc</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>ftp</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>at</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>kmem</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>public</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>root</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>mail</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>daemon</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>ntp</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>uucp</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>ntadmin</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>man</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>utmp</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>news</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>sshd</groupname>
-      <userlist></userlist>
-    </group>
-  </groups>
   <host>
     <hosts config:type="list">
       <hosts_entry>
@@ -511,7 +267,7 @@ wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></sourc
           <create config:type="boolean">true</create>
           <format config:type="boolean">true</format>
           <mount>/</mount>
-          <mountby config:type="symbol">device</mountby>
+          <mountby config:type="symbol">id</mountby>
           <partition_id config:type="integer">131</partition_id>
           <partition_nr config:type="integer">1</partition_nr>
           <size>max</size>
@@ -521,7 +277,7 @@ wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></sourc
           <create config:type="boolean">true</create>
           <format config:type="boolean">true</format>
           <mount>swap</mount>
-          <mountby config:type="symbol">device</mountby>
+          <mountby config:type="symbol">id</mountby>
           <partition_id config:type="integer">130</partition_id>
           <partition_nr config:type="integer">2</partition_nr>
           <size>auto</size>
@@ -598,8 +354,8 @@ wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></sourc
       <fullname>root</fullname>
       <home>/root</home>
       <shell>/bin/bash</shell>
-      <encrypted config:type="boolean">true</encrypted>
-      <user_password>$2a$05$3k2U/T1DJugCeV0Tl4pxYuimRTyrY.zGLdGqA7jZWTmPPwmrRceaS</user_password>
+      <encrypted config:type="boolean">false</encrypted>
+      <user_password>baracus</user_password>
     </user>
   </users>
 </profile>

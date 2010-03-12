@@ -8,7 +8,7 @@ MNT=/tmp/pso2.1
 
 RPO=psoagent_2.1-sle-11-x86_64 
 
-barepo remove $PSO
+#barepo remove $PSO
 mkdir -p $MNT
 mount -o loop $ISO $MNT
 barepo create $RPO $MNT/suse/*/*.rpm

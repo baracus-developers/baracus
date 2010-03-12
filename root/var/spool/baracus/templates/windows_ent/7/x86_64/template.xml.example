@@ -14,8 +14,8 @@
             </OOBE>
             <UserAccounts>
                 <AdministratorPassword>
-                    <Value>bgBvAHYAZQBsAGwAQQBkAG0AaQBuAGkAcwB0AHIAYQB0AG8AcgBQAGEAcwBzAHcAbwByAGQA</Value>
-                    <PlainText>false</PlainText>
+                    <Value>baracus</Value>
+                    <PlainText>true</PlainText>
                 </AdministratorPassword>
                 <LocalAccounts>
                     <LocalAccount wcm:action="add">
