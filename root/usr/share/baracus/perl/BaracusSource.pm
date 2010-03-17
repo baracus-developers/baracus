@@ -100,6 +100,8 @@ use vars qw ( %sdks );
      'sles-10.3-i386'       => 'sles-10.3-sdk-i386',
      'sles-11-x86_64'       => 'sles-11-sdk-x86_64',
      'sles-11-i586'         => 'sles-11-sdk-i586',
+     'sles-11.1-x86_64'     => 'sles-11.1-sdk-x86_64',
+     'sles-11.1-i586'       => 'sles-11.1-sdk-i586',
      'opensuse-11.1-x86_64' => 'opensuse-11.1-nonoss-x86_64',
      'opensuse-11.1-i586'   => 'opensuse-11.1-nonoss-i586',
      'opensuse-11.2-x86_64' => 'opensuse-11.2-nonoss-x86_64',
@@ -227,7 +229,7 @@ sub add_db_source_entry
         $sth->bind_param( 10, $baVar{sharetype}  );
         $sth->bind_param( 11, $share      );
 
-        $sth->bind_param( 14, BA_ENABLED );
+        $sth->bind_param( 12, BA_ENABLED );
 
 #        print "dist $distro os $dh->{os} rel $dh->{release} arch $dh->{arch} desc $dh->{description} addos $dh->{addos} addrel $dh->{addrel} ip $baVar{shareip} type $baVar{sharetype} share $share\n" if $opts->{debug};
         $sth->execute()
@@ -1190,7 +1192,7 @@ sub streamline_install
         ## great - they've added a license file which they prompt for if missing
         ## - and if missing they also claim not to have found the install dir...
         ##
-        print "NOTE -->> streamline of 11.2 not yet done <<-- NOTE\n";
+#        print "NOTE -->> streamline of 11.2 not yet done <<-- NOTE\n";
         $licensefile = "license.tar.gz";
         $remove = 0;
 
@@ -1208,7 +1210,7 @@ sub streamline_install
 
     if ( $remove ) {
         my $dh = &baxml_distro_gethash( $opts, $distro );
-        print "streamline_install calling get_distro_share( $opts, $distro)\n";
+#        print "streamline_install calling get_distro_share( $opts, $distro)\n";
         my ($share,undef) = &get_distro_share( $opts, $distro );
 
         my @dyast;

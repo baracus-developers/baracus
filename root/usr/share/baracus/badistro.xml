@@ -63,85 +63,131 @@
                           2009-08-26               PLEASE READ -->
 
 
+  <!-- SLES 11 SP 1 -->
+
+  <distro name="sles-11.1-x86_64">
+    <os>sles</os>
+    <release>11.1</release>
+    <arch>x86_64</arch>
+    <description>SUSE Linux Enterprise Server 11.1 64bit</description>
+
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <addon>base</addon>
+      <iso name="SLES-11-SP1-DVD-x86_64-Beta5-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>4abf14d02106621d388ff3e4b0bf324f</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-11.1-sdk-x86_64">
+    <os>sles</os>
+    <release>11.1</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-11.1-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 11.1 Software Development Kit 64bit</description>
+
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <addon>signed</addon>
+      <iso name="SLE-11-SP1-SDK-DVD-x86_64-Beta5-DVD1.iso">
+        <path/>
+        <md5>563cd53d2bfe6b23081876e6fd2fb6b8</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+
   <!-- SLES 11 -->
 
   <distro name="sles-11-x86_64">
-	<os>sles</os>
-	<release>11</release>
-	<arch>x86_64</arch>
-	<description>SUSE Linux Enterprise Server 11 64bit</description>
-	<autodownload>auth</autodownload>
+    <os>sles</os>
+    <release>11</release>
+    <arch>x86_64</arch>
+    <description>SUSE Linux Enterprise Server 11 64bit</description>
+    <autodownload>auth</autodownload>
 
     <product name="dvd">
-	  <addon>base</addon>
-	  <iso name="SLES-11-DVD-x86_64-GM-DVD1.iso">
-	    <path/>
-	    <sharefiles>
-	      <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
-	      <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
-	    </sharefiles>
-	    <md5>50a2bd45cd12c3808c3ee48208e2586b</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-x86_64-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=X8FFufxq0nU~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>base</addon>
+      <iso name="SLES-11-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>50a2bd45cd12c3808c3ee48208e2586b</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-x86_64-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=X8FFufxq0nU~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="sles-11-sdk-x86_64">
-	<os>sles</os>
-	<release>11</release>
+    <os>sles</os>
+    <release>11</release>
     <addos>sdk</addos>
     <addrel/>
-	<arch>x86_64</arch>
-	<requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
-	<description>SLES 11 Software Development Kit 64bit</description>
-	<autodownload>auth</autodownload>
+    <arch>x86_64</arch>
+    <requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 11 Software Development Kit 64bit</description>
+    <autodownload>auth</autodownload>
     <product name="dvd">
-	  <addon>signed</addon>
-	  <iso name="SLE-11-SDK-DVD-x86_64-GM-Media1.iso">
-	    <path/>
-	    <md5>d36ec61c33f3c2771835eb16e16a6097</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FfQKpDcAhPVY%7E%2FSLE-11-SDK-DVD-x86_64-GM-Media1.iso&buildid=fQKpDcAhPVY~&fileid=ypy97U_hIsk~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>signed</addon>
+      <iso name="SLE-11-SDK-DVD-x86_64-GM-Media1.iso">
+        <path/>
+        <md5>d36ec61c33f3c2771835eb16e16a6097</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FfQKpDcAhPVY%7E%2FSLE-11-SDK-DVD-x86_64-GM-Media1.iso&buildid=fQKpDcAhPVY~&fileid=ypy97U_hIsk~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="sles-11-i586">
     <os>sles</os>
-	<release>11</release>
-	<arch>i586</arch>
-	<description>SUSE Linux Enterprise Server 11 32bit</description>
-	<autodownload>auth</autodownload>
+    <release>11</release>
+    <arch>i586</arch>
+    <description>SUSE Linux Enterprise Server 11 32bit</description>
+    <autodownload>auth</autodownload>
 
     <product name="dvd">
-	  <addon>base</addon>
-	  <iso name="SLES-11-DVD-i586-GM-DVD1.iso">
-	    <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
-            </sharefiles>
-	    <md5>4958d4dde2575666355c8a1c5858bab0</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-i586-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=-lJMHbIN6s8~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>base</addon>
+      <iso name="SLES-11-DVD-i586-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>4958d4dde2575666355c8a1c5858bab0</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-i586-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=-lJMHbIN6s8~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="sles-11-sdk-i586">
-	<os>sles</os>
-	<release>11</release>
+    <os>sles</os>
+    <release>11</release>
     <addos>sdk</addos>
     <addrel/>
-	<arch>i586</arch>
-	<requires>sles-11-i586</requires> <!-- flag! content ignored -->
-	<description>SLES 11 Software Development Kit 32bit</description>
-	<autodownload>auth</autodownload>
+    <arch>i586</arch>
+    <requires>sles-11-i586</requires> <!-- flag! content ignored -->
+    <description>SLES 11 Software Development Kit 32bit</description>
+    <autodownload>auth</autodownload>
     <product name="dvd">
-	  <addon>signed</addon>
-	  <iso name="SLE-11-SDK-DVD-i586-GM-Media1.iso">
-	    <path/>
-	    <md5>00493a6e1b410f82cb55bee7f4bbcdf7</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FfQKpDcAhPVY%7E%2FSLE-11-SDK-DVD-i586-GM-Media1.iso&buildid=fQKpDcAhPVY~&fileid=rGCeRIQi57g~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>signed</addon>
+      <iso name="SLE-11-SDK-DVD-i586-GM-Media1.iso">
+        <path/>
+        <md5>00493a6e1b410f82cb55bee7f4bbcdf7</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FfQKpDcAhPVY%7E%2FSLE-11-SDK-DVD-i586-GM-Media1.iso&buildid=fQKpDcAhPVY~&fileid=rGCeRIQi57g~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
@@ -149,561 +195,561 @@
   <!-- SLED-11 -->
 
   <distro name="sled-11-x86_64">
-	<os>sled</os>
-	<release>11</release>
-	<arch>x86_64</arch>
-	<description>SUSE Linux Enterprise Desktop 11 64bit</description>
-	<autodownload>auth</autodownload>
+    <os>sled</os>
+    <release>11</release>
+    <arch>x86_64</arch>
+    <description>SUSE Linux Enterprise Desktop 11 64bit</description>
+    <autodownload>auth</autodownload>
 
     <product name="dvd">
-	  <addon>base</addon>
-	  <iso name="SLED-11-DVD-x86_64-GM-DVD.iso">
-	    <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
-            </sharefiles>
-	    <md5>c120e9605a87d77f58402ec15cfeee51</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F31O5iweTHlg%7E%2FSLED-11-DVD-x86_64-GM-DVD.iso&buildid=31O5iweTHlg~&fileid=POmHrC52QQw~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>base</addon>
+      <iso name="SLED-11-DVD-x86_64-GM-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>c120e9605a87d77f58402ec15cfeee51</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F31O5iweTHlg%7E%2FSLED-11-DVD-x86_64-GM-DVD.iso&buildid=31O5iweTHlg~&fileid=POmHrC52QQw~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="sled-11-i586">
-	<os>sled</os>
-	<release>11</release>
-	<arch>i586</arch>
-	<description>SUSE Linux Enterprise Desktop 11 32bit</description>
-	<autodownload>auth</autodownload>
+    <os>sled</os>
+    <release>11</release>
+    <arch>i586</arch>
+    <description>SUSE Linux Enterprise Desktop 11 32bit</description>
+    <autodownload>auth</autodownload>
 
     <product name="dvd">
-	  <addon>base</addon>
-	  <iso name="SLED-11-DVD-i586-GM-DVD.iso">
-	    <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
-            </sharefiles>
-	    <md5>f581602b4547cb45e715f3ea1cb0c4e4</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F31O5iweTHlg%7E%2FSLED-11-DVD-i586-GM-DVD.iso&buildid=31O5iweTHlg~&fileid=BmoyRdppYOw~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>base</addon>
+      <iso name="SLED-11-DVD-i586-GM-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>f581602b4547cb45e715f3ea1cb0c4e4</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F31O5iweTHlg%7E%2FSLED-11-DVD-i586-GM-DVD.iso&buildid=31O5iweTHlg~&fileid=BmoyRdppYOw~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <!-- SLES 10.3 -->
 
   <distro name="sles-10.3-x86_64">
-        <os>sles</os>
-        <release>10.3</release>
-        <arch>x86_64</arch>
-        <description>SUSE Linux Enterprise Server 10.3 64bit</description>
-        <autodownload>auth</autodownload>
+    <os>sles</os>
+    <release>10.3</release>
+    <arch>x86_64</arch>
+    <description>SUSE Linux Enterprise Server 10.3 64bit</description>
+    <autodownload>auth</autodownload>
 
     <product name="dvd">
-          <addon>base</addon>
-          <iso name="SLES-10-SP3-DVD-x86_64-GM-DVD1.iso">
-            <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
-            </sharefiles>
-            <md5>80ef92a51de722ee79899ae9bda5f7f0</md5>
-            <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP3-DVD-x86_64-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=2xpO5QouT84~&mirror=AkamaiHost&nohost=false]]></url>
-          </iso>
+      <addon>base</addon>
+      <iso name="SLES-10-SP3-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>80ef92a51de722ee79899ae9bda5f7f0</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP3-DVD-x86_64-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=2xpO5QouT84~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="sles-10.3-sdk-x86_64">
-        <os>sles</os>
-        <release>10.3</release>
+    <os>sles</os>
+    <release>10.3</release>
     <addos>sdk</addos>
     <addrel/>
-        <arch>x86_64</arch>
-        <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
-        <description>SLES 10.3 Software Development Kit 64bit</description>
-        <autodownload>auth</autodownload>
+    <arch>x86_64</arch>
+    <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 10.3 Software Development Kit 64bit</description>
+    <autodownload>auth</autodownload>
     <product name="dvd">
-          <addon>flat</addon>
-          <iso name="SLE-10-SP3-SDK-DVD-x86_64-GM-DVD1.iso">
-            <path/>
-            <md5>7f3bc894b03daa2b3672c6740ae3aba1</md5>
-            <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP3-SDK-DVD-x86_64-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=KiIGteX_M54~&mirror=AkamaiHost&nohost=false]]></url>
-          </iso>
+      <addon>flat</addon>
+      <iso name="SLE-10-SP3-SDK-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <md5>7f3bc894b03daa2b3672c6740ae3aba1</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP3-SDK-DVD-x86_64-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=KiIGteX_M54~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="sles-10.3-i386">
-        <os>sles</os>
-        <release>10.3</release>
-        <arch>i386</arch>
-        <description>SUSE Linux Enterprise Server 10.3 32bit</description>
-        <autodownload>auth</autodownload>
+    <os>sles</os>
+    <release>10.3</release>
+    <arch>i386</arch>
+    <description>SUSE Linux Enterprise Server 10.3 32bit</description>
+    <autodownload>auth</autodownload>
 
     <product name="dvd">
-          <addon>base</addon>
-          <iso name="SLES-10-SP3-DVD-i386-GM-DVD1.iso">
-            <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
-            </sharefiles>
-            <md5>cc03499d8141d2276713ba0ef760aec8</md5>
-            <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP3-DVD-i386-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=AdQfSs70M8E~&mirror=AkamaiHost&nohost=false]]></url>
-          </iso>
+      <addon>base</addon>
+      <iso name="SLES-10-SP3-DVD-i386-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+        </sharefiles>
+        <md5>cc03499d8141d2276713ba0ef760aec8</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP3-DVD-i386-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=AdQfSs70M8E~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="sles-10.3-sdk-i386">
-        <os>sles</os>
-        <release>10.3</release>
+    <os>sles</os>
+    <release>10.3</release>
     <addos>sdk</addos>
     <addrel/>
-        <arch>i386</arch>
-        <requires>sles-10.3-i386</requires> <!-- flag! content ignored -->
-        <description>SLES 10.3 Software Development Kit 32bit</description>
-        <autodownload>auth</autodownload>
+    <arch>i386</arch>
+    <requires>sles-10.3-i386</requires> <!-- flag! content ignored -->
+    <description>SLES 10.3 Software Development Kit 32bit</description>
+    <autodownload>auth</autodownload>
     <product name="dvd">
-          <addon>flat</addon>
-          <iso name="SLE-10-SP3-SDK-DVD-i386-GM-DVD1.iso">
-            <path/>
-            <md5>e51e6cf5fc29ceed198d5987c76c2afa</md5>
-            <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP3-SDK-DVD-i386-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=GNm-ml762fw~&mirror=AkamaiHost&nohost=false]]></url>
-          </iso>
+      <addon>flat</addon>
+      <iso name="SLE-10-SP3-SDK-DVD-i386-GM-DVD1.iso">
+        <path/>
+        <md5>e51e6cf5fc29ceed198d5987c76c2afa</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP3-SDK-DVD-i386-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=GNm-ml762fw~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <!-- SLED 10.3 -->
 
   <distro name="sled-10.3-x86_64">
-	<os>sled</os>
-	<release>10.3</release>
-	<arch>x86_64</arch>
-	<description>SUSE Linux Enterprise Desktop 10.3 64bit</description>
-	<autodownload>auth</autodownload>
+    <os>sled</os>
+    <release>10.3</release>
+    <arch>x86_64</arch>
+    <description>SUSE Linux Enterprise Desktop 10.3 64bit</description>
+    <autodownload>auth</autodownload>
 
     <product name="dvd">
-	  <addon>base</addon>
-	  <iso name="SLED-10-SP3-DVD-x86_64-GM-DVD1.iso">
-	    <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
-            </sharefiles>
-	    <md5>06d9766a28911c7ce67ffe1234808549</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzZOX5rRmXMA%7E%2FSLED-10-SP3-DVD-x86_64-GM-DVD1.iso&buildid=zZOX5rRmXMA~&fileid=vswdFCNqOTo~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>base</addon>
+      <iso name="SLED-10-SP3-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>06d9766a28911c7ce67ffe1234808549</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzZOX5rRmXMA%7E%2FSLED-10-SP3-DVD-x86_64-GM-DVD1.iso&buildid=zZOX5rRmXMA~&fileid=vswdFCNqOTo~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="sled-10.3-i386">
-	<os>sled</os>
-	<release>10.3</release>
-	<arch>i386</arch>
-	<description>SUSE Linux Enterprise Desktop 10.3 32bit</description>
-	<autodownload>auth</autodownload>
+    <os>sled</os>
+    <release>10.3</release>
+    <arch>i386</arch>
+    <description>SUSE Linux Enterprise Desktop 10.3 32bit</description>
+    <autodownload>auth</autodownload>
 
     <product name="dvd">
-	  <addon>base</addon>
-	  <iso name="SLED-10-SP3-DVD-i386-GM-DVD1.iso">
-	    <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
-            </sharefiles>
-	    <md5>8d6d7248f0dff367c854d08f7e120660</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzZOX5rRmXMA%7E%2FSLED-10-SP3-DVD-i386-GM-DVD1.iso&buildid=zZOX5rRmXMA~&fileid=M6Yc3wxAXuk~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>base</addon>
+      <iso name="SLED-10-SP3-DVD-i386-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+        </sharefiles>
+        <md5>8d6d7248f0dff367c854d08f7e120660</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzZOX5rRmXMA%7E%2FSLED-10-SP3-DVD-i386-GM-DVD1.iso&buildid=zZOX5rRmXMA~&fileid=M6Yc3wxAXuk~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <!-- SLES 10.2 -->
 
   <distro name="sles-10.2-x86_64">
-	<os>sles</os>
-	<release>10.2</release>
-	<arch>x86_64</arch>
-	<description>SUSE Linux Enterprise Server 10.2 64bit</description>
-	<autodownload>auth</autodownload>
+    <os>sles</os>
+    <release>10.2</release>
+    <arch>x86_64</arch>
+    <description>SUSE Linux Enterprise Server 10.2 64bit</description>
+    <autodownload>auth</autodownload>
 
     <product name="dvd">
-	  <addon>base</addon>
-	  <iso name="SLES-10-SP2-DVD-x86_64-GM-DVD1.iso">
-	    <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
-            </sharefiles>
-	    <md5>dab2c4b8fc9939b33535ab2d321f3f2e</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FxWohTS2zkSs%7E%2FSLES-10-SP2-DVD-x86_64-GM-DVD1.iso&buildid=xWohTS2zkSs~&fileid=ymcKKUqgjzY~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>base</addon>
+      <iso name="SLES-10-SP2-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>dab2c4b8fc9939b33535ab2d321f3f2e</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FxWohTS2zkSs%7E%2FSLES-10-SP2-DVD-x86_64-GM-DVD1.iso&buildid=xWohTS2zkSs~&fileid=ymcKKUqgjzY~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="sles-10.2-sdk-x86_64">
-	<os>sles</os>
-	<release>10.2</release>
+    <os>sles</os>
+    <release>10.2</release>
     <addos>sdk</addos>
     <addrel/>
-	<arch>x86_64</arch>
-	<requires>sles-10.2-x86_64</requires> <!-- flag! content ignored -->
-	<description>SLES 10.2 Software Development Kit 64bit</description>
-	<autodownload>auth</autodownload>
+    <arch>x86_64</arch>
+    <requires>sles-10.2-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 10.2 Software Development Kit 64bit</description>
+    <autodownload>auth</autodownload>
     <product name="dvd">
-	  <addon>flat</addon>
-	  <iso name="SLE-10-SP2-SDK-DVD-x86_64-GM-DVD1.iso">
-	    <path/>
-	    <md5>b94f022deb50d6aa79d4fcba0caf6de9</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FeRAdQttrkeA%7E%2FSLE-10-SP2-SDK-DVD-x86_64-GM-DVD1.iso&buildid=eRAdQttrkeA~&fileid=MHiLlQ3CVls~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>flat</addon>
+      <iso name="SLE-10-SP2-SDK-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <md5>b94f022deb50d6aa79d4fcba0caf6de9</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FeRAdQttrkeA%7E%2FSLE-10-SP2-SDK-DVD-x86_64-GM-DVD1.iso&buildid=eRAdQttrkeA~&fileid=MHiLlQ3CVls~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="sles-10.2-i386">
-	<os>sles</os>
-	<release>10.2</release>
-	<arch>i386</arch>
-	<description>SUSE Linux Enterprise Server 10.2 32bit</description>
-	<autodownload>auth</autodownload>
+    <os>sles</os>
+    <release>10.2</release>
+    <arch>i386</arch>
+    <description>SUSE Linux Enterprise Server 10.2 32bit</description>
+    <autodownload>auth</autodownload>
 
     <product name="dvd">
-	  <addon>base</addon>
-	  <iso name="SLES-10-SP2-DVD-i386-GM-DVD1.iso">
-	    <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
-            </sharefiles>
-	    <md5>2b91efeb8a62e2824302bf9269080252</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FxWohTS2zkSs%7E%2FSLES-10-SP2-DVD-i386-GM-DVD1.iso&buildid=xWohTS2zkSs~&fileid=6Hjh1FLHxbI~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>base</addon>
+      <iso name="SLES-10-SP2-DVD-i386-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+        </sharefiles>
+        <md5>2b91efeb8a62e2824302bf9269080252</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FxWohTS2zkSs%7E%2FSLES-10-SP2-DVD-i386-GM-DVD1.iso&buildid=xWohTS2zkSs~&fileid=6Hjh1FLHxbI~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="sles-10.2-sdk-i386">
-	<os>sles</os>
-	<release>10.2</release>
+    <os>sles</os>
+    <release>10.2</release>
     <addos>sdk</addos>
     <addrel/>
-	<arch>i386</arch>
-	<requires>sles-10.2-i386</requires> <!-- flag! content ignored -->
-	<description>SLES 10.2 Software Development Kit 32bit</description>
-	<autodownload>auth</autodownload>
+    <arch>i386</arch>
+    <requires>sles-10.2-i386</requires> <!-- flag! content ignored -->
+    <description>SLES 10.2 Software Development Kit 32bit</description>
+    <autodownload>auth</autodownload>
     <product name="dvd">
-	  <addon>flat</addon>
-	  <iso name="SLE-10-SP2-SDK-DVD-i386-GM-DVD1.iso">
-	    <path/>
-	    <md5>24ff4387f1f2f6c830e48f2bf04c69f3</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FeRAdQttrkeA%7E%2FSLE-10-SP2-SDK-DVD-i386-GM-DVD1.iso&buildid=eRAdQttrkeA~&fileid=QGCEXAwuCIE~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>flat</addon>
+      <iso name="SLE-10-SP2-SDK-DVD-i386-GM-DVD1.iso">
+        <path/>
+        <md5>24ff4387f1f2f6c830e48f2bf04c69f3</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FeRAdQttrkeA%7E%2FSLE-10-SP2-SDK-DVD-i386-GM-DVD1.iso&buildid=eRAdQttrkeA~&fileid=QGCEXAwuCIE~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <!-- SLED 10.2 -->
 
   <distro name="sled-10.2-x86_64">
-	<os>sled</os>
-	<release>10.2</release>
-	<arch>x86_64</arch>
-	<description>SUSE Linux Enterprise Desktop 10.2 64bit</description>
-	<autodownload>auth</autodownload>
+    <os>sled</os>
+    <release>10.2</release>
+    <arch>x86_64</arch>
+    <description>SUSE Linux Enterprise Desktop 10.2 64bit</description>
+    <autodownload>auth</autodownload>
 
     <product name="dvd">
-	  <addon>base</addon>
-	  <iso name="SLED-10-SP2-x86_64-DVD1.iso">
-	    <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
-            </sharefiles>
-	    <md5>1f527c9ae321d6e8291fe8e63d04574d</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FO4laI0St6AA%7E%2FSLED-10-SP2-x86_64-DVD1.iso&buildid=O4laI0St6AA~&fileid=Aurg53IQgEQ~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>base</addon>
+      <iso name="SLED-10-SP2-x86_64-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>1f527c9ae321d6e8291fe8e63d04574d</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FO4laI0St6AA%7E%2FSLED-10-SP2-x86_64-DVD1.iso&buildid=O4laI0St6AA~&fileid=Aurg53IQgEQ~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="sled-10.2-i386">
-	<os>sled</os>
-	<release>10.2</release>
-	<arch>i386</arch>
-	<description>SUSE Linux Enterprise Desktop 10.2 32bit</description>
-	<autodownload>auth</autodownload>
+    <os>sled</os>
+    <release>10.2</release>
+    <arch>i386</arch>
+    <description>SUSE Linux Enterprise Desktop 10.2 32bit</description>
+    <autodownload>auth</autodownload>
 
     <product name="dvd">
-	  <addon>base</addon>
-	  <iso name="SLED-10-SP2-x86-DVD1.iso">
-	    <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
-            </sharefiles>
-	    <md5>74cdd3daf335f32a77be25a0e43b0c3d</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FO4laI0St6AA%7E%2FSLED-10-SP2-x86-DVD1.iso&buildid=O4laI0St6AA~&fileid=ka5NE_hzUP4~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>base</addon>
+      <iso name="SLED-10-SP2-x86-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+        </sharefiles>
+        <md5>74cdd3daf335f32a77be25a0e43b0c3d</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FO4laI0St6AA%7E%2FSLED-10-SP2-x86-DVD1.iso&buildid=O4laI0St6AA~&fileid=ka5NE_hzUP4~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <!-- SLES 9.3 all the same core as 9.4 - w/ the .3 sp -->
 
   <distro name="sles-9.3-x86_64">
-	<os>sles</os>
-	<release>9.3</release>
-	<arch>x86_64</arch>
-	<description>SUSE Linux Enterprise Server 9.3 64bit</description>
-	<autodownload>auth</autodownload>
+    <os>sles</os>
+    <release>9.3</release>
+    <arch>x86_64</arch>
+    <description>SUSE Linux Enterprise Server 9.3 64bit</description>
+    <autodownload>auth</autodownload>
 
     <product name="SUSE-SLES-Version-9">
-	  <iso name="SLES-9-x86-64-RC5-CD1.iso">
-	    <path>CD1</path>
-	    <md5>1fb270a7123895abc846a377c3d1dfdd</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD1.iso&buildid=1HYSkGYIYow~&fileid=ZNNOE1Oc9tM~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-SLES-Version-9</product> -->
-<!--	    <order>2</order> -->
-	  </iso>
+      <iso name="SLES-9-x86-64-RC5-CD1.iso">
+        <path>CD1</path>
+        <md5>1fb270a7123895abc846a377c3d1dfdd</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD1.iso&buildid=1HYSkGYIYow~&fileid=ZNNOE1Oc9tM~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-Version-9</product> -->
+        <!--        <order>2</order> -->
+      </iso>
     </product>
     <product name="SUSE-CORE-Version-9">
-	  <iso name="SLES-9-x86-64-RC5-CD2.iso">
-	    <path>CD1</path>
-	    <md5>1579c82c85fe71b4cc68685d638c883d</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD2.iso&buildid=1HYSkGYIYow~&fileid=vaOYguJ9wKM~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-CORE-Version-9</product> -->
-<!--	    <order>3</order> -->
-	  </iso>
-	  <iso name="SLES-9-x86-64-RC5-CD3.iso">
-	    <path>CD2</path>
-	    <md5>5330a150eb51542d378dbe281f2315a2</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD3.iso&buildid=1HYSkGYIYow~&fileid=KAKtiXWbing~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-CORE-Version-9</product> -->
-<!--	    <order>3</order> -->
-	  </iso>
-	  <iso name="SLES-9-x86-64-RC5-CD4.iso">
-	    <path>CD3</path>
-	    <md5>a9d5b0dddd45f378f97ea9bca2b12b11</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD4.iso&buildid=1HYSkGYIYow~&fileid=IXHQ1ksNFjE~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-CORE-Version-9</product> -->
-<!--	    <order>3</order> -->
-	  </iso>
-	  <iso name="SLES-9-x86-64-RC5-CD5.iso">
-	    <path>CD4</path>
-	    <md5>dc6de0d488e4dbf6aef322f7aadba7dd</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD5.iso&buildid=1HYSkGYIYow~&fileid=yo-bi-8mYWg~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-CORE-Version-9</product> -->
-<!--	    <order>3</order> -->
-	  </iso>
-	  <iso name="SLES-9-x86-64-RC5-CD6.iso">
-	    <path>CD5</path>
-	    <md5>2324e164faab72df89e4078b6a7c1aec</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD6.iso&buildid=1HYSkGYIYow~&fileid=hqLUkaIVhVw~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-CORE-Version-9</product> -->
-<!--	    <order>3</order> -->
-	  </iso>
+      <iso name="SLES-9-x86-64-RC5-CD2.iso">
+        <path>CD1</path>
+        <md5>1579c82c85fe71b4cc68685d638c883d</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD2.iso&buildid=1HYSkGYIYow~&fileid=vaOYguJ9wKM~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
+      <iso name="SLES-9-x86-64-RC5-CD3.iso">
+        <path>CD2</path>
+        <md5>5330a150eb51542d378dbe281f2315a2</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD3.iso&buildid=1HYSkGYIYow~&fileid=KAKtiXWbing~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
+      <iso name="SLES-9-x86-64-RC5-CD4.iso">
+        <path>CD3</path>
+        <md5>a9d5b0dddd45f378f97ea9bca2b12b11</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD4.iso&buildid=1HYSkGYIYow~&fileid=IXHQ1ksNFjE~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
+      <iso name="SLES-9-x86-64-RC5-CD5.iso">
+        <path>CD4</path>
+        <md5>dc6de0d488e4dbf6aef322f7aadba7dd</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD5.iso&buildid=1HYSkGYIYow~&fileid=yo-bi-8mYWg~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
+      <iso name="SLES-9-x86-64-RC5-CD6.iso">
+        <path>CD5</path>
+        <md5>2324e164faab72df89e4078b6a7c1aec</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD6.iso&buildid=1HYSkGYIYow~&fileid=hqLUkaIVhVw~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
     </product>
 
     <product name="SUSE-SLES-9-Service-Pack-Version-3">
-	  <addon>base</addon>
-	  <iso name="SLES-9-SP-3-x86-64-GM-CD1.iso">
-	    <path>CD1</path>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
-            </sharefiles>
-	    <md5>3ab71f468d07af85b01f79c1b9a31faa</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Frest%2FZKWL10AUzpU%7E%2FSLES-9-SP-3-x86-64-GM-CD1.iso&buildid=ZKWL10AUzpU~&fileid=3kvy000S2gU~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-SLES-9-Service-Pack-Version-3</product> -->
-<!--	    <order>1</order> -->
-	  </iso>
-	  <iso name="SLES-9-SP-3-x86-64-GM-CD2.iso">
-	    <path>CD2</path>
-	    <md5>5a67040fc4777a85b9806dc0a63aabbd</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Frest%2FZKWL10AUzpU%7E%2FSLES-9-SP-3-x86-64-GM-CD2.iso&buildid=ZKWL10AUzpU~&fileid=aFhj69QXnQ4~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-SLES-9-Service-Pack-Version-3</product> -->
-<!--	    <order>1</order> -->
-	  </iso>
-	  <iso name="SLES-9-SP4-CD-x86_64-GM-CD3.iso">
-	    <path>CD3</path>
-	    <md5>a07e40914b77cca795caf7fb36478540</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Frest%2FZKWL10AUzpU%7E%2FSLES-9-SP-3-x86-64-GM-CD3.iso&buildid=ZKWL10AUzpU~&fileid=yVyQvF1R6tI~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-SLES-9-Service-Pack-Version-3</product> -->
-<!--	    <order>1</order> -->
-	  </iso>
+      <addon>base</addon>
+      <iso name="SLES-9-SP-3-x86-64-GM-CD1.iso">
+        <path>CD1</path>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>3ab71f468d07af85b01f79c1b9a31faa</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Frest%2FZKWL10AUzpU%7E%2FSLES-9-SP-3-x86-64-GM-CD1.iso&buildid=ZKWL10AUzpU~&fileid=3kvy000S2gU~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-9-Service-Pack-Version-3</product> -->
+        <!--        <order>1</order> -->
+      </iso>
+      <iso name="SLES-9-SP-3-x86-64-GM-CD2.iso">
+        <path>CD2</path>
+        <md5>5a67040fc4777a85b9806dc0a63aabbd</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Frest%2FZKWL10AUzpU%7E%2FSLES-9-SP-3-x86-64-GM-CD2.iso&buildid=ZKWL10AUzpU~&fileid=aFhj69QXnQ4~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-9-Service-Pack-Version-3</product> -->
+        <!--        <order>1</order> -->
+      </iso>
+      <iso name="SLES-9-SP4-CD-x86_64-GM-CD3.iso">
+        <path>CD3</path>
+        <md5>a07e40914b77cca795caf7fb36478540</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Frest%2FZKWL10AUzpU%7E%2FSLES-9-SP-3-x86-64-GM-CD3.iso&buildid=ZKWL10AUzpU~&fileid=yVyQvF1R6tI~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-9-Service-Pack-Version-3</product> -->
+        <!--        <order>1</order> -->
+      </iso>
     </product>
   </distro>
 
   <!-- SLES 9.4 -->
 
   <distro name="sles-9.4-x86_64">
-	<os>sles</os>
-	<release>9.4</release>
-	<arch>x86_64</arch>
-	<description>SUSE Linux Enterprise Server 9.4 64bit</description>
-	<autodownload>auth</autodownload>
+    <os>sles</os>
+    <release>9.4</release>
+    <arch>x86_64</arch>
+    <description>SUSE Linux Enterprise Server 9.4 64bit</description>
+    <autodownload>auth</autodownload>
 
     <product name="SUSE-SLES-Version-9">
-	  <iso name="SLES-9-x86-64-RC5-CD1.iso">
-	    <path>CD1</path>
-	    <md5>1fb270a7123895abc846a377c3d1dfdd</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD1.iso&buildid=1HYSkGYIYow~&fileid=ZNNOE1Oc9tM~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-SLES-Version-9</product> -->
-<!--	    <order>2</order> -->
-	  </iso>
+      <iso name="SLES-9-x86-64-RC5-CD1.iso">
+        <path>CD1</path>
+        <md5>1fb270a7123895abc846a377c3d1dfdd</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD1.iso&buildid=1HYSkGYIYow~&fileid=ZNNOE1Oc9tM~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-Version-9</product> -->
+        <!--        <order>2</order> -->
+      </iso>
     </product>
 
     <product name="SUSE-CORE-Version-9">
-	  <iso name="SLES-9-x86-64-RC5-CD2.iso">
-	    <path>CD1</path>
-	    <md5>1579c82c85fe71b4cc68685d638c883d</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD2.iso&buildid=1HYSkGYIYow~&fileid=vaOYguJ9wKM~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-CORE-Version-9</product> -->
-<!--	    <order>3</order> -->
-	  </iso>
-	  <iso name="SLES-9-x86-64-RC5-CD3.iso">
-	    <path>CD2</path>
-	    <md5>5330a150eb51542d378dbe281f2315a2</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD3.iso&buildid=1HYSkGYIYow~&fileid=KAKtiXWbing~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-CORE-Version-9</product> -->
-<!--	    <order>3</order> -->
-	  </iso>
-	  <iso name="SLES-9-x86-64-RC5-CD4.iso">
-	    <path>CD3</path>
-	    <md5>a9d5b0dddd45f378f97ea9bca2b12b11</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD4.iso&buildid=1HYSkGYIYow~&fileid=IXHQ1ksNFjE~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-CORE-Version-9</product> -->
-<!--	    <order>3</order> -->
-	  </iso>
-	  <iso name="SLES-9-x86-64-RC5-CD5.iso">
-	    <path>CD4</path>
-	    <md5>dc6de0d488e4dbf6aef322f7aadba7dd</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD5.iso&buildid=1HYSkGYIYow~&fileid=yo-bi-8mYWg~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-CORE-Version-9</product> -->
-<!--	    <order>3</order> -->
-	  </iso>
-	  <iso name="SLES-9-x86-64-RC5-CD6.iso">
-	    <path>CD5</path>
-	    <md5>2324e164faab72df89e4078b6a7c1aec</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD6.iso&buildid=1HYSkGYIYow~&fileid=hqLUkaIVhVw~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-CORE-Version-9</product> -->
-<!--	    <order>3</order> -->
-	  </iso>
+      <iso name="SLES-9-x86-64-RC5-CD2.iso">
+        <path>CD1</path>
+        <md5>1579c82c85fe71b4cc68685d638c883d</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD2.iso&buildid=1HYSkGYIYow~&fileid=vaOYguJ9wKM~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
+      <iso name="SLES-9-x86-64-RC5-CD3.iso">
+        <path>CD2</path>
+        <md5>5330a150eb51542d378dbe281f2315a2</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD3.iso&buildid=1HYSkGYIYow~&fileid=KAKtiXWbing~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
+      <iso name="SLES-9-x86-64-RC5-CD4.iso">
+        <path>CD3</path>
+        <md5>a9d5b0dddd45f378f97ea9bca2b12b11</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD4.iso&buildid=1HYSkGYIYow~&fileid=IXHQ1ksNFjE~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
+      <iso name="SLES-9-x86-64-RC5-CD5.iso">
+        <path>CD4</path>
+        <md5>dc6de0d488e4dbf6aef322f7aadba7dd</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD5.iso&buildid=1HYSkGYIYow~&fileid=yo-bi-8mYWg~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
+      <iso name="SLES-9-x86-64-RC5-CD6.iso">
+        <path>CD5</path>
+        <md5>2324e164faab72df89e4078b6a7c1aec</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD6.iso&buildid=1HYSkGYIYow~&fileid=hqLUkaIVhVw~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
     </product>
 
     <product name="SUSE-SLES-9-Service-Pack-Version-4">
-	  <addon>base</addon>
-	  <iso name="SLES-9-SP4-CD-x86_64-GM-CD1.iso">
-	    <path>CD1</path>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
-            </sharefiles>
-	    <md5>45afad1ce28037736d104adfd99a2fd6</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FMDhnIu6tHOk%7E%2FSLES-9-SP4-CD-x86_64-GM-CD1.iso&buildid=MDhnIu6tHOk~&fileid=mqbybi7N0SQ~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
-<!--	    <order>1</order> -->
-	  </iso>
-	  <iso name="SLES-9-SP4-CD-x86_64-GM-CD2.iso">
-	    <path>CD2</path>
-	    <md5>14fa18cbf05d82343849469bd4c0e6d1</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FMDhnIu6tHOk%7E%2FSLES-9-SP4-CD-x86_64-GM-CD2.iso&buildid=MDhnIu6tHOk~&fileid=29aiUMZosnA~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
-<!--	    <order>1</order> -->
-	  </iso>
-	  <iso name="SLES-9-SP4-CD-x86_64-GM-CD3.iso">
-	    <path>CD3</path>
-	    <md5>0a2b65a44b97fe563cafad62c1b4e473</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FMDhnIu6tHOk%7E%2FSLES-9-SP4-CD-x86_64-GM-CD3.iso&buildid=MDhnIu6tHOk~&fileid=DPY5zSthiY8~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
-<!--	    <order>1</order> -->
-	  </iso>
-	  <iso name="SLES-9-SP4-CD-x86_64-GM-CD4.iso">
-	    <path>CD4</path>
-	    <md5>19b7189b847c1e68e16bd8f1d0afff4f</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FMDhnIu6tHOk%7E%2FSLES-9-SP4-CD-x86_64-GM-CD4.iso&buildid=MDhnIu6tHOk~&fileid=AcmXCFkFiC0~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
-<!--	    <order>1</order> -->
-	  </iso>
+      <addon>base</addon>
+      <iso name="SLES-9-SP4-CD-x86_64-GM-CD1.iso">
+        <path>CD1</path>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>45afad1ce28037736d104adfd99a2fd6</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FMDhnIu6tHOk%7E%2FSLES-9-SP4-CD-x86_64-GM-CD1.iso&buildid=MDhnIu6tHOk~&fileid=mqbybi7N0SQ~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
+        <!--        <order>1</order> -->
+      </iso>
+      <iso name="SLES-9-SP4-CD-x86_64-GM-CD2.iso">
+        <path>CD2</path>
+        <md5>14fa18cbf05d82343849469bd4c0e6d1</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FMDhnIu6tHOk%7E%2FSLES-9-SP4-CD-x86_64-GM-CD2.iso&buildid=MDhnIu6tHOk~&fileid=29aiUMZosnA~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
+        <!--        <order>1</order> -->
+      </iso>
+      <iso name="SLES-9-SP4-CD-x86_64-GM-CD3.iso">
+        <path>CD3</path>
+        <md5>0a2b65a44b97fe563cafad62c1b4e473</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FMDhnIu6tHOk%7E%2FSLES-9-SP4-CD-x86_64-GM-CD3.iso&buildid=MDhnIu6tHOk~&fileid=DPY5zSthiY8~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
+        <!--        <order>1</order> -->
+      </iso>
+      <iso name="SLES-9-SP4-CD-x86_64-GM-CD4.iso">
+        <path>CD4</path>
+        <md5>19b7189b847c1e68e16bd8f1d0afff4f</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FMDhnIu6tHOk%7E%2FSLES-9-SP4-CD-x86_64-GM-CD4.iso&buildid=MDhnIu6tHOk~&fileid=AcmXCFkFiC0~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
+        <!--        <order>1</order> -->
+      </iso>
     </product>
   </distro>
 
   <distro name="sles-9.4-i386">
-	<os>sles</os>
-	<release>9.4</release>
-	<arch>i386</arch>
-	<description>SUSE Linux Enterprise Server 9.4 32bit</description>
-	<autodownload>auth</autodownload>
+    <os>sles</os>
+    <release>9.4</release>
+    <arch>i386</arch>
+    <description>SUSE Linux Enterprise Server 9.4 32bit</description>
+    <autodownload>auth</autodownload>
 
     <product name="SUSE-SLES-Version-9">
-	  <iso name="SLES-9-i386-RC5-CD1.iso">
-	    <path>CD1</path>
-	    <md5>cc419d86f3f5ff99395ca4de9d967600</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD1.iso&buildid=1HYSkGYIYow~&fileid=ifVmcyYyHI8~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-SLES-Version-9</product> -->
-<!--	    <order>2</order> -->
-	  </iso>
+      <iso name="SLES-9-i386-RC5-CD1.iso">
+        <path>CD1</path>
+        <md5>cc419d86f3f5ff99395ca4de9d967600</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD1.iso&buildid=1HYSkGYIYow~&fileid=ifVmcyYyHI8~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-Version-9</product> -->
+        <!--        <order>2</order> -->
+      </iso>
     </product>
 
     <product name="SUSE-CORE-Version-9">
-	  <iso name="SLES-9-i386-RC5-CD2.iso">
-	    <path>CD1</path>
-	    <md5>86e97184aae42ba6013ea7460372ffe5</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD2.iso&buildid=1HYSkGYIYow~&fileid=ggZLuF8gzBk~&mirror=AkamaiHost&nohost=false]]></url>
-        <!--	  <product>SUSE-CORE-Version-9</product> -->
-        <!--	  <order>3</order> -->
-	  </iso>
-	  <iso name="SLES-9-i386-RC5-CD3.iso">
-	    <path>CD2</path>
-	    <md5>f880b3ba92fc43add18259c9437f648d</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD3.iso&buildid=1HYSkGYIYow~&fileid=UdUk3-pqQX8~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-CORE-Version-9</product> -->
-<!--	    <order>3</order> -->
-	  </iso>
-	  <iso name="SLES-9-i386-RC5-CD4.iso">
-	    <path>CD3</path>
-	    <md5>bc7b88f34a8142bacbdd4d1fddd3fc50</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD4.iso&buildid=1HYSkGYIYow~&fileid=QqQh7kju3bc~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-CORE-Version-9</product> -->
-<!--	    <order>3</order> -->
-	  </iso>
-	  <iso name="SLES-9-i386-RC5-CD5.iso">
-	    <path>CD4</path>
-	    <md5>7844c76fc9f39a2af9ef6751ec18af60</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD5.iso&buildid=1HYSkGYIYow~&fileid=GwZ8-ENEJSo~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-CORE-Version-9</product> -->
-<!--	    <order>3</order> -->
-	  </iso>
+      <iso name="SLES-9-i386-RC5-CD2.iso">
+        <path>CD1</path>
+        <md5>86e97184aae42ba6013ea7460372ffe5</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD2.iso&buildid=1HYSkGYIYow~&fileid=ggZLuF8gzBk~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--      <product>SUSE-CORE-Version-9</product> -->
+        <!--      <order>3</order> -->
+      </iso>
+      <iso name="SLES-9-i386-RC5-CD3.iso">
+        <path>CD2</path>
+        <md5>f880b3ba92fc43add18259c9437f648d</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD3.iso&buildid=1HYSkGYIYow~&fileid=UdUk3-pqQX8~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
+      <iso name="SLES-9-i386-RC5-CD4.iso">
+        <path>CD3</path>
+        <md5>bc7b88f34a8142bacbdd4d1fddd3fc50</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD4.iso&buildid=1HYSkGYIYow~&fileid=QqQh7kju3bc~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
+      <iso name="SLES-9-i386-RC5-CD5.iso">
+        <path>CD4</path>
+        <md5>7844c76fc9f39a2af9ef6751ec18af60</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-i386-RC5-CD5.iso&buildid=1HYSkGYIYow~&fileid=GwZ8-ENEJSo~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
     </product>
 
     <product name="SUSE-SLES-9-Service-Pack-Version-4">
-	  <addon>base</addon>
-	  <iso name="SLES-9-SP4-CD-i386-GM-CD1.iso">
-	    <path>CD1</path>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
-            </sharefiles>
-	    <md5>864c50512100f9bee15a7fdb2c63bf1c</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FH9EGDY9GAn8%7E%2FSLES-9-SP4-CD-i386-GM-CD1.iso&buildid=H9EGDY9GAn8~&fileid=fuS7imDVfzY~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
-<!--	    <order>1</order> -->
-	  </iso>
-	  <iso name="SLES-9-SP4-CD-i386-GM-CD2.iso">
-	    <path>CD2</path>
-	    <md5>f3741e2bada1f8d6bda2083bc4d1b7ba</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FH9EGDY9GAn8%7E%2FSLES-9-SP4-CD-i386-GM-CD2.iso&buildid=H9EGDY9GAn8~&fileid=0rxrxZa2O74~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
-<!--	    <order>1</order> -->
-	  </iso>
-	  <iso name="SLES-9-SP4-CD-i386-GM-CD3.iso">
-	    <path>CD3</path>
-	    <md5>8a573afbd7ec0204556d9d8d4f93d2cf</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FH9EGDY9GAn8%7E%2FSLES-9-SP4-CD-i386-GM-CD3.iso&buildid=H9EGDY9GAn8~&fileid=2MmSSSaTtfU~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
-<!--	    <order>1</order> -->
-	  </iso>
-	  <iso name="SLES-9-SP4-CD-i386-GM-CD4.iso">
-	    <path>CD4</path>
-	    <md5>569978236827c65306fb07716db09b2e</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FH9EGDY9GAn8%7E%2FSLES-9-SP4-CD-i386-GM-CD4.iso&buildid=H9EGDY9GAn8~&fileid=KU4VXici924~&mirror=AkamaiHost&nohost=false]]></url>
-<!--	    <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
-<!--	    <order>1</order> -->
-	  </iso>
+      <addon>base</addon>
+      <iso name="SLES-9-SP4-CD-i386-GM-CD1.iso">
+        <path>CD1</path>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+        </sharefiles>
+        <md5>864c50512100f9bee15a7fdb2c63bf1c</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FH9EGDY9GAn8%7E%2FSLES-9-SP4-CD-i386-GM-CD1.iso&buildid=H9EGDY9GAn8~&fileid=fuS7imDVfzY~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
+        <!--        <order>1</order> -->
+      </iso>
+      <iso name="SLES-9-SP4-CD-i386-GM-CD2.iso">
+        <path>CD2</path>
+        <md5>f3741e2bada1f8d6bda2083bc4d1b7ba</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FH9EGDY9GAn8%7E%2FSLES-9-SP4-CD-i386-GM-CD2.iso&buildid=H9EGDY9GAn8~&fileid=0rxrxZa2O74~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
+        <!--        <order>1</order> -->
+      </iso>
+      <iso name="SLES-9-SP4-CD-i386-GM-CD3.iso">
+        <path>CD3</path>
+        <md5>8a573afbd7ec0204556d9d8d4f93d2cf</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FH9EGDY9GAn8%7E%2FSLES-9-SP4-CD-i386-GM-CD3.iso&buildid=H9EGDY9GAn8~&fileid=2MmSSSaTtfU~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
+        <!--        <order>1</order> -->
+      </iso>
+      <iso name="SLES-9-SP4-CD-i386-GM-CD4.iso">
+        <path>CD4</path>
+        <md5>569978236827c65306fb07716db09b2e</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FH9EGDY9GAn8%7E%2FSLES-9-SP4-CD-i386-GM-CD4.iso&buildid=H9EGDY9GAn8~&fileid=KU4VXici924~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-9-Service-Pack-Version-4</product> -->
+        <!--        <order>1</order> -->
+      </iso>
     </product>
   </distro>
 
@@ -711,40 +757,40 @@
   <!-- SLES 10.2 RT -->
 
   <distro name="sles-10.2-rt-x86_64">
-	<os>sles</os>
-	<release>10.2</release>
+    <os>sles</os>
+    <release>10.2</release>
     <addos>rt</addos>
     <addrel/>
-	<arch>x86_64</arch>
-	<requires>sles-10.2-x86_64</requires> <!-- flag! content ignored -->
-	<description>SLES 10.2 Real-Time Add-On 64bit</description>
-	<autodownload>auth</autodownload>
+    <arch>x86_64</arch>
+    <requires>sles-10.2-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 10.2 Real-Time Add-On 64bit</description>
+    <autodownload>auth</autodownload>
     <product name="dvd">
-	  <addon>flat</addon>
-	  <iso name="SLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso">
-	    <path/>
-	    <md5>a8601be6ad153a50d811dada3e4c2d61</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FsDXgx7pyw0Q%7E%2FSLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso&buildid=sDXgx7pyw0Q~&fileid=EZOK0eJ6_sU~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>flat</addon>
+      <iso name="SLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso">
+        <path/>
+        <md5>a8601be6ad153a50d811dada3e4c2d61</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FsDXgx7pyw0Q%7E%2FSLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso&buildid=sDXgx7pyw0Q~&fileid=EZOK0eJ6_sU~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="sles-10.2-rt-i386">
-	<os>sles</os>
-	<release>10.2</release>
+    <os>sles</os>
+    <release>10.2</release>
     <addos>rt</addos>
     <addrel/>
-	<arch>i386</arch>
-	<requires>sles-10.2-i386</requires> <!-- flag! content ignored -->
-	<description>SLES 10.2 Real-Time Add-On 32bit</description>
-	<autodownload>auth</autodownload>
+    <arch>i386</arch>
+    <requires>sles-10.2-i386</requires> <!-- flag! content ignored -->
+    <description>SLES 10.2 Real-Time Add-On 32bit</description>
+    <autodownload>auth</autodownload>
     <product name="dvd">
-	  <addon>flat</addon>
-	  <iso name="SLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso">
-	    <path/>
-	    <md5>a8601be6ad153a50d811dada3e4c2d61</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FsDXgx7pyw0Q%7E%2FSLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso&buildid=sDXgx7pyw0Q~&fileid=EZOK0eJ6_sU~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>flat</addon>
+      <iso name="SLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso">
+        <path/>
+        <md5>a8601be6ad153a50d811dada3e4c2d61</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FsDXgx7pyw0Q%7E%2FSLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso&buildid=sDXgx7pyw0Q~&fileid=EZOK0eJ6_sU~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
@@ -752,80 +798,121 @@
   <!-- SLES 10.2 MONO -->
 
   <distro name="sles-10.2-mono-x86_64">
-	<os>sles</os>
-	<release>10.2</release>
+    <os>sles</os>
+    <release>10.2</release>
     <addos>mono</addos>
     <addrel/>
-	<arch>x86_64</arch>
-	<requires>sles-10.2-x86_64</requires> <!-- flag! content ignored -->
-	<description>SLES 10.2 Mono Add-On 64bit</description>
-	<autodownload>auth</autodownload>
+    <arch>x86_64</arch>
+    <requires>sles-10.2-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 10.2 Mono Add-On 64bit</description>
+    <autodownload>auth</autodownload>
     <product name="dvd">
-	  <addon>flat</addon>
-	  <iso name="SLES-10-SP2-Mono-GM-DVD1.iso">
-	    <path/>
-	    <md5>63d8936595c7cf9e3f4d648eb2fdff5d</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2Fi25FHB-8OPg%7E%2FSLES-10-SP2-Mono-GM-DVD1.iso&buildid=i25FHB-8OPg~&fileid=t-CYENBIMHA~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>flat</addon>
+      <iso name="SLES-10-SP2-Mono-GM-DVD1.iso">
+        <path/>
+        <md5>63d8936595c7cf9e3f4d648eb2fdff5d</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2Fi25FHB-8OPg%7E%2FSLES-10-SP2-Mono-GM-DVD1.iso&buildid=i25FHB-8OPg~&fileid=t-CYENBIMHA~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="sles-10.2-mono-i386">
-	<os>sles</os>
-	<release>10.2</release>
+    <os>sles</os>
+    <release>10.2</release>
     <addos>mono</addos>
     <addrel/>
-	<arch>i386</arch>
-	<requires>sles-10.2-i386</requires> <!-- flag! content ignored -->
-	<description>SLES 10.2 Mono Add-On 32bit</description>
-	<autodownload>auth</autodownload>
+    <arch>i386</arch>
+    <requires>sles-10.2-i386</requires> <!-- flag! content ignored -->
+    <description>SLES 10.2 Mono Add-On 32bit</description>
+    <autodownload>auth</autodownload>
     <product name="dvd">
-	  <addon>flat</addon>
-	  <iso name="SLES-10-SP2-Mono-GM-DVD1.iso">
-	    <path/>
-	    <md5>63d8936595c7cf9e3f4d648eb2fdff5d</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2Fi25FHB-8OPg%7E%2FSLES-10-SP2-Mono-GM-DVD1.iso&buildid=i25FHB-8OPg~&fileid=t-CYENBIMHA~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>flat</addon>
+      <iso name="SLES-10-SP2-Mono-GM-DVD1.iso">
+        <path/>
+        <md5>63d8936595c7cf9e3f4d648eb2fdff5d</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2Fi25FHB-8OPg%7E%2FSLES-10-SP2-Mono-GM-DVD1.iso&buildid=i25FHB-8OPg~&fileid=t-CYENBIMHA~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <!-- SLES 10.3 RT -->
 
   <distro name="sles-10.3-rt-x86_64">
-	<os>sles</os>
-	<release>10.3</release>
+    <os>sles</os>
+    <release>10.3</release>
     <addos>rt</addos>
     <addrel/>
-	<arch>x86_64</arch>
-	<requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
-	<description>SLES 10.3 Real-Time Add-On 64bit</description>
-	<autodownload>auth</autodownload>
+    <arch>x86_64</arch>
+    <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 10.3 Real-Time Add-On 64bit</description>
+    <autodownload>auth</autodownload>
     <product name="dvd">
-	  <addon>flat</addon>
-	  <iso name="SLES-10-SP3-RT-CD-BiArch-Build0004-CD1.iso">
-	    <path/>
-	    <md5>dacc37df4c62f31c2208e4c444ee1dcd</md5>
-	    <url><![CDATA[]]></url>
-	  </iso>
+      <addon>flat</addon>
+      <iso name="SLES-10-SP3-RT-CD-BiArch-GM.iso">
+        <path/>
+        <md5>567acac65aebf0c0565d7635b3f61e07</md5>
+        <url><![CDATA[]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="sles-10.3-rt-i386">
-	<os>sles</os>
-	<release>10.3</release>
+    <os>sles</os>
+    <release>10.3</release>
     <addos>rt</addos>
     <addrel/>
-	<arch>i386</arch>
-	<requires>sles-10.3-i386</requires> <!-- flag! content ignored -->
-	<description>SLES 10.3 Real-Time Add-On 32bit</description>
-	<autodownload>auth</autodownload>
+    <arch>i386</arch>
+    <requires>sles-10.3-i386</requires> <!-- flag! content ignored -->
+    <description>SLES 10.3 Real-Time Add-On 32bit</description>
+    <autodownload>auth</autodownload>
     <product name="dvd">
-	  <addon>flat</addon>
-	  <iso name="SLES-10-SP3-RT-CD-BiArch-Build0004-CD1.iso">
-	    <path/>
-	    <md5>dacc37df4c62f31c2208e4c444ee1dcd</md5>
-	    <url><![CDATA[]]></url>
-	  </iso>
+      <addon>flat</addon>
+      <iso name="SLES-10-SP3-RT-CD-BiArch-GM.iso">
+        <path/>
+        <md5>567acac65aebf0c0565d7635b3f61e07</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+
+  <!-- SLES 10.3 SMT -->
+
+  <distro name="sles-10.3-smt-x86_64">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>smt</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 10.3 Subscription Mgmt Tool Add-On 64bit</description>
+    <autodownload>auth</autodownload>
+    <product name="dvd">
+      <addon>flat</addon>
+      <iso name="SLES-10-SP3-SMT-BiArch-GM-CD1.iso">
+        <path/>
+        <md5>567acac65aebf0c0565d7635b3f61e07</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-smt-i386">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>smt</addos>
+    <addrel/>
+    <arch>i386</arch>
+    <requires>sles-10.3-i386</requires> <!-- flag! content ignored -->
+    <description>SLES 10.3 Subscription Mgmt Tool Add-On 32bit</description>
+    <autodownload>auth</autodownload>
+    <product name="dvd">
+      <addon>flat</addon>
+      <iso name="SLES-10-SP3-SMT-BiArch-GM-CD1.iso">
+        <path/>
+        <md5>567acac65aebf0c0565d7635b3f61e07</md5>
+        <url><![CDATA[]]></url>
+      </iso>
     </product>
   </distro>
 
@@ -833,40 +920,40 @@
   <!-- SLES 11 MONO -->
 
   <distro name="sles-11-mono-x86_64">
-	<os>sles</os>
-	<release>11</release>
+    <os>sles</os>
+    <release>11</release>
     <addos>mono</addos>
     <addrel/>
-	<arch>x86_64</arch>
-	<requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
-	<description>SLES 11 Mono Add-On 64bit</description>
-	<autodownload>auth</autodownload>
+    <arch>x86_64</arch>
+    <requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 11 Mono Add-On 64bit</description>
+    <autodownload>auth</autodownload>
     <product name="dvd">
-	  <addon>signed</addon>
-	  <iso name="SLES-11-Mono-GM-DVD1.iso">
-	    <path/>
-	    <md5>8d9907df21cb781fd97848aafedd6838</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2Fi25FHB-8OPg%7E%2FSLES-11-Mono-GM-DVD1.iso&buildid=i25FHB-8OPg~&fileid=RZlSORQK3yE~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>signed</addon>
+      <iso name="SLES-11-Mono-GM-DVD1.iso">
+        <path/>
+        <md5>8d9907df21cb781fd97848aafedd6838</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2Fi25FHB-8OPg%7E%2FSLES-11-Mono-GM-DVD1.iso&buildid=i25FHB-8OPg~&fileid=RZlSORQK3yE~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="sles-11-mono-i586">
-	<os>sles</os>
-	<release>11</release>
+    <os>sles</os>
+    <release>11</release>
     <addos>mono</addos>
     <addrel/>
-	<arch>i586</arch>
-	<requires>sles-11-i586</requires> <!-- flag! content ignored -->
-	<description>SLES 11 Mono Add-On 32bit</description>
-	<autodownload>auth</autodownload>
+    <arch>i586</arch>
+    <requires>sles-11-i586</requires> <!-- flag! content ignored -->
+    <description>SLES 11 Mono Add-On 32bit</description>
+    <autodownload>auth</autodownload>
     <product name="dvd">
-	  <addon>signed</addon>
-	  <iso name="SLES-11-Mono-GM-DVD1.iso">
-	    <path/>
-	    <md5>8d9907df21cb781fd97848aafedd6838</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2Fi25FHB-8OPg%7E%2FSLES-11-Mono-GM-DVD1.iso&buildid=i25FHB-8OPg~&fileid=RZlSORQK3yE~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>signed</addon>
+      <iso name="SLES-11-Mono-GM-DVD1.iso">
+        <path/>
+        <md5>8d9907df21cb781fd97848aafedd6838</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2Fi25FHB-8OPg%7E%2FSLES-11-Mono-GM-DVD1.iso&buildid=i25FHB-8OPg~&fileid=RZlSORQK3yE~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
@@ -874,40 +961,40 @@
   <!-- SLES 11 HAE -->
 
   <distro name="sles-11-hae-x86_64">
-	<os>sles</os>
-	<release>11</release>
+    <os>sles</os>
+    <release>11</release>
     <addos>hae</addos>
     <addrel/>
-	<arch>x86_64</arch>
-	<requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
-	<description>SLES 11 High Availability Extension 64bit</description>
-	<autodownload>auth</autodownload>
+    <arch>x86_64</arch>
+    <requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 11 High Availability Extension 64bit</description>
+    <autodownload>auth</autodownload>
     <product name="dvd">
-	  <addon>signed</addon>
-	  <iso name="SLE-11-HAE-x86_64-GM-DVD1.iso">
-	    <path/>
-	    <md5>2af67dcd5ef29bf3faf3cb6fc1bea371</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FjC1wpkedb7A%7E%2FSLE-11-HAE-x86_64-GM-DVD1.iso&buildid=jC1wpkedb7A~&fileid=uovFxax5D4k~&mirror=AkamaiHost&nohost=false]]></url>
+      <addon>signed</addon>
+      <iso name="SLE-11-HAE-x86_64-GM-DVD1.iso">
+        <path/>
+        <md5>2af67dcd5ef29bf3faf3cb6fc1bea371</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FjC1wpkedb7A%7E%2FSLE-11-HAE-x86_64-GM-DVD1.iso&buildid=jC1wpkedb7A~&fileid=uovFxax5D4k~&mirror=AkamaiHost&nohost=false]]></url>
       </iso>
     </product>
   </distro>
 
   <distro name="sles-11-hae-i586">
-	<os>sles</os>
-	<release>11</release>
+    <os>sles</os>
+    <release>11</release>
     <addos>hae</addos>
     <addrel/>
-	<arch>i586</arch>
-	<requires>sles-11-i586</requires> <!-- flag! content ignored -->
-	<description>SLES 11 High Availability Extension 32bit</description>
-	<autodownload>auth</autodownload>
+    <arch>i586</arch>
+    <requires>sles-11-i586</requires> <!-- flag! content ignored -->
+    <description>SLES 11 High Availability Extension 32bit</description>
+    <autodownload>auth</autodownload>
     <product name="dvd">
-	  <addon>signed</addon>
-	  <iso name="SLE-11-HAE-i586-GM-DVD1.iso">
-	    <path/>
-	    <md5>3ce1a860336aac4174daab3d9796ca31</md5>
-	    <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FjC1wpkedb7A%7E%2FSLE-11-HAE-i586-GM-DVD1.iso&buildid=jC1wpkedb7A~&fileid=AxNQl3SmqPU~&mirror=AkamaiHost&nohost=false]]></url>
-	  </iso>
+      <addon>signed</addon>
+      <iso name="SLE-11-HAE-i586-GM-DVD1.iso">
+        <path/>
+        <md5>3ce1a860336aac4174daab3d9796ca31</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FjC1wpkedb7A%7E%2FSLE-11-HAE-i586-GM-DVD1.iso&buildid=jC1wpkedb7A~&fileid=AxNQl3SmqPU~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
     </product>
   </distro>
 
@@ -915,119 +1002,119 @@
   <!-- openSuSE 11.1 -->
 
   <distro name="opensuse-11.1-x86_64">
-	<os>opensuse</os>
-	<release>11.1</release>
-	<arch>x86_64</arch>
-	<description>openSUSE 11.1 64bit</description>
-	<autodownload>open</autodownload>
+    <os>opensuse</os>
+    <release>11.1</release>
+    <arch>x86_64</arch>
+    <description>openSUSE 11.1 64bit</description>
+    <autodownload>open</autodownload>
     <product name="dvd">
       <addon>base</addon>
-	  <iso name="openSUSE-11.1-DVD-x86_64.iso">
-	    <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
-            </sharefiles>
-	    <md5>2afee1b8a87175e6dee2b8dbbd1ad8e8</md5>
-	    <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-DVD-x86_64.iso]]></url>
-	  </iso>
+      <iso name="openSUSE-11.1-DVD-x86_64.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>2afee1b8a87175e6dee2b8dbbd1ad8e8</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-DVD-x86_64.iso]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="opensuse-11.1-nonoss-x86_64">
-	<os>opensuse</os>
-	<release>11.1</release>
+    <os>opensuse</os>
+    <release>11.1</release>
     <addos>nonoss</addos>
     <addrel/>
-	<arch>x86_64</arch>
-	<requires>opensuse-11.1-x86_64</requires> <!-- flag! content ignored -->
-	<description>openSUSE 11.1 non-OSS 64bit</description>
-	<autodownload>open</autodownload>
+    <arch>x86_64</arch>
+    <requires>opensuse-11.1-x86_64</requires> <!-- flag! content ignored -->
+    <description>openSUSE 11.1 non-OSS 64bit</description>
+    <autodownload>open</autodownload>
     <product name="dvd">
-	  <addon>signed</addon>
-	  <iso name="openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso">
-	    <path/>
-	    <md5>8d89efb626b510c2adb3ccd8e407dcc4</md5>
-	    <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso]]></url>
-	  </iso>
+      <addon>signed</addon>
+      <iso name="openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso">
+        <path/>
+        <md5>8d89efb626b510c2adb3ccd8e407dcc4</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="opensuse-11.1-lang-x86_64">
-	<os>opensuse</os>
-	<release>11.1</release>
+    <os>opensuse</os>
+    <release>11.1</release>
     <addos>lang</addos>
     <addrel/>
-	<arch>x86_64</arch>
-	<requires>opensuse-11.1-x86_64</requires> <!-- flag! content ignored -->
-	<description>openSUSE 11.1 Languages 64bit</description>
-	<autodownload>open</autodownload>
+    <arch>x86_64</arch>
+    <requires>opensuse-11.1-x86_64</requires> <!-- flag! content ignored -->
+    <description>openSUSE 11.1 Languages 64bit</description>
+    <autodownload>open</autodownload>
     <product name="dvd">
-	  <addon>signed</addon>
-	  <iso name="openSUSE-11.1-Addon-Lang-x86_64.iso">
-	    <path/>
-	    <md5>dc53defad6bd08ea120376cc9e412f1c</md5>
-	    <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-Lang-x86_64.iso]]></url>
-	  </iso>
+      <addon>signed</addon>
+      <iso name="openSUSE-11.1-Addon-Lang-x86_64.iso">
+        <path/>
+        <md5>dc53defad6bd08ea120376cc9e412f1c</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-Lang-x86_64.iso]]></url>
+      </iso>
     </product>
   </distro>
 
 
   <distro name="opensuse-11.1-i586">
-	<os>opensuse</os>
-	<release>11.1</release>
-	<arch>i586</arch>
-	<description>openSUSE 11.1 32bit</description>
-	<autodownload>open</autodownload>
+    <os>opensuse</os>
+    <release>11.1</release>
+    <arch>i586</arch>
+    <description>openSUSE 11.1 32bit</description>
+    <autodownload>open</autodownload>
     <product name="dvd">
-	  <addon>base</addon>
-	  <iso name="openSUSE-11.1-DVD-i586.iso">
-	    <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
-            </sharefiles>
-	    <md5>8f51b278c0415be28c5699e465444bd3</md5>
-	    <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-DVD-i586.iso]]></url>
-	  </iso>
+      <addon>base</addon>
+      <iso name="openSUSE-11.1-DVD-i586.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+        </sharefiles>
+        <md5>8f51b278c0415be28c5699e465444bd3</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-DVD-i586.iso]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="opensuse-11.1-nonoss-i586">
-	<os>opensuse</os>
-	<release>11.1</release>
+    <os>opensuse</os>
+    <release>11.1</release>
     <addos>nonoss</addos>
     <addrel/>
-	<arch>i586</arch>
-	<requires>opensuse-11.1-i586</requires> <!-- flag! content ignored -->
-	<description>openSUSE 11.1 non-OSS 32bit</description>
-	<autodownload>open</autodownload>
+    <arch>i586</arch>
+    <requires>opensuse-11.1-i586</requires> <!-- flag! content ignored -->
+    <description>openSUSE 11.1 non-OSS 32bit</description>
+    <autodownload>open</autodownload>
     <product name="dvd">
-	  <addon>signed</addon>
-	  <iso name="openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso">
-	    <path/>
-	    <md5>8d89efb626b510c2adb3ccd8e407dcc4</md5>
-	    <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso]]></url>
-	  </iso>
+      <addon>signed</addon>
+      <iso name="openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso">
+        <path/>
+        <md5>8d89efb626b510c2adb3ccd8e407dcc4</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="opensuse-11.1-lang-i586">
-	<os>opensuse</os>
-	<release>11.1</release>
+    <os>opensuse</os>
+    <release>11.1</release>
     <addos>lang</addos>
     <addrel/>
-	<arch>i586</arch>
-	<requires>opensuse-11.1-i586</requires> <!-- flag! content ignored -->
-	<description>openSUSE 11.1 Languages 32bit</description>
-	<autodownload>open</autodownload>
+    <arch>i586</arch>
+    <requires>opensuse-11.1-i586</requires> <!-- flag! content ignored -->
+    <description>openSUSE 11.1 Languages 32bit</description>
+    <autodownload>open</autodownload>
     <product name="dvd">
-	  <addon>signed</addon>
-	  <iso name="openSUSE-11.1-Addon-Lang-i586.iso">
-	    <path/>
-	    <md5>7b61aaec0bdd3b959ce075b08299ccc9</md5>
-	    <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-Lang-i586.iso]]></url>
-	  </iso>
+      <addon>signed</addon>
+      <iso name="openSUSE-11.1-Addon-Lang-i586.iso">
+        <path/>
+        <md5>7b61aaec0bdd3b959ce075b08299ccc9</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-Lang-i586.iso]]></url>
+      </iso>
     </product>
   </distro>
 
@@ -1044,9 +1131,9 @@
       <iso name="openSUSE-11.2-DVD-x86_64.iso">
         <path/>
         <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
-            </sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
         <md5>6a09295e34dc030319d040f67f4742c6</md5>
         <url><![CDATA[http://download.opensuse.org/distribution/11.2/iso/openSUSE-11.2-DVD-x86_64.iso]]></url>
       </iso>
@@ -1054,14 +1141,14 @@
   </distro>
 
   <distro name="opensuse-11.2-nonoss-x86_64">
-	<os>opensuse</os>
-	<release>11.2</release>
+    <os>opensuse</os>
+    <release>11.2</release>
     <addos>nonoss</addos>
     <addrel/>
-	<arch>x86_64</arch>
-	<requires>opensuse-11.2-x86_64</requires> <!-- flag! content ignored -->
-	<description>openSUSE 11.2 non-OSS 64bit</description>
-	<autodownload>open</autodownload>
+    <arch>x86_64</arch>
+    <requires>opensuse-11.2-x86_64</requires> <!-- flag! content ignored -->
+    <description>openSUSE 11.2 non-OSS 64bit</description>
+    <autodownload>open</autodownload>
     <product name="dvd">
       <addon>signed</addon>
       <iso name="openSUSE-11.2-Addon-NonOss-BiArch-i586-x86_64.iso">
@@ -1073,14 +1160,14 @@
   </distro>
 
   <distro name="opensuse-11.2-lang-x86_64">
-	<os>opensuse</os>
-	<release>11.2</release>
+    <os>opensuse</os>
+    <release>11.2</release>
     <addos>lang</addos>
     <addrel/>
-	<arch>x86_64</arch>
-	<requires>opensuse-11.2-x86_64</requires> <!-- flag! content ignored -->
-	<description>openSUSE 11.2 Languages 64bit</description>
-	<autodownload>open</autodownload>
+    <arch>x86_64</arch>
+    <requires>opensuse-11.2-x86_64</requires> <!-- flag! content ignored -->
+    <description>openSUSE 11.2 Languages 64bit</description>
+    <autodownload>open</autodownload>
     <product name="dvd">
       <addon>signed</addon>
       <iso name="openSUSE-11.2-Addon-Lang-x86_64.iso">
@@ -1102,9 +1189,9 @@
       <iso name="openSUSE-11.2-DVD-i586.iso">
         <path/>
         <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
-              <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
-            </sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+        </sharefiles>
         <md5>295d713314a30ad017948f0d542c6d92</md5>
         <url><![CDATA[http://download.opensuse.org/distribution/11.2/iso/openSUSE-11.2-DVD-i586.iso]]></url>
       </iso>
@@ -1112,14 +1199,14 @@
   </distro>
 
   <distro name="opensuse-11.2-nonoss-i586">
-	<os>opensuse</os>
-	<release>11.2</release>
+    <os>opensuse</os>
+    <release>11.2</release>
     <addos>nonoss</addos>
     <addrel/>
-	<arch>i586</arch>
-	<requires>opensuse-11.2-i586</requires> <!-- flag! content ignored -->
-	<description>openSUSE 11.2 non-OSS 32bit</description>
-	<autodownload>open</autodownload>
+    <arch>i586</arch>
+    <requires>opensuse-11.2-i586</requires> <!-- flag! content ignored -->
+    <description>openSUSE 11.2 non-OSS 32bit</description>
+    <autodownload>open</autodownload>
     <product name="dvd">
       <addon>signed</addon>
       <iso name="openSUSE-11.2-Addon-NonOss-BiArch-i586-x86_64.iso">
@@ -1131,14 +1218,14 @@
   </distro>
 
   <distro name="opensuse-11.2-lang-i586">
-	<os>opensuse</os>
-	<release>11.2</release>
+    <os>opensuse</os>
+    <release>11.2</release>
     <addos>lang</addos>
     <addrel/>
-	<arch>i586</arch>
-	<requires>opensuse-11.2-i586</requires> <!-- flag! content ignored -->
-	<description>openSUSE 11.2 Languages 32bit</description>
-	<autodownload>open</autodownload>
+    <arch>i586</arch>
+    <requires>opensuse-11.2-i586</requires> <!-- flag! content ignored -->
+    <description>openSUSE 11.2 Languages 32bit</description>
+    <autodownload>open</autodownload>
     <product name="dvd">
       <addon>signed</addon>
       <iso name="openSUSE-11.2-Addon-Lang-i586.iso">
@@ -1153,114 +1240,114 @@
   <!-- RHEL 3.9 -->
 
   <distro name="rhel-3.9-x86_64">
-        <os>rhel</os>
-        <release>3.9</release>
-        <arch>x86_64</arch>
-        <description>RedHat Enterprise Linux 3.9 64bit</description>
-        <autodownload>no</autodownload>
+    <os>rhel</os>
+    <release>3.9</release>
+    <arch>x86_64</arch>
+    <description>RedHat Enterprise Linux 3.9 64bit</description>
+    <autodownload>no</autodownload>
     <product name="cds">
-          <addon>base</addon>
-          <iso name="rhel-3-u9-x86_64-as-disc1.iso">
-            <path>CD1</path>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
-              <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
-            </sharefiles>
-            <md5>eeb477cb3545461e54ed5d4c3ecc4952</md5>
-            <url><![CDATA[]]></url>
-          </iso>
-          <iso name="rhel-3-u9-x86_64-as-disc2.iso">
-            <path>CD2</path>
-            <md5>6d4730305682a172eeeb55ba10dbd7dc</md5>
-            <url><![CDATA[]]></url>
-          </iso>
-          <iso name="rhel-3-u9-x86_64-as-disc3.iso">
-            <path>CD3</path>
-            <md5>0c0b86b395ddeffd1dd66b3203a590a9</md5>
-            <url><![CDATA[]]></url>
-          </iso>
-          <iso name="rhel-3-u9-x86_64-as-disc4.iso">
-            <path/>
-            <md5>6ef64530a9c2cc8ec0df2f1e1bd5b582</md5>
-            <url><![CDATA[]]></url>
-          </iso>
+      <addon>base</addon>
+      <iso name="rhel-3-u9-x86_64-as-disc1.iso">
+        <path>CD1</path>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>eeb477cb3545461e54ed5d4c3ecc4952</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+      <iso name="rhel-3-u9-x86_64-as-disc2.iso">
+        <path>CD2</path>
+        <md5>6d4730305682a172eeeb55ba10dbd7dc</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+      <iso name="rhel-3-u9-x86_64-as-disc3.iso">
+        <path>CD3</path>
+        <md5>0c0b86b395ddeffd1dd66b3203a590a9</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+      <iso name="rhel-3-u9-x86_64-as-disc4.iso">
+        <path/>
+        <md5>6ef64530a9c2cc8ec0df2f1e1bd5b582</md5>
+        <url><![CDATA[]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="rhel-3.9-i386">
-        <os>rhel</os>
-        <release>3.9</release>
-        <arch>i386</arch>
-        <description>RedHat Enterprise Linux 3.9 32bit</description>
-        <autodownload>no</autodownload>
+    <os>rhel</os>
+    <release>3.9</release>
+    <arch>i386</arch>
+    <description>RedHat Enterprise Linux 3.9 32bit</description>
+    <autodownload>no</autodownload>
     <product name="cds">
-          <addon>base</addon>
-          <iso name="rhel-3-u9-i386-as-disc1.iso">
-            <path>CD1</path>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
-              <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
-            </sharefiles>
-            <md5>e09c011ed762a4697c026184ac9e4630</md5>
-            <url><![CDATA[]]></url>
-          </iso>
-          <iso name="rhel-3-u9-i386-as-disc2.iso">
-            <path>CD2</path>
-            <md5>028a621b32c57eb90c5c3cb6caa7536d</md5>
-            <url><![CDATA[]]></url>
-          </iso>
-          <iso name="rhel-3-u9-i386-as-disc3.iso">
-            <path>CD3</path>
-            <md5>902423a86d98e6d457d1fb878db238a3</md5>
-            <url><![CDATA[]]></url>
-          </iso>
-          <iso name="rhel-3-u9-i386-as-disc4.iso">
-            <path/>
-            <md5>d475714c91b8761f39132abc019e5bf1</md5>
-            <url><![CDATA[]]></url>
-          </iso>
+      <addon>base</addon>
+      <iso name="rhel-3-u9-i386-as-disc1.iso">
+        <path>CD1</path>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>e09c011ed762a4697c026184ac9e4630</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+      <iso name="rhel-3-u9-i386-as-disc2.iso">
+        <path>CD2</path>
+        <md5>028a621b32c57eb90c5c3cb6caa7536d</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+      <iso name="rhel-3-u9-i386-as-disc3.iso">
+        <path>CD3</path>
+        <md5>902423a86d98e6d457d1fb878db238a3</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+      <iso name="rhel-3-u9-i386-as-disc4.iso">
+        <path/>
+        <md5>d475714c91b8761f39132abc019e5bf1</md5>
+        <url><![CDATA[]]></url>
+      </iso>
     </product>
   </distro>
 
   <!-- RHEL 4.6 -->
 
   <distro name="rhel-4.6-x86_64">
-        <os>rhel</os>
-        <release>4.6</release>
-        <arch>x86_64</arch>
-        <description>RedHat Enterprise Linux 4.6 64bit</description>
-        <autodownload>no</autodownload>
+    <os>rhel</os>
+    <release>4.6</release>
+    <arch>x86_64</arch>
+    <description>RedHat Enterprise Linux 4.6 64bit</description>
+    <autodownload>no</autodownload>
     <product name="dvd">
-          <addon>base</addon>
-          <iso name="RHEL4.6-x86_64-AS-DVD.iso">
-            <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
-              <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
-            </sharefiles>
-            <md5>e7bac65dea907eedc6944c615917099c</md5>
-            <url><![CDATA[]]></url>
-          </iso>
+      <addon>base</addon>
+      <iso name="RHEL4.6-x86_64-AS-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>e7bac65dea907eedc6944c615917099c</md5>
+        <url><![CDATA[]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="rhel-4.6-i386">
-        <os>rhel</os>
-        <release>4.6</release>
-        <arch>i386</arch>
-        <description>RedHat Enterprise Linux 4.6 32bit</description>
-        <autodownload>no</autodownload>
+    <os>rhel</os>
+    <release>4.6</release>
+    <arch>i386</arch>
+    <description>RedHat Enterprise Linux 4.6 32bit</description>
+    <autodownload>no</autodownload>
     <product name="dvd">
-          <addon>base</addon>
-          <iso name="RHEL4.6-i386-AS-DVD.iso">
-            <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
-              <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
-            </sharefiles>
-            <md5>d9440b8aa3cabacb2eec905287473714</md5>
-            <url><![CDATA[]]></url>
-          </iso>
+      <addon>base</addon>
+      <iso name="RHEL4.6-i386-AS-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>d9440b8aa3cabacb2eec905287473714</md5>
+        <url><![CDATA[]]></url>
+      </iso>
     </product>
   </distro>
 
@@ -1268,42 +1355,42 @@
   <!-- RHEL 4.8 -->
 
   <distro name="rhel-4.8-x86_64">
-        <os>rhel</os>
-        <release>4.8</release>
-        <arch>x86_64</arch>
-        <description>RedHat Enterprise Linux 4.8 64bit</description>
-        <autodownload>no</autodownload>
+    <os>rhel</os>
+    <release>4.8</release>
+    <arch>x86_64</arch>
+    <description>RedHat Enterprise Linux 4.8 64bit</description>
+    <autodownload>no</autodownload>
     <product name="dvd">
-          <addon>base</addon>
-          <iso name="RHEL4.8-x86_64-AS-DVD.iso">
-            <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
-              <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
-            </sharefiles>
-            <md5>35629ed4e21bcaaee599830f59cb009d</md5>
-            <url><![CDATA[]]></url>
-          </iso>
+      <addon>base</addon>
+      <iso name="RHEL4.8-x86_64-AS-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>35629ed4e21bcaaee599830f59cb009d</md5>
+        <url><![CDATA[]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="rhel-4.8-i386">
-        <os>rhel</os>
-        <release>4.8</release>
-        <arch>i386</arch>
-        <description>RedHat Enterprise Linux 4.8 32bit</description>
-        <autodownload>no</autodownload>
+    <os>rhel</os>
+    <release>4.8</release>
+    <arch>i386</arch>
+    <description>RedHat Enterprise Linux 4.8 32bit</description>
+    <autodownload>no</autodownload>
     <product name="dvd">
-          <addon>base</addon>
-          <iso name="RHEL4.8-i386-AS-DVD.iso">
-            <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
-              <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
-            </sharefiles>
-            <md5>f9518f55a0a9d26e2a321a96dfb335f3</md5>
-            <url><![CDATA[]]></url>
-          </iso>
+      <addon>base</addon>
+      <iso name="RHEL4.8-i386-AS-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>f9518f55a0a9d26e2a321a96dfb335f3</md5>
+        <url><![CDATA[]]></url>
+      </iso>
     </product>
   </distro>
 
@@ -1311,42 +1398,42 @@
   <!-- RHEL 5.3 -->
 
   <distro name="rhel-5.3-x86_64">
-	<os>rhel</os>
-	<release>5.3</release>
-	<arch>x86_64</arch>
-	<description>RedHat Enterprise Linux 5.3 64bit</description>
-	<autodownload>no</autodownload>
+    <os>rhel</os>
+    <release>5.3</release>
+    <arch>x86_64</arch>
+    <description>RedHat Enterprise Linux 5.3 64bit</description>
+    <autodownload>no</autodownload>
     <product name="dvd">
-	  <addon>base</addon>
-	  <iso name="rhel-server-5.3-x86_64-dvd.iso">
-	    <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
-              <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
-            </sharefiles>
-	    <md5>c5ed6b284410f4d8212cafc78fd7a8c5</md5>
-	    <url><![CDATA[]]></url>
-	  </iso>
+      <addon>base</addon>
+      <iso name="rhel-server-5.3-x86_64-dvd.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>c5ed6b284410f4d8212cafc78fd7a8c5</md5>
+        <url><![CDATA[]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="rhel-5.3-i386">
-	<os>rhel</os>
-	<release>5.3</release>
-	<arch>i386</arch>
-	<description>RedHat Enterprise Linux 5.3 32bit</description>
-	<autodownload>no</autodownload>
+    <os>rhel</os>
+    <release>5.3</release>
+    <arch>i386</arch>
+    <description>RedHat Enterprise Linux 5.3 32bit</description>
+    <autodownload>no</autodownload>
     <product name="dvd">
-	  <addon>base</addon>
-	  <iso name="rhel-server-5.3-i386-dvd.iso">
-	    <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
-              <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
-            </sharefiles>
-	    <md5>371c62851611fd32ead440df6f24a296</md5>
-	    <url><![CDATA[]]></url>
-	  </iso>
+      <addon>base</addon>
+      <iso name="rhel-server-5.3-i386-dvd.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>371c62851611fd32ead440df6f24a296</md5>
+        <url><![CDATA[]]></url>
+      </iso>
     </product>
   </distro>
 
@@ -1354,42 +1441,42 @@
   <!-- RHEL 5.4 -->
 
   <distro name="rhel-5.4-x86_64">
-        <os>rhel</os>
-        <release>5.4</release>
-        <arch>x86_64</arch>
-        <description>RedHat Enterprise Linux 5.4 64bit</description>
-        <autodownload>no</autodownload>
+    <os>rhel</os>
+    <release>5.4</release>
+    <arch>x86_64</arch>
+    <description>RedHat Enterprise Linux 5.4 64bit</description>
+    <autodownload>no</autodownload>
     <product name="dvd">
-          <addon>base</addon>
-          <iso name="rhel-server-5.4-x86_64-dvd.iso">
-            <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
-              <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
-            </sharefiles>
-            <md5>04fe3c10202402d7b389528d2bad0210</md5>
-            <url><![CDATA[]]></url>
-          </iso>
+      <addon>base</addon>
+      <iso name="rhel-server-5.4-x86_64-dvd.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>04fe3c10202402d7b389528d2bad0210</md5>
+        <url><![CDATA[]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="rhel-5.4-i386">
-        <os>rhel</os>
-        <release>5.4</release>
-        <arch>i386</arch>
-        <description>RedHat Enterprise Linux 5.4 32bit</description>
-        <autodownload>no</autodownload>
+    <os>rhel</os>
+    <release>5.4</release>
+    <arch>i386</arch>
+    <description>RedHat Enterprise Linux 5.4 32bit</description>
+    <autodownload>no</autodownload>
     <product name="dvd">
-          <addon>base</addon>
-          <iso name="rhel-server-5.4-i386-dvd.iso">
-            <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
-              <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
-            </sharefiles>
-            <md5>7a12ec6599527e4f3d1790b51eadbfed</md5>
-            <url><![CDATA[]]></url>
-          </iso>
+      <addon>base</addon>
+      <iso name="rhel-server-5.4-i386-dvd.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>7a12ec6599527e4f3d1790b51eadbfed</md5>
+        <url><![CDATA[]]></url>
+      </iso>
     </product>
   </distro>
 
@@ -1397,40 +1484,40 @@
   <!-- RHEL 5.3 MRG 1.1 -->
 
   <distro name="rhel-5.3-mrg-1.1-x86_64">
-	<os>rhel</os>
-	<release>5.3</release>
+    <os>rhel</os>
+    <release>5.3</release>
     <addos>mrg</addos>
     <addrel>1.1</addrel>
-	<arch>x86_64</arch>
+    <arch>x86_64</arch>
     <requires>rhel-5.3-x86_64</requires> <!-- flag! content ignored -->
-	<description>RHEL 5 Messaging Real-Time Grid 1.1 64bit</description>
-	<autodownload>no</autodownload>
+    <description>RHEL 5 Messaging Real-Time Grid 1.1 64bit</description>
+    <autodownload>no</autodownload>
     <product name="dvd">
-	  <addon>yum</addon>
-	  <iso name="rhel-5-mrg-1.1-x86_64.iso">
-	    <path/>
-	    <md5>d8914a71f91c43ec8c7781007ed0f4cb</md5>
-	    <url><![CDATA[]]></url>
-	  </iso>
+      <addon>yum</addon>
+      <iso name="rhel-5-mrg-1.1-x86_64.iso">
+        <path/>
+        <md5>d8914a71f91c43ec8c7781007ed0f4cb</md5>
+        <url><![CDATA[]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="rhel-5.3-mrg-1.1-i386">
-	<os>rhel</os>
-	<release>5.3</release>
+    <os>rhel</os>
+    <release>5.3</release>
     <addos>mrg</addos>
     <addrel>1.1</addrel>
-	<arch>i386</arch>
+    <arch>i386</arch>
     <requires>rhel-5.3-i386</requires> <!-- flag! content ignored -->
-	<description>RHEL 5 Messaging Real-Time Grid 1.1 32bit</description>
-	<autodownload>no</autodownload>
+    <description>RHEL 5 Messaging Real-Time Grid 1.1 32bit</description>
+    <autodownload>no</autodownload>
     <product name="dvd">
-	  <addon>yum</addon>
-	  <iso name="rhel-5-mrg-1.1-i386.iso">
-	  <path/>
-	  <md5>723e96222900f39404fb0df8692d30dc</md5>
-	  <url><![CDATA[]]></url>
-	  </iso>
+      <addon>yum</addon>
+      <iso name="rhel-5-mrg-1.1-i386.iso">
+        <path/>
+        <md5>723e96222900f39404fb0df8692d30dc</md5>
+        <url><![CDATA[]]></url>
+      </iso>
     </product>
   </distro>
 
@@ -1438,42 +1525,42 @@
   <!-- fedora 11 -->
 
   <distro name="fedora-11-x86_64">
-	<os>fedora</os>
-	<release>11</release>
-	<arch>x86_64</arch>
-	<description>Fedora 11 64bit</description>
-	<autodownload>open</autodownload>
+    <os>fedora</os>
+    <release>11</release>
+    <arch>x86_64</arch>
+    <description>Fedora 11 64bit</description>
+    <autodownload>open</autodownload>
     <product name="dvd">
-	  <addon>base</addon>
-	  <iso name="Fedora-11-x86_64-DVD.iso">
-	    <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
-              <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
-            </sharefiles>
-	    <md5>9d419844adeb93120215fe7505c9bce8</md5>
-	    <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/11/Fedora/x86_64/iso/Fedora-11-x86_64-DVD.iso]]></url>
-	  </iso>
+      <addon>base</addon>
+      <iso name="Fedora-11-x86_64-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>9d419844adeb93120215fe7505c9bce8</md5>
+        <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/11/Fedora/x86_64/iso/Fedora-11-x86_64-DVD.iso]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="fedora-11-i386">
-	<os>fedora</os>
-	<release>11</release>
-	<arch>i386</arch>
-	<description>Fedora 11 32bit</description>
-	<autodownload>open</autodownload>
+    <os>fedora</os>
+    <release>11</release>
+    <arch>i386</arch>
+    <description>Fedora 11 32bit</description>
+    <autodownload>open</autodownload>
     <product name="dvd">
-	  <addon>base</addon>
-	  <iso name="Fedora-11-i386-DVD.iso">
-	    <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
-              <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
-            </sharefiles>
-	    <md5>2c2440df98f1673803d10f17a5a71954</md5>
-	    <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/11/Fedora/i386/iso/Fedora-11-i386-DVD.iso]]></url>
-	  </iso>
+      <addon>base</addon>
+      <iso name="Fedora-11-i386-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>2c2440df98f1673803d10f17a5a71954</md5>
+        <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/11/Fedora/i386/iso/Fedora-11-i386-DVD.iso]]></url>
+      </iso>
     </product>
   </distro>
 
@@ -1481,98 +1568,98 @@
   <!-- fedora 12 -->
 
   <distro name="fedora-12-x86_64">
-	<os>fedora</os>
-	<release>12</release>
-	<arch>x86_64</arch>
-	<description>Fedora 12 64bit</description>
-	<autodownload>open</autodownload>
+    <os>fedora</os>
+    <release>12</release>
+    <arch>x86_64</arch>
+    <description>Fedora 12 64bit</description>
+    <autodownload>open</autodownload>
     <product name="dvd">
-	  <addon>base</addon>
-	  <iso name="Fedora-12-x86_64-DVD.iso">
-	    <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
-              <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
-            </sharefiles>
-	    <md5>6dd31e292cc2eb1140544e9b1ba61c56</md5>
-	    <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/12/Fedora/x86_64/iso/Fedora-12-x86_64-DVD.iso]]></url>
-	  </iso>
+      <addon>base</addon>
+      <iso name="Fedora-12-x86_64-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>6dd31e292cc2eb1140544e9b1ba61c56</md5>
+        <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/12/Fedora/x86_64/iso/Fedora-12-x86_64-DVD.iso]]></url>
+      </iso>
     </product>
   </distro>
 
   <distro name="fedora-12-i386">
-	<os>fedora</os>
-	<release>12</release>
-	<arch>i386</arch>
-	<description>Fedora 12 32bit</description>
-	<autodownload>open</autodownload>
+    <os>fedora</os>
+    <release>12</release>
+    <arch>i386</arch>
+    <description>Fedora 12 32bit</description>
+    <autodownload>open</autodownload>
     <product name="dvd">
-	  <addon>base</addon>
-	  <iso name="Fedora-12-i386-DVD.iso">
-	    <path/>
-            <sharefiles>
-              <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
-              <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
-            </sharefiles>
-	    <md5>2c4c1c0d09f2fbcfd8ee6a0c5542eeb2</md5>
-	    <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/12/Fedora/i386/iso/Fedora-12-i386-DVD.iso]]></url>
-	  </iso>
+      <addon>base</addon>
+      <iso name="Fedora-12-i386-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>2c4c1c0d09f2fbcfd8ee6a0c5542eeb2</md5>
+        <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/12/Fedora/i386/iso/Fedora-12-i386-DVD.iso]]></url>
+      </iso>
     </product>
   </distro>
 
-<!-- Windows 2008 -->
+  <!-- Windows 2008 -->
 
   <distro name="windows_ent-2008-x86_64">
-        <os>windows_ent</os>
-        <release>2008</release>
-        <arch>x86_64</arch>
-        <description>Windows Enterprise 2008 64bit</description>
-        <autodownload>no</autodownload>
-        <sharetype>cifs</sharetype>
+    <os>windows_ent</os>
+    <release>2008</release>
+    <arch>x86_64</arch>
+    <description>Windows Enterprise 2008 64bit</description>
+    <autodownload>no</autodownload>
+    <sharetype>cifs</sharetype>
     <product name="dvd">
-          <addon>base</addon>
-          <iso name="en_windows_server_2008_r2_standard_enterprise_datacenter_web_x64_dvd_x15-50365.iso">
-            <path/>
-            <sharefiles>
-              <!-- the leading '/' in the file= indicates the path
-                   is relative to the 'builds' directory -->
-              <sharefile sharetype='tftp' name='startrom.0'  file='/winstall/import/amd64/startrom.0'/>
-              <sharefile sharetype='tftp' name='BCD'         file='/winstall/import/amd64/BCD'/>
-              <sharefile sharetype='tftp' name='bootmgr.exe' file='/winstall/import/amd64/bootmgr.exe'/>
-              <sharefile sharetype='tftp' name='boot.sdi'    file='/winstall/import/amd64/boot.sdi'/>
-              <sharefile sharetype='tftp' name='boot.wim'    file='/winstall/import/amd64/boot.wim'/>
-            </sharefiles>
-            <md5>0ffbae83327f0ad8c2ab4d5dfa754c09</md5>
-            <url><![CDATA[]]></url>
-          </iso>
+      <addon>base</addon>
+      <iso name="en_windows_server_2008_r2_standard_enterprise_datacenter_web_x64_dvd_x15-50365.iso">
+        <path/>
+        <sharefiles>
+          <!-- the leading '/' in the file= indicates the path
+               is relative to the 'builds' directory -->
+          <sharefile sharetype='tftp' name='startrom.0'  file='/winstall/import/amd64/startrom.0'/>
+          <sharefile sharetype='tftp' name='BCD'         file='/winstall/import/amd64/BCD'/>
+          <sharefile sharetype='tftp' name='bootmgr.exe' file='/winstall/import/amd64/bootmgr.exe'/>
+          <sharefile sharetype='tftp' name='boot.sdi'    file='/winstall/import/amd64/boot.sdi'/>
+          <sharefile sharetype='tftp' name='boot.wim'    file='/winstall/import/amd64/boot.wim'/>
+        </sharefiles>
+        <md5>0ffbae83327f0ad8c2ab4d5dfa754c09</md5>
+        <url><![CDATA[]]></url>
+      </iso>
     </product>
   </distro>
 
-<!-- Windows 7 -->
+  <!-- Windows 7 -->
 
   <distro name="windows_ent-7-x86_64">
-        <os>windows_ent</os>
-        <release>7</release>
-        <arch>x86_64</arch>
-        <description>Windows Enterprise 7 64bit</description>
-        <autodownload>no</autodownload>
-        <sharetype>cifs</sharetype>
+    <os>windows_ent</os>
+    <release>7</release>
+    <arch>x86_64</arch>
+    <description>Windows Enterprise 7 64bit</description>
+    <autodownload>no</autodownload>
+    <sharetype>cifs</sharetype>
     <product name="dvd">
-          <addon>base</addon>
-          <iso name="en_windows_7_enterprise_x64_dvd_x15-70749.iso">
-            <path/>
-            <sharefiles>
-              <!-- the leading '/' in the file= indicates the path
-                   is relative to the 'builds' directory -->
-              <sharefile sharetype='tftp' name='startrom.0'  file='/winstall/import/amd64/startrom.0'/>
-              <sharefile sharetype='tftp' name='BCD'         file='/winstall/import/amd64/BCD'/>
-              <sharefile sharetype='tftp' name='bootmgr.exe' file='/winstall/import/amd64/bootmgr.exe'/>
-              <sharefile sharetype='tftp' name='boot.sdi'    file='/winstall/import/amd64/boot.sdi'/>
-              <sharefile sharetype='tftp' name='boot.wim'    file='/winstall/import/amd64/boot.wim'/>
-            </sharefiles>
-            <md5>45d3a80e3c73a4b064ff6fedb4e2dc5b</md5>
-            <url><![CDATA[]]></url>
-          </iso>
+      <addon>base</addon>
+      <iso name="en_windows_7_enterprise_x64_dvd_x15-70749.iso">
+        <path/>
+        <sharefiles>
+          <!-- the leading '/' in the file= indicates the path
+               is relative to the 'builds' directory -->
+          <sharefile sharetype='tftp' name='startrom.0'  file='/winstall/import/amd64/startrom.0'/>
+          <sharefile sharetype='tftp' name='BCD'         file='/winstall/import/amd64/BCD'/>
+          <sharefile sharetype='tftp' name='bootmgr.exe' file='/winstall/import/amd64/bootmgr.exe'/>
+          <sharefile sharetype='tftp' name='boot.sdi'    file='/winstall/import/amd64/boot.sdi'/>
+          <sharefile sharetype='tftp' name='boot.wim'    file='/winstall/import/amd64/boot.wim'/>
+        </sharefiles>
+        <md5>45d3a80e3c73a4b064ff6fedb4e2dc5b</md5>
+        <url><![CDATA[]]></url>
+      </iso>
     </product>
   </distro>
 

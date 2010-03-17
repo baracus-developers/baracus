@@ -382,7 +382,7 @@ sub add_autobuild
     }
 
     if ( ! -f $autobuildTemplate ) {
-        print "\nThe base template files for autobuild cannot be found here:\n";
+        print "\nThe template file for autobuild cannot be found here:\n";
         print "\n$autobuildTemplate\n";
         print "\nPlease refer to the README found in $baDir{ 'templates' }/\n";
         exit 1;

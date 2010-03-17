@@ -295,10 +295,9 @@ sub list
         return 1;
     }
 
-
     unless ($opts->{quiet}) {
     print "--------------------------------------------------------------------------------------\n";
-    printf "%-18s %-15s %-6s %-12s %-12s %-20s\n", "targetid", "targetip", "name", "size", "user", "desc";
+    printf "%-26s %-15s %-26s %-6s %-8s\n", "targetid", "targetip", "name", "size", "user";
     print "--------------------------------------------------------------------------------------\n";
     }
 
@@ -314,10 +313,11 @@ sub list
         $size  = defined $dbref->{size}         ? $dbref->{size}         : "";
         $user  = defined $dbref->{username}     ? $dbref->{username}     : "";
         $name  = defined $dbref->{name}         ? $dbref->{name}         : "";
-        $desc  = defined $dbref->{description}  ? $dbref->{description}  : "";
+#        $desc  = defined $dbref->{description}  ? $dbref->{description}  : "";
 
-        printf "%-18s %-15s %-6s %-12s %-12s %-20s\n",
-            $dbref->{'targetid'}, $dbref->{targetip}, $name, $size, $user, $desc ;
+        printf "%-26s %-15s %-26s %-6s %-8s\n",
+            $dbref->{'targetid'}, $dbref->{targetip}, $name, $size, $user ;
+#            $dbref->{'targetid'}, $dbref->{targetip}, $name, $size, $user, $desc ;
     }
 
     return 0;

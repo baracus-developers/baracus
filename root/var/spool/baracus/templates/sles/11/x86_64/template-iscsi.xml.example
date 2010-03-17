@@ -235,12 +235,12 @@ nameserver __DNS1__
     <chroot-scripts config:type="list">
       <script>
         <chrooted config:type="boolean">true</chrooted>
-        <feedback config:type="boolean">true</feedback>
-        <debug config:type="boolean">true</debug>
+        <feedback config:type="boolean">false</feedback>
+        <debug config:type="boolean">false</debug>
         <filename>kernel-up.sh</filename>
         <interpreter>shell</interpreter>
         <source><![CDATA[
-            /usr/bin/zypper ar http://151.155.230.38/sles11-kernel-2.6.27.39-0.3.1 kernel-up
+            /usr/bin/zypper ar http://__SERVERIP__/sles11-kernel-2.6.27.39-0.3.1 kernel-up
             /usr/bin/zypper -n up
             ]]>
         </source>

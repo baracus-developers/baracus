@@ -190,6 +190,7 @@ wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></sourc
       <import_gpg_key config:type="boolean">true</import_gpg_key>
     </signature-handling>
   </general>
+<!--
   <iscsi-client>
     <initiatorname>iqn.2010-01.lab.lsg:01:6211b9f98b95</initiatorname>
     <targets config:type="list">
@@ -202,6 +203,7 @@ wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></sourc
     </targets>
     <version>1.0</version>
   </iscsi-client>
+-->
   <partitioning config:type="list">
     <drive>
       <device>__ROOTDISK__</device>
