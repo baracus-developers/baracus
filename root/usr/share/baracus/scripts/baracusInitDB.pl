@@ -33,8 +33,10 @@ if ( defined $reverse_flag ) {
     system ( "basource prepdbwithxml" );
     system ( "/usr/share/baracus/scripts/baconfig_load_hardware" );
     system ( "/usr/share/baracus/scripts/baconfig_load_profile" );
+    my $cifs_reload = &add_cifs_perl();
     my $perl_reload = &add_apache2_perl();
     my $listen_reload = &apache2_listen_conf();
+    system ( "service smb restart" ) if ( $cifs_reload );
     system ( "service apache2 reload" ) if ( $perl_reload or $listen_reload );
     &add_www_sudoers();
 }
@@ -214,6 +216,35 @@ sub niam {
     }
 
     die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+}
+
+sub add_cifs_perl
+{
+    my $smbconf_in  = "/usr/share/baracus/templates/winstall.conf";
+    my $smbconf_out = "/etc/samba/winstall.conf";
+    my $sysconf_in  = "/etc/samba/smb.conf.bk";
+    my $sysconf_out = "/etc/samba/smb.conf";
+    my $mods = 1;
+    my $restart = 0;
+
+    copy ($smbconf_out, $smbconf_in) if ( ! -f $smbconf_out );
+    copy ($sysconf_out, $sysconf_in);
+    open (SYSCONF_IN, "<$sysconf_in")
+        or die "Unable to open $sysconf_in: $!\n";
+    open (SYSCONF_OUT, ">$sysconf_out")
+        or die "Unable to open $sysconf_out: $!\n";
+    while (<SYSCONF_IN>) {
+        $mods = 0 if (m|\s*${smbconf_out}\s*$|);
+        print SYSCONF_OUT $_;
+    }
+    close SYSCONF_IN;
+    if ( $mods ) {
+        $restart = 1;
+        print SYSCONF_OUT "\ninclude=${smbconf_out}\n";
+    }
+    close SYSCONF_OUT;
+    unlink $sysconf_in;
+    return $restart;
 }
 
 sub add_apache2_perl
