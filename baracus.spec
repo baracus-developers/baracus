@@ -2,7 +2,7 @@
 
 Summary:   Tool to create SLE/SUSE remote build trees and manage host builds
 Name:      baracus
-Version:   1.3.2
+Version:   1.3.3
 Release:   0
 Group:     System/Services
 License:   GPLv2
@@ -20,7 +20,7 @@ Requires:  perl, perl-XML-Simple, perl-libwww-perl, perl-Data-UUID
 Requires:  perl-Config-General, perl-Config-Simple, perl-AppConfig
 Requires:  perl-TermReadKey, perl-DBI, perl-DBD-Pg, perl-Tie-IxHash
 Requires:  rsync, dhcp-server, postgresql-server, createrepo, fence
-Requires:  samba
+Requires:  samba, samba-client
 %if 0%{?suse_version} < 1030
 Requires:  nfs-utils
 %else
@@ -104,6 +104,7 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %dir %{_sysconfdir}/apache2/conf.d
 %config %{_sysconfdir}/apache2/conf.d/%{name}.conf
 %attr(755,baracus,users) %dir /var/spool/%{name}
+%attr(755,baracus,users) /var/spool/%{name}/builds
 %attr(755,root,root) /var/spool/%{name}/isos
 %attr(755,root,root) /var/spool/%{name}/logs
 %attr(755,root,root) /var/spool/%{name}/hooks
@@ -115,6 +116,8 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %attr(-,wwwrun,www) %dir /var/spool/%{name}/www/htdocs/pool
 
 %changelog
+* Thu Apr 10 2010 dbahi@novell - 1.3.3
+- repackage for cifs share and win install support
 * Wed Mar 10 2010 dbahi@novell - 1.3.2
 - additional iscsi support work
 - virsh now supported in bapower
