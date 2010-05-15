@@ -139,6 +139,18 @@ print <<HTML0;
 		<h1 class="$dns1D">DNS Server Address:</h1><br><input class="text" type="text" size="25" name="dns1" value="$dns1" $dns1D>
 	</div>
 	
+	<div id='block3a'>
+		<h1>Build Options<br> 
+		<input type="radio" name="bparam" value="none" checked>none
+		<input type="radio" name="bparam" value="vnc">vnc
+		<input type="radio" name="bparam" value="ssh">ssh
+		<input type="radio" name="bparam" value="serial">serial
+		</h1>
+		<input class="text" type="text" size="25" name="param1" value="" disabled>
+		<input class="text" type="text" size="25" name="param2" value="" disabled>
+		
+	</div>
+	
 	<div id='block4'>
 		<input type="submit" value="Create" width="300">
 		<input class="clear" type="button" value="Clear" onClick="location.href='/baracus/ba/hostCreate'">

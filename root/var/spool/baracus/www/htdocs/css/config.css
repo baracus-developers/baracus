@@ -55,25 +55,53 @@ body
 	top:130;
 	left:20;
 }
+#config font.nname
+{
+	position:absolute;
+	top:130;
+	left:155;
+}
+#config input.nname
+{
+	position:absolute;
+	top:130;
+	left:230;
+	width:330;
+	background-color:B2D68C;
+}
 #config font.dataShort
 {
 	position:absolute;
 	top:330;
 	left:20;
 }
-#config font.nname
+#config font.nnameShort
 {
 	position:absolute;
 	top:130;
 	left:165;
 }
-#config input.nname
+#config input.nnameShort
 {
 	position:absolute;
 	top:130;
 	left:240;
 	width:330;
 	background-color:B2D68C;
+}
+#config font.cert
+{
+        position:absolute;
+        top:210;
+        left:20;
+}
+#config input.cert
+{
+        position:absolute;
+        top:230;
+        left:240;
+        width:330;
+        background-color:B2D68C;
 }
 #config font
 {
@@ -116,7 +144,7 @@ body
 }
 #textEdit
 {
-	width:580;
+	width:600;
 	height:530;
 	position:absolute;
 	top:40px;

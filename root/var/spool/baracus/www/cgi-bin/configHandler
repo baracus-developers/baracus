@@ -171,6 +171,8 @@ sub getContent
 		{
 			$Data = param('data');
 			my $Name = param('nname');
+			my $Cert = param('cert');
+			my $Mand = param('mancert');
 		
 			my $tFile = "/tmp/".BATools::generate_random_string().".ba";
 			open( TFILE, "> $tFile");
@@ -183,7 +185,14 @@ sub getContent
 			}
 			else
 			{
-				$r = BAdb::addModuleFromFile( $Name, $tFile);
+				if( !$Cert)
+				{
+					$r = BAdb::addModuleFromFile( $Name, $tFile);
+				}
+				else
+				{
+					$r = BAdb::addModuleFromFileWithCerts( $Name, $tFile, $Cert, $Mand);
+				}
 			}			
 			
 			if( !$r || $r eq "")
@@ -191,21 +200,30 @@ sub getContent
 				$ref = "yes";
 				$rURL = $rURL."A";
 				$seconds = 3;
-				$r = "Add Success: $Name";
+				$r = "Add Success: $Name $temp";
 			}
 		}
 		elsif( $sub eq "upd")
 		{
 			$Data = param('data');
 			$Name = param('module');
+			my $Cert = param('cert');
+			my $Mand = param('mancert');			
 		
 			my $tFile = "/tmp/".BATools::generate_random_string().".ba";
 			open( TFILE, "> $tFile");
 			print TFILE $Data;
 			close TFILE;	
-		
-			$r = BAdb::updateModuleFromFile( $Name, $tFile);
-			
+
+			if( !$Cert)
+			{
+				$r = BAdb::updateModuleFromFile( $Name, $tFile);
+			}
+			else
+			{
+				$r = BAdb::updateModuleFromFileWithCerts( $Name, $tFile, $Cert, $Mand);
+			}
+
 			if( !$r || $r eq "")
 			{
 				$r = $Data;

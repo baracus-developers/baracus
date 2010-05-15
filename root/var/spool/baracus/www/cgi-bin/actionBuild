@@ -39,6 +39,7 @@ our $moduleList = "";
 our $addonList = "";
 our $distroList = "";
 our $hardwareList = "";
+our $autobuildList = "";
 our $found;
 our @profModules = ();
 our @distAddons = ();
@@ -91,11 +92,76 @@ print <<HTML0;
 		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
 		<script type="text/javascript" src="/baracus/script/ajax.js"></script>
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
+		<style type="text/css">
+
+		</style>
+		<script language="javascript" type="text/javascript">
+			function radioHandler( group)
+			{
+
+				if( group.value == "none")
+				{
+					this.document.createAdd.bparam1.disabled=true;
+					this.document.createAdd.bparam2.disabled=true;
+					this.document.createAdd.bparam1.className="disable";
+					this.document.createAdd.bparam2.className="disable";
+					this.document.createAdd.bparam1.value="";
+					this.document.createAdd.bparam2.value="";
+				}
+				else if( group.value == "vnc")
+				{
+					this.document.createAdd.bparam1.disabled=false;
+					this.document.createAdd.bparam2.disabled=true;
+					this.document.createAdd.bparam1.className="enable";
+					this.document.createAdd.bparam2.className="disable";
+					this.document.createAdd.bparam1.value=" vnc password";
+					this.document.createAdd.bparam2.value="";
+				}
+				else if( group.value == "ssh")
+				{
+					this.document.createAdd.bparam1.disabled=false;
+					this.document.createAdd.bparam2.disabled=true;
+					this.document.createAdd.bparam1.className="enable";
+					this.document.createAdd.bparam2.className="disable";
+					this.document.createAdd.bparam1.value=" ssh password";
+					this.document.createAdd.bparam2.value="";
+				}
+				else if( group.value == "serial")
+				{
+					this.document.createAdd.bparam1.disabled=false;
+					this.document.createAdd.bparam2.disabled=false;
+					this.document.createAdd.bparam1.className="enable";
+					this.document.createAdd.bparam2.className="enable";
+					this.document.createAdd.bparam1.value=" serial tty";
+					this.document.createAdd.bparam2.value=" serial baud";
+				}
+			}
+			function initRadio(){
+					this.document.createAdd.bparam1.disabled=true;
+					this.document.createAdd.bparam2.disabled=true;
+					this.document.createAdd.bparam1.className="disable";
+					this.document.createAdd.bparam2.className="disable";
+					this.document.createAdd.bparam1.value="";
+					this.document.createAdd.bparam2.value="";
+			}
+		</script>		
 	</head>
-	<body onLoad="$axScript">
+	<body onLoad="$axScript initRadio();">
 
 	<div id='f-labels'>
 	<form method="get" name="createAdd" action="/$BATools::baCGI/actionBuildHandler">
+
+	<div id='block3a'>
+		<h1>Remote Console Options:<br> 
+		<input type="radio" name="bparam" value="none" checked onClick="radioHandler(this)">none
+		<input type="radio" name="bparam" value="vnc" onClick="radioHandler(this)">vnc
+		<input type="radio" name="bparam" value="ssh" onClick="radioHandler(this)">ssh
+		<input type="radio" name="bparam" value="serial" onClick="radioHandler(this)">serial
+		</h1>
+		<input class="disable" type="text" size="25" name="bparam1" value="" onClick="clearText(this)" disabled>
+		<input class="disable" type="text" size="25" name="bparam2" value="" onClick="clearText(this)" disabled>
+	</div>
+
 	<div id='block1'>
 		<h1>Hostname:</h1>
 		<br><input class="text" type="text" size="25" maxlength="15" name="hostname" value="$hostname" $dhost>
@@ -116,6 +182,8 @@ print <<HTML0;
 		$distroList
 		<h1 class="$hardwareD">Hardware Type:</h1><br>
 		$hardwareList
+                <h1 class="$autobuildD">Autobuild Template:</h1><br>
+                $autobuildList
 	</div>
 
 	<div id='blockc'>
@@ -125,7 +193,7 @@ print <<HTML0;
 	<div id='blockd'>
 		<h1 class="$moduleD">Modules:</h1><h4>(hold ctrl for multiple)</h4>
 		<br>
-		<select name='module' multiple size='4' $moduleD onClick='modUpdate()'>$moduleList</select>
+		<select name='module' multiple size='6' $moduleD onClick='modUpdate()'>$moduleList</select>
 	</div>
 	
 	<div id='block3'>

@@ -59,7 +59,7 @@ BEGIN {
                 baxml_iso_gethash
                 baxml_load
                 download_iso
-                get_iso
+                get_iso_locations
                 verify_iso
                 make_paths
                 create_build
@@ -73,6 +73,8 @@ BEGIN {
                 disable_service
                 check_service
                 source_register
+                get_loopback
+                get_mntcheck
                 get_distro_sdk
                 get_distro_share
                 list_installed_addons
@@ -108,9 +110,38 @@ use vars qw ( %sdks );
      'opensuse-11.2-i586'   => 'opensuse-11.2-nonoss-i586',
      );
 
+my %stypes =
+    (
+      'nfs'  => '1',
+      'http' => '2',
+      'cifs' => '3',
+    );
+
 ###########################################################################
 ##
 ##  DATABASE RELATED ADD/READ - no update or delete provided?
+
+sub get_db_iso_entry
+{
+    my $opts   = shift;
+    my $iso    = shift;
+    my $dbh    = $opts->{dbh};
+
+    my $sth;
+    my $sql = qq|SELECT *
+                 FROM $baTbls{ 'iso' }
+                 WHERE iso = '$iso' |;
+
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n"    unless ( $sth->execute( ) );
+
+    my $href = $sth->fetchrow_hashref();
+
+    $sth->finish;
+    undef $sth;
+
+    return $href;
+}
 
 sub get_db_source_entry
 {
@@ -235,6 +266,74 @@ sub add_db_source_entry
         $sth->execute()
             or die "Cannot execute sth: ", $sth->errstr;
     }
+}
+
+sub add_db_iso_entry
+{
+    my $opts        = shift;
+    my $distro      = shift;
+    my $iso         = shift;
+    my $mntpoint    = shift;
+    my $is_loopback = shift;
+
+    my $is_local = 1;  ## force local for now
+
+    if ($opts->{verbose}) {
+        print "Registering iso: $iso for $distro\n";
+    }
+
+    my $dbh = $opts->{dbh};
+    my $sql;
+    my $sth;
+
+    my $dbref = &get_db_iso_entry( $opts, $iso );
+
+    my $dh = &baxml_distro_gethash( $opts, $distro );
+    if ( $dh->{'sharetype'} ) {
+        $baVar{sharetype} = $dh->{'sharetype'};
+    }
+
+    if ( defined $dbref ) {
+        $sql = qq|UPDATE $baTbls{ 'iso' }
+                  SET is_loopback=?,
+                      change=CURRENT_TIMESTAMP(0)
+                  WHERE distroid=?|;
+
+        $sth->bind_param( 1, $dbref->{is_loopback} );
+
+        $sth = $dbh->prepare( $sql )
+            or die "Cannot prepare sth: ",$dbh->errstr;
+
+        $sth->execute()
+            or die "Cannot execute sth: ", $sth->errstr;
+    } else {
+        $sql = qq|INSERT INTO $baTbls{ 'iso' }
+                  ( iso,
+                    distroid,
+                    is_loopback,
+                    mntpoint,
+                    sharetype,
+                    is_local,
+                    creation,
+                    change
+                  )
+                  VALUES ( ?, ?, ?, ?, ?, ?,
+                           CURRENT_TIMESTAMP(0), NULL ) |;
+
+        $sth = $dbh->prepare( $sql )
+            or die "Cannot prepare sth: ",$dbh->errstr;
+
+        $sth->bind_param( 1, $iso                        );
+        $sth->bind_param( 2, $distro                     );
+        $sth->bind_param( 3, $is_loopback                );
+        $sth->bind_param( 4, $mntpoint                   );
+        $sth->bind_param( 5, $stypes{$baVar{sharetype}}  );
+        $sth->bind_param( 6, $is_local                   );
+
+        $sth->execute()
+            or die "Cannot execute sth: ", $sth->errstr;
+    }
+
 }
 
 
@@ -851,6 +950,26 @@ sub get_iso
     }
 }
 
+sub get_iso_locations
+{
+    #this is only going to use the first instance of the iso found
+    my $opts = shift;
+    my %isohash;
+
+    find ({ wanted =>
+            sub {
+                if ($_ =~ /.*\.iso$/) {
+                    print "found $File::Find::name\n" if ( $opts->{debug} > 1 );
+                    $isohash{ $_ } = $File::Find::name ;
+                }
+            },
+            follow => 1
+           },
+          $baDir{isos});
+
+    return \%isohash;
+}
+
 sub verify_iso
 {
     my $opts   = shift;
@@ -880,32 +999,22 @@ sub verify_iso
 #        exit(1);
     }
 
+    my $iso_location_hashref = &get_iso_locations( $opts );
     print "Searching for required iso files ...\n" if ($opts->{verbose});
     foreach my $da ( @dalist ) {
         print "verify working dist $da\n" if ($opts->{debug} > 1);
         my @distisolist = ();
         my $distisoinfo = {};
-        my $missing;
+
         foreach my $prod ( &baxml_products_getlist( $opts, $da ) ) {
             foreach my $isofile ( &baxml_isos_getlist( $opts, $da, $prod ) ) {
                 print "dist $da prod $prod iso $isofile\n";
                 my $ih = &baxml_iso_gethash( $opts, $da, $prod, $isofile );
                 $distisoinfo->{$isofile}->{'hash'} = $ih;
                 $distisoinfo->{$isofile}->{'path'} = $ih->{'isopath'};
-                $missing=1;
-                find ({ wanted =>
-                        sub {
-                            if ($_ eq $isofile) {
-                                print "found $File::Find::name\n" if $opts->{debug};
-                                push @distisolist, "$File::Find::name";
-                                $missing=0;
-                            }
-                        },
-                        follow => 1
-                       },
-                      $baDir{isos});
-                if ($missing == 1) {
-                    $missing = 0;
+                if ( defined $iso_location_hashref->{$isofile} ) {
+                    push @distisolist, $iso_location_hashref->{$isofile};
+                } else {
                     $halt = 1;
                     print "Missing required file $isofile\n";
                 }
@@ -972,6 +1081,7 @@ sub make_paths
     my $distro  = shift;
     my $addons  = shift;
     my $daisohr = shift;
+    my $loopback = shift;
 
     print "+++++ make_paths\n" if ( $opts->{debug} > 1 );
 
@@ -1023,10 +1133,16 @@ sub make_paths
                 my ($isoshort, $idirshort) = ($isofile, $idir);
                 $isoshort  =~ s|$baDir{isos}||;
                 $idirshort =~ s|$baDir{isos}||;
-                print "Extraction $isoshort to $idirshort\n";    # print LONG
-                system( "mount -o loop $isofile $tdir" );
-                system( "/usr/bin/rsync -azHl $tdir/* $idir" );
-                system( "umount $tdir" );
+                if (( $distro =~ /rhel-3/ ) || ( $distro =~ /sles-9/ ) || (! $loopback )) {
+                  print "Extraction $isoshort to $idirshort\n";    # print LONG
+                  system( "mount -o loop $isofile $tdir" );
+                  system( "/usr/bin/rsync -azHl $tdir/* $idir" );
+                  system( "umount $tdir" );
+                  &add_db_iso_entry($opts, $distro, $iname, $idir, 0);
+                } else {
+                    system( "mount -o loop $isofile $idir" );
+                    &add_db_iso_entry($opts, $distro, $iname, $idir, 1);
+                }
             }
         }
     }
@@ -1056,62 +1172,62 @@ sub create_build
     # driverupdate fix for the aytoyast tftp last ACK
     # for i586/x86_64 sles10.2-11 - bnc 507086
 
-    if ($distro =~ /sles-10\.2/ or $distro =~ /sles-11/) {
-        my $driverupdate_in = "$baDir{'data'}/driverupdate";
-        my $driverupdate_out = "$bh->{baseisopath}/driverupdate";
-        if ( $opts->{debug} ) {
-            print "Installing driverupdate for sles 10.2 - 11\n";
-            print "from $driverupdate_in\n";
-            print "to $driverupdate_out\n";
-        }
-
-        my $addonstyle = "";
-
-        # we are base - find any product with non-base addon style
-        # and if that fails then addon then product then addon style
-        foreach my $prod ( &baxml_products_getlist( $opts, $distro ) ) {
-            my $ph = &baxml_product_gethash( $opts, $distro, $prod );
-            if ( defined $ph->{'addon'} and $ph->{'addon'} ne "base" ) {
-                $addonstyle = $ph->{'addon'};
-            }
-        }
-        if ( not $addonstyle and $bh->{addons} ) {
-            foreach my $addon ( @{$bh->{addons}} ) {
-                foreach my $prod ( &baxml_products_getlist( $opts, $addon ) ) {
-                    my $ph = &baxml_product_gethash( $opts, $addon, $prod );
-                    if ( defined $ph->{'addon'} and $ph->{'addon'} ne "base" ) {
-                        $addonstyle = $ph->{'addon'};
-                    }
-                }
-            }
-        }
-
-        if ( $addonstyle ) {
-            print "addon style is found to be: $addonstyle\n" if ( $opts->{debug} > 1 );
-
-            if ($addonstyle eq "flat") {
-                if ( -f $driverupdate_out ) {
-                    print "driverupdate already installed\n" if $opts->{verbose};
-                } else {
-                    print "$driverupdate_in => $driverupdate_out\n" if ( $opts->{debug} );
-                    copy( $driverupdate_in, $driverupdate_out );
-                }
-            } elsif ($addonstyle eq "signed") {
-
-                use IO::File;
-                # TODO - fix this for smoother sle11 installs - dhb
-
-                # copy, sign, add to directory.yast list
-                # copy( $driverupdate_in, $driverupdate_out );
-
-                # $io = IO::File->new( "$driverupdate_out", 'r' );
-                # $sha1->addfile($io);
-                # $io->close;
-                # print FILE $sha1->hexdigest, "  driverupdate\n";
-                ;
-            }
-        }
-    }
+#    if ($distro =~ /sles-10\.2/ or $distro =~ /sles-11/) {
+#        my $driverupdate_in = "$baDir{'data'}/driverupdate";
+#        my $driverupdate_out = "$bh->{baseisopath}/driverupdate";
+#        if ( $opts->{debug} ) {
+#            print "Installing driverupdate for sles 10.2 - 11\n";
+#            print "from $driverupdate_in\n";
+#            print "to $driverupdate_out\n";
+#        }
+#
+#        my $addonstyle = "";
+#
+#        # we are base - find any product with non-base addon style
+#        # and if that fails then addon then product then addon style
+#        foreach my $prod ( &baxml_products_getlist( $opts, $distro ) ) {
+#            my $ph = &baxml_product_gethash( $opts, $distro, $prod );
+#            if ( defined $ph->{'addon'} and $ph->{'addon'} ne "base" ) {
+#                $addonstyle = $ph->{'addon'};
+#            }
+#        }
+#        if ( not $addonstyle and $bh->{addons} ) {
+#            foreach my $addon ( @{$bh->{addons}} ) {
+#                foreach my $prod ( &baxml_products_getlist( $opts, $addon ) ) {
+#                    my $ph = &baxml_product_gethash( $opts, $addon, $prod );
+#                    if ( defined $ph->{'addon'} and $ph->{'addon'} ne "base" ) {
+#                        $addonstyle = $ph->{'addon'};
+#                    }
+#                }
+#            }
+#        }
+#
+#        if ( $addonstyle ) {
+#            print "addon style is found to be: $addonstyle\n" if ( $opts->{debug} > 1 );
+#
+#            if ($addonstyle eq "flat") {
+#                if ( -f $driverupdate_out ) {
+#                    print "driverupdate already installed\n" if $opts->{verbose};
+#                } else {
+#                    print "$driverupdate_in => $driverupdate_out\n" if ( $opts->{debug} );
+#                    copy( $driverupdate_in, $driverupdate_out );
+#                }
+#            } elsif ($addonstyle eq "signed") {
+#
+#                use IO::File;
+#                # TODO - fix this for smoother sle11 installs - dhb
+#
+#                # copy, sign, add to directory.yast list
+#                # copy( $driverupdate_in, $driverupdate_out );
+#
+#                # $io = IO::File->new( "$driverupdate_out", 'r' );
+#                # $sha1->addfile($io);
+#                # $io->close;
+#                # print FILE $sha1->hexdigest, "  driverupdate\n";
+#                ;
+#            }
+#        }
+#    }
 
     if ($distro =~ /sles-9/) {
         my %yasthash;
@@ -1295,6 +1411,20 @@ samba for other shares, and then try this basource command again.
 		unlink( "$tdir/$fname" );
 	    }
 	}
+    } elsif ( $distro =~ m/solaris/i )  {
+        while ( my ($fname, $fh) = each ( %{$bh->{baseshares}} ) ) {
+            if ( &sqlfs_getstate( $opts, $fname ) ) {
+                print "found $fname in tftp database\n" if $opts->{verbose};
+            } else {
+                print "cp from $fh->{file} to $tdir/$fname\n"
+                    if ( $opts->{debug} > 1 );
+                # we don't go from $fh->{file} to sqlfs_store directly
+                # there may be a name change / difference from $fname
+                copy($fh->{file},"$tdir/$fname") or die "Copy failed: $!";
+                &sqlfs_store( $opts, "$tdir/$fname" );
+                unlink( "$tdir/$fname" );
+            }
+        }
     } else {
 	if ( &sqlfs_getstate( $opts, "linux.$distro" ) ) {
 	    print "found bootloader linux.$basedist in tftp database\n" if $opts->{verbose};
@@ -1375,7 +1505,7 @@ sub add_build_service
     if ( $dh->{'sharetype'} ) {
         $baVar{sharetype} = $dh->{'sharetype'};
     }
-
+    my $ret = 0;
     my @dalist;
 
     push @dalist, $distro if $distro;
@@ -1395,15 +1525,17 @@ sub add_build_service
             else {
                 print "modifying $file adding $share\n" if ( $opts->{debug} );
 
-                $restartservice = 1;
-
                 if ($baVar{sharetype} eq "nfs") {
-                    open(FILE, ">>$file") || die ("Cannot open $file\n$!");
-                    print FILE "$share\t*(ro,root_squash,insecure,sync,no_subtree_check)\n";
-                    close(FILE);
+                    $ret = system("exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$share");
+                    print "exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$share\n" if ( $opts->{debug} > 1 );
+                    if ( $ret > 0 ) {
+                        $opts->{LASTERROR} = "umount failed\n$!";
+                        return 1;
+                    }
                 }
 
                 if ($baVar{sharetype} eq "http") {
+                    $restartservice = 1;
                     open(FILE, "<$baDir{'data'}/templates/inst_server.conf.in") or
                         die ("Cannot open file\n");
                     my $httpdconf = join '', <FILE>;
@@ -1423,6 +1555,7 @@ sub add_build_service
                 }
 
                 if ($baVar{sharetype} eq "cifs") {
+                    $restartservice = 1;
                     open(FILE, "<$baDir{'data'}/templates/samba.conf.in") or
                         die ("Cannot open file\n");
                     my $sambaconf = join '', <FILE>;
@@ -1447,9 +1580,6 @@ sub add_build_service
         }
     }
     if ( $restartservice ) {
-        if ($baVar{sharetype} eq "nfs") {
-            system("/usr/sbin/exportfs -r");
-        }
         if ($baVar{sharetype} eq "http") {
             system("/etc/init.d/apache2 reload");
         }
@@ -1473,6 +1603,7 @@ sub remove_build_service
         $baVar{sharetype} = $dh->{'sharetype'};
     }
 
+    my $ret = 0;
     my @dalist;
 
     push @dalist, $distro if $distro;
@@ -1490,28 +1621,21 @@ sub remove_build_service
                 print "$baVar{sharetype} file $file found removed for $da\n" if $opts->{verbose};
             } else {
                 print "modifying $file removing $share\n" if ( $opts->{debug} );
-
-                $restartservice = 1;
-
                 if ($baVar{sharetype} eq "nfs") {
-                    copy("/etc/exports", "/etc/exports.bak");
-                    open(OUTFILE, ">/etc/exports") || die ("Cannot open file\n");
-                    open(INFILE, "</etc/exports.bak") || die ("Cannot open file\n");
-                    while (<INFILE>) {
-                        unless (m|$share|) {
-                            print OUTFILE $_;
-                        }
-                    }
-                    close(INFILE);
-                    close(OUTFILE);
-                    unlink("/etc/exports.bak");
+                  $ret = system("exportfs -u *:$share");
+                  if ( $ret > 0 ) {
+                      $opts->{LASTERROR} = "umount failed\n$!";
+                      return 1;
+                  }
                 }
 
                 if ($baVar{sharetype} eq "http") {
+                    $restartservice = 1;
                     unlink( $file );
                 }
 
                 if ($baVar{sharetype} eq "cifs") {
+                    $restartservice = 1;
                     unlink $file;
                     copy("/etc/samba/smb.conf", "/etc/samba/smb.conf.baback");
                     open(OUTFILE, ">/etc/samba/smb.conf") || die ("Cannot open file\n");
@@ -1529,9 +1653,6 @@ sub remove_build_service
         }
     }
     if ( $restartservice ) {
-        if ($baVar{sharetype} eq "nfs") {
-            system("/usr/sbin/exportfs -r");
-        }
         if ($baVar{sharetype} eq "http") {
             system("/etc/init.d/apache2 reload");
         }
@@ -1559,15 +1680,12 @@ sub check_service_product
     my $state = 0;
 
     if ($sharetype eq "nfs") {
-        $file = "/etc/exports";
-        if ( -f $file ) {
-            open(FILE, "<$file") or die ("Cannot open $file\n$!");
-            while (<FILE>) {
-                if (m|$share|) {
-                    $state = 1;
-                }
+        $file = "nfs export";
+        my @return = qx|showmount -e localhost| or die("Can't get mounts from showmount : ".$!);
+        foreach(@return){
+            if(/$share/){
+              $state = 1;
             }
-            close(FILE);
         }
     }
     if ($sharetype eq "http") {
@@ -1626,6 +1744,7 @@ sub check_service
 
     print "+++++ check_service\n" if ( $opts->{debug} > 1 );
 
+    $sharetype =~ s/cifs/smb/;
     $sharetype =~ s/http/apache2/;
     $sharetype =~ s/nfs/nfsserver/;
     system("/etc/init.d/$sharetype status >& /dev/null");
@@ -1676,7 +1795,13 @@ sub source_register
                         status=?
                     WHERE distroid=?|;
 
+        my $isosql = qq|DELETE from $baTbls{ 'iso' }
+                        WHERE distroid=?|;
+
         my $sth = $dbh->prepare( $sql )
+            or die "Cannot prepare sth: ",$dbh->errstr;
+
+        my $sthiso = $dbh->prepare( $isosql )
             or die "Cannot prepare sth: ",$dbh->errstr;
 
         my @dalist;
@@ -1687,6 +1812,9 @@ sub source_register
         foreach my $da ( @dalist ) {
             $sth->execute( BA_REMOVED, $da )
                 or die "Cannot execute sth: ", $sth->errstr;
+
+            $sthiso->execute( $da )
+                or die "Cannot execute sth: ", $sthiso->errstr;
         }
 
     }
@@ -1734,6 +1862,30 @@ sub source_register
     $> = $uid;
 
     return 0;
+}
+
+sub get_loopback
+{
+    my $opts  = shift;
+    my $share = shift;
+    my $dbh = $opts->{dbh};
+
+    my $sql = qq|SELECT is_loopback
+                 FROM $baTbls{'iso'}
+                 WHERE mntpoint = ?
+                |;
+
+    my $sth;
+    my $href;
+
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( $share ) );
+
+    $href = $sth->fetchrow_hashref();
+
+    $sth->finish;
+
+    return $href->{'is_loopback'};
 }
 
 sub get_distro_sdk
@@ -1816,7 +1968,7 @@ sub list_installed_addons
     }
     return @list;
 }
-
+ 
 sub check_either
 {
     my $opts   = shift;

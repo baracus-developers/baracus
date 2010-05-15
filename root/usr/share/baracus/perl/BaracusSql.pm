@@ -67,6 +67,7 @@ use vars qw ( %baTbls );
      'mac'       => 'mac',
      'host'      => 'host',
      'distro'    => 'distro',
+     'iso'       => 'iso',
      'hardware'  => 'hardware',
      'hwcert'    => 'hardware_cert',
      'module'    => 'module',
@@ -170,9 +171,9 @@ sub get_sqltftp_tables
     my %tbl_sqlfs_columns =
         (
          'id'          => 'SERIAL PRIMARY KEY',
-         'name'        => 'VARCHAR(64) NOT NULL',
+         'name'        => 'VARCHAR(160) NOT NULL',
          'size'        => 'VARCHAR',
-         'description' => 'VARCHAR(32)',
+         'description' => 'VARCHAR',
          'bin'         => 'VARCHAR',
          'enabled'     => 'INTEGER',
          'insertion'   => 'TIMESTAMP',
@@ -213,21 +214,21 @@ sub get_baracus_tables
     my $tbl_host = "host";
     my %tbl_host_columns =
         (
-         'hostname' => 'VARCHAR(32) PRIMARY KEY',
+         'hostname' => 'VARCHAR(64) PRIMARY KEY',
          'mac'      => 'VARCHAR(17) REFERENCES mac',
          );
 
     my $tbl_distro = "distro";
     my %tbl_distro_columns =
         (
-         'distroid'    => 'VARCHAR(48) PRIMARY KEY',
-         'os'          => 'VARCHAR(12)',
-         'release'     => 'VARCHAR(8)',
-         'arch'        => 'VARCHAR(8)',
+         'distroid'    => 'VARCHAR(128) PRIMARY KEY',
+         'os'          => 'VARCHAR(64)',
+         'release'     => 'VARCHAR(16)',
+         'arch'        => 'VARCHAR(16)',
          'description' => 'VARCHAR(64)',
          'addon'       => 'BOOLEAN',
-         'addos'       => 'VARCHAR(8)',
-         'addrel'      => 'VARCHAR(8)',
+         'addos'       => 'VARCHAR(16)',
+         'addrel'      => 'VARCHAR(16)',
          'shareip'     => 'VARCHAR(15)',
          'sharetype'   => 'VARCHAR(8)',
          'basepath'    => 'VARCHAR(128)',
@@ -236,26 +237,44 @@ sub get_baracus_tables
          'change'      => 'TIMESTAMP',
          );
 
+    my $tbl_iso = "iso";
+    my %tbl_iso_columns =
+        (
+         'iso'         => 'VARCHAR(64) NOT NULL',
+         'distroid'    => 'VARCHAR(128)',
+         'is_loopback' => 'BOOLEAN',
+         'sharetype'   => 'INTEGER',
+         'is_local'    => 'BOOLEAN',
+         'mntpoint'    => 'VARCHAR(128)',
+         'creation'    => 'TIMESTAMP',
+         'change'      => 'TIMESTAMP',
+         'CONSTRAINT'  => 'iso_pk PRIMARY KEY (iso, mntpoint)',
+        );
+
 #         'kernel'      => 'VARCHAR(32)',
 #         'initrd'      => 'VARCHAR(32)',
 
     my $tbl_hardware = "hardware";
     my %tbl_hardware_columns =
         (
-         'hardwareid'   => 'VARCHAR(32) PRIMARY KEY',
+         'hardwareid'   => 'VARCHAR(32) NOT NULL',
+         'version'      => 'INTEGER',
          'description'  => 'VARCHAR(64)',
-         'bootArgs'     => 'VARCHAR(64)',
+         'status'       => 'BOOLEAN',
+         'bootArgs'     => 'VARCHAR(256)',
          'rootDisk'     => 'VARCHAR(32)',
          'rootPart'     => 'VARCHAR(32)',
-         'autobuild'    => 'VARCHAR(32)', # default
          'hwdriver'     => 'VARCHAR(32)',
+         'CONSTRAINT'   => 'hardware_pk PRIMARY KEY (hardwareid, version)',
          );
 
     my $tbl_hardware_cert = "hardware_cert";
     my %tbl_hardware_cert_columns =
         (
-         'hardwareid'   => 'VARCHAR(32) REFERENCES hardware',
-         'distroid'     => 'VARCHAR(32)',
+         'hardwareid'   => 'VARCHAR(32) NOT NULL',
+         'distroid'     => 'VARCHAR(128) NOT NULL',
+         'FOREIGN KEY'  => '(hardwareid) REFERENCES hardware(hardwareid)',
+         'FOREIGN KEY'  => '(distroid) REFERENCES distro(distroid)',
          'CONSTRAINT'   => 'hardware_cert_pk PRIMARY KEY (hardwareid, distroid)',
          );
 
@@ -274,10 +293,12 @@ sub get_baracus_tables
     my $tbl_module_cert = "module_cert";
     my %tbl_module_cert_columns =
         (
-         'moduleid'   => 'VARCHAR(32)',
-         'distroid'   => 'VARCHAR(48)',
-         'mandatory'  => 'BOOLEAN',
-         'CONSTRAINT' => 'module_cert_pk PRIMARY KEY (moduleid, distroid)',
+         'moduleid'    => 'VARCHAR(32) NOT NULL',
+         'distroid'    => 'VARCHAR(128) NOT NULL',
+         'mandatory'   => 'BOOLEAN',
+         'FOREIGN KEY' => '(moduleid) REFERENCES module(moduleid)',
+         'FOREIGN KEY' => '(distroid) REFERENCES distro(distroid)',
+         'CONSTRAINT'  => 'module_cert_pk PRIMARY KEY (moduleid, distroid)',
          );
 
     my $tbl_profile = "profile";
@@ -295,8 +316,8 @@ sub get_baracus_tables
     my %tbl_action_columns =
         (
          'mac'         => 'VARCHAR(17) PRIMARY KEY',
-         'hostname'    => 'VARCHAR(32)',
-         'distro'      => 'VARCHAR(48)',
+         'hostname'    => 'VARCHAR(64)',
+         'distro'      => 'VARCHAR(128)',
          'hardware'    => 'VARCHAR(32)',
          'profile'     => 'VARCHAR(32)',
 
@@ -312,7 +333,7 @@ sub get_baracus_tables
 
          'ip'          => 'VARCHAR(15)',
          'uuid'        => 'VARCHAR(36)',
-         'loghost'     => 'VARCHAR(32)',
+         'loghost'     => 'VARCHAR(64)',
          'raccess'     => 'VARCHAR(128)',
          'autobuild'   => 'VARCHAR',
          'autonuke'    => 'BOOLEAN', # if asserted pass autowipe option
@@ -335,7 +356,7 @@ sub get_baracus_tables
     my %tbl_power_columns =
         (
          'mac'     => 'VARCHAR(17) PRIMARY KEY',
-         'hostname'=> 'VARCHAR(32)',
+         'hostname'=> 'VARCHAR(64)',
          'ctype'   => 'VARCHAR(16)',
          'login'   => 'VARCHAR(16)',
          'passwd'  => 'VARCHAR(32)',
@@ -357,10 +378,21 @@ sub get_baracus_tables
          'description' => 'VARCHAR(124)',
          );
 
+    my $tbl_auth = "auth";
+    my %tbl_auth_columns =
+        (
+         'username'    => 'VARCHAR(32) PRIMARY KEY',
+         'password'    => 'VARCHAR(128)',
+         'realm'       => 'VARCHAR(16)',
+         'creation'    => 'TIMESTAMP',
+         'change'      => 'TIMESTAMP',
+         );
+
     tie( my %baracus_tbls, 'Tie::IxHash',
          $tbl_mac           => \%tbl_mac_cols,
          $tbl_host          => \%tbl_host_columns,
          $tbl_distro        => \%tbl_distro_columns,
+         $tbl_iso           => \%tbl_iso_columns,
          $tbl_hardware      => \%tbl_hardware_columns,
          $tbl_hardware_cert => \%tbl_hardware_cert_columns,
          $tbl_module        => \%tbl_module_columns,
@@ -370,6 +402,7 @@ sub get_baracus_tables
          $tbl_action_hist   => \%tbl_action_hist_columns,
          $tbl_power         => \%tbl_power_columns,
          $tbl_lun           => \%tbl_lun_columns,
+         $tbl_auth          => \%tbl_auth_columns,
         );
     return \%baracus_tbls;
 }

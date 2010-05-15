@@ -308,9 +308,35 @@ sub addModuleFromFile
 	chomp( $file);
 	chomp( $name);
 	my $cmd = "sudo baconfig add module --name $name --file $file";
-	my $result = `$cmd`;
+#	my $result = `$cmd`;
+	my $result = $cmd;
 	return $result;	
 }
+
+sub addModuleFromFileWithCerts
+{
+	my $name = shift @_;
+	my $file = shift @_;
+	my $cert = shift @_;
+	my $mand = shift @_;
+	
+	if( $cert && $cert ne "")
+	{
+		$cert = "--cert $cert";
+	}
+	
+	if( $mand && $mand ne "")
+	{
+		$mand = "--mancert $mand";
+	}
+	chomp( $file);
+	chomp( $name);
+	my $cmd = "sudo baconfig add module --name $name $cert $mand --file $file";
+#	my $result = `$cmd`;
+	my $result = $cmd;
+	return $result;	
+}
+
 sub updateModuleFromFile
 {
 	my $name = shift @_;
@@ -318,9 +344,36 @@ sub updateModuleFromFile
 	chomp( $file);
 	chomp( $name);
 	my $cmd = "sudo baconfig update module --name $name --file $file";
-	my $result = `$cmd`;
+#	my $result = `$cmd`;
+	my $result = $cmd;
 	return $result;	
 }
+
+sub updateModuleFromFileWithCerts
+{
+	my $name = shift @_;
+	my $file = shift @_;
+	my $cert = shift @_;
+	my $mand = shift @_;	
+
+	if( $cert && $cert ne "")
+	{
+		$cert = "--cert $cert";
+	}
+	
+	if( $mand && $mand ne "")
+	{
+		$mand = "--mancert $mand";
+	}
+	
+	chomp( $file);
+	chomp( $name);
+	my $cmd = "sudo baconfig update module --name $name $cert $mand --file $file";
+#	my $result = `$cmd`;
+	my $result = $cmd;
+	return $result;	
+}
+
 sub removeModule
 {
 	my $name = shift @_;
@@ -573,7 +626,7 @@ sub getPowerList
 sub getCommandLog
 {
 	my $mac = shift @_;
-	my $cmd = "sudo balog list commands --filter mac\:\:$mac";
+	my $cmd = "sudo balog list commands --filter mac\:\:$mac --verbose";
 	my $log = BATools::execute( $cmd);
 	return $log	
 }

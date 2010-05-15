@@ -81,37 +81,43 @@ my $all     = 0;
 my $verbose = 0;
 my $nolabels = 0;
 
-my %multiarg; # used for processing repeatable getoptions
+my %multiarg;              # used for processing repeatable getoptions
 
 # max_allowed_packets a mysql specific construct
 my $maxlen = 1048575;
 
-my %cmds = (
-            'list'    => \&list,
-            'add'     => \&add,
-            'update'  => \&update,
-            'export'  => \&export,
-            'detail'  => \&detail,
-            'remove'  => \&remove,
-            'help'    => \&help,
-            'man'     => \&man,
-            );
+my %cmds =
+    (
+     'list'    => \&list,
+     'add'     => \&add,
+     'update'  => \&update,
+     'export'  => \&export,
+     'detail'  => \&detail,
+     'remove'  => \&remove,
+     'help'    => \&help,
+     'man'     => \&man,
+     );
 
-GetOptions(
-           'help|?'   => \$help,
-           'man'      => \$man,
-           'debug+'   => \$debug,
-           'quiet'    => \$quiet,
-           'all'      => \$all,
-           'verbose+' => \$verbose,
-           'nolabels' => \$nolabels,
-           );
+GetOptions
+    (
+     'help|?'   => \$help,
+     'man'      => \$man,
+     'debug+'   => \$debug,
+     'quiet'    => \$quiet,
+     'all'      => \$all,
+     'verbose+' => \$verbose,
+     'nolabels' => \$nolabels,
+     );
 
 &man()  if $man;
 &help() if $help;
 &help() unless ( scalar @ARGV );
-if ($ARGV[0] eq "man"  ) { &man(); }
-if ($ARGV[0] eq "help" ) { shift @ARGV; &help(@ARGV); }
+if ($ARGV[0] eq "man"  ) {
+    &man();
+}
+if ($ARGV[0] eq "help" ) {
+    shift @ARGV; &help(@ARGV);
+}
 
 my $uid = BaracusDB::su_user( $dbrole );
 die BaracusDB::errstr unless ( defined $uid );
@@ -244,8 +250,10 @@ sub list
         print "--------------------------------------------------------------------------------\n";
         if ( $type eq "profile" ) {
             printf "%-32s ver sts description\n", $type;
+        } elsif ( $type eq "hardware" ) {
+            printf "%-32s ver sts description\n", $type;
         } elsif ( $type eq "module") {
-             printf "%-32s ver sts mty description\n", $type;
+            printf "%-32s ver sts mty description\n", $type;
         } elsif ( $type eq "tftp" ) {
             printf "%-32s cnt sts description\n", $type;
         } else {
@@ -264,17 +272,29 @@ sub list
                         (defined $href->{'description'}) ?
                             $href->{'description'} : "";
             }
-        }  elsif ( $type eq "module" ) {
-               next unless ( $all || $href->{'status'} );
-               # name, version, status, mandatory, description
-               printf "%-32s ", $href->{'name'};
-               unless ( $quiet ) {
-                  # printf "%-3s %-3s %-3s %s",
-                   printf "%-3s %-3s     %s",
-                    #   $href->{'version'}, $href->{'status'}, $href->{'mandatory'},
-                       $href->{'version'}, $href->{'status'},
-                           (defined $href->{'description'}) ?
-                               $href->{'description'} : "";
+        } elsif ( $type eq "hardware" ) {
+            next unless ( $all || $href->{'status'} );
+            # name, version, status, description
+            printf "%-32s ", $href->{'name'};
+            unless ( $quiet ) {
+                printf "%-3s %-3s %s",
+                    $href->{'version'}, $href->{'status'},
+                        (defined $href->{'description'}) ?
+                            $href->{'description'} : "";
+            }
+        } elsif ( $type eq "module" ) {
+            next unless ( $all || $href->{'status'} );
+            # name, version, status, mandatory, description
+            printf "%-32s ", $href->{'name'};
+            my $mty = &check_mandatory ($href->{'name'});
+            $mty = scalar @{$mty} if ( $mty != 0 );
+            unless ( $quiet ) {
+                 printf "%-3s %-3s %-3s %s",
+#                printf "%-3s %-3s     %s",
+#                   $href->{'version'}, $href->{'status'}, $href->{'mandatory'},
+                    $href->{'version'}, $href->{'status'}, $mty,
+                        (defined $href->{'description'}) ?
+                            $href->{'description'} : "";
             }
         } elsif ( $type eq "tftp" ) {
             next unless ( $all || $href->{'enabled'} );
@@ -320,6 +340,10 @@ sub add
         $status = &add_profile( @_ );
     } elsif ( $type eq "tftp" ) {
         $status = &add_tftp( @_ );
+    } else {
+        # should be redundant with &check_type above
+        $LASTERROR = "Invalid <type> '$type' passed for add.\n";
+        return 1;
     }
 
     return $status;
@@ -329,213 +353,74 @@ sub add
 
 Where <options and args> are
 
-    --name id              Required unique id, suggest make-model.
-    --bootArgs string      Quoted line of kernel boot arguments.
-    --rootdisk disk        Disk device to install. [ default /dev/sda ]
-    --rootpart part        Root partition. [ default <diskroot> ]
-    --description "note"   Describe this hardware entry.
+    --name id                        Required unique id, suggest make-model.
+    --enable | --noenable            Enable hardware for use. [default enable]
+    --description "note"             Quoted note describing this hardware.
+    --bootArgs string                Quoted line of kernel boot arguments.
+    --rootdisk disk                  Disk device to install. [default /dev/sda]
+    --rootpart part                  Root partition. [ default <rootdisk> ]
 
-The following templates are filename only and are expected to be
-located in the directories ~baracus/templates/<os>/<arch>,
-and ~baracus/templates/<os>/<arch>/pxetemplates, where <os> and <arch>
-relate to the distro being used when creating the host entry.
+    --hwdriver "pkg1 pkg2 etc..."    Additional pkgs install for hardware.
+                                     May be spcified multiple times.
 
-    --pxeTemplate boot     Bootp pxe [ default pxetemplate-auto ]
-    --yastTemplate file    Autoinstall [ default template.xml ]
-
-    --hwdriver             Additional pkgs install for hardware.
-    --hwcert <distro>      A list of supported distros, for this
-                           hardware. May be spcified multiple times.
+    --cert "distro1 distro2 etc..."  A list of supported distros, for this
+                                     hardware. May be spcified multiple times.
 
 =cut
 
 sub add_hardware
 {
-    my %entry = (
-                 'hardwareid'   => "",
-                 'bootargs'     => "",
-                 'rootdisk'     => "/dev/sda",
-                 'rootpart'     => "",
-                 'autobuild'    => "template.xml",
-                 'description'  => "",
-                 'hwdriver'     => "",
-                 'hwcert'       => "",
-                 );
+    my $type = "hardware";
+    my %entry =
+        (
+         'hardwareid'   => "",
+         'bootargs'     => "",
+         'rootdisk'     => "/dev/sda",
+         'rootpart'     => "",
+         'description'  => "",
+         'hwdriver'     => "",
+         'cert'         => "",
+         'status'       => "t",
+         'version'      => 1,
+         );
 
     @ARGV = @_;
-    GetOptions(
-               'name=s'         => \$entry{'hardwareid'},
-               'bootargs=s'     => \$entry{'bootargs'},
-               'rootdisk=s'     => \$entry{'rootdisk'},
-               'rootpart=s'     => \$entry{'rootpart'},
-               'autobuild=s'    => \$entry{'autobuild'},
-               'description=s'  => \$entry{'description'},
-               'hwdriver=s'     => \&multiarg_handler,
-               'hwcert=s'       => \&multiarg_handler,
-               );
-
-    if ( scalar @ARGV ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &help();
-    }
-
-    # multiarg creates hash entry with a space seperated list of unique values
-
-    $entry{'hwdriver'} =
-        $multiarg{ 'hwdriver' } if (defined $multiarg{ 'hwdriver' });
-    $entry{'hwcert'}   =
-        $multiarg{ 'hwcert'   } if (defined $multiarg{ 'hwcert'   });
-
-    &help() unless ( $entry{'hardwareid'} );
-
-    my $findcount = &find( 'hardware', $entry{'hardwareid'} );
-    if ( defined $findcount ) {
-        if ( $findcount ) {
-            $LASTERROR = "Entry already exists:  hardware $entry{'hardwareid'}.\n";
-            return 1;
-        }
-    } else {
-        $LASTERROR .= "Failed in add hardware.\n" . $LASTERROR;
-        return 1;
-    }
-
-    $entry{'rootpart'} = $entry{'rootdisk'} unless ( $entry{'rootpart'} );
-
-    my $sql_cols = lc get_cols( $baTbls{ 'hardware' } );
-    $sql_cols =~ s/[ \t]*//g;
-    my @cols = split( /,/, $sql_cols );
-    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
-
-    my $sql_cert_cols = lc get_cols( $baTbls{ 'hwcert' } );
-    $sql_cert_cols =~ s/[ \t]*//g;
-    my @cert_cols = split( /,/, $sql_cert_cols );
-    my $sql_cert_vals = "?," x scalar @cert_cols; chop $sql_cert_vals;
-    my @cert_data = split( /\s/, $entry{ hwcert });
-
-    my $sql_cert = qq|INSERT INTO $baTbls{ 'hwcert' }
-                     ( $sql_cert_cols )
-                     VALUES ( $sql_cert_vals )
-                     |;
-
-    my $sql = qq|INSERT INTO $baTbls{ 'hardware' }
-                ( $sql_cols )
-                VALUES ( $sql_vals )
-                |;
-
-    print $sql . "\n" if $debug;
-
-    my $sth;
-    ## hardware table insert
-    foreach my $cert_in ( @cert_data ) {
-        unless ( &check_distroid($cert_in) ) {
-            $LASTERROR = "Unable to add hardware, distro: $cert_in does not exist\n";
-                return 1;
-             }
-    }
-    my $sql_handle = ( $sth = $dbh->prepare( $sql ) );
-    my $sql_cert_handle = ( $sth = $dbh->prepare( $sql_cert ) );
-
-    unless ( (defined $sql_handle) && (defined $sql_cert_handle) ) {
-        die "Unable to prepare 'add' hardware statement\n" .
-            $dbh->errstr;
-        return 1;
-    }
-
-    my $paramidx = 0;
-    foreach my $col (@cols) {
-        $paramidx += 1;
-        $sql_handle->bind_param( $paramidx, $entry{ $col } );
-    }
-
-    my $success = 1;
-    $success &&= $sql_handle->execute( );
-    foreach my $cert_in (@cert_data) {
-        $sql_cert_handle->bind_param( "1", $cert_in );
-        $sql_cert_handle->bind_param( "2", $entry{'hardwareid'});
-        $success &&= $sql_cert_handle->execute( );
-    }
-
-    unless ($success) {
-        die "Unable to execute 'add' hardware hwcert statement\n" .
-            $sth->errstr;
-        return 1;
-    }
-
-    $sth->finish;
-    undef $sth;
-
-    return 0;
-}
-
-=head2 add module <options and args>
-
-Where <options and args> are
-
-    --name id                                   Required unique id, suggest script name.
-    --enable | --noenable                       Enable module for use. [ default enable ]
-    --description "note"                        Quoted note describing this script.
-    --mandatory --cert "distro1 distro2 etc.."  Make module mandatory for listed distros
-    --optional --cert "distro1 distro2 etc.."   Make module optional for listed distros
-    --file <path/script>                        Script to use for this module.
-
-=cut
-
-# thought this was supported from old autoinit documentation
-#
-#  --interpreter value   where value is shell, perl, python  [default shell]
-
-sub add_module
-{
-    my $file = "";
-    my %entry = (
-                 'moduleid'      => "",
-                 'description'   => "",
-                 'interpreter'   => "shell",
-                 'data'          => "",
-                 'status'        => "t",
-                 'cert'          => "",
-                 'mandatory'     => "f",
-                 'version'       => 1,
-                 );
-
-    @ARGV = @_;
-    GetOptions(
-               'name=s'         => \$entry{'moduleid'},
-               'description=s'  => \$entry{'description'},
-#              'interpreter=s'  => \$entry{'interpreter'},
-               'file=s'         => \$file,
-               'enable!'        => \$entry{'status'},
-               'disable'        => sub { $entry{'status'} = 0 },
-               'mandatory!'     => \$entry{'mandatory'},
-               'optional'       => sub { $entry{'mandatory'} = 0},
-               'cert=s'         => \$entry{'cert'},
-               );
+    GetOptions
+        (
+         'name=s'         => \$entry{'hardwareid'},
+         'description=s'  => \$entry{'description'},
+         'bootargs=s'     => \$entry{'bootargs'},
+         'rootdisk=s'     => \$entry{'rootdisk'},
+         'rootpart=s'     => \$entry{'rootpart'},
+         'enable!'        => \$entry{'status'},
+         'disable'        => sub { $entry{'status'} = 0 },
+         'hwdriver=s'     => \&multiarg_handler,
+         'cert=s'         => \&multiarg_handler,
+         );
 
     if ( scalar @ARGV ) {
         $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
         return 1;
     }
 
-    &help() unless ( $entry{'moduleid'} );
+    &help('add', $type) unless ( $entry{'hardwareid'} );
 
-    my $findcount = &find( 'module', $entry{'moduleid'} );
-    if ( defined $findcount ) {
-        if ( $findcount ) {
-            $LASTERROR = "Entry already exists:  module $entry{'moduleid'}.\n";
-            return 1;
-        }
-    } else {
-        $LASTERROR .= "Failed in add module.\n" . $LASTERROR;
+    # multiarg creates hash entry with a space seperated list of unique values
+
+    $entry{'hwdriver'} =
+        $multiarg{ 'hwdriver' } if (defined $multiarg{ 'hwdriver' });
+
+    $entry{'cert'}     =
+        $multiarg{ 'cert'     } if (defined $multiarg{ 'cert'     });
+
+    my $findcount = &find( $type, $entry{'hardwareid'} );
+    unless ( defined $findcount ) {
+        # &find call failed
+        $LASTERROR = "Failed in add $type.\n" . $LASTERROR;
         return 1;
     }
-
-    $entry{'interpreter'} = lc $entry{'interpreter'};
-    $entry{'interpreter'} =~ s/[ \t]*//g;
-
-    if ( ($entry{'interpreter'} ne "shell")   &&
-         ($entry{'interpreter'} ne "perl")    &&
-         ($entry{'interpreter'} ne "python" ) ){
-        $LASTERROR = "invalid interpreter specified \'$entry{'interpreter'}\' - should be 'shell' 'perl' or 'python'\n";
+    if ( $findcount ) {
+        $LASTERROR = "Entry already exists:  $type $entry{'hardwareid'}.\n";
         return 1;
     }
 
@@ -547,9 +432,154 @@ sub add_module
         }
     }
 
+    $entry{'rootpart'} = $entry{'rootdisk'} unless ( $entry{'rootpart'} );
+
+    unless ( $entry{'cert'} eq "" ) {
+        print "checking certs: $entry{'cert'}\n" if $debug;
+        my $status = &check_distros ( $entry{'cert'} );
+        return $status if $status; # LASTERROR set in call
+    }
+
+    my $sql_cols = lc get_cols( $baTbls{ $type } );
+    $sql_cols =~ s/[ \t]*//g;
+    my @cols = split( /,/, $sql_cols );
+    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+    my $sql = qq|INSERT INTO $baTbls{ $type }
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+
+    print $sql . "\n" if $debug;
+
+    my $sth = $dbh->prepare( $sql );
+
+    unless ( defined $sth ) {
+        $LASTERROR = "Unable to prepare 'add' $type statement\n" .
+            $dbh->errstr;
+        return 1;
+    }
+
+    my $paramidx = 0;
+    foreach my $col (@cols) {
+        $paramidx += 1;
+        $sth->bind_param( $paramidx, $entry{ $col } );
+    }
+
+    unless( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'add' $type statement\n" .
+            $sth->errstr;
+        return 1;
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    # foreign key references require that hardwareid exist before certs added
+
+    unless ( $entry{'cert'} eq "" ) {
+        my $status = &add_certs ( $type, $entry{'hardwareid'}, $entry{'cert'} );
+        if ($status) {
+            $LASTERROR .= "\nAdd succeeded but certification failed.\nUse 'modify $type' next time to try adding certification again.\n";
+            return $status;
+        }
+    }
+
+    return 0;
+}
+
+=head2 add module <options and args>
+
+Where <options and args> are
+
+    --name id                           Required unique id, suggest script name
+    --enable | --noenable               Enable module for use. [default enable]
+    --description "note"                Quoted note describing this script
+    --cert    "distro1 distro2 etc..."  Certify module for listed distro
+    --mancert "distro1 distro2 etc..."  Make module mandatory for listed distro
+    --file <path/script>                Script to use for this module
+
+=cut
+
+# thought this was supported from old autoinit documentation
+#
+#  --interpreter value   where value is shell, perl, python  [default shell]
+
+sub add_module
+{
+    my $type = "module";
+    my $file = "";
+    my %entry =
+        (
+         'moduleid'      => "",
+         'description'   => "",
+         'interpreter'   => "shell",
+         'data'          => "",
+         'status'        => "t",
+         'cert'          => "",
+         'mancert'       => "",
+         'version'       => 1,
+         );
+
+    @ARGV = @_;
+    GetOptions
+        (
+         'name=s'         => \$entry{'moduleid'},
+         'description=s'  => \$entry{'description'},
+         #              'interpreter=s'  => \$entry{'interpreter'},
+         'file=s'         => \$file,
+         'enable!'        => \$entry{'status'},
+         'disable'        => sub { $entry{'status'} = 0 },
+         'cert=s'         => \&multiarg_handler,
+         'mancert=s'      => \&multiarg_handler,
+         );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    &help('add', $type) unless ( $entry{'moduleid'} );
+
+    # multiarg creates hash entry with a space seperated list of unique values
+
+    $entry{'cert'}    =
+        $multiarg{ 'cert'    } if (defined $multiarg{ 'cert'    });
+    $entry{'mancert'} =
+        $multiarg{ 'mancert' } if (defined $multiarg{ 'mancert' });
+
+    my $findcount = &find( $type, $entry{'moduleid'} );
+    unless ( defined $findcount ) {
+        # &find call failed
+        $LASTERROR = "Failed in add $type.\n" . $LASTERROR;
+        return 1;
+    }
+    if ( $findcount ) {
+        $LASTERROR = "Entry already exists:  $type $entry{'moduleid'}.\n";
+        return 1;
+    }
+
+    if ( $entry{'status'} ne "" ) {
+        if ( $entry{'status'} ) {
+            $entry{'status'} = "t";
+        } else {
+            $entry{'status'} = "f";
+        }
+    }
+
+    $entry{'interpreter'} = lc $entry{'interpreter'};
+    $entry{'interpreter'} =~ s/[ \t]*//g;
+
+    if ( ($entry{'interpreter'} ne "shell")   &&
+         ($entry{'interpreter'} ne "perl")    &&
+         ($entry{'interpreter'} ne "python" ) ) {
+        $LASTERROR = "invalid interpreter specified \'$entry{'interpreter'}\' - should be 'shell' 'perl' or 'python'\n";
+        return 1;
+    }
+
     unless ( $file ne "" ) {
         print "Need --file <file>.\n";
-        &help( "add", "module" );
+        &help( 'add', $type );
     }
 
     unless ( -f $file and -r $file ) {
@@ -559,46 +589,38 @@ sub add_module
 
     open (FILE, "<$file") || die "unable to open $file: $!\n";
     undef $/;
-    $entry{'data'}=<FILE>;  # slurp mode
+    $entry{'data'}=<FILE>;      # slurp mode
     $/ = "\n";
     close FILE;
 
-    my $sql_cols = lc get_cols( $baTbls{ 'module' } );
+    unless ( $entry{'cert'} eq "" ) {
+        print "checking certs: $entry{'cert'}\n" if $debug;
+        my $status = &check_distros ( $entry{'cert'} );
+        return $status if $status; # LASTERROR set in call
+    }
+
+    unless ( $entry{'mancert'} eq "" ) {
+        print "checking certs: $entry{'mancert'}\n" if $debug;
+        my $status = &check_distros ( $entry{'mancert'} );
+        return $status if $status; # LASTERROR set in call
+    }
+
+    my $sql_cols = lc get_cols( $baTbls{ $type } );
     $sql_cols =~ s/[ \t]*//g;
     my @cols = split( /,/, $sql_cols );
     my $sql_vals = "?," x scalar @cols; chop $sql_vals;
 
-    my $sql_cert_cols = lc get_cols( $baTbls{ 'modcert' } );
-    $sql_cert_cols =~ s/[ \t]*//g;
-    my @cert_cols = split( /,/, $sql_cert_cols );
-    my $sql_cert_vals = "?," x scalar @cert_cols; chop $sql_cert_vals;
-    my @cert_data = split( /\s/, $entry{ 'cert' });
-
-    my $sql_cert = qq|INSERT INTO $baTbls{ 'modcert' }
-                     ( $sql_cert_cols )
-                     VALUES ( $sql_cert_vals )
-                     |;
-
-    my $sql = qq|INSERT INTO $baTbls{ 'module' }
+    my $sql = qq|INSERT INTO $baTbls{ $type }
                 ( $sql_cols )
                 VALUES ( $sql_vals )
                 |;
+
     print $sql . "\n" if $debug;
 
-    my $sth;
-    ## Module table insert
-    foreach my $cert_in ( @cert_data ) {
-        unless ( &check_distroid($cert_in) ) {
-            $LASTERROR = "Unable to add module, distro: $cert_in does not exist\n";
-                return 1;
-        }
-    }
+    my $sth = $dbh->prepare( $sql );
 
-    my $sql_handle = ( $sth = $dbh->prepare( $sql ) );
-    my $sql_cert_handle = ( $sth = $dbh->prepare( $sql_cert ) );
-
-    unless ( (defined $sql_handle) && (defined $sql_cert_handle) ) {
-        die "Unable to prepare 'add' hardware statement\n" .
+    unless ( defined $sth ) {
+        $LASTERROR = "Unable to prepare 'add' $type statement\n" .
             $dbh->errstr;
         return 1;
     }
@@ -606,20 +628,11 @@ sub add_module
     my $paramidx = 0;
     foreach my $col (@cols) {
         $paramidx += 1;
-        $sql_handle->bind_param( $paramidx, $entry{ $col } );
+        $sth->bind_param( $paramidx, $entry{ $col } );
     }
 
-    my $success = 1;
-    $success &&= $sql_handle->execute( );
-    foreach my $cert_in (@cert_data) {
-        $sql_cert_handle->bind_param( "1", $entry{'moduleid'} );
-        $sql_cert_handle->bind_param( "2", $cert_in );
-        $sql_cert_handle->bind_param( "3", $entry{'mandatory'} );
-        $success &&= $sql_cert_handle->execute( );
-    }
-
-    unless ($success) {
-        die "Unable to execute 'add' modcert statement\n" .
+    unless( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'add' $type statement\n" .
             $sth->errstr;
         return 1;
     }
@@ -627,8 +640,19 @@ sub add_module
     $sth->finish;
     undef $sth;
 
-    return 0;
+    # foreign key references require that hardwareid exist before certs added
 
+    unless ( $entry{'cert'} eq "" ) {
+        my $status = &add_certs ( $type, $entry{'moduleid'}, $entry{'cert'} );
+        return $status if $status; # LASTERROR set in update_cert call
+    }
+
+    unless ( $entry{'mancert'} eq "" ) {
+        my $status = &man_certs($type, $entry{'moduleid'}, $entry{'mancert'} );
+        return $status if $status; # LASTERROR set in update_cert call
+    }
+
+    return 0;
 }
 
 =head2 add profile <options and args>
@@ -644,39 +668,41 @@ Where <options and args> are
 
 sub add_profile
 {
+    my $type = "profile";
     my $file = "";
-    my %entry = (
-                 'profileid'    => "",
-                 'description'  => "",
-                 'data'         => "",
-                 'status'       => "t",
-                 'version'      => 1,
-                 );
+    my %entry =
+        (
+         'profileid'    => "",
+         'description'  => "",
+         'data'         => "",
+         'status'       => "t",
+         'version'      => 1,
+         );
 
     @ARGV = @_;
-    GetOptions(
-               'name=s'         => \$entry{'profileid'},
-               'description=s'  => \$entry{'description'},
-               'file=s'         => \$file,
-               'enable!'        => \$entry{'status'},
-               'disable'        => sub { $entry{'status'} = 0 },
-               );
+    GetOptions
+        (
+         'name=s'         => \$entry{'profileid'},
+         'description=s'  => \$entry{'description'},
+         'file=s'         => \$file,
+         'enable!'        => \$entry{'status'},
+         'disable'        => sub { $entry{'status'} = 0 },
+         );
 
     if ( scalar @ARGV ) {
         $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
         return 1;
     }
 
-    &help() unless ( $entry{'profileid'} );
+    &help('add', $type) unless ( $entry{'profileid'} );
 
-    my $findcount = &find( 'profile', $entry{'profileid'} );
-    if ( defined $findcount ) {
-        if ( $findcount ) {
-            $LASTERROR = "Entry already exists:  profile $entry{'profileid'}.\n";
-            return 1;
-        }
-    } else {
-        $LASTERROR .= "Failed in add profile.\n" . $LASTERROR;
+    my $findcount = &find( $type, $entry{'profileid'} );
+    unless ( defined $findcount ) {
+        $LASTERROR = "Failed in add $type.\n" . $LASTERROR;
+        return 1;
+    }
+    if ( $findcount ) {
+        $LASTERROR = "Entry already exists:  $type $entry{'profileid'}.\n";
         return 1;
     }
 
@@ -690,7 +716,7 @@ sub add_profile
 
     unless ( $file ne "" ) {
         print "Need --file <file>.\n";
-        &help( "add", "profile" );
+        &help( "add", $type );
     }
 
     unless ( -f $file and -r $file ) {
@@ -700,24 +726,26 @@ sub add_profile
 
     open (FILE, "<$file") || die "unable to open $file: $!\n";
     undef $/;
-    $entry{'data'}=<FILE>;  # slurp mode
+    $entry{'data'}=<FILE>;      # slurp mode
     $/ = "\n";
     close FILE;
 
-    my $sql_cols = lc get_cols( $baTbls{ 'profile' } );
+    my $sql_cols = lc get_cols( $baTbls{ $type } );
     $sql_cols =~ s/[ \t]*//g;
     my @cols = split( /,/, $sql_cols );
     my $sql_vals = "?," x scalar @cols; chop $sql_vals;
 
-    my $sql = qq|INSERT INTO $baTbls{ 'profile' }
+    my $sql = qq|INSERT INTO $baTbls{ $type }
                 ( $sql_cols )
                 VALUES ( $sql_vals )
                 |;
+
     print $sql . "\n" if $debug;
 
-    my $sth;
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $LASTERROR = "Unable to prepare 'add' profile statement\n" .
+    my $sth = $dbh->prepare( $sql );
+
+    unless ( defined $sth ) {
+        $LASTERROR = "Unable to prepare 'add' $type statement\n" .
             $dbh->errstr;
         return 1;
     }
@@ -728,9 +756,8 @@ sub add_profile
         $sth->bind_param( $paramidx, $entry{ $col } );
     }
 
-    # finished with last entry
     unless( $sth->execute( ) ) {
-        $LASTERROR = "Unable to execute 'add' profile statement\n" .
+        $LASTERROR = "Unable to execute 'add' $type statement\n" .
             $sth->err;
         return 1;
     }
@@ -754,41 +781,44 @@ Where <options and args> are
 
 sub add_tftp
 {
+    my $type = "tftp";
     my $file = "";
-    my %entry = (
-                 'name'         => "",
-                 'description'  => "",
-                 'bin'          => "",
-                 'size'         => "",
-                 'enabled'      => "t",
-                 'insertion'    => "CURRENT_TIMESTAMP",
-                 'change'       => "NULL",
-                 );
+
+    my %entry =
+        (
+         'name'         => "",
+         'description'  => "",
+         'bin'          => "",
+         'size'         => "",
+         'enabled'      => "t",
+         'insertion'    => "CURRENT_TIMESTAMP",
+         'change'       => "NULL",
+         );
 
     @ARGV = @_;
-    GetOptions(
-               'name=s'         => \$entry{'name'},
-               'description=s'  => \$entry{'description'},
-               'file=s'         => \$file,
-               'enable!'        => \$entry{'enabled'},
-               'disable'        => sub { $entry{'enabled'} = 0 },
-               );
+    GetOptions
+        (
+         'name=s'         => \$entry{'name'},
+         'description=s'  => \$entry{'description'},
+         'file=s'         => \$file,
+         'enable!'        => \$entry{'enabled'},
+         'disable'        => sub { $entry{'enabled'} = 0 },
+         );
 
     if ( scalar @ARGV ) {
         $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
         return 1;
     }
 
-    &help() unless ( $entry{'name'} );
+    &help('add', $type) unless ( $entry{'name'} );
 
-    my $findcount = &find( 'tftp', $entry{'name'} );
-    if ( defined $findcount ) {
-        if ( $findcount ) {
-            $LASTERROR = "Entry already exists:  tftp $entry{'name'}.\n";
-            return 1;
-        }
-    } else {
-        $LASTERROR .= "Failed in add tftp.\n" . $LASTERROR;
+    my $findcount = &find( $type, $entry{'name'} );
+    unless ( defined $findcount ) {
+        $LASTERROR = "Failed in add $type.\n" . $LASTERROR;
+        return 1;
+    }
+    if ( $findcount ) {
+        $LASTERROR = "Entry already exists:  $type $entry{'name'}.\n";
         return 1;
     }
 
@@ -802,7 +832,7 @@ sub add_tftp
 
     unless ( $file ne "" ) {
         print "Need --file <file>.\n";
-        &help( "add", "tftp" );
+        &help( "add", $type );
     }
 
     unless ( -f $file and -r $file ) {
@@ -813,20 +843,20 @@ sub add_tftp
     my $fh;
     open ($fh, "<", $file) || die "unable to open $file: $!\n";
     undef $/;
-    my $content_tmp = <$fh>;  # slurp mode
+    my $content_tmp = <$fh>;    # slurp mode
     $/ = "\n";
     close $fh;
-    $entry{'size'} = length( $content_tmp );
-    open ($fh, "<", $file) || die "unable to open $file: $!\n";
 
-    my $sql_cols = lc get_cols( $baTbls{ 'tftp' });
+    $entry{'size'} = length( $content_tmp );
+
+    my $sql_cols = lc get_cols( $baTbls{ $type });
     $sql_cols =~ s/[ \t]*//g;
     my @cols = split( /,/, $sql_cols );
 
     $sql_cols = "";
     my $sql_vals = "";
     # for the cols we are setting get rid of the autoincrement key
-    foreach my $col( @cols ) {
+    foreach my $col ( @cols ) {
         next if ( $col eq "id" );
         if ( $col eq "bin" ) {
             $sql_cols .= "$col,";
@@ -845,7 +875,7 @@ sub add_tftp
     chop $sql_cols;
     chop $sql_vals;
 
-    my $sql = qq|INSERT INTO $baTbls{ 'tftp' }
+    my $sql = qq|INSERT INTO $baTbls{ $type }
                 ( $sql_cols )
                 VALUES ( $sql_vals )
                 |;
@@ -853,18 +883,20 @@ sub add_tftp
 
     my $sth;
     unless ( $sth = $tftph->prepare( $sql ) ) {
-        $LASTERROR = "Unable to prepare 'add' tftp statement\n" .
+        $LASTERROR = "Unable to prepare 'add' $type statement\n" .
             $dbh->errstr;
         return 1;
     }
+
+    open ($fh, "<", $file) || die "unable to open $file: $!\n";
 
     my $bytes = 1;
     while ( $bytes ) {
         read $fh, $bytes, $maxlen;
         $entry{ 'bin' } = &bytea_encode( $bytes );
         if ( $bytes ) {
-            unless( $sth->execute( $entry{ 'bin' } ) ) {
-                $LASTERROR = "Unable to execute 'add' tftp statement\n" .
+            unless ( $sth->execute( $entry{ 'bin' } ) ) {
+                $LASTERROR = "Unable to execute 'add' $type statement\n" .
                     $sth->err;
                 return 1;
             }
@@ -896,15 +928,16 @@ sub update
     $type = lc $type;
     &check_type( $type );
 
-    if ( $type eq "module" ) {
+    if ( $type eq "hardware" ) {
+        $status = &update_hardware( @_ );
+    } elsif ( $type eq "module" ) {
         $status = &update_module( @_ );
     } elsif ( $type eq "profile" ) {
         $status = &update_profile( @_ );
     } elsif ( $type eq "tftp" ) {
         $status = &update_tftp( @_ );
-    } elsif ( $type eq "hardware" ) {
-        $status = &update_hardware( @_ );
     } else {
+        # should be redundant with &check_type above
         $LASTERROR = "Invalid <type> '$type' passed for update.\n";
         return 1;
     }
@@ -912,21 +945,274 @@ sub update
     return $status;
 }
 
+
+=head2 update hardware <options and args>
+
+Where <options and args> are
+
+    --name id              Required unique id.
+    --enable | --noenable  Enable module for use. [ no default ]
+    --description "note"   Quoted note describing this profile.
+
+    --addcert <distro>     Supported distros for this hardware
+    --rmcert  <distro>     List of distros no longer supported
+
+The cert options may be specified multiple times.
+
+You may only specify the version to modify with the above params
+
+    --version <version>    Modify parameters of an existing version.
+
+or any of the below params to create a new version ( highest + 1 )
+based on the enabled version, if found, else based on highest version.
+
+    --bootArgs string      Quoted line of kernel boot arguments.
+    --rootdisk disk        Disk device to install.
+    --rootpart part        Root partition.
+    --hwdriver pkg         Additional pkgs install for hardware.
+                           May be spcified multiple times.
+
+=cut
+
+sub update_hardware
+{
+    my $type = 'hardware';
+
+    my %entry =
+        (
+         'hardwareid'  => "",
+         'description' => "",
+         'addcert'     => "",
+         'rmcert'      => "",
+         'status'      => "",
+         'version'     => 0,
+         'bootargs'    => "",
+         'rootdisk'    => "",
+         'rootpart'    => "",
+         'hwdriver'    => "",
+         );
+
+    @ARGV = @_;
+    GetOptions
+        (
+         'name=s'         => \$entry{'hardwareid'},
+         'description=s'  => \$entry{'description'},
+         'addcert=s'      => \&multiarg_handler,
+         'rmcert=s'       => \&multiarg_handler,
+         'enable!'        => \$entry{'status'},
+         'disable'        => sub { $entry{'status'} = 0 },
+         'hwdriver=s'     => \&multiarg_handler,
+         'bootargs=s'     => \$entry{'bootargs'},
+         'rootdisk=s'     => \$entry{'rootdisk'},
+         'rootpart=s'     => \$entry{'rootpart'},
+         'version=i'      => \$entry{'version'},
+         );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    &help('update', $type) unless ( $entry{'hardwareid'} );
+
+    if ( $entry{'status'} ne "" ) {
+        print "enable or noenable passed: $entry{'status'}\n" if $debug;
+        if ( $entry{'status'} ) {
+            $entry{'status'} = "t";
+        } else {
+            $entry{'status'} = "f";
+        }
+    }
+
+    # fetch needed entries from db
+    my ( $version_href, $highest_href, $enabled_href ) =
+        &get_versions( $type, $entry{'hardwareid'}, $entry{'version'});
+
+    unless (defined $highest_href) {
+        unless ( $LASTERROR ) {
+            $LASTERROR =
+                "Unable to update $type, entry '$entry{'hardwareid'}' not found\n";
+        }
+        return 1;
+    }
+
+    # multiarg creates hash entry with a space seperated list of unique values
+
+    $entry{'hwdriver'} =
+        $multiarg{ 'hwdriver' } if (defined $multiarg{ 'hwdriver' });
+    $entry{'addcert'} =
+        $multiarg{ 'addcert' } if (defined $multiarg{ 'addcert' });
+    $entry{'rmcert'}  =
+        $multiarg{ 'rmcert'  } if (defined $multiarg{ 'rmcert'  });
+
+    if ( $entry{'version'} != 0 ) {
+        if ( $entry{'hwdriver'} or
+             $entry{'bootargs'} or
+             $entry{'rootdisk'} or
+             $entry{'rootpart'}
+            ) {
+            $LASTERROR = "Change of params for a particular version unsupported.\n";
+            return 1;
+        }
+        unless (defined $version_href) {
+            $LASTERROR = "Specified version was not found.\n";
+            return 1;
+        }
+    } elsif ( $entry{'hwdriver'} eq "" and
+              $entry{'bootargs'} eq "" and
+              $entry{'rootdisk'} eq "" and
+              $entry{'rootpart'} eq ""
+             ) {
+        $LASTERROR = "Need param(s) or specified --version for update.\n";
+        return 1;
+    }
+
+    # finished processing command line
+
+    unless ( $entry{'addcert'} eq "" ) {
+        print "checking certs: $entry{'addcert'}\n" if $debug;
+        my $status = &check_distros ( $entry{'addcert'} );
+        return $status if $status; # LASTERROR set in call
+    }
+
+    unless ( $entry{'addcert'} eq "" ) {
+        my $status = &add_certs("hardware", $entry{'hardwareid'}, $entry{'addcert'});
+        return $status if $status; # LASTERROR set in call
+    }
+
+    unless ( $entry{'rmcert'} eq "" ) {
+        my $status = &rm_certs("hardware", $entry{'hardwareid'}, $entry{'rmcert'});
+        return $status if $status; # LASTERROR set in call
+    }
+
+    if ( $entry{'version'} != 0 ) {
+
+        # true UPDATE for specified version
+        # possibly two UPDATEs this 'status' changes to enable
+
+        if ( defined $enabled_href->{'version'} &&
+             $entry{'version'} != $enabled_href->{'version'} &&
+             $entry{'status'} eq "t" ) {
+
+            # disable enabled version - in preperation to enable specified version
+            return 1 if &change_status( $type, "f", $enabled_href );
+        }
+        if ( $entry{'status'} ne "" ) {
+            return 1 if &change_status( $type, $entry{'status'}, $version_href );
+        }
+
+        # the only other param to modify is description
+        # because we don't support version updates for
+        # other data modification is not allowed.
+
+        if ( $entry{'description'} ne "" ) {
+            return 1
+                if &change_description( $type,
+                                        $entry{'description'},
+                                        $version_href );
+        }
+
+        # done with the genuine UPDATE of the version specified
+
+    } else {
+
+        # not UPDATE but instead INSERT a new version of <file> (highest ver + 1)
+        # if --enable passed then may need UPDATE to disable earlier entry
+
+        my $new_vers = $highest_href->{'version'} + 1;
+
+        if ( defined $enabled_href->{'version'} &&
+             $entry{'status'} eq "t" ) {
+
+            # disable enabled version - in preperation to enable new version
+            return 1 if &change_status( $type, "f", $enabled_href );
+        }
+
+        # use information from enabled version if found
+        # and if not then highest version for all the fields
+        # not provided with the new version of this file
+
+        my $use_href;
+
+        if ( defined $enabled_href->{'version'} ) {
+            $use_href = $enabled_href;
+        } else {
+            $use_href = $highest_href;
+        }
+
+        while ( my ($key, $value) = each %entry ) {
+            # change only what was passed
+            if ( $value ) {
+                $use_href->{ $key } = $value;
+            }
+        }
+
+        return 1 if (&redundant_data($type, $entry{'hardwareid'}, $use_href ));
+
+        # if not explicitly enabled we default to disabled
+        if ( $entry{'status'} ne "t" ) {
+            $use_href->{ 'status' } = "f";
+        }
+
+        # and assign the new version
+        $use_href->{'version'} = $new_vers;
+
+        # now add it
+
+        my $sql_cols = lc get_cols( $baTbls{ $type } );
+        $sql_cols =~ s/[ \t]*//g;
+        my @cols = split( /,/, $sql_cols );
+        my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+        my $sql = qq|INSERT INTO $baTbls{ $type }
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+        print $sql . "\n" if $debug;
+
+        my $sth;
+        unless ( $sth = $dbh->prepare( $sql ) ) {
+            $LASTERROR = "Unable to prepare 'update' $type statement\n" .
+                $dbh->errstr;
+            return 1;
+        }
+
+        my $paramidx = 0;
+        foreach my $col (@cols) {
+            $paramidx += 1;
+            $sth->bind_param( $paramidx, $use_href->{ $col } );
+        }
+
+        # finished with last entry
+        unless( $sth->execute( ) ) {
+            $LASTERROR = "Unable to execute 'update' $type statement\n" .
+                $sth->err;
+            return 1;
+        }
+
+        $sth->finish;
+        undef $sth;
+    }
+
+    return 0;
+}
+
 =head2 update module <options and args>
 
 Where <options and args> are
 
-    --name id                                   Required unique id, suggest script name.
-    --enable | --noenable                       Enable module for use. [ no default ]
-    --description "note"                        Quoted note describing this script.
-    --addcert "distro1 distro2 etc.."           Add distros for which module is supported
-    --rmcert "distro1 distro2 etc.."            Remove distro support for module
-    --mandatory --cert "distro1 distro2 etc.."  Make module mandatory for listed distros
-    --optional --cert "distro1 distro2 etc.."   Make module optional for listed distros
+    --name id                           Required unique id, suggest script name.
+    --enable | --noenable               Enable module for use. [ no default ]
+    --description "note"                Quoted note describing this script.
+    --addcert "distro1 distro2 etc..."  Add distro this module supports
+    --rmcert  "distro1 distro2 etc..."  Remove distro support for module
+    --mancert "distro1 distro2 etc..."  Make module mandatory for listed distro
+    --optcert "distro1 distro2 etc..."  Make mandatory module optional for dist
 
 you may only specify one of the following
 
     --file <path/script>   Create a new version with this content.
+or
     --version <version>    Modify parameters of an existing version.
 
 =cut
@@ -939,45 +1225,44 @@ sub update_module
 {
     my $type = 'module';
     my $file = "";
+    my $status;
 
-    my %entry = (
-                 'moduleid'     => "",
-                 'description'  => "",
-                 'interpreter'  => "",
-                 'data'         => "",
-                 'status'       => "",
-                 'mandatory'    => 0,
-                 'cert'         => "",
-                 'addcert'      => "",
-                 'rmcert'       => "",
-                 'version'      => 0,
-                 );
+    my %entry =
+        (
+         'moduleid'     => "",
+         'description'  => "",
+         'interpreter'  => "",
+         'data'         => "",
+         'status'       => "",
+         'mancert'      => "",
+         'optcert'      => "",
+         'addcert'      => "",
+         'rmcert'       => "",
+         'version'      => 0,
+         );
 
     @ARGV = @_;
-    GetOptions(
-               'name=s'         => \$entry{'moduleid'},
-               'description=s'  => \$entry{'description'},
-#              'interpreter=s'  => \$entry{'interpreter'},
-               'file=s'         => \$file,
-               'enable!'        => \$entry{'status'},
-               'disable'        => sub { $entry{'status'} = 0 },
-               'mandatory!'     => \$entry{'mandatory'},
-               'optional'       => sub { $entry{'mandatory'} = 0},
-               'cert=s'         => \&multiarg_handler,
-               'addcert=s'      => \&multiarg_handler,
-               'rmcert=s'       => \&multiarg_handler,
-               'version=i'      => \$entry{'version'},
-               );
+    GetOptions
+        (
+         'name=s'         => \$entry{'moduleid'},
+         'description=s'  => \$entry{'description'},
+#         'interpreter=s'  => \$entry{'interpreter'},
+         'file=s'         => \$file,
+         'enable!'        => \$entry{'status'},
+         'disable'        => sub { $entry{'status'} = 0 },
+         'mancert=s'      => \&multiarg_handler,
+         'optcert=s'      => \&multiarg_handler,
+         'addcert=s'      => \&multiarg_handler,
+         'rmcert=s'       => \&multiarg_handler,
+         'version=i'      => \$entry{'version'},
+         );
 
     if ( scalar @ARGV ) {
         $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
         return 1;
     }
 
-    unless ( $entry{'moduleid'} ) {
-        print "Required --name <name> not provided.\n";
-        &help();
-    }
+    &help('update', $type) unless ( $entry{'moduleid'} );
 
     if ( $entry{'status'} ne "" ) {
         print "enable or noenable passed: $entry{'status'}\n" if $debug;
@@ -1000,6 +1285,17 @@ sub update_module
         return 1;
     }
 
+    # multiarg creates hash entry with a space seperated list of unique values
+
+    $entry{'addcert'} =
+        $multiarg{ 'addcert' } if (defined $multiarg{ 'addcert' });
+    $entry{'optcert'} =
+        $multiarg{ 'optcert' } if (defined $multiarg{ 'optcert' });
+    $entry{'mancert'} =
+        $multiarg{ 'mancert' } if (defined $multiarg{ 'mancert' });
+    $entry{'rmcert'}  =
+        $multiarg{ 'rmcert'  } if (defined $multiarg{ 'rmcert'  });
+
     if ( $entry{'version'} != 0 ) {
         if ( $file ) {
             $LASTERROR = "Change of --file content for a version unsupported.\n";
@@ -1010,10 +1306,10 @@ sub update_module
             return 1;
         }
     } elsif ( $file eq "" ) {
-        $LASTERROR = "Require --file <file> or specified --version for update.\n";
+        $LASTERROR = "Need --file <file> or specified --version for update.\n";
         return 1;
-    } elsif ( ! $file ) {
-        $LASTERROR = "Need --file <file> to add. Unable to find: $file.\n";
+    } elsif ( ! ( -f $file and -r $file ) ) {
+        $LASTERROR = "Unable to find or read: $file.\n";
         return 1;
     } else {
         open (FILE, "<$file") || die "unable to open $file: $!\n";
@@ -1023,29 +1319,39 @@ sub update_module
         close FILE;
     }
 
-    $entry{'cert'} =
-        $multiarg{ 'cert' } if (defined $multiarg{ 'cert' });
+    # finished processing command line
 
-    $entry{'addcert'} =
-        $multiarg{ 'addcert' } if (defined $multiarg{ 'addcert' });
+    unless ( $entry{'addcert'} eq "" ) {
+        print "checking certs: $entry{'addcert'}\n" if $debug;
+        my $status = &check_distros ( $entry{'addcert'} );
+        return $status if $status; # LASTERROR set in call
+    }
 
-    $entry{'rmcert'} =
-        $multiarg{ 'rmcert' } if (defined $multiarg{ 'rmcert' });
-
-    unless ( &check_module( $entry{'moduleid'} ) ) {
-        $LASTERROR = "Unable to update module, $entry{'moduleid'} does not exist\n";
-        return 1;
+    unless ( $entry{'mancert'} eq "" ) {
+        print "checking certs: $entry{'mancert'}\n" if $debug;
+        my $status = &check_distros ( $entry{'mancert'} );
+        return $status if $status; # LASTERROR set in call
     }
 
     unless ($entry{'addcert'} eq "" ) {
-        my $status = &update_cert("modcert", $entry{'moduleid'}, "addcert", $entry{'addcert'}, $entry{'mandatory'});
+        $status = &add_certs("module", $entry{'moduleid'}, $entry{'addcert'});
+        return $status if $status; # LASTERROR set in call
+    }
+
+    unless ($entry{'mancert'} eq "" ) {
+        $status = &man_certs("module", $entry{'moduleid'}, $entry{'mancert'});
+        return $status if $status; # LASTERROR set in call
+    }
+
+    unless ($entry{'optcert'} eq "" ) {
+        $status = &opt_certs("module", $entry{'moduleid'}, $entry{'optcert'});
+        return $status if $status; # LASTERROR set in call
     }
 
     unless ($entry{'rmcert'} eq "" ) {
-        my $status = &update_cert("modcert", $entry{'moduleid'}, "rmcert", $entry{'rmcert'});
+        $status = &rm_certs("module", $entry{'moduleid'}, $entry{'rmcert'});
+        return $status if $status; # LASTERROR set in update_cert call
     }
-
-    # finished processing command line
 
     if ( $entry{'version'} != 0 ) {
 
@@ -1063,33 +1369,11 @@ sub update_module
             return 1 if &change_status( $type, $entry{'status'}, $version_href );
         }
 
-        # changing the mandatory flag
-        if ( (! $entry{'addcert'} eq "" ) || ( defined ( $entry{'cert'} ) ) ) {
-            my $mandatory =  &get_mandatory( $entry{'moduleid'}, $entry{'cert'} );
-
-            if ( $entry{'mandatory'} == $mandatory ) {
-                $LASTERROR = "mandatory setting already set\n";
-                return 1;
-            }
-
-            if ( $mandatory ne "" ) {
-                ## Check to make sure that at least one version is enabled
-                ##
-                unless ( &check_enabled( $entry{'moduleid'} ) ) {
-                    $LASTERROR = "At least one version must be enabled to set to mandatory.\n";
-                    return 1;
-                }
-                return 1
-                    if &change_mandatory( $entry{'mandatory'},
-                                          $entry{'moduleid'}, $entry{'cert'} );
-            }
-        }
-
         # the only other param to modify is description
         # because we don't support intreperter now
         # and data modification is not allowed.
 
-        elsif ( $entry{'description'} ne "" ) {
+        if ( $entry{'description'} ne "" ) {
             return 1
                 if &change_description( $type,
                                         $entry{'description'},
@@ -1133,6 +1417,7 @@ sub update_module
             }
         }
 
+        # if not explicitly enabled we default to disabled
         if ( $entry{'status'} ne "t" ) {
             $use_href->{ 'status' } = "f";
         }
@@ -1142,12 +1427,12 @@ sub update_module
 
         # now add it
 
-        my $sql_cols = lc get_cols( $baTbls{ 'module' } );
+        my $sql_cols = lc get_cols( $baTbls{ $type } );
         $sql_cols =~ s/[ \t]*//g;
         my @cols = split( /,/, $sql_cols );
         my $sql_vals = "?," x scalar @cols; chop $sql_vals;
 
-        my $sql = qq|INSERT INTO $baTbls{ 'module' }
+        my $sql = qq|INSERT INTO $baTbls{ $type }
                 ( $sql_cols )
                 VALUES ( $sql_vals )
                 |;
@@ -1155,7 +1440,7 @@ sub update_module
 
         my $sth;
         unless ( $sth = $dbh->prepare( $sql ) ) {
-            $LASTERROR = "Unable to prepare 'update' module statement\n" .
+            $LASTERROR = "Unable to prepare 'update' $type statement\n" .
                 $dbh->errstr;
             return 1;
         }
@@ -1168,14 +1453,13 @@ sub update_module
 
         # finished with last entry
         unless( $sth->execute( ) ) {
-            $LASTERROR = "Unable to execute 'update' module statement\n" .
+            $LASTERROR = "Unable to execute 'update' $type statement\n" .
                 $sth->err;
             return 1;
         }
 
         $sth->finish;
         undef $sth;
-
     }
 
     return 0;
@@ -1192,6 +1476,7 @@ Where <options and args> are
 you may only specify one of the following
 
     --file <path/profile>  Create a new version with this content.
+or
     --version <version>    Modify parameters of an existing version.
 
 =cut
@@ -1201,33 +1486,32 @@ sub update_profile
     my $type = 'profile';
     my $file = "";
 
-    my %entry = (
-                 'profileid'    => "",
-                 'description'  => "",
-                 'data'         => "",
-                 'status'       => "",
-                 'version'      => 0,
-                 );
+    my %entry =
+        (
+         'profileid'    => "",
+         'description'  => "",
+         'data'         => "",
+         'status'       => "",
+         'version'      => 0,
+         );
 
     @ARGV = @_;
-    GetOptions(
-               'name=s'         => \$entry{'profileid'},
-               'description=s'  => \$entry{'description'},
-               'file=s'         => \$file,
-               'enable!'        => \$entry{'status'},
-               'disable'        => sub { $entry{'status'} = 0 },
-               'version=i'      => \$entry{'version'},
-               );
+    GetOptions
+        (
+         'name=s'         => \$entry{'profileid'},
+         'description=s'  => \$entry{'description'},
+         'file=s'         => \$file,
+         'enable!'        => \$entry{'status'},
+         'disable'        => sub { $entry{'status'} = 0 },
+         'version=i'      => \$entry{'version'},
+         );
 
     if ( scalar @ARGV ) {
         $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
         return 1;
     }
 
-    unless ( $entry{'profileid'} ) {
-        print "Required --name <name> not provided.\n";
-        &help();
-    }
+    &help('update', $type) unless ( $entry{'profileid'} );
 
     if ( $entry{'status'} ne "" ) {
         print "enable or noenable passed: $entry{'status'}\n" if $debug;
@@ -1260,10 +1544,10 @@ sub update_profile
             return 1;
         }
     } elsif ( $file eq "" ) {
-        $LASTERROR = "Require --file <file> or specified --version for update.\n";
+        $LASTERROR = "Need --file <file> or specified --version for update.\n";
         return 1;
-    } elsif ( ! $file ) {
-        $LASTERROR = "Need --file <file> to add. Unable to find: $file.\n";
+    } elsif ( ! ( -f $file and -r $file ) ) {
+        $LASTERROR = "Unable to find or read: $file.\n";
         return 1;
     } else {
         open (FILE, "<$file") || die "unable to open $file: $!\n";
@@ -1349,12 +1633,12 @@ sub update_profile
 
         # now add it
 
-        my $sql_cols = lc get_cols( $baTbls{ 'profile' } );
+        my $sql_cols = lc get_cols( $baTbls{ $type } );
         $sql_cols =~ s/[ \t]*//g;
         my @cols = split( /,/, $sql_cols );
         my $sql_vals = "?," x scalar @cols; chop $sql_vals;
 
-        my $sql = qq|INSERT INTO $baTbls{ 'profile' }
+        my $sql = qq|INSERT INTO $baTbls{ $type }
                 ( $sql_cols )
                 VALUES ( $sql_vals )
                 |;
@@ -1362,7 +1646,7 @@ sub update_profile
 
         my $sth;
         unless ( $sth = $dbh->prepare( $sql ) ) {
-            $LASTERROR = "Unable to prepare 'update' profile statement\n" .
+            $LASTERROR = "Unable to prepare 'update' $type statement\n" .
                 $dbh->errstr;
             return 1;
         }
@@ -1375,7 +1659,7 @@ sub update_profile
 
         # finished with last entry
         unless( $sth->execute( ) ) {
-            $LASTERROR = "Unable to execute 'update' profile statement\n" .
+            $LASTERROR = "Unable to execute 'update' $type statement\n" .
                 $sth->err;
             return 1;
         }
@@ -1411,51 +1695,53 @@ sub update_tftp
     my $href;
     my %save;
 
-    my %entry = (
-                 'name'         => "",
-                 'description'  => "",
-                 'size'         => "",
-                 'enabled'      => "",
-                 'insertion'    => "",
-                 'change'       => "CURRENT_TIMESTAMP",
-                 );
+    my %entry =
+        (
+         'name'         => "",
+         'description'  => "",
+         'size'         => "",
+         'enabled'      => "",
+         'insertion'    => "",
+         'change'       => "CURRENT_TIMESTAMP",
+         );
 
     @ARGV = @_;
-    GetOptions(
-               'name=s'         => \$entry{'name'},
-               'description=s'  => \$entry{'description'},
-               'file=s'         => \$file,
-               'enable!'        => \$entry{'enabled'},
-               'disable'        => sub { $entry{'enabled'} = 0 },
-               );
+    GetOptions
+        (
+         'name=s'         => \$entry{'name'},
+         'description=s'  => \$entry{'description'},
+         'file=s'         => \$file,
+         'enable!'        => \$entry{'enabled'},
+         'disable'        => sub { $entry{'enabled'} = 0 },
+         );
 
     if ( scalar @ARGV ) {
         $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
         return 1;
     }
 
-    unless ( $entry{'name'} ) {
-        print "Required --name <name> not provided.\n";
-        &help();
-    }
+    &help('update', $type) unless ( $entry{'name'} );
 
     # get the current description and enabled states to see if we need to change
-    my $sql_cols = lc get_cols( $baTbls{ 'tftp' } );
+    my $sql_cols = lc get_cols( $baTbls{ $type } );
     $sql_cols =~ s/[ \t]*//g;
 
     $sql = qq|SELECT $sql_cols
               FROM $baTbls{ $type }
               WHERE name = ?
-              ORDER BY id|;
-
+              ORDER BY id
+              |;
     print "$sql\n" if $debug;
+
     unless ( $sth = $tftph->prepare( $sql ) ) {
-        $LASTERROR = "Unable to prepare 'update' tftp query\n" . $tftph->errstr;
+        $LASTERROR = "Unable to prepare 'update' $type query\n" .
+            $tftph->errstr;
         return 1;
     }
 
     unless ( $sth->execute( $entry{'name'} ) ) {
-        $LASTERROR = "Unable to execute 'update' tftp query\n" . $sth->err;
+        $LASTERROR = "Unable to execute 'update' $type query\n" .
+            $sth->err;
         return 1;
     }
 
@@ -1486,7 +1772,7 @@ sub update_tftp
     }
 
     unless ( $rowcount ) {
-        $LASTERROR = "Entry not found for update: tftp $entry{'name'}.\n";
+        $LASTERROR = "Entry not found for update: $type $entry{'name'}.\n";
         return 1;
     }
 
@@ -1515,15 +1801,15 @@ sub update_tftp
 
     if ( $file ne "" ) {
 
-        if ( ! $file ) {
-            $LASTERROR = "Need --file <file> to add. Unable to find: $file.\n";
+        if ( ! ( -f $file and -r $file ) ) {
+            $LASTERROR = "Unable to find or read: $file.\n";
             return 1;
         }
 
         # grab file content for comparison with current entry 'data'
         open (FILE, "<$file") || die "unable to open $file: $!\n";
         undef $/;
-        my $file_data = <FILE>;  # slurp mode
+        my $file_data = <FILE>; # slurp mode
         $/ = "\n";
         close FILE;
 
@@ -1536,14 +1822,14 @@ sub update_tftp
         }
 
         # delete all old entries
-        my $delete = qq|DELETE FROM $baTbls{'tftp'} where name = '$entry{'name'}'|;
+        my $delete = qq|DELETE FROM $baTbls{$type} where name = '$entry{'name'}'|;
         unless ( $sth = $tftph->do( $delete ) ) {
-            $LASTERROR = "Unable to do 'update' tftp removal\n" .
+            $LASTERROR = "Unable to do 'update' $type removal\n" .
                 $tftph->errstr;
             return 1;
         }
 
-        my $sql_cols = lc get_cols( $baTbls{ 'tftp' });
+        my $sql_cols = lc get_cols( $baTbls{ $type });
         $sql_cols =~ s/[ \t]*//g;
         my @cols = split( /,/, $sql_cols );
 
@@ -1551,7 +1837,7 @@ sub update_tftp
         $sql_cols = "";
 
         foreach my $col ( @cols ) {
-            next if ( $col eq "id" );  # do not include autoincr key in sql
+            next if ( $col eq "id" ); # do not include autoincr key in sql
             if ( $col eq "bin" ) {
                 $sql_cols .= "$col,";
                 $sql_vals .= "?,";
@@ -1570,14 +1856,14 @@ sub update_tftp
         chop $sql_cols;
         chop $sql_vals;
 
-        $sql = qq|INSERT INTO $baTbls{ 'tftp' }
+        $sql = qq|INSERT INTO $baTbls{ $type }
                   ( $sql_cols )
                   VALUES ( $sql_vals )
                  |;
         print $sql . "\n" if $debug;
 
         unless ( $sth = $dbh->prepare( $sql ) ) {
-            $LASTERROR = "Unable to prepare 'update' tftp statement\n" .
+            $LASTERROR = "Unable to prepare 'update' $type statement\n" .
                 $dbh->errstr;
             return 1;
         }
@@ -1592,8 +1878,8 @@ sub update_tftp
             $file_data = &bytea_encode( $bytes );
             if ( $bytes ) {
                 unless ( $sth->execute( $file_data ) ) {
-                    $LASTERROR = "Unable to execute 'update' tftp statement\n" .
-                        $sth->err;
+                    $LASTERROR = "Unable to execute 'update' $type statement\n"
+                        . $sth->err;
                     return 1;
                 }
             }
@@ -1646,75 +1932,6 @@ sub update_tftp
     return 0;
 }
 
-=head2 update hardware <options and args>
-
-Where <options and args> are
-
-    --name id              Required unique id.
-
-    --addcert <distro>     Supported distros for this hardware
-    --rmcert  <distro>     List of distros no longer supported
-
-The cert options may be specified multiple times.
-
-=cut
-
-sub update_hardware
-{
-    my $type = 'hwcert';
-
-    my %entry = (
-                 'hardwareid'  => "",
-           #     'hwdriver'    => "",
-                 'addcert'     => "",
-                 'rmcert'      => "",
-                 );
-
-    @ARGV = @_;
-    GetOptions(
-               'name=s'         => \$entry{'hardwareid'},
-             # 'hwdriver=s'     => \&multiarg_handler,
-               'addcert=s'      => \&multiarg_handler,
-               'rmcert=s'       => \&multiarg_handler,
-               );
-
-    if ( scalar @ARGV ) {
-        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
-    }
-
-  # multiarg creates hash entry with a space seperated list of unique values
-
-  # $entry{'hwdriver'} =
-  #     $multiarg{ 'hwdriver' } if (defined $multiarg{ 'hwdriver' });
-    $entry{'addcert'} =
-        $multiarg{ 'addcert' } if (defined $multiarg{ 'addcert' });
-
-    $entry{'rmcert'} =
-        $multiarg{ 'rmcert' } if (defined $multiarg{ 'rmcert' });
-
-    unless ( $entry{'hardwareid'} ) {
-        print "Required --name <name> not provided.\n";
-        &help();
-    }
-
-    unless ( &check_hardware( $entry{'hardwareid'} ) ) {
-        $LASTERROR = "Unable to update hardware, $entry{'hardwareid'} does not exist\n";
-        return 1;
-    }
-
-    if (! $entry{'addcert'} eq "" ) {
-        my $status = &update_cert($type, $entry{'hardwareid'}, "addcert", $entry{'addcert'});
-    }
-
-    if (! $entry{'rmcert'} eq "" ) {
-        my $status = &update_cert($type, $entry{'hardwareid'}, "rmcert", $entry{'rmcert'});
-    }
-
-    return 0;
-}
-
-
 
 =head2 export E<lt>typeE<gt> <options and args>
 
@@ -1735,19 +1952,21 @@ sub export
     my $type = shift;
     my $file = "";
 
-    my %entry = (
-                 'name'         => "",
-                 'version'      => "",  # not used for tftp
-                 'description'  => "",
-                 );
+    my %entry =
+        (
+         'name'         => "",
+         'version'      => "",  # not used for tftp
+         'description'  => "",
+         );
 
     @ARGV = @_;
-    GetOptions(
-               'name=s'         => \$entry{'name'},
-               'description=s'  => \$entry{'description'},
-               'version=i'      => \$entry{'version'},
-               'file=s'         => \$file,
-               );
+    GetOptions
+        (
+         'name=s'         => \$entry{'name'},
+         'description=s'  => \$entry{'description'},
+         'version=i'      => \$entry{'version'},
+         'file=s'         => \$file,
+         );
 
     if ( scalar @ARGV ) {
         $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
@@ -1775,7 +1994,7 @@ sub export
 
     if ( $entry{'name'} eq "" ) {
         $entry{'name'} = $file;
-        $entry{'name'} =~ s|.*/||;       # only the short name for the lookup
+        $entry{'name'} =~ s|.*/||; # only the short name for the lookup
     }
 
     my $sql;
@@ -1820,7 +2039,7 @@ sub export
 
     my $rowcount = 0;
     my $row;
-    while( $href = $sth->fetchrow_hashref( ) ) {
+    while ( $href = $sth->fetchrow_hashref( ) ) {
         $rowcount += 1;
         if ( $type ne "tftp" ) {
             $row = $href->{'data'};
@@ -1855,7 +2074,7 @@ sub detail
     my $version = 0;
 
     @ARGV=@_;
-    if ( ( $type eq "module" ) || ( $type eq "profile" ) ) {
+    if ( ( $type eq "module" ) || ( $type eq "profile" ) || ( $type eq "hardware" ) ) {
         GetOptions(
                    'version=i'      => \$version,
                    );
@@ -1888,8 +2107,9 @@ sub detail
 
     if ( $type eq "hardware" ) {
         $sql .= "WHERE hardwareid = ?";
+        $sql .= " AND version = $version" if ( $version );
 
-       # $sql_cols = lc get_cols( $baTbls{ 'hwcert' } );
+        # $sql_cols = lc get_cols( $baTbls{ 'hwcert' } );
         $sql_cert = qq|SELECT distroid
                        FROM $baTbls{ 'hwcert' }
                        WHERE hardwareid = '| . $name . qq|'|;
@@ -1915,7 +2135,7 @@ sub detail
         $sql_chunks = qq|SELECT bin
                          FROM $baTbls{ $type }
                          WHERE name =  '| . $name .
-                      qq|' ORDER BY id|;
+                             qq|' ORDER BY id|;
 
         $db2use = $tftph;
     }
@@ -1936,18 +2156,18 @@ sub detail
     my $tftpname = "";
     my $tftpdata;
 
-    while( $href = $sth->fetchrow_hashref( ) ) {
+    while ( $href = $sth->fetchrow_hashref( ) ) {
         $rowcount += 1;
         if ( $type eq "module" ) {
             if ( $all ||
                  $href->{'status'} ||
                  $href->{'version'} == $version ) {
-                print "\n# ba #####" if $all;
+                print "# ba #####\n" if $all;
                 unless ( $nolabels ) {
-                    print  "# ba\n";
+                    print  "# ba Baracus Informational Header ('#ba ' prefix) - begin \n";
                     printf "# ba module: %s\n",      $href->{'moduleid'};
                     printf "# ba description: %s\n", $href->{'description'};
-                   #printf "# ba interpreter: %s\n", $href->{'interpreter'};
+                    #printf "# ba interpreter: %s\n", $href->{'interpreter'};
                     printf "# ba enabled: %s\n",     $href->{'status'}
                         if ( $all || $version );
                     printf "# ba version: %s\n",     $href->{'version'};
@@ -1975,6 +2195,7 @@ sub detail
                 }
                 unless ( $nolabels ) {
                     printf "# ba mandatory=%s\n", $modman if ( defined $modman );
+                    print  "# ba Baracus Informational Header - end\n";
                 }
                 print  $href->{'data'};
                 $printcount += 1;
@@ -1984,38 +2205,49 @@ sub detail
             if ( $all ||
                  $href->{'status'} ||
                  $href->{'version'} == $version ) {
-                print "\n# ba #####" if $all;
+                print "# ba #####\n" if $all;
                 unless ( $nolabels ) {
-                    print  "# ba\n";
+                    print  "# ba Baracus Informational Header ('#ba ' prefix) - begin\n";
                     printf "# ba profile: %s\n",     $href->{'profileid'};
                     printf "# ba description: %s\n", $href->{'description'};
                     printf "# ba enabled: %s\n",     $href->{'status'}
                         if ( $all || $version );
                     printf "# ba version: %s\n",     $href->{'version'};
-                    print  "# ba\n";
+                    print  "# ba Baracus Informational Header - end\n";
                 }
                 print  $href->{'data'};
                 $printcount += 1;
             }
         }
         if ( $type eq "hardware" ) {
-            printf "[%s]\n",            $href->{'hardwareid'} unless $nolabels;
-            printf "description=%s\n",  $href->{'description'};
-            printf "bootArgs=%s\n",     $href->{'bootargs'};
-            printf "rootDisk=%s\n",     $href->{'rootdisk'};
-            printf "rootPart=%s\n",     $href->{'rootpart'};
-            printf "autobuild=%s\n",    $href->{'autobuild'};
-            printf "hwdriver=%s\n",     $href->{'hwdriver'};
-            $printcount += 1;
-
-            my $hwcert = "";
-            my $certs = $db2use->selectall_arrayref( $sql_cert, { slice => {} } );
-            if ( defined $certs ) {
-                foreach my $cert ( @{$certs} ) {
-                    $hwcert .= ":" if ( $hwcert ne "" );
-                    $hwcert .= @{$cert}[0];
+            if ( $all ||
+                 $href->{'status'} ||
+                 $href->{'version'} == $version ) {
+                print "# ba #####\n" if $all;
+                unless ( $nolabels ) {
+                    print  "# ba Baracus Informational Header ('#ba ' prefix) - begin\n";
+                    printf "# ba hardware: %s\n",    $href->{'hardwareid'};
+                    printf "# ba description: %s\n", $href->{'description'};
+                    printf "# ba enabled: %s\n",     $href->{'status'}
+                        if ( $all || $version );
+                    printf "# ba version: %s\n",     $href->{'version'};
+                    print  "# ba Baracus Informational Header - end\n";
                 }
-            printf "hwcert=%s\n", $hwcert if ( defined $hwcert );
+                printf "bootArgs=%s\n",     $href->{'bootargs'};
+                printf "rootDisk=%s\n",     $href->{'rootdisk'};
+                printf "rootPart=%s\n",     $href->{'rootpart'};
+                printf "hwdriver=%s\n",     $href->{'hwdriver'};
+                $printcount += 1;
+
+                my $hwcert = "";
+                my $certs = $db2use->selectall_arrayref( $sql_cert, { slice => {} } );
+                if ( defined $certs ) {
+                    foreach my $cert ( @{$certs} ) {
+                        $hwcert .= ":" if ( $hwcert ne "" );
+                        $hwcert .= @{$cert}[0];
+                    }
+                    printf "hwcert=%s\n", $hwcert if ( defined $hwcert );
+                }
             }
         }
         if ( $type eq "tftp" ) {
@@ -2028,7 +2260,7 @@ sub detail
                 if ( defined $chunks and ( $all or $href->{'enabled'} ) ) {
 
                     unless ( $nolabels ) {
-                        print  "# ba\n";
+                        print  "# ba Baracus Informational Header ('#ba ' prefix) - begin\n";
                         printf "# ba name: %s\n",     $href->{'name'};
                         printf "# ba description: %s\n", $href->{'description'};
                         printf "# ba enabled: %s\n",     $href->{'enabled'};
@@ -2036,7 +2268,7 @@ sub detail
                             if $verbose;
                         printf "# ba modified: %s\n",    $href->{'change'}
                             if ( defined $href->{'change'} && $verbose );
-                        print  "# ba\n";
+                        print  "# ba Baracus Informational Header - end\n";
                     }
                     foreach my $chunk ( @{$chunks} ) {
                         $tftpdata .= &bytea_decode( @{$chunk}[0] );
@@ -2084,6 +2316,9 @@ sub remove
     my $name = shift;
     my $version;
 
+    my $optcert = "";
+    my $rmcert = "";
+
     $type = lc $type;
     &check_type( $type );
 
@@ -2093,10 +2328,31 @@ sub remove
     $name =~ s|.*/||;           # only the short name for the lookup
 
     @ARGV = @_;
-    if ( ( $type eq "module" ) || ( $type eq "profile" ) ) {
+    if ( ( $type eq "module" ) || ( $type eq "profile" ) || ( $type eq "hardware" ) ) {
         GetOptions(
                    'version=i' => \$version,
                    );
+    }
+    if ( ( $type eq "module" ) || ( $type eq "hardware" ) ) {
+        GetOptions(
+                   'optcert=s' => \&multiarg_handler,
+                   'rmcert=s'  => \&multiarg_handler,
+                   );
+
+        $optcert =
+            $multiarg{ 'optcert' } if (defined $multiarg{ 'optcert' });
+        $rmcert  =
+            $multiarg{ 'rmcert'  } if (defined $multiarg{ 'rmcert'  });
+
+        unless ( $optcert eq "" ) {
+            $status = &opt_certs( $type, $name, $optcert );
+            return $status if $status; # LASTERROR set in call
+        }
+
+        unless ($rmcert eq "" ) {
+            $status = &rm_certs( $type, $name, $rmcert );
+            return $status if $status; # LASTERROR set in update_cert call
+        }
     }
     if ( scalar @ARGV ) {
         $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
@@ -2107,11 +2363,22 @@ sub remove
 
     my $db2use = $dbh;
 
+
+    # hackish things always deserve comments
+    # the SQL arrays for lumping in certs here
+    # need special handling for removing a single version
+    # and if only removing a single version we don't remove certs....
+
     if ( $type eq "hardware" ) {
-        @sql = ( qq|DELETE FROM $baTbls{ $type } WHERE hardwareid = ?| );
+        @sql = ( qq|DELETE FROM $baTbls{ $type } WHERE hardwareid = ?|, qq|DELETE FROM $baTbls{ hwcert } WHERE hardwareid = ?| );
     } elsif ( $type eq "module" ) {
-        my $check = &get_mandatory( $name, 'all' );
-        if ( $check == 1 ) {
+        my $check = &check_mandatory( $name );
+        unless( defined $check ) {
+            # call failed
+            $LASTERROR = "Failed in remove.\n" . $LASTERROR;
+            return 1;
+        }
+        if ( $check ) {
             $LASTERROR = "Cannot remove module marked as mandatory\n";
             return 1;
         }
@@ -2123,9 +2390,18 @@ sub remove
         $db2use = $tftph;
     }
 
+    my $count=0;
     foreach my $sql (@sql) {
-        if ( defined $version ) {
+        $count++;
+
+        # do this if version specified
+        if ( defined $version and $count == 1 ) {
             $sql .= " AND version = $version";
+        }
+
+        # and skip all but main tbl (first sql in array) if version
+        if ( defined $version and $count != 1 ) {
+            next;
         }
 
         my $sth;
@@ -2194,18 +2470,59 @@ sub find
     my $type = shift;
     my $name = shift;
 
-    my $sth = &list_start( $type, $name );
+    my $sql;
 
-    unless( defined $sth ) {
-        $LASTERROR .= "Failed in find\n" . $LASTERROR;
+    my $db2use = $dbh;
+
+    if ( $type eq "hardware" ) {
+        $sql = qq|SELECT hardwareid as name
+                  FROM $baTbls{ $type }
+                  WHERE hardwareid = ?
+                 |;
+    } elsif ( $type eq "module" ) {
+        $sql = qq|SELECT moduleid as name
+                  FROM $baTbls{ $type }
+                  WHERE moduleid = ?
+                 |;
+    } elsif ( $type eq "profile" ) {
+        $sql = qq|SELECT profileid as name
+                  FROM $baTbls{ $type }
+                  WHERE profileid = ?
+                 |;
+    } elsif ( $type eq "distro" ) {
+        $sql = qq|SELECT distroid as name
+                  FROM $baTbls{ $type }
+                  WHERE distroid = ?
+                 |;
+    } elsif ( $type eq "tftp" ) {
+        $sql = qq|SELECT name, COUNT( id ) as count
+                  FROM $baTbls{ $type }
+                  WHERE name = ?
+                  GROUP BY name
+                 |;
+        $db2use = $tftph;
+    }
+    print $sql . "\n" if $debug;
+
+    my $sth = $db2use->prepare( $sql );
+    unless ( defined $sth ) {
+        $LASTERROR = "Unable to prepare 'find' $type statement\n" .
+            $db2use->errstr;
+        return undef;
+    }
+
+    unless( $sth->execute( $name ) ) {
+        $LASTERROR = "Unable to execute 'find' $type query" . $sth->err;
         return undef;
     }
 
     my $rowcount = 0;
-    while ( &list_next( $sth ) ) {
+    while ( $sth->fetchrow_hashref() ) {
         $rowcount += 1;
     }
-    &list_finish( $sth );
+
+    $sth->finish;
+    undef $sth;
 
     return $rowcount;
 }
@@ -2220,10 +2537,10 @@ sub list_start
     my $db2use = $dbh;
 
     if ( $type eq "hardware" ) {
-        $sql = qq|SELECT hardwareid as name, description
+        $sql = qq|SELECT hardwareid as name, description, version, status
                   FROM $baTbls{ $type }
                   WHERE hardwareid LIKE ?
-                  ORDER BY name
+                  ORDER BY name, version
                  |;
     } elsif ( $type eq "module" ) {
         $sql = qq|SELECT moduleid as name, description, version, status
@@ -2305,12 +2622,12 @@ sub get_versions
 
     if ( $type eq "module" ) {
         $sql .= "WHERE moduleid = ?";
-    }
-    elsif ( $type eq "profile" ) {
+    } elsif ( $type eq "profile" ) {
         $sql .= "WHERE profileid = ?";
-    }
-    else {
-        print "Expected 'module' or 'profile'\n";
+    } elsif ( $type eq "hardware" ) {
+        $sql .= "WHERE hardwareid = ?";
+    } else {
+        print "Expected 'module', 'profile' or 'hardware' for type.\n";
         exit 1;
     }
 
@@ -2326,7 +2643,7 @@ sub get_versions
         return ( undef, undef, undef );
     }
 
-    while( $href = $sth->fetchrow_hashref( ) ) {
+    while ( $href = $sth->fetchrow_hashref( ) ) {
         $version_href = $href if ( $href->{'version'} == $vers);
         $highest_href = $href;
         $enabled_href = $href if ( $href->{'status'} == 1 );
@@ -2338,130 +2655,66 @@ sub get_versions
     return ( $version_href, $highest_href, $enabled_href );
 }
 
-sub update_cert
+sub add_certs
 {
-    my $type = shift;
-    my $id = shift;
-    my $action = shift;
-    my $cert = shift;
-    my $mandatory = shift;
+    my $type   = shift;
+    my $id     = shift;
+    my $cert   = shift;
+
     my $sth;
+    my $certtype;
 
-    if ( $action eq "addcert" ) {
-        my @cert_add = split( /\s/, $cert );
-        foreach my $cert_in ( @cert_add ) {
-            unless ( &check_cert( $type, $id, $cert_in ) ) {
-                $LASTERROR = "Unable to update cert, $cert_in already exists\n";
-                  return 1;
-            }
-        }
+    my $cert_href = &check_cert( $type, $id );
 
-        foreach my $cert_in ( @cert_add ) {
-            unless ( &check_distroid($cert_in) ) {
-              $LASTERROR = "Unable to update cert: $cert_in does not exist\n";
-                return 1;
-            }
-        }
+    my %entry;
 
-        my $sql_cols = lc get_cols( $baTbls{ $type } );
-        $sql_cols =~ s/[ \t]*//g;
-        my @cols = split( /,/, $sql_cols );
-        my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+    if ( $type eq "hardware") {
+        $certtype = "hwcert";
+        $entry{ hardwareid } = $id;
+    } elsif ( $type eq "module" ) {
+        $certtype = "modcert";
+        $entry{ moduleid } = $id;
+        $entry{ mandatory } = 'f';
+    }
 
-        my $add_sql = qq|INSERT INTO $baTbls{ $type }
+    my $sql_cols = lc get_cols( $baTbls{ $certtype } );
+    $sql_cols =~ s/[ \t]*//g;
+    my @cols = split( /,/, $sql_cols );
+    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+    my $sql = qq|INSERT INTO $baTbls{ $certtype }
                          ( $sql_cols )
                          VALUES ( $sql_vals )
                         |;
 
-        unless ( $sth = $dbh->prepare( $add_sql ) ) {
-            $LASTERROR = "Unable to prepare 'update' hardware statement\n" .
-                $dbh->errstr;
-            return 1;
-        }
-
-        my $success = 1;
-        foreach my $cert_in (@cert_add) {
-           if ( $type eq "hwcert") {
-               $sth->bind_param( "1", $cert_in );
-               $sth->bind_param( "2", $id );
-            }
-            elsif ( $type eq "modcert" ) {
-                $sth->bind_param( "1", $id );
-                $sth->bind_param( "2", $cert_in );
-                $sth->bind_param( "3", $mandatory );
-            }
-            $success &&= $sth->execute( );
-        }
-
-        unless ($success) {
-            die "Unable to execute 'add' cert statement\n" .
-                $sth->errstr;
-            return 1;
-        }
-
-        $sth->finish;
-        undef $sth;
-    }
-
-    if ( $action eq "rmcert" ) {
-
-        my $rm_sql = qq|DELETE FROM $baTbls{ $type }
-                        WHERE distroid = ?
-                       |;
-
-        my @cert_rm = split( /\s/, $cert );
-
-        unless ( $sth = $dbh->prepare( $rm_sql ) ) {
-            $LASTERROR = "Unable to prepare 'update' cert statement\n" .
-                $dbh->errstr;
-            return 1;
-        }
-
-        my $success = 1;
-        foreach my $cert_out (@cert_rm) {
-            $success &&= $sth->execute( $cert_out );
-        }
-
-         unless ($success) {
-            die "Unable to execute 'remove' cert statement\n" .
-                $sth->errstr;
-            return 1;
-        }
-
-        $sth->finish;
-        undef $sth;
-    }
-
-    return 0;
-}
-
-sub check_enabled
-{
-    my $moduleid = shift;
-
-    my $sth;
-    my $href;
-
-    my $sql = qq| SELECT status
-                  FROM $baTbls{ module }
-                  WHERE moduleid = ?
-                  AND version >= 1
-                |;
+    print $sql . "\n" if $debug;
 
     unless ( $sth = $dbh->prepare( $sql ) ) {
-        $LASTERROR =
-            "Unable to prepare 'check_enabled' statement\n" . $dbh->errstr;
+        $LASTERROR = "Unable to prepare 'add_certs' statement\n" .
+            $dbh->errstr;
         return 1;
     }
 
-    unless( $sth->execute( $moduleid ) ) {
-        $LASTERROR =
-            "Unable to execute 'check_enabled' statement\n" . $sth->err;
-        return 1;
-    }
+    my @cert_add = split( /\s/, $cert );
 
-    while( $href = $sth->fetchrow_hashref( ) ) {
-        if ($href->{'status'}) {
+    foreach my $cert_in (@cert_add) {
+
+        # don't re-add - but don't fail just because it's already there
+        if ( defined $cert_href->{ $cert_in } ) {
+            print "$type $id already certified for $cert_in\n";
+            next;
+        }
+
+        $entry{ distroid } = $cert_in;
+
+        my $paramidx = 0;
+        foreach my $col (@cols) {
+            $paramidx += 1;
+            $sth->bind_param( $paramidx, $entry{ $col } );
+        }
+        unless ( $sth->execute( ) ) {
+            $LASTERROR = "Unable to execute 'add_certs' statement\n" .
+                $sth->errstr;
             return 1;
         }
     }
@@ -2471,6 +2724,249 @@ sub check_enabled
 
     return 0;
 }
+
+sub man_certs
+{
+    my $type   = shift;
+    my $id     = shift;
+    my $cert   = shift;
+
+    my $enabled_version = &check_enabled( $type, $id );
+    unless ( defined $enabled_version ) {
+        # call failed
+        $LASTERROR = "Failed in check_enabled call.\n" . $LASTERROR;
+        return 1;
+    }
+    unless ( $enabled_version ) {
+        $LASTERROR = "Unable to set mandatory for $type $id without enabled version.\n";
+        return 1;
+    }
+
+    &update_certs ( $type, $id, $cert, "mancert" );
+}
+
+sub opt_certs
+{
+    my $type   = shift;
+    my $id     = shift;
+    my $cert   = shift;
+
+    &update_certs ( $type, $id, $cert, "optcert" );
+}
+
+sub update_certs
+{
+    my $type   = shift;
+    my $id     = shift;
+    my $cert   = shift;
+    my $action = shift;
+
+    unless ( $type eq "module" ) {
+        $LASTERROR = "Mandatory cert operations for modules only.\n";
+        return 1;
+    }
+
+    my $cert_href = &check_cert( $type, $id );
+
+    my @certs = split( /\s/, $cert );
+
+    # do all the checking before any modifications... thus two loops
+    #
+    # is this entry already certified (we only modify here)
+    # finally for mandatory we require an enabled version of the entry
+    my $cert_status = 0;
+    foreach my $cert_in ( @certs ) {
+        # fail if it's not already there
+        unless ( defined $cert_href->{ $cert_in } ) {
+            unless ( $cert_status ) {
+                print "Unable to set mandatory/optional flag for $type\n";
+                $cert_status = 1;
+            }
+            print "$type $id not certified for distro: $cert_in\n";
+        }
+    }
+    if ( $cert_status ) {
+        $LASTERROR = "Try --addcert cert";
+        $LASTERROR .= ( $action eq "mancert" ) ? " --$action cert\n" : "\n" ;
+        return 1;
+    }
+
+    my $sql = qq| UPDATE $baTbls{ "modcert" }
+                  SET ( mandatory ) = ( ? )
+                  WHERE moduleid = '$id'
+                  AND   distroid = ?
+                |;
+
+    print $sql . "\n" if $debug;
+
+    my $sth;
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'update_certs' $action statement\n" .
+            $dbh->errstr;
+        return 1;
+    }
+
+    foreach my $cert_in (@certs) {
+
+        if ( $action eq "mancert" ) {
+            # don't make it mandatory if it is already
+            if ( $cert_href->{ $cert_in } ) {
+                print "$type $id already mandatory for $cert_in\n";
+                next;
+            }
+            $sth->bind_param( "1", 't' );
+        } else {
+            # don't make it optional if it is already
+            unless ( $cert_href->{ $cert_in } ) {
+                print "$type $id already optional for $cert_in\n";
+                next;
+            }
+            $sth->bind_param( "1", 'f' );
+        }
+
+        $sth->bind_param( "2", $cert_in );
+        unless ( $sth->execute( ) ) {
+            $LASTERROR = "Unable to execute 'create' $action statement\n" .
+                $sth->errstr;
+            return 1;
+        }
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+sub rm_certs
+{
+    my $type   = shift;
+    my $id     = shift;
+    my $cert   = shift;
+
+    my $certtype;
+
+    my $cert_href = &check_cert( $type, $id );
+
+    if ( $type eq "hardware") {
+        $certtype = "hwcert";
+    } elsif ( $type eq "module" ) {
+        $certtype = "modcert";
+    }
+
+    my @cert_rm = split( /\s/, $cert );
+
+    my $continue = 1;
+    foreach my $cert_out (@cert_rm) {
+        unless ( defined $cert_href->{ $cert_out } ) {
+            print "Ignoring rmcert: $type $id not certified for $cert_out\n";
+            next;
+        }
+        if ( $cert_href->{ $cert_out } ) {
+            $continue = 0;
+            print "Unable to remove $type $id marked mandatory for $cert_out\n";
+        }
+    }
+    unless ( $continue ) {
+        $LASTERROR = "Try --optcert cert --rmcert cert\n";
+        return 1;
+    }
+
+    my $sql = qq| DELETE FROM $baTbls{ $certtype }
+                  WHERE distroid = ?
+                |;
+
+    print $sql . "\n" if $debug;
+
+    my $sth;
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR = "Unable to prepare 'rm_certs' statement\n" .
+            $dbh->errstr;
+        return 1;
+    }
+
+    my $success = 1;
+    foreach my $cert_out (@cert_rm) {
+        unless ( $sth->execute( $cert_out ) ) {
+            $success = 0;
+            print "--rmcert $cert_out failed\n";
+        }
+    }
+    unless ($success) {
+        $LASTERROR = "Unable to execute 'remove' cert statement\n" .
+            $sth->errstr;
+        return 1;
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+
+# checks for presence of enabled version
+#
+# return value
+#   undef on failure
+#   zero if no enabled version was found
+#   non-zero version number of enabled entry
+
+sub check_enabled
+{
+    my $type = shift;
+    my $id   = shift;
+
+    my $sth;
+    my $href;
+
+    my $sql;
+    if ($type eq "module") {
+        $sql = qq| SELECT status, version
+                   FROM $baTbls{ $type }
+                   WHERE moduleid = '$id'
+                   AND version >= 1
+                 |;
+    } elsif ($type eq "hardware") {
+        $sql = qq| SELECT status, version
+                   FROM $baTbls{ $type }
+                   WHERE hardwareid = '$id'
+                   AND version >= 1
+                 |;
+    }
+
+    print $sql . "\n" if $debug;
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $LASTERROR =
+            "Unable to prepare 'check_enabled' statement\n" . $dbh->errstr;
+        return undef;
+    }
+
+    unless( $sth->execute( ) ) {
+        $LASTERROR =
+            "Unable to execute 'check_enabled' statement\n" . $sth->err;
+        return undef;
+    }
+
+    while ( $href = $sth->fetchrow_hashref( ) ) {
+        if ( $href->{status} ) {
+            return $href->{version};
+        }
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return 0;
+}
+
+    # checks for presence of mandatory module
+    #
+    # return value
+    #   undef on failure
+    #   zero if no mandatory certification was found
+    #   array ref of distroid for mandatory certs found
 
 sub check_mandatory
 {
@@ -2479,192 +2975,127 @@ sub check_mandatory
     my $sth;
     my $href;
 
-    my $sql = qq| SELECT mandatory
-                  FROM $baTbls{ module }
-                  WHERE moduleid = ?
-                  AND version >= 1
+    my $sql = qq| SELECT mandatory, distroid
+                  FROM $baTbls{ modcert }
+                  WHERE moduleid = '$moduleid'
                 |;
 
     unless ( $sth = $dbh->prepare( $sql ) ) {
         $LASTERROR =
             "Unable to prepare 'check_mandatory' statement\n" . $dbh->errstr;
-        return 1;
+        return undef;
     }
 
-    unless( $sth->execute( $moduleid ) ) {
+    unless( $sth->execute( ) ) {
         $LASTERROR =
             "Unable to execute 'check_mandatory' statement\n" . $sth->err;
-        return 1;
+        return undef;
     }
 
-    while( $href = $sth->fetchrow_hashref( ) ) {
+    my @mancerts;
+    while ( $href = $sth->fetchrow_hashref( ) ) {
         if ($href->{'mandatory'}) {
-            return 1;
+            push @mancerts, $href->{'distroid'}
         }
     }
 
     $sth->finish;
     undef $sth;
 
+    return \@mancerts if ( scalar @mancerts > 0 );
+
     return 0;
 }
 
-sub check_distroid
+# checks for distro usable for cert
+#
+# return value
+#   undef on failure
+#   1 if distros passed have problem
+#   0 if all distros are ok to use with cert
+
+sub check_distros
 {
-    my $distroid = shift;
+    my $certs = shift;
 
-    my $sth;
-    my $href;
+    my @certs = split( /\s/, $certs );
 
-    my $sql = qq| SELECT distroid
-                  FROM $baTbls{ distro }
-                  WHERE distroid = ?
-                |;
+    my $cert_status = 0;
 
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $LASTERROR =
-            "Unable to prepare 'check_distroid' statement\n" . $dbh->errstr;
-        return 1;
-    }
-
-    unless( $sth->execute( $distroid ) ) {
-        $LASTERROR =
-            "Unable to execute 'check_distroid' statement\n" . $sth->err;
-        return 1;
-    }
-
-    while( $href = $sth->fetchrow_hashref( ) ) {
-        if ($href->{'distroid'}) {
+    foreach my $cert_in ( @certs ) {
+        my $findcount = &find( "distro", $cert_in );
+        unless ( defined $findcount ) {
+            # &find call failed
+            $LASTERROR = "Failed in check_distros\n" . $LASTERROR;
             return 1;
+        }
+        unless ( $findcount ) {
+            print "Unable to certify: $cert_in does not exist\n";
+            $cert_status = 1;
+            next;
         }
     }
 
-    $sth->finish;
-    undef $sth;
-
-    return 0;
+    return $cert_status;
 }
 
-sub check_hardware
-{
-    my $hardwareid = shift;
-
-    my $sth;
-    my $href;
-
-    my $sql = qq| SELECT hardwareid
-                  FROM $baTbls{ hardware }
-                  WHERE hardwareid = ?
-                |;
-
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $LASTERROR =
-            "Unable to prepare 'check_hardwareid' statement\n" . $dbh->errstr;
-        return 1;
-    }
-
-    unless( $sth->execute( $hardwareid ) ) {
-        $LASTERROR =
-            "Unable to execute 'check_hardware' statement\n" . $sth->err;
-        return 1;
-    }
-
-    while( $href = $sth->fetchrow_hashref( ) ) {
-        if ($href->{'hardwareid'}) {
-            return 1;
-        }
-    }
-
-    $sth->finish;
-    undef $sth;
-
-    return 0;
-}
-
-sub check_module
-{
-    my $moduleid = shift;
-
-    my $sth;
-    my $href;
-
-    my $sql = qq| SELECT moduleid
-                  FROM $baTbls{ module }
-                  WHERE moduleid = ?
-                |;
-
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $LASTERROR =
-            "Unable to prepare 'check_module' statement\n" . $dbh->errstr;
-        return 1;
-    }
-
-    unless( $sth->execute( $moduleid ) ) {
-        $LASTERROR =
-            "Unable to execute 'check_module' statement\n" . $sth->err;
-        return 1;
-    }
-
-    while( $href = $sth->fetchrow_hashref( ) ) {
-        if ($href->{'moduleid'}) {
-            return 1;
-        }
-    }
-
-    $sth->finish;
-    undef $sth;
-
-    return 0;
-}
+# checks for distro cert
+#
+# return value
+#   undef on failure
+#   hash ref of distros associated with id if any found
+#     hash has key of distroid and value of mandatory_flag
 
 sub check_cert
 {
 
     my $type = shift;
     my $id = shift;
-    my $cert_in = shift;
+    #    my $cert_in = shift;
 
     my $sth;
     my $href;
     my $sql;
 
-    if ( $type eq "hwcert" ) {
-        $sql = qq| SELECT distroid 
-                      FROM $baTbls{ $type }
+    if ( $type eq "hardware" ) {
+        $sql = qq| SELECT distroid
+                      FROM $baTbls{ "hwcert" }
                       WHERE hardwareid = '$id'
-                      AND distroid = '$cert_in'
                     |;
-    }
-    elsif ( $type eq "modcert" ) {
-        $sql = qq| SELECT distroid 
-                      FROM $baTbls{ $type }
+        #                      AND distroid = '$cert_in'  # get 'em all
+    } elsif ( $type eq "module" ) {
+        $sql = qq| SELECT distroid, mandatory
+                      FROM $baTbls{ modcert }
                       WHERE moduleid = '$id'
-                      AND distroid = '$cert_in'
                     |;
+        #                      AND distroid = '$cert_in'  # get 'em all
     }
 
     unless ( $sth = $dbh->prepare( $sql ) ) {
         $LASTERROR =
             "Unable to prepare 'check_cert' statement\n" . $dbh->errstr;
-        return 1;
+        return undef;
     }
 
-    unless( $sth->execute(  ) ) {
+    unless( $sth->execute( ) ) {
         $LASTERROR =
             "Unable to execute 'check_cert' statement\n" . $sth->err;
-        return 0;
+        return undef;
     }
 
-    while( $href = $sth->fetchrow_hashref( ) ) {
-        if ($href->{'distroid'}) {
-            return 0;
+    my %cert_hash;
+    while ( $href = $sth->fetchrow_hashref( ) ) {
+        if ( defined $href->{mandatory} ) {
+            $cert_hash{ $href->{'distroid'} }= $href->{mandatory};
+        } else {
+            $cert_hash{ $href->{'distroid'} }= 0;
         }
     }
 
     $sth->finish;
     undef $sth;
 
-    return 1;
+    return \%cert_hash;
 }
 
 # rendundant_data
@@ -2687,12 +3118,12 @@ sub redundant_data
 
     if ( $type eq "module" ) {
         $sql .= "WHERE moduleid = ?";
-    }
-    elsif ( $type eq "profile" ) {
+    } elsif ( $type eq "profile" ) {
         $sql .= "WHERE profileid = ?";
-    }
-    else {
-        print "Expected 'module' or 'profile'\n";
+    } elsif ( $type eq "hardware" ) {
+        $sql .= "WHERE hardwareid = ?";
+    } else {
+        print "Expected 'module', 'profile' or 'hardware'\n";
         exit 1;
     }
 
@@ -2710,8 +3141,21 @@ sub redundant_data
         return 1;
     }
 
-    while( $href = $sth->fetchrow_hashref( ) ) {
-        if ($href->{'data'} eq $data) {
+    while ( $href = $sth->fetchrow_hashref( ) ) {
+        # hardware we compare values of params
+        # other items are stored as files / blobs
+        # so compared 'data' directly
+        if (
+            ( ( $type eq "hardware" ) and
+              (
+               ( $href->{'hwdriver'} eq $data->{'hwdriver'} ) and
+               ( $href->{'bootargs'} eq $data->{'bootargs'} ) and
+               ( $href->{'rootdisk'} eq $data->{'rootdisk'} ) and
+               ( $href->{'rootpart'} eq $data->{'rootpart'} )
+               )
+             ) or
+            ( ( $type ne "hardware" ) and ( $href->{'data'} eq $data ) )
+            ) {
             $LASTERROR =
                 "Reject adding new version with content identical to this version: $href->{'version'}\n";
             return 1;
@@ -2741,18 +3185,27 @@ sub change_status
     my $id;
 
     if ( $type eq "module" ) {
-        $id = 'moduleid';       
+        $id = 'moduleid';
         if ( $stat eq "f") {
             ## Verify that the module is not mandatory
-            unless ( &check_mandatory( $href->{ '$id' } ) ) {
-                $LASTERROR = "Unable to disable module set for mandatory.\n";
+            my $mandatory_array = &check_mandatory( $href->{ '$id' } );
+            unless ( defined $mandatory_array ) {
+                # call failed
+                $LASTERROR = "Failed in change_status.\n" . $LASTERROR;
                 return 1;
-             } 
+            }
+            unless ( $mandatory_array == 0 ) {
+                $LASTERROR = "Unable to disable module set as mandatory:" .
+                    join(' ', @{$mandatory_array}) . "\n";
+                return 1;
+            }
         }
     } elsif ( $type eq "profile" ) {
         $id = 'profileid';
+    } elsif ( $type eq "hardware" ) {
+        $id = 'hardwareid';
     } else {
-        print "Expected 'module' or 'profile'\n";
+        print "Expected 'module', 'profile' or 'hardware'\n";
         exit 1;
     }
 
@@ -2772,84 +3225,6 @@ sub change_status
     }
     unless ( $sth->execute( ) ) {
         $LASTERROR = "Unable to execute 'change_status' statement\n" .
-            $sth->err;
-        return 1;
-    }
-    return 0;
-}
-
-sub get_mandatory
-{
-    my $moduleid = shift;
-    my $cert = shift;
-
-    my $sql = qq|SELECT mandatory
-                 FROM $baTbls{ modcert }
-                 WHERE moduleid = ?
-                |;
-
-    if ( $cert eq "all" ) {
-        $sql .= " AND distroid LIKE '%';";
-    } else {
-        $sql .= " AND distroid = '$cert';";
-    }
-
-    print $sql . "\n" if $debug;
-
-    my $sth;
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $LASTERROR = "Unable to prepare 'get_mandatory' statement\n" .
-            $dbh->errstr;
-        return 1;
-    }
-    unless ( $sth->execute( $moduleid ) ) {
-        $LASTERROR = "Unable to execute 'get_mandatory' statement\n" .
-            $sth->err;
-        return 1;
-    }
-
-    my $href = $sth->fetchrow_hashref();
-
-    ## Return 3 if neither optional or mandatory
-    ## 3 = new entry
-    unless( defined $href->{'mandatory'} ) {
-        $href->{'mandatory'} = 3;
-    }
-
-    $sth->finish;
-    undef $sth;
-
-    return  $href->{'mandatory'};
-}
-
-sub change_mandatory
-{
-    my $mandatory = shift;
-    my $moduleid = shift;
-    my $cert = shift;
-
-    unless (defined $mandatory && defined $moduleid && defined $cert ) {
-        $LASTERROR = "Unable to modify mandatory without valid entry\n";
-        return 1;
-    }
-
-    my $sql = qq|UPDATE $baTbls{ modcert }
-                 SET mandatory = '$mandatory'
-                 WHERE moduleid = '$moduleid'
-                 AND distroid = '$cert'
-                |;
-
-    print $sql . "\n" if $debug;
-
-    # update specified version
-    my $sth;
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $LASTERROR = "Unable to prepare 'change_mandatory' statement\n" .
-            $dbh->errstr;
-        return 1;
-    }
-    unless ( $sth->execute( ) ) {
-        $LASTERROR = "Unable to execute 'change_mandatory' statement\n" .
             $sth->err;
         return 1;
     }
@@ -2876,8 +3251,10 @@ sub change_description
         $id = 'moduleid';
     } elsif ( $type eq "profile" ) {
         $id = 'profileid';
+    } elsif ( $type eq "hardware" ) {
+        $id = 'hardwareid';
     } else {
-        print "Expected 'module' or 'profile'\n";
+        print "Expected 'module', 'profile' or 'hardware'\n";
         exit 1;
     }
 
@@ -2927,11 +3304,10 @@ sub multiarg_handler() {
             # special check for key=value assignment syntax
             die("FINISH") if ( $value !~ m/=/ );
         }
-        if (not defined $multiarg{ $option } ){
+        if (not defined $multiarg{ $option } ) {
             # initialize
             $multiarg{ $option } = "$value";
-        }
-        elsif ( $multiarg{ $option } !~ m/$value/ ) {
+        } elsif ( $multiarg{ $option } !~ m/$value/ ) {
             # append if not already present
             $multiarg{ $option } .= " $value";
         }

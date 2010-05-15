@@ -1,0 +1,351 @@
+<?xml version="1.0"?>
+<!DOCTYPE profile>
+<profile xmlns="http://www.suse.com/1.0/yast2ns" xmlns:config="http://www.suse.com/1.0/configns">
+  <add-on>
+    <add_on_products config:type="list">
+__ADDON__
+    </add_on_products>
+  </add-on>
+  <bootloader>
+    <device_map config:type="list">
+      <device_map_entry>
+        <firmware>hd0</firmware>
+        <linux>__ROOTDISK__</linux>
+      </device_map_entry>
+    </device_map>
+    <global>
+      <activate>true</activate>
+      <default>0</default>
+      <generic_mbr>true</generic_mbr>
+      <gfxmenu>(hd0,1)/boot/message</gfxmenu>
+      <lines_cache_id>4</lines_cache_id>
+      <timeout config:type="integer">8</timeout>
+    </global>
+    <loader_type>grub</loader_type>
+    <sections config:type="list">
+      <section>
+        <append>__BOOTARGS__ resume=__ROOTPART__1 splash=silent showopts</append>
+        <image>(hd0,1)/boot/vmlinuz-2.6.27.19-5-xen</image>
+        <initrd>(hd0,1)/boot/initrd-2.6.27.19-5-xen</initrd>
+        <lines_cache_id>2</lines_cache_id>
+        <name>Xen -- SUSE Linux Enterprise Server 11</name>
+        <nounzip>0</nounzip>
+        <original_name>xen</original_name>
+        <root>__ROOTPART__2</root>
+        <type>xen</type>
+        <xen>(hd0,1)/boot/xen.gz</xen>
+        <!-- <xen_append>console=com2 com2=57600 </xen_append> -->
+      </section>
+      <section>
+        <append>__BOOTARGS__ resume=__ROOTPART__1 splash=silent showopts</append>
+        <image>(hd0,1)/boot/vmlinuz-2.6.27.19-5-default</image>
+        <initial>1</initial>
+        <initrd>(hd0,1)/boot/initrd-2.6.27.19-5-default</initrd>
+        <lines_cache_id>0</lines_cache_id>
+        <name>SUSE Linux Enterprise Server 11</name>
+        <original_name>linux</original_name>
+        <root>__ROOTPART__2</root>
+        <type>image</type>
+      </section>
+      <section>
+        <append>showopts ide=nodma apm=off noresume edd=off powersaved=off nohz=off highres=off processor.max_cstate=1 x11failsafe</append>
+        <image>(hd0,1)/boot/vmlinuz-2.6.27.19-5-default</image>
+        <initrd>(hd0,1)/boot/initrd-2.6.27.19-5-default</initrd>
+        <lines_cache_id>1</lines_cache_id>
+        <name>Failsafe -- SUSE Linux Enterprise Server 11</name>
+        <original_name>failsafe</original_name>
+        <root>__ROOTPART__2</root>
+        <type>image</type>
+      </section>
+    </sections>
+  </bootloader>
+  <deploy_image>
+    <image_installation config:type="boolean">false</image_installation>
+  </deploy_image>
+  <firewall>
+    <enable_firewall config:type="boolean">false</enable_firewall>
+    <start_firewall config:type="boolean">false</start_firewall>
+  </firewall>
+  <general>
+    <ask-list config:type="list"/>
+    <mode>
+      <confirm config:type="boolean">false</confirm>
+    </mode>
+    <mouse>
+      <id>none</id>
+    </mouse>
+    <proposals config:type="list"/>
+    <signature-handling>
+      <accept_file_without_checksum config:type="boolean">true</accept_file_without_checksum>
+      <accept_non_trusted_gpg_key config:type="boolean">true</accept_non_trusted_gpg_key>
+      <accept_unknown_gpg_key config:type="boolean">true</accept_unknown_gpg_key>
+      <accept_unsigned_file config:type="boolean">true</accept_unsigned_file>
+      <accept_verification_failed config:type="boolean">false</accept_verification_failed>
+      <import_gpg_key config:type="boolean">true</import_gpg_key>
+    </signature-handling>
+  </general>
+  <groups config:type="list"/>
+  <host>
+    <hosts config:type="list">
+      <hosts_entry>
+        <host_address>127.0.0.1</host_address>
+        <names config:type="list">
+          <name>localhost</name>
+        </names>
+      </hosts_entry>
+      <hosts_entry>
+        <host_address>127.0.0.2</host_address>
+        <names config:type="list">
+          <name>__HOSTNAME__.__DNSDOMAIN__ __HOSTNAME__</name>
+        </names>
+      </hosts_entry>
+      <hosts_entry>
+        <host_address>::1</host_address>
+        <names config:type="list">
+          <name>localhost ipv6-localhost ipv6-loopback</name>
+        </names>
+      </hosts_entry>
+      <hosts_entry>
+        <host_address>fe00::0</host_address>
+        <names config:type="list">
+          <name>ipv6-localnet</name>
+        </names>
+      </hosts_entry>
+      <hosts_entry>
+        <host_address>ff00::0</host_address>
+        <names config:type="list">
+          <name>ipv6-mcastprefix</name>
+        </names>
+      </hosts_entry>
+      <hosts_entry>
+        <host_address>ff02::1</host_address>
+        <names config:type="list">
+          <name>ipv6-allnodes</name>
+        </names>
+      </hosts_entry>
+      <hosts_entry>
+        <host_address>ff02::2</host_address>
+        <names config:type="list">
+          <name>ipv6-allrouters</name>
+        </names>
+      </hosts_entry>
+      <hosts_entry>
+        <host_address>ff02::3</host_address>
+        <names config:type="list">
+          <name>ipv6-allhosts</name>
+        </names>
+      </hosts_entry>
+    </hosts>
+  </host>
+  <kdump>
+    <add_crash_kernel config:type="boolean">false</add_crash_kernel>
+  </kdump>
+  <keyboard>
+    <keymap>__KEYMAP__</keymap>
+  </keyboard>
+  <language>
+    <language>__LANG__</language>
+    <languages>__LANGS__</languages>
+  </language>
+  <login_settings/>
+  <networking>
+    <dhcp_options>
+      <dhclient_client_id></dhclient_client_id>
+      <dhclient_hostname_option>AUTO</dhclient_hostname_option>
+    </dhcp_options>
+    <dns>
+      <dhcp_hostname config:type="boolean">true</dhcp_hostname>
+      <domain>__DNSDOMAIN__</domain>
+      <hostname>__HOSTNAME__</hostname>
+      <resolv_conf_policy>auto</resolv_conf_policy>
+      <searchlist config:type="list">
+        <search>__DNSDOMAIN__</search>
+      </searchlist>
+    </dns>
+    <interfaces config:type="list">
+      <interface>
+        <bootproto>dhcp4</bootproto>
+        <bridge>yes</bridge>
+        <bridge_forwarddelay>0</bridge_forwarddelay>
+        <bridge_ports>eth0</bridge_ports>
+        <bridge_stp>off</bridge_stp>
+        <device>br0</device>
+        <lladdr>__MAC__</lladdr>
+        <startmode>auto</startmode>
+      </interface>
+      <interface>
+        <bootproto>dhcp4</bootproto>
+        <bridge>yes</bridge>
+        <bridge_forwarddelay>0</bridge_forwarddelay>
+        <bridge_ports>eth1</bridge_ports>
+        <bridge_stp>off</bridge_stp>
+        <device>br1</device>
+        <startmode>auto</startmode>
+        <usercontrol>no</usercontrol>
+      </interface>
+    </interfaces>
+    <managed config:type="boolean">false</managed>
+    <routing>
+      <ip_forward config:type="boolean">false</ip_forward>
+    </routing>
+  </networking>
+  <scripts>
+    <post-scripts config:type="list">
+    </post-scripts>
+    <init-scripts config:type="list">
+      <script>
+        <filename>build_notify</filename>
+        <source><![CDATA[sleep 60
+wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></source>
+      </script>
+      __MODULE__
+    </init-scripts>
+  </scripts>
+  <ntp-client>
+    <ntp_policy>auto</ntp_policy>
+    <peers config:type="list">
+      <peer>
+        <address>time.novell.com</address>
+        <comment></comment>
+        <options> iburst</options>
+        <type>server</type>
+      </peer>
+    </peers>
+    <start_at_boot config:type="boolean">true</start_at_boot>
+    <start_in_chroot config:type="boolean">false</start_in_chroot>
+  </ntp-client>
+  <partitioning config:type="list">
+    <drive>
+      <device>__ROOTDISK__</device>
+      <initialize config:type="boolean">true</initialize>
+      <partitions config:type="list">
+        <partition>
+          <create config:type="boolean">true</create>
+          <crypt_fs config:type="boolean">false</crypt_fs>
+          <filesystem config:type="symbol">swap</filesystem>
+          <format config:type="boolean">true</format>
+          <loop_fs config:type="boolean">false</loop_fs>
+          <mount>swap</mount>
+          <mountby config:type="symbol">device</mountby>
+          <partition_id config:type="integer">130</partition_id>
+          <partition_nr config:type="integer">1</partition_nr>
+          <resize config:type="boolean">false</resize>
+          <size>auto</size>
+        </partition>
+        <partition>
+          <create config:type="boolean">true</create>
+          <crypt_fs config:type="boolean">false</crypt_fs>
+          <filesystem config:type="symbol">ext3</filesystem>
+          <format config:type="boolean">true</format>
+          <loop_fs config:type="boolean">false</loop_fs>
+          <mount>/</mount>
+          <mountby config:type="symbol">device</mountby>
+          <partition_id config:type="integer">131</partition_id>
+          <partition_nr config:type="integer">2</partition_nr>
+          <resize config:type="boolean">false</resize>
+          <size>max</size>
+        </partition>
+      </partitions>
+      <pesize></pesize>
+      <type config:type="symbol">CT_DISK</type>
+      <use>all</use>
+    </drive>
+  </partitioning>
+  <report>
+    <errors>
+      <log config:type="boolean">true</log>
+      <show config:type="boolean">false</show>
+      <timeout config:type="integer">0</timeout>
+    </errors>
+    <messages>
+      <log config:type="boolean">true</log>
+      <show config:type="boolean">false</show>
+      <timeout config:type="integer">0</timeout>
+    </messages>
+    <warnings>
+      <log config:type="boolean">true</log>
+      <show config:type="boolean">false</show>
+      <timeout config:type="integer">0</timeout>
+    </warnings>
+    <yesno_messages>
+      <log config:type="boolean">true</log>
+      <show config:type="boolean">false</show>
+      <timeout config:type="integer">0</timeout>
+    </yesno_messages>
+  </report>
+  <software>
+    <packages config:type="list">
+      <package>autoyast2</package>
+      <package>bootsplash</package>
+      <package>bootsplash-branding-SLES</package>
+      <package>desktop-data-SLED</package>
+      <package>desktop-translations</package>
+      <package>dosfstools</package>
+      <package>gconf2-branding-SLES</package>
+      <package>gfxboot</package>
+      <package>gfxboot-branding-SLES</package>
+      <package>icewm</package>
+      <package>icewm-lite</package>
+      <package>kdump</package>
+      <package>kexec-tools</package>
+      <package>libbz2-1-32bit</package>
+      <package>libcap2</package>
+      <package>libcroco-0_6-3-32bit</package>
+      <package>libelf0</package>
+      <package>libesmtp</package>
+      <package>libgsf-1-114-32bit</package>
+      <package>libnuma1</package>
+      <package>librsvg-32bit</package>
+      <package>libssh2-1</package>
+      <package>libxml2-32bit</package>
+      <package>makedumpfile</package>
+      <package>mpt-firmware</package>
+      <package>mtools</package>
+      <package>ntp</package>
+      <package>numactl</package>
+      <package>ofed-kmp-default</package>
+      <package>polkit-default-privs</package>
+      <package>sax2-tools</package>
+      <package>sles-manuals_en</package>
+      <package>sles-manuals_en-pdf</package>
+      <package>utempter</package>
+      <package>xdg-menu</package>
+      <package>xterm</package>
+      <package>yast2-kdump</package>
+      <package>yast2-ntp-client</package>
+      <package>yast2-schema</package>
+      <package>yast2-trans-en_US</package>
+      <package>wget</package>
+    </packages>
+    <patterns config:type="list">
+      <pattern>Dom0</pattern>
+      <pattern>Minimal</pattern>
+      <pattern>xen_server</pattern>
+    </patterns>
+  </software>
+  <timezone>
+    <hwclock>UTC</hwclock>
+    <timezone>__TIMEZONE__</timezone>
+  </timezone>
+  <user_defaults>
+    <expire></expire>
+    <group>100</group>
+    <groups>video,dialout</groups>
+    <home>/home</home>
+    <inactive>-1</inactive>
+    <shell>/bin/bash</shell>
+    <skel>/etc/skel</skel>
+  </user_defaults>
+  <users config:type="list">
+    <user>
+      <uid>0</uid>
+      <gid>0</gid>
+      <username>root</username>
+      <fullname>root</fullname>
+      <home>/root</home>
+      <shell>/bin/bash</shell>
+      <encrypted config:type="boolean">false</encrypted>
+      <user_password>baracus</user_password>
+    </user>
+  </users>
+</profile>

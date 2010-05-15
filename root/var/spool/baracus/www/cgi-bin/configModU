@@ -11,6 +11,9 @@ our $ver = param('ver') || -1;
 my $versions = getVersions( $Name);
 my $items = getItems();
 my $template = getTemplate( $Name);
+my $distros = getDistros();
+my $certs = getCerts();
+my $mancerts = getManCerts();
 
 print "Content-type: text/html\n\n";
 
@@ -21,6 +24,46 @@ print <<HTML0
 		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
 		<link rel='stylesheet' href='/$BATools::baRoot/css/config.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
+		<script type="text/javascript" src="/$BATools::baRoot/script/lists.js"></script>
+		<style type="text/css">
+			#cols div{position:absolute;top:200;border:0px solid white;}
+			#cols font{margin-left:5px;}
+			#cols select{width:150;margin-left:5px;color:#6DB33F;}
+			#colCert{left:0;width:160;}
+			#colDistro{left:215;width:160;}
+			#colMand{left:430;width:160;}
+			#colButtonL{left:162;width:50}
+			#colButtonR{left:377;width:50}
+			#colButtonL input{align:center;width:50px;color:white;font-weight:bold}
+			#colButtonR input{align:center;width:50px;color:white;font-weight:bold}
+		</style>		
+		<script language="javascript" type="text/javascript">
+			/*
+				To use columnEventHandler we need to implement these functions to 
+				identify the three columns and relavent buttons.  
+			*/ 
+			function getCenter(){return document.form1.distro;}
+			function getLeft(){return document.form1.optional;}
+			function getRight(){return document.form1.mand;}			
+			function cTOl(){return document.form1.cTOl;}			
+			function cTOr(){return document.form1.cTOr;}			
+			function lTOc(){return document.form1.lTOc;}			
+			function rTOc(){return document.form1.rTOc;}	
+			function localVerify(){
+				cert =  getLeftList(",");
+				mancert = getRightList(",");
+				if( mancert != "") {
+					if( cert != "")	{
+						cert = cert + ",";
+					}
+					cert = cert + mancert;
+				}
+				document.form1.mancert.value = mancert;
+				document.form1.cert.value = cert;
+
+				return verify( document.form1.nname, "You must enter a Module Name");
+			}		
+		</script>		
 	</head>
 	<body onLoad='selectThis(document.form1.module, "$Name")'>
 		<form action="/baracus/ba/configHandler" name='form1'>
@@ -33,8 +76,32 @@ print <<HTML0
 		<font class='version'>Version</font>
 		$versions
 		<br><br>
-		<font class='data'>Module Data</font>
-		<textarea name='data'>$template</textarea>
+		<font class='dataShort'>Module Data</font>
+		<textarea class='short' name='data'>$template</textarea>
+			<div id='cols'>
+				<div id='colCert'>
+                	<font class='basic'>Certified Optional</font>
+					$certs
+				</div>
+				<div id='colButtonL'>
+					<br>
+					<input type='button' disabled name='cTOl' value='<<' onClick='colEventHandler(this.name)'>
+					<input  type='button' disabled name='lTOc' value='>>' onClick='colEventHandler(this.name)'>
+				</div>
+				<div id='colDistro'>
+                	<font class='basic'>Available Distros:</font>
+					$distros
+				</div>
+				<div id='colButtonR'>
+					<br>
+					<input  type='button' disabled name='cTOr' value='>>' onClick='colEventHandler(this.name)'>
+					<input  type='button' disabled name='rTOc' value='<<' onClick='colEventHandler(this.name)'>
+				</div>
+				<div id='colMand'>
+                	<font class='basic'>Certified Mandatory</font>
+                	$mancerts
+				</div>
+			</div>		
 		</div>
 		<input class='submit' type='submit' name='submit' value='Update'/>
 		<input type='hidden' name='op' value='mod'>
@@ -60,6 +127,52 @@ sub getItems
 	$r = $r."</select>";
 	
 	return $r;
+}
+
+sub getDistros()
+{
+
+	my $r = "<select name='distro' size=5 onClick='colSelectHandler(this.name)'>\n";
+
+	@distros = BAdb::getDistros( "", "*", "base");
+	
+	#mlt list needs to be filtered to exclude certs and mancerts
+	foreach (@distros)
+	{
+			$val = $_;
+			chomp($val);
+			@oneArray = split( " ", $val);
+			$n = @oneArray[0];
+			$option = "<option value='$n'>$n</option>\n";	
+			$r = $r.$option;
+	}
+	
+	$r = $r."</select><br>\n";
+	
+	return $r;
+}
+
+sub getCerts()
+{
+	my $r = "";
+	$r = $r."<select name='optional' size=5 onClick='colSelectHandler(this.name)'>";
+
+	#mlt  fill with BAdb:: call for certs for module $mod $ver
+	
+	$r = $r."</select>";
+	return $r;	
+}
+
+sub getManCerts()
+{
+	my $r = "";
+	$r = $r."<select name='mand' size=5 onClick='colSelectHandler(this.name)'>";
+	
+	#mlt  fill with BAdb:: call for mancerts for module $mod $ver
+	
+	$r = $r."</select>";
+	
+	return $r;	
 }
 
 sub getTemplate

@@ -520,6 +520,28 @@ LABEL label_$actref->{hostname}
     append initrd=http://$baVar{serverip}/ba/initrd?mac=$input->{mac} $hardref->{bootargs} $actref->{raccess} $args $actref->{loghost}
 |;
 
+            } elsif ( $distref->{os} =~ m/ubuntu/ ) {
+                if ( $actref->{autobuild} ne "none" ) {
+                    $args .= qq|url=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
+                } elsif ( $actref->{autobuild} eq "none" ) {
+                    $args .= qq|tasks=standard pkgsel/language-pack-patterns= pkgsel/install-language-support=false priority=low|;
+                }
+
+                $output = qq|DEFAULT label_$actref->{hostname}
+PROMPT 0
+TIMEOUT 0
+
+LABEL label_$actref->{hostname}
+    kernel http://$baVar{serverip}/ba/linux?mac=$input->{mac}
+    append initrd=http://$baVar{serverip}/ba/initrd?mac=$input->{mac} $hardref->{bootargs} $actref->{raccess} $args $actref->{loghost}
+|;
+
+            } elsif ( $distref->{os} =~ m/solaris/i ) {
+                $output = qq|DEFAULT label_$actref->{hostname}
+#!gpxe
+chain pxegrub
+|;
+
             } elsif ( $distref->{os} =~ m/win/i ) {
 
 # the mac isn't required here for operation but it identifies the requesting device 

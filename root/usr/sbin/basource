@@ -183,6 +183,7 @@ Where
   --addon <name>   specifies any addon(s) to layer over the base
                    distribution sles-10.2-rt-x86_64, sles-11-hae-i586
 
+  --no-loopback    Force source trees to be synced to local directory
   --check          Force check of the ISOs already present
   --isos           Download missing ISO files
   --proxy          Use a proxy service to fetch the ISO files
@@ -197,6 +198,7 @@ sub add() {
     my $proxy;
     my $check;
     my $isos;
+    my $loopback = 1;
 
     @ARGV = @_;
 
@@ -206,6 +208,7 @@ sub add() {
                'proxy'     => \$proxy,
                'check'     => \$check,
                'isos|i'    => \$isos,
+               'loopback!'  => \$loopback,
                );
 
     if ( scalar @ARGV ) {
@@ -247,12 +250,11 @@ sub add() {
     my $daisohr = &verify_iso( $opts, $distro, $addons, $isos, $check, $checkhr );
 
     print "Calling routines to generate build tree\n";
-
-    &make_paths( $opts, $distro, $addons, $daisohr);
+    &make_paths( $opts, $distro, $addons, $daisohr, $loopback);
 
     &create_build( $opts, $distro );
 
-    &streamline_install( $opts, $distro );
+    unless ( $loopback ) { &streamline_install( $opts, $distro, $loopback ); }
 
     print "Calling routine to configure $baVar{sharetype}\n";
 
@@ -289,6 +291,7 @@ sub remove() {
     my $addons = "";
     my @addons;
     my $share;
+    my $is_loopback = "";
 
     @ARGV = @_;
 
@@ -340,8 +343,14 @@ sub remove() {
             my @shares;
             print "Removing addon $addon\n";
             ($share, undef) = &get_distro_share( $opts, $addon );
+            $is_loopback = &get_loopback( $opts, $share );
             print "$share ... removing\n" if $opts->{verbose};
-            rmtree($share);
+            if ( $is_loopback ) {
+                system("umount $share");
+                rmdir($share);
+            } else {
+                rmtree($share);
+            }
         }
         &remove_build_service( $opts, "", $addons);
         &source_register( $opts, $command, "", $addons);
@@ -365,12 +374,26 @@ sub remove() {
         }
         if ( scalar @addons and defined $sdk and $addons[0] eq $sdk ) {
             ($share,undef) = &get_distro_share( $opts, $sdk );
+            $is_loopback = &get_loopback( $opts, $share );
             print "$share ... removing\n" if $opts->{verbose};
-            rmtree($share);
+            if ( $is_loopback ) {
+                system("umount $share");
+                rmdir($share);
+            } else {
+                rmtree($share);
+            }
+            &remove_build_service( $opts, "", $sdk);
+            &source_register( $opts, $command, "", $sdk);
         }
         ($share,undef) = &get_distro_share( $opts, $distro );
+        $is_loopback = &get_loopback( $opts,  $share );
         print "$share ... removing\n" if $opts->{verbose};
-        rmtree($share);
+        if ( $is_loopback ) {
+            system("umount $share");
+            rmdir($share);
+        } else {
+            rmtree($share);
+        }
 
         &remove_bootloader_files( $opts, $distro );
         &remove_build_service( $opts, $distro, $addons);
