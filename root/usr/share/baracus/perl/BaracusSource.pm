@@ -82,6 +82,8 @@ BEGIN {
                 check_distro
                 check_addons
                 check_addon
+                init_exporter
+                init_mounter
             )],
          );
 
@@ -1660,6 +1662,93 @@ sub remove_build_service
             system("/etc/init.d/smb reload");
         }
     }
+}
+
+sub init_mounter
+{
+    my $opts = shift;
+    my @mount;
+    my $ret = 0;
+    my $iso_location_hashref = &get_iso_locations( $opts );
+
+    my $sql = qq| SELECT mntpoint, iso
+                  FROM $baTbls{'iso'}
+                  WHERE is_loopback = 't'
+               |;
+
+    my $dbh = $opts->{dbh};
+    my $sth;
+    my $href;
+
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute() );
+
+    while ( $href = $sth->fetchrow_hashref() ) {
+        if ( ! -d $href->{'mntpoint'} ) {
+            unless ( mkpath $href->{'mntpoint'} ) {
+                $opts->{LASTERROR} = "Unable to create directory\n$!";
+                return 1;
+            }
+        }
+        my $is_mounted = 0;
+        my @mount = qx|mount| or die ("Can't get mount status: ".$!);
+        foreach( @mount ) {
+            if(/$href->{'mntpoint'}/){
+                print "$iso_location_hashref->{$href->{'iso'}} already mounted\n" if ( $opts->{verbose} );
+                $is_mounted = 1;
+             }
+        }
+        if ( $is_mounted ) { next; }
+        print "mounting $iso_location_hashref->{ $href->{'iso'} } at $href->{'mntpoint'} \n" if ( $opts->{verbose} );
+        $ret = system("mount -o loop $iso_location_hashref->{ $href->{'iso'} } $href->{'mntpoint'}");
+        if ( $ret > 0 ) {
+            $opts->{LASTERROR} = "Mount failed\n$!";
+            return 1;
+        }
+    }
+    return 0;
+}
+
+sub init_exporter
+{
+    my $opts = shift;
+    my @mount;
+    my $ret = 0;
+
+    my $sql = qq| SELECT mntpoint
+                  FROM $baTbls{'iso'}
+                  WHERE sharetype = '1'
+               |;
+
+    my $dbh = $opts->{dbh};
+    my $sth;
+    my $href;
+
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute() );
+
+    while ( $href = $sth->fetchrow_hashref() ) {
+        if ( ! -d $href->{'mntpoint'} ) {
+            $opts->{LASTERROR} = "directory does not exist\n$!";
+            return 1;
+        }
+        my $is_shared = 0;
+        my @share = qx|showmount -e localhost| or die ("Can't get share status: ".$!);
+        foreach( @share ) {
+            if(/$href->{'mntpoint'}/){
+                print "$href->{'mntpoint'} already exported\n" if ( $opts->{verbose} );
+                $is_shared = 1;
+            }
+        }
+        if ( $is_shared ) { next; }
+        print "exporting $href->{'mntpoint'} \n" if ( $opts->{verbose} );
+        $ret = system("exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$href->{'mntpoint'}");
+        if ( $ret > 0 ) {
+            $opts->{LASTERROR} = "Mount failed\n$!";
+            return 1;
+        }
+    }
+    return 0;
 }
 
 # return filename and state 0-missing 1-found for service config mods

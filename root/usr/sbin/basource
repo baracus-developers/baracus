@@ -75,6 +75,7 @@ my $cmds = {
             'verify'   => \&verify,
             'list'     => \&list,
             'detail'   => \&detail,
+            'init'     => \&init,
             'service'  => \&service,
             };
 
@@ -815,6 +816,53 @@ sub list() {
         }
     }
     return 0;
+}
+
+=head2 init [ --exports | --mounts] [ --all ]
+
+  Initialize or sync distro share media mount/exports to internal table.
+
+  Since Baracus does not use /etc/exports or /etc/fstab to maintain iso
+  mounts or exports the init function can be used to make sure all media
+  is properly available.  Usually this function is only necessary as part
+  of the system boot initialization of Baracus but can be called explictly
+  if media seems to be missing.
+
+Options
+
+    --exports        Export any media marked for export that is not already
+    --mounts         Mount and media marked for mount that is not already
+    --all            check for both out of sync exports and mounts
+
+=cut
+
+sub init() {
+
+    my $command = 'init';
+
+    my $exports = 0;
+    my $mounts = 0;
+    my $all;
+    my $ret = 0;
+
+    @ARGV = @_;
+
+    GetOptions(
+               'exports!'  => \$exports,
+               'mounts!'   => \$mounts,
+               );
+
+    if (( $mounts )  || ( $opts->{all} )) {
+        print "init mounts\n" if $opts->{debug};
+        $ret = &init_mounter( $opts );
+        $opts->{LASTERROR} = "mount failure\n" if ( $ret > 0);
+    }
+    if (( $exports ) || ( $opts->{all} )) {
+        print "init exports\n" if $opts->{debug};
+        $ret = &init_exporter( $opts );
+        $opts->{LASTERROR} = "export failure\n" if ( $ret > 0);
+    }
+    return $ret;
 }
 
 =head2 service { --start [service] | --stop [service] }

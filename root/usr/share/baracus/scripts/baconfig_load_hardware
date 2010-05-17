@@ -80,10 +80,17 @@ baconfig add hardware --name kvm-hda \
 baconfig detail hardware default-ubuntu &> /dev/null || \
 baconfig add hardware --name default-ubuntu \
 --description="default-ubuntu" \
---bootargs="locale=en_US console-setup/ask_detect=false console-setup/layoutcode=us" \
+--bootargs="locale=en_US console-setup/ask_detect=false console-setup/layoutcode=us hostname=unassigned-hostname" \
 --rootdisk=/dev/hda \
 --rootpart=/dev/hda \
 #--autobuild=template.xml
 #--oscert=SLES9-64:SLES10-64:SLES11-64
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
+
+baconfig detail hardware ubuntu-virtio &> /dev/null || \
+baconfig add hardware --name ubuntu-virtio \
+--description="ubuntu-virtio" \
+--bootargs="locale=en_US console-setup/ask_detect=false console-setup/layoutcode=us hostname=unassigned-hostname" \
+--rootdisk=/dev/vda \
+--rootpart=/dev/vda \

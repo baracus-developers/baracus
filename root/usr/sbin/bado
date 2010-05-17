@@ -561,6 +561,8 @@ sub build
              $actref->{os} =~ m|fedora| or
              $actref->{os} =~ m|centos| ) {
             $actref->{'loghost'} = "syslog=$baVar{serverip}";
+        } elsif ( $actref->{os} =~ m|ubuntu| ) {
+            $actref->{'loghost'} = "log_host=$baVar{serverip}";
         } else {
             $actref->{'loghost'} = "loghost=$baVar{serverip}";
         }
@@ -1662,6 +1664,8 @@ sub rescue
              $actref->{os} =~ m|fedora| or
              $actref->{os} =~ m|centos| ) {
             $actref->{'loghost'} = "syslog=$baVar{serverip}";
+        } elsif ( $actref->{os} =~ m|ubuntu| ) {
+            $actref->{'loghost'} = "log_host=$baVar{serverip}";
         } else {
             $actref->{'loghost'} = "loghost=$baVar{serverip}";
         }
