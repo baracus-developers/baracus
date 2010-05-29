@@ -422,11 +422,11 @@ nameserver __DNS1__
     </general>
   </kdump>
   <keyboard>
-    <keymap>english-us</keymap>
+    <keymap>__KEYMAP__</keymap>
   </keyboard>
   <language>
     <language>__LANG__</language>
-    <languages></languages>
+    <languages>__LANGS__</languages>
   </language>
   <login_settings/>
   <networking>

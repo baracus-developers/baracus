@@ -1,0 +1,21 @@
+body {
+text-align:center;
+margin:30px;
+}
+#wrapper {
+text-align:left;
+margin:0 auto;
+width:500px;
+min-height:100px;
+border:1px solid #ccc;
+padding:30px;
+}
+a {
+color:blue;
+cursor:pointer;
+}
+#myvar {
+border:1px solid #ccc;
+background:#f2f2f2;
+padding:20px;
+}

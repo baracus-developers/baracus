@@ -1,96 +1,96 @@
 #!/bin/bash
 
-baconfig detail hardware default &> /dev/null || \
+baconfig detail hardware default --all &> /dev/null || \
 baconfig add hardware --name default \
 --description="default" \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=/dev/sda \
---rootpart=/dev/sda \
+--rootpart=/dev/sda
 #--autobuild=template.xml 
 #--oscert=SLES9:SLES10
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
 
-baconfig detail hardware default-iscsi &> /dev/null || \
+baconfig detail hardware default-iscsi --all &> /dev/null || \
 baconfig add hardware --name default-iscsi \
 --description="default-iscsi" \
 --bootargs="acpi=on selinux=0 apm=off WithISCSI=1" \
 --rootdisk=/dev/sda \
---rootpart=/dev/sda \
+--rootpart=/dev/sda
 #--autobuild=template-iscsi.xml 
 #--oscert=SLES9:SLES10
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
 
-baconfig detail hardware default-hda &> /dev/null || \
+baconfig detail hardware default-hda --all &> /dev/null || \
 baconfig add hardware --name default-hda \
 --description="default-hda" \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=/dev/hda \
---rootpart=/dev/hda \
+--rootpart=/dev/hda
 #--autobuild=template.xml 
 #--oscert=SLES9:SLES10
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
 
-baconfig detail hardware default-HP &> /dev/null || \
+baconfig detail hardware default-HP --all &> /dev/null || \
 baconfig add hardware --name default-HP \
 --description="default-HP" \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=/dev/cciss/c0d0 \
---rootpart=/dev/cciss/c0d0p \
+--rootpart=/dev/cciss/c0d0p
 #--autobuild=template.xml
 #--oscert=SLES9:SLES10
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
 
-baconfig detail hardware default-rhel &> /dev/null || \
+baconfig detail hardware default-rhel --all &> /dev/null || \
 baconfig add hardware --name default-rhel \
 --description="default-rhel" \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=hda \
---rootpart=hda \
+--rootpart=hda
 #--autobuild=template.xml
 #--oscert=SLES9:SLES10
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
 
-baconfig detail hardware kvm-sda &> /dev/null || \
+baconfig detail hardware kvm-sda --all &> /dev/null || \
 baconfig add hardware --name kvm-sda \
 --description="KVM (sda)" \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=/dev/sda \
---rootpart=/dev/sda \
+--rootpart=/dev/sda
 #--autobuild=template.xml 
 #--oscert=SLES9-64:SLES10-64:SLES11-64 \
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
 
-baconfig detail hardware kvm-hda &> /dev/null || \
+baconfig detail hardware kvm-hda --all &> /dev/null || \
 baconfig add hardware --name kvm-hda \
 --description="KVM (hda)" \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=/dev/hda \
---rootpart=/dev/hda \
+--rootpart=/dev/hda
 #--autobuild=template.xml
 #--oscert=SLES9-64:SLES10-64:SLES11-64
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
 
-baconfig detail hardware default-ubuntu &> /dev/null || \
+baconfig detail hardware default-ubuntu --all &> /dev/null || \
 baconfig add hardware --name default-ubuntu \
 --description="default-ubuntu" \
 --bootargs="locale=en_US console-setup/ask_detect=false console-setup/layoutcode=us hostname=unassigned-hostname" \
 --rootdisk=/dev/hda \
---rootpart=/dev/hda \
+--rootpart=/dev/hda
 #--autobuild=template.xml
 #--oscert=SLES9-64:SLES10-64:SLES11-64
 #--addon="<!--no addon -->"
 #--hwdriver="<!--no hwdrivers -->"
 
-baconfig detail hardware ubuntu-virtio &> /dev/null || \
+baconfig detail hardware ubuntu-virtio --all &> /dev/null || \
 baconfig add hardware --name ubuntu-virtio \
 --description="ubuntu-virtio" \
 --bootargs="locale=en_US console-setup/ask_detect=false console-setup/layoutcode=us hostname=unassigned-hostname" \
 --rootdisk=/dev/vda \
---rootpart=/dev/vda \
+--rootpart=/dev/vda

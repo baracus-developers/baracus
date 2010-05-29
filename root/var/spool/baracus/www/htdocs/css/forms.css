@@ -3,7 +3,7 @@
 /********************************************************************/
 body
 {
-	background-color:#d8d8d8;
+	background-color:Gainsboro;
 }
 #f-labels font.history
 {
@@ -109,8 +109,8 @@ body
 
 #block1
 {
-	width:260px;
-	height:130px;
+	width:275px;
+	height:132px;
 	position:absolute;
 	top:10px;
 	left:20px;
@@ -142,11 +142,11 @@ body
 
 #block3
 {
-	width:260;
-	height:190;
+	width:275;
+	height:175;
 	position:absolute;
 	top:10px;
-	left:320px;
+	left:305px;
 	border:2px solid #B2D68C;
 	padding-top:10;
 }
@@ -160,22 +160,22 @@ body
 
 #block3a
 {
-	width:260;
+	width:275;
 	height:100;
 	position:absolute;
-	top:220px;
-	left:320px;
+	top:205px;
+	left:305px;
 	border:2px solid #B2D68C;
 	padding-top:10;
 }
 
 #block4
 {
-	width:260;
+	width:275;
 	height:30;
 	position:absolute;
-	top:340px;
-	left:320px;
+	top:325px;
+	left:305px;
 	text-align:bottom;
 	border:2px solid #B2D68C;
 	padding-top:10;
@@ -197,8 +197,8 @@ body
 
 #blockb
 {
-	width:260px;
-	height:168px;
+	width:275px;
+	height:173px;
 	position:absolute;
 	top:155px;
 	left:20px;
@@ -215,8 +215,8 @@ body
 
 #blockc
 {
-	width:260;
-	height:125;
+	width:275;
+	height:127;
 	position:absolute;
 	top:348px;
 	left:20px;
@@ -232,7 +232,7 @@ body
 }
 #blockd
 {
-	width:260;
+	width:275;
 	height:125;
 	position:absolute;
 	top:495px;

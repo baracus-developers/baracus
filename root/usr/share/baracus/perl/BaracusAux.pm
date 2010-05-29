@@ -90,13 +90,48 @@ sub get_hardware() {
     my $dbh = shift;
     my $bref = shift;
 
-    my $sql = qq|SELECT * FROM hardware WHERE hardwareid = '$bref->{hardware}'|;
+    my $sql = qq|SELECT * FROM hardware WHERE hardwareid = '$bref->{hardware}' ORDER BY version|;
     my $sth;
 
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
     die "$!$sth->err\n" unless ( $sth->execute( ) );
 
-    return $sth->fetchrow_hashref( );
+    my $rowcount = 0;
+    my $found = undef;
+    while ( my $sel = $sth->fetchrow_hashref( ) ) {
+        $rowcount += 1;
+        $found = $sel if ($sel->{'status'});
+    }
+    die "Unable to find hardware entry for $bref->{'hardware'}.\n"
+        unless ( $rowcount );
+    die "Unable to find *enabled* hardware entry for $bref->{'hardware'}.\n"
+        unless ( defined $found );
+
+    return $found;
+}
+
+sub get_autobuild() {
+    my $dbh = shift;
+    my $bref = shift;
+
+    my $sql = qq|SELECT * FROM autobuild WHERE autobuildid = '$bref->{autobuild}' ORDER BY version|;
+    my $sth;
+
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
+
+    my $rowcount = 0;
+    my $found = undef;
+    while ( my $sel = $sth->fetchrow_hashref( ) ) {
+        $rowcount += 1;
+        $found = $sel if ($sel->{'status'});
+    }
+    die "Unable to find hardware entry for $bref->{'autobuild'}.\n"
+        unless ( $rowcount );
+    die "Unable to find *enabled* hardware entry for $bref->{'autobuild'}.\n"
+        unless ( defined $found );
+
+    return $found;
 }
 
 sub get_tftpfile() {
@@ -267,12 +302,27 @@ sub load_hardware
     my $sql_cols = get_cols(  $baTbls{'hardware'} );
     $sql_cols =~ s/[ \t]*//g;
     my $sql = qq|SELECT $sql_cols FROM $baTbls{'hardware'}
-                 WHERE hardwareid = '| . $hostref->{'hardware'} . qq|'|;
-    my $sel = $dbh->selectrow_hashref( $sql );
+                 WHERE hardwareid = '$hostref->{'hardware'}' ORDER BY version|;
+    my $sth;
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        die "Unable to prepare 'hardware' statement\n" . $dbh->errstr;
+    }
+    unless( $sth->execute( ) ) {
+        die "Unable to execute 'hardware' statement\n" . $sth->err;
+    }
+    my $rowcount = 0;
+    my $found = undef;
+    while ( my $sel = $sth->fetchrow_hashref( ) ) {
+        $rowcount += 1;
+        $found = $sel if ($sel->{'status'});
+    }
     die "Unable to find hardware entry for $hostref->{'hardware'}.\n"
-        unless ( defined $sel );
-    print $sel . "\n" if ( $opts->{debug} > 1 );
-    while ( my ($key, $value) = each( %$sel ) ) {
+        unless ( $rowcount );
+    die "Unable to find *enabled* hardware entry for $hostref->{'hardware'}.\n"
+        unless ( defined $found );
+    print $found . "\n" if ($opts->{debug} > 1);
+
+    while ( my ($key, $value) = each( %$found ) ) {
         if (defined $value) {
             $hostref->{$key} = $value;
         } else {
@@ -306,7 +356,7 @@ sub check_modules
         while ( my $sel = $sth->fetchrow_hashref( ) ) {
             $rowcount += 1;
         }
-        die "Module $item not certified for $distro.\n"
+        die "module not certified for use with this distro.\nconfirm you want to use these in combination and then do:\n  baconfig update module --name $item --addcert $distro\n"
             unless ( $rowcount );
     }
 
@@ -364,6 +414,7 @@ sub add_autobuild
     use File::Temp qw/ tempdir /;
 
     my $opts    = shift;
+    my $dbh     = shift;
     my $hostref = shift;
     my $dbtftp  = "sqltftp";
 
@@ -373,27 +424,15 @@ sub add_autobuild
                                'debug' => $deepdebug )
         or die "Unable to create new instance of SqlFS\n";
 
+    my $abhref = &get_autobuild( $dbh, $hostref );
 
-
-    my $autobuildTemplate = join "/", $baDir{ 'templates' }, $hostref->{'os'}, $hostref->{'release'}, $hostref->{'arch'}, $hostref->{'autobuild'};
-
-    if ($opts->{debug}) {
-        print "autobuildTemplate = $autobuildTemplate\n";
-    }
-
-    if ( ! -f $autobuildTemplate ) {
-        print "\nThe template file for autobuild cannot be found here:\n";
-        print "\n$autobuildTemplate\n";
-        print "\nPlease refer to the README found in $baDir{ 'templates' }/\n";
+    unless ( defined $abhref && $abhref->{data} ne "" ) {
+        print "\nUnable to find autobuild template $hostref->{autobuild}\n";
+        print "View available templates with 'baconfig list autobuild'\n";
         exit 1;
     }
 
-    ## Read in autobuild template
-    ##
-    open(TEMPLATE, "<$autobuildTemplate") or die "Can't open autobuildTemplate $autobuildTemplate : $!";
-    my $yastfile = join '', <TEMPLATE>;
-    close(TEMPLATE);
-
+    my $abfile  = $abhref->{data};
     my $date    = &get_rundate();
     my $automac = &automac( $hostref->{'mac'} );
 
@@ -408,30 +447,48 @@ sub add_autobuild
         while ( my ($key, $value) = each %$hostref ) {
             $key =~ tr/a-z/A-Z/;
             $key = "__$key\__";
-            $yastfile =~ s/$key/$value/g;
+            $abfile =~ s/$key/$value/g;
         }
+
         open(FILE, ">$tdir/$automac") or
             die "Cannot open file $automac: $!\n";
-        print FILE $yastfile;
-        if ( $hostref->{os} ne "rhel"   &&
-             $hostref->{os} ne "fedora" &&
-             $hostref->{os} ne "centos" ) {
-            print FILE "<!-- baracus.Hostname: $hostref->{'hostname'} -->\n";
-            print FILE "<!-- baracus.MAC: $hostref->{'mac'}; -->\n";
-            print FILE "<!-- baracus.Generated: $date -->\n";
+        print FILE $abfile;
+
+        # comment block for suse and win xml template families
+        my $cstart="<!--";
+        my $cstop="-->";
+
+        if ( $hostref->{os} eq "rhel"   ||
+             $hostref->{os} eq "fedora" ||
+             $hostref->{os} eq "centos" ) {
+            # comment block for rhel kickstart script families
+            $cstart="#";
+            $cstop="";
         }
+
+        print FILE "$cstart baracus.Hostname: $hostref->{'hostname'} $cstop\n";
+        print FILE "$cstart baracus.MAC: $hostref->{'mac'}; $cstop\n";
+        print FILE "$cstart baracus.Generated: $date $cstop\n";
+
         close(FILE);
 
         if ( $sqlfsOBJ->store( "$tdir/$automac",
                                "autoinst $hostref->{'basedist'}" ) ) {
             warn "failed to store $tdir/$automac in sqlfs\n";
         }
-        print $yastfile if ( $opts->{debug} > 2 );
-        unlink "$tdir/$automac";
 
+        print $abfile if ( $opts->{debug} > 2 );
+
+        if ( $abfile =~ m/__.*__/ ) {
+            warn "Stored, but some vars still need to be replaced in $automac\n";
+            system "grep -Ene '__.*__' $tdir/$automac";
+        }
         if ($opts->{verbose}) {
             print "Successfully stored $automac\n";
         }
+
+        unlink "$tdir/$automac";
+
     }
     print "removing tempdir $tdir\n" if ($opts->{debug} > 1);
     rmdir $tdir;
@@ -857,6 +914,13 @@ sub check_cert
         $sql = qq| SELECT distroid 
                       FROM $baTbls{ $type }
                       WHERE moduleid = '$id'
+                      AND distroid = '$cert_in'
+                    |;
+    }
+    elsif ( $type eq "abcert" ) {
+        $sql = qq| SELECT distroid 
+                      FROM $baTbls{ $type }
+                      WHERE autobuildid = '$id'
                       AND distroid = '$cert_in'
                     |;
     }

@@ -26,10 +26,11 @@ $op = param('op') || '<i>(No input)</i>';
 $data = param('data');
 
 @menunames = ( "Host Entries",
-			   "Host Boot Action",
+	       "Host Boot Action",
                "Source Entries",
                "Configuration",
                "Power Controller",
+               "Repository",
                "Log Information",
                "Processing",
                "About" );
@@ -39,13 +40,13 @@ $data = param('data');
              "/$BATools::baCGI/source.iframe",
              "/$BATools::baCGI/config.iframe",
              "/$BATools::baCGI/power.iframe",
-			 "/$BATools::baCGI/log.iframe",             
+             "/$BATools::baCGI/repo.iframe",
+             "/$BATools::baCGI/log.iframe",             
              "/$BATools::baCGI/procHandler.iframe",
              "/$BATools::baCGI/about.iframe" );
 
-$menuHTML = createMenu( $op);
-$randImage = getRandomImage();
-$content = processCommand( $data);
+$menuHTML = createMenu( $op );
+$content = processCommand( $data );
 
 ########################################################################################################
 #  Print HTML
@@ -72,7 +73,6 @@ print <<HTML1;
 	$content
 	</div>
 	<div id="nvlogo"><a href="http://www.novell.com"><img src="/$BATools::baRoot/images/nov_blk.gif"\></a></div> 
-	$randImage
 	</body>
 </html>
 
@@ -179,22 +179,3 @@ sub processCommand
 	
 		return $retString;
 }	
-
-########################################################################################################
-#  Get HTML for random image
-########################################################################################################
-
-sub getRandomImage()
-{
-					
-		my @imgarray = ("150bball.png",
-					 	"150mountaineer.png",
-					 	"150samurai.png",
-						"150snowboard.png",
-						"150soccer.png",
-						"150surfer.png");
-
-	  	my $index = rand(6);
-	  		
-		return "\t<div id='geeko'><img src='/$BATools::baRoot/images/".@imgarray[$index]."'/></div>\n";
-}

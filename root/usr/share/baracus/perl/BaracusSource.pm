@@ -1531,7 +1531,7 @@ sub add_build_service
                     $ret = system("exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$share");
                     print "exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$share\n" if ( $opts->{debug} > 1 );
                     if ( $ret > 0 ) {
-                        $opts->{LASTERROR} = "umount failed\n$!";
+                        $opts->{LASTERROR} = "share failed\n$!";
                         return 1;
                     }
                 }
@@ -1626,7 +1626,7 @@ sub remove_build_service
                 if ($baVar{sharetype} eq "nfs") {
                   $ret = system("exportfs -u *:$share");
                   if ( $ret > 0 ) {
-                      $opts->{LASTERROR} = "umount failed\n$!";
+                      $opts->{LASTERROR} = "ushare failed\n$!";
                       return 1;
                   }
                 }

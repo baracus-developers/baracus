@@ -24,6 +24,8 @@ our $distro = param('distro') || "distro";
 our $distroD;
 our $hardware = param('hardware') || "hardware";
 our $hardwareD;
+our $autobuild = param('autobuild') || "autobuild";
+our $autobuildD;
 our $module = param('module') || "module";
 our $moduleD;
 our $addon = param('addon') || "addon";
@@ -43,7 +45,7 @@ our $autobuildList = "";
 our $found;
 our @profModules = ();
 our @distAddons = ();
-our @profileOptions = (	$netmask,$gateway,$dnsdomain,$dns1,$distro,$hardware,$module,$addon);
+our @profileOptions = (	$netmask,$gateway,$dnsdomain,$dns1,$distro,$hardware,$module,$addon,$autobuild);
 				  		
 ########################################################################################################
 #  Setup Data
@@ -76,6 +78,8 @@ $distroList = BATools::getDistroSelectionList( $distro,
 				"ready");
 
 $hardwareList = BATools::getHardwareSelectionList( $hardware, $hardwareD, "onClick='hwUpdate( this)'");
+
+$autobuildList = BATools::getAutobuildSelectionList( $autobuild, $autobuildD, "onClick='autobuildUpdate( this)'");
 
 getAndCheckModules();
 $createContent = infoWindow();
@@ -172,8 +176,7 @@ print <<HTML0;
 	</div>
 
 	<div id='blockb'>
-		<h1>Profile:</h1>
-		<br>			
+		<h1>Profile:</h1><br>
 		<select name='profile' onChange='profileChange()'>
 		$profiles
 		</select>
@@ -182,8 +185,8 @@ print <<HTML0;
 		$distroList
 		<h1 class="$hardwareD">Hardware Type:</h1><br>
 		$hardwareList
-                <h1 class="$autobuildD">Autobuild Template:</h1><br>
-                $autobuildList
+		<h1 class="$autobuildD">Autobuild Template:</h1><br>
+		$autobuildList
 	</div>
 
 	<div id='blockc'>
@@ -200,7 +203,7 @@ print <<HTML0;
 		<h1 class="$netmaskD">Subnet Mask:</h1><br><input class="text" type="text" size="25" name="netmask" value="$netmask" $netmaskD>
 		<br>
 		<h1 class="$gatewayD">Gateway:</h1><br><input class="text" type="text" size="25" name="gateway" value="$gateway" $gatewayD>
-		<br><br>
+		<br>
 		<h1 class="$dnsdomainD">DNS Domain:</h1><br><input class="text" type="text" size="25" name="dnsdomain" value="$dnsdomain" $dnsdomainD>
 		<br>
 		<h1 class="$dns1D">DNS Server Address:</h1><br><input class="text" type="text" size="25" name="dns1" value="$dns1" $dns1D>
@@ -223,7 +226,7 @@ print <<HTML0;
 HTML0
 
 ########################################################################################################
-#  Profile - Distribution - Hardware list generation functions
+#  Profile - Module - Addons - list generation functions
 ########################################################################################################
 
 sub initProfileOptions()
@@ -298,6 +301,7 @@ sub createProfileVars
 	    }
    	}
    	debugPrint( "distro: $distro");
+   	debugPrint( "autobuild: $autobuild");
 }
 
 sub generateProfiles
@@ -370,7 +374,7 @@ sub getProfileAddons
 		if( scalar(@distAddons))
 		{
 			$r = $r."<h1 class='$addonD'>AddOns:</h1><h4>(hold ctrl for multiple)</h4><br>\n";
-			$r = $r."<select  name='addon' multiple size='4' disabled >\n";	
+			$r = $r."<select  name='addon' multiple size='6' disabled >\n";	
 
 			foreach ( @distAddons)
 			{

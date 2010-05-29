@@ -158,9 +158,13 @@ Where
 A profile can be used to accumlate all the other parameters for a similar collection of hosts and can contain networking, distro, and hardware information.
 
   --profile <pfile>        File with networking and/or other template
-                           parameters.  To see content of the 'default'
-                           profile use
+                           parameters.
+
+                           See content of the 'default' profile with command:
                              > baconfig detail profile default
+
+                           See all profiles available with command:
+                             > baconfig list profiles
 
 Other required parameters, which may be specified on the command-line or in a profile are:
 
@@ -193,10 +197,14 @@ Other required parameters, which may be specified on the command-line or in a pr
                            See all modules available with command:
                              > baconfig list module
 
-And further <...> optional parameters include
+  --autobuild <template>   Autoyast, Kickstart, AIK, etc... golden template.
+                           A value of 'none' will drop you into the manual
+                           installer [default none].
 
-  --autobuild <template>   Autoyast or Kickstart golden template. A value of
-                           'none' will drop you into the manual installer.
+                           See all autobuild templates available with command:
+                             > baconfig list autobuild
+
+And further <...> optional parameters include
 
   --usevnc                 allow vnc build access
   --vncpass                defines vnc password for remote access
@@ -326,7 +334,10 @@ sub build
     # begin loading of hash used for remainder of processing command
     undef $actref;
 
-    $profile = "default" unless ($profile);
+    unless ($profile) {
+        print "--profile <prof> unspecified. Using 'default'\n";
+        $profile = "default";
+    }
     $actref->{'profile'} = $profile;
     &load_profile( $opts, $dbh, $actref );
     if ($opts->{debug} > 1) {
@@ -523,7 +534,14 @@ sub build
     $actref->{'sharetype'} = $baVar{sharetype} if ($baVar{sharetype});
     $actref->{'shareip'}   = $baVar{shareip}   if ($baVar{shareip});
 
+    # autobuild may be in profile *and* on command line
+    # command line wins over profile entry
     $actref->{'autobuild'} = $autobuild if ($autobuild);
+
+    unless ($actref->{'autobuild'}) {
+        $actref->{'autobuild'} = "none";
+        print "Without --autobuild <abuild> installer is defaulting to interactive\n"
+    }
 
     ## If passed on command line via vars, then honor those
     ##
@@ -585,8 +603,17 @@ sub build
                       $actref->{'hardware'},
                       $actref->{'distro'} ) )
     {
-        print "$actref->{'hardware'} not certified for $actref->{'distro'}\n";
+        print "hardware not certified for use with this distro.\nconfirm you want to use these in combination and then do:\n  baconfig update hardware --name $actref->{'hardware'} --addcert $actref->{'distro'}\n";
         exit 1;
+    }
+
+    if ( $actref->{'autobuild'} ne "none" ) {
+        if ( &check_cert( $opts, $dbh, 'abcert',
+                          $actref->{'autobuild'},
+                          $actref->{'distro'} ) ) {
+            print "autobuild not certified for use with this distro.\nconfirm you want to use these in combination and then do:\n    baconfig update autobuild --name $actref->{'autobuild'} --addcert $actref->{'distro'}\n";
+            exit 1;
+        }
     }
 
     $macref = get_db_mac( $dbh, $actref->{mac} );
@@ -636,7 +663,7 @@ sub build
         if ( $gotdiff != 0 ) {
             &remove_autobuild( $opts, $actref );
             unless ( $actref->{'autobuild'} eq "none" ) {
-                &add_autobuild( $opts, $actref );
+                &add_autobuild( $opts, $dbh, $actref );
             }
             &update_db_action( $dbh, $actref);
         }
@@ -1688,7 +1715,15 @@ sub rescue
                       $actref->{'hardware'},
                       $actref->{'distro'} ) )
     {
-        print "$actref->{'hardware'} not certified for $actref->{'distro'}\n";
+        print "hardware not certified for use with this distro.\nconfirm you want to use these in combination and then do:\n  baconfig update hardware --name $actref->{'hardware'} --addcert $actref->{'distro'}\n";
+        exit 1;
+    }
+
+    if ( &check_cert( $opts, $dbh, 'abcert',
+                      $actref->{'autobuild'},
+                      $actref->{'distro'} ) )
+    {
+        print "autobuild not certified for use with this distro.\nconfirm you want to use these in combination and then do:\n    baconfig update autobuild --name $actref->{'autobuild'} --addcert $actref->{'distro'}\n";
         exit 1;
     }
 
@@ -1747,7 +1782,7 @@ sub rescue
     } else {
         &add_db_action( $dbh, $actref);
         unless ( $actref->{'autobuild'} eq "none" ) {
-            &add_autobuild( $opts, $actref );
+            &add_autobuild( $opts, $dbh, $actref );
         }
     }
 

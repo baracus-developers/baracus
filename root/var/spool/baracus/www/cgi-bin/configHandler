@@ -288,6 +288,48 @@ sub getContent
 			}
 		}
 	}
+	elsif( $op eq "hw")
+	{
+		$rURL = $rURL."HW";
+		if( $sub eq "sta")
+		{
+		
+			$Name = param('hardware');
+			$ver = param('ver') || -1;
+			$sta = param('sta') || -1;
+
+			if( $Name)
+			{
+				if( $sta eq 1)
+				{
+					$r = BAdb::disableHardware( $Name, $ver);
+				}
+				elsif( $sta < 1)
+				{
+					$r = BAdb::enableHardware( $Name, $ver);
+				}
+				else
+				{
+					$r = "Error: Invalid Status: $sta";
+				}
+			}
+			else
+			{
+				$r = "Error: No hardware selected.\n";	
+			}		
+			
+			if( !$r || $r eq "")
+			{
+				$ref = "yes";
+				$rURL = $rURL."S?name=$Name&ver=$ver";
+				$r = "Status Change Success";
+			}
+		}
+		else
+		{
+			$r = "Invalid Subfunction";
+		}
+	}
 	return $r; 
 }
 sub getHeader

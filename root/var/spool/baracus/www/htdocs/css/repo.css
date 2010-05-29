@@ -1,0 +1,173 @@
+body
+{
+	background-color:Gainsboro;
+}
+#main
+{
+	width:600;
+	height:580;
+	position:absolute;
+	top:40px;
+	left:15px;
+	padding-top:10;
+	border:2px solid #B2D68C;
+}
+#main input.power
+{
+	position:relative;
+	left:20px;
+	top:250px;	
+}
+#main textarea.previewWindow
+{
+	position:absolute;
+	left:5;
+	top:350;
+	width: 600;
+	height: 170;
+	background-color: white;
+	color:black;
+	padding:5;
+}
+#main #fkey
+{
+	position:relative;
+	top:-30px;
+	left:300px;
+	font-size:9pt;
+	width:200px;
+}
+
+#main #log
+{
+	position:relative;
+	top:220px;
+	left:300px;
+	font-size:9pt;
+	width:380px;
+}
+
+#main #ltype
+{
+	position:relative;
+	top:-10px;
+	left:20px;
+	font-size:9pt;
+	width:250px;
+}
+#main tbody tr.even td {
+        background-color: #eee;
+}
+#main tbody tr.odd td {
+        background-color: #fff;
+}
+#main tbody tr.hover td {
+        background-color: gray;
+}
+#main tbody tr.selected td {
+        background-color: #4AA02C;
+}
+#config input.filter
+{
+	position:absolute;
+	left:320;
+	top:20;
+	width:230;
+	height:20;
+	border:none;
+	background-color:white;
+	color: #6DB33F;
+}
+#config select.status
+{
+	position:absolute;
+	left:100;
+	top:20;
+	width:190;
+	height:20;
+	border:none;
+	background-color:white;
+	color: #6DB33F;
+}
+#config input.submit
+{
+	float:right;
+	margin-top:305;
+	margin-right:10px;
+	padding-right:10;
+	padding-right:10;
+	width: 100px;
+}
+#config img.sweep
+{
+	position:absolute;
+	left:548;
+	top:20;
+	height:20;
+	background-color:white;
+}
+#config img.search
+{
+	position:absolute;
+	left:300;
+	top:20;
+	height:20;
+	background-color:white;
+}
+
+#config #histbar
+{
+	position:absolute;
+	top:10;
+	left:12;	
+	font-size:12pt;
+	color:white;
+}
+#config font.name
+{
+	position:absolute;
+	top:25;
+	left:20;
+}
+#config font.filter
+{
+        position:absolute;
+        top:25;
+        left:270;
+}
+#config select.nameWide
+{
+	position:absolute;
+	top:45;
+	left:20;
+	width:550;
+	color:#6DB33F;
+	font-family: "Courier New";
+} 
+#config font.name2
+{
+	position:absolute;
+	top:210;
+	left:20;
+}
+#config select.nameWide2
+{
+	position:absolute;
+	top:230;
+	left:20;
+	width:550;
+	color:#6DB33F;
+	font-family: "Courier New";
+} 
+
+#config font.previes
+{
+	position:absolute;
+	top:330;
+	left:20;
+}
+#config font
+{
+	font-size:9pt;
+}
+

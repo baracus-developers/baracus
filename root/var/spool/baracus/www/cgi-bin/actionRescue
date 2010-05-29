@@ -132,7 +132,7 @@ print <<HTML0;
 		<h1 class="$netmaskD">Subnet Mask:</h1><br><input class="text" type="text" size="25" name="netmask" value="$netmask" $netmaskD>
 		<br>
 		<h1 class="$gatewayD">Gateway:</h1><br><input class="text" type="text" size="25" name="gateway" value="$gateway" $gatewayD>
-		<br><br>
+		<br>
 		<h1 class="$dnsdomainD">DNS Domain:</h1><br><input class="text" type="text" size="25" name="dnsdomain" value="$dnsdomain" $dnsdomainD>
 		<br>
 		<h1 class="$dns1D">DNS Server Address:</h1><br><input class="text" type="text" size="25" name="dns1" value="$dns1" $dns1D>

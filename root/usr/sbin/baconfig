@@ -14,7 +14,7 @@ use BaracusSql qw( :vars :subs );
 
 =head1 NAME
 
-B<baconfig> - baracus tool to manage hardware, module, profile, and tftp entries.
+B<baconfig> - baracus tool to manage auxiliary files to describe builds
 
 =head1 SYNOPSIS
 
@@ -37,6 +37,7 @@ And, where E<lt>typeE<gt> is
     hardware  Values related to the hardware of the build client.
     module    Postinstall scripts to run on build completion.
     profile   Network or other variable definitions.
+    autobuild Build recipe templates with variables for customization.
     tftp      TFTP filesystem database.
 
 And, where <...> indicates additional required arguments.
@@ -45,7 +46,7 @@ Use 'man' or 'help <command> [<type>]' for more details.
 
 =head1 DESCRIPTION
 
-This tool allows files related to hardware, modules or profiles to be
+This tool allows files related to hardware, modules, profiles, autobuild to be
 added to, removed from, detailed, fetched from database tables.  Additionally,
 all the database entries can be listed by type.
 
@@ -84,7 +85,8 @@ my $nolabels = 0;
 my %multiarg;              # used for processing repeatable getoptions
 
 # max_allowed_packets a mysql specific construct
-my $maxlen = 1048575;
+my $maxlen = 268435456;  # 256 MB
+#my $maxlen = 1048575;
 
 my %cmds =
     (
@@ -200,7 +202,7 @@ sub man
 
 =head2 list <type> [--all] [--quiet] [match]
 
-Takes <type> as an argument, (hardware, module, profile, tftp).
+Takes <type> as an argument, (hardware, module, profile, autobuild, tftp).
 Also takes optional string [ match ] to use for partial matching.
 
 Lists enabled entries of type, matching match, in filesystem.
@@ -219,6 +221,16 @@ sub list
         &help();
     }
 
+    if ( defined $pattern ) {
+        if ( $pattern =~ m{\*|\?} ) {
+            print "handling wildcard to postgres expression\n" if $debug;
+            $pattern =~ s|\*|%|g;
+            $pattern =~ s|\?|_|g;
+        }
+    } else {
+        $pattern = "%";
+    }
+
     $type = lc $type;
     my $tlist = &check_type( $type );
 
@@ -227,17 +239,11 @@ sub list
         my @ltypes = split( /, /, $tlist);
         my $status;
         foreach my $ltype ( @ltypes ) {
-            if ( defined $pattern ) {
-                $status = &list( $ltype, $pattern );
-            } else {
-                $status = &list( $ltype );
-            }
+            $status = &list( $ltype, $pattern );
             return $status if $status;
         }
         return 0;
     }
-
-    $pattern = "" unless( defined $pattern );
 
     my $sth = &list_start( $type, $pattern );
 
@@ -248,12 +254,14 @@ sub list
 
     unless ( $quiet || $nolabels ) {
         print "--------------------------------------------------------------------------------\n";
-        if ( $type eq "profile" ) {
+        if ( $type eq "hardware" ) {
             printf "%-32s ver sts description\n", $type;
-        } elsif ( $type eq "hardware" ) {
+        } elsif ( $type eq "profile" ) {
             printf "%-32s ver sts description\n", $type;
         } elsif ( $type eq "module") {
             printf "%-32s ver sts mty description\n", $type;
+        } elsif ( $type eq "autobuild" ) {
+            printf "%-32s ver sts description\n", $type;
         } elsif ( $type eq "tftp" ) {
             printf "%-32s cnt sts description\n", $type;
         } else {
@@ -262,17 +270,7 @@ sub list
         print "--------------------------------------------------------------------------------\n";
     }
     while ( my $href = &list_next( $sth ) ) {
-        if ( $type eq "profile" ) {
-            next unless ( $all || $href->{'status'} );
-            # name, version, status, description
-            printf "%-32s ", $href->{'name'};
-            unless ( $quiet ) {
-                printf "%-3s %-3s %s",
-                    $href->{'version'}, $href->{'status'},
-                        (defined $href->{'description'}) ?
-                            $href->{'description'} : "";
-            }
-        } elsif ( $type eq "hardware" ) {
+        if ( $type eq "hardware" ) {
             next unless ( $all || $href->{'status'} );
             # name, version, status, description
             printf "%-32s ", $href->{'name'};
@@ -289,10 +287,28 @@ sub list
             my $mty = &check_mandatory ($href->{'name'});
             $mty = scalar @{$mty} if ( $mty != 0 );
             unless ( $quiet ) {
-                 printf "%-3s %-3s %-3s %s",
-#                printf "%-3s %-3s     %s",
-#                   $href->{'version'}, $href->{'status'}, $href->{'mandatory'},
+                printf "%-3s %-3s %-3s %s",
                     $href->{'version'}, $href->{'status'}, $mty,
+                        (defined $href->{'description'}) ?
+                            $href->{'description'} : "";
+            }
+        } elsif ( $type eq "profile" ) {
+            next unless ( $all || $href->{'status'} );
+            # name, version, status, description
+            printf "%-32s ", $href->{'name'};
+            unless ( $quiet ) {
+                printf "%-3s %-3s %s",
+                    $href->{'version'}, $href->{'status'},
+                        (defined $href->{'description'}) ?
+                            $href->{'description'} : "";
+            }
+        } elsif ( $type eq "autobuild" ) {
+            next unless ( $all || $href->{'status'} );
+            # name, version, status, description
+            printf "%-32s ", $href->{'name'};
+            unless ( $quiet ) {
+                printf "%-3s %-3s %s",
+                    $href->{'version'}, $href->{'status'},
                         (defined $href->{'description'}) ?
                             $href->{'description'} : "";
             }
@@ -332,15 +348,12 @@ sub add
     $type = lc $type;
     &check_type( $type );
 
-    if ( $type eq "hardware" ) {
-        $status = &add_hardware( @_ );
-    } elsif ( $type eq "module" ) {
-        $status = &add_module( @_ );
-    } elsif ( $type eq "profile" ) {
-        $status = &add_profile( @_ );
-    } elsif ( $type eq "tftp" ) {
-        $status = &add_tftp( @_ );
-    } else {
+    if    ( $type eq "hardware"  ) { $status = &add_hardware( @_ );  }
+    elsif ( $type eq "module"    ) { $status = &add_module( @_ );    }
+    elsif ( $type eq "profile"   ) { $status = &add_profile( @_ );   }
+    elsif ( $type eq "autobuild" ) { $status = &add_autobuild( @_ ); }
+    elsif ( $type eq "tftp"      ) { $status = &add_tftp( @_ );      }
+    else {
         # should be redundant with &check_type above
         $LASTERROR = "Invalid <type> '$type' passed for add.\n";
         return 1;
@@ -768,6 +781,140 @@ sub add_profile
     return 0;
 }
 
+=head2 add autobuild <options and args>
+
+Where <options and args> are
+
+    --name id              Required unique id.
+    --enable | --noenable  Enable profile for use. [ default enable ]
+    --description "note"   Quoted note describing this autobuild template.
+    --file <path/abuild>   File to import for this autobuild template.
+
+=cut
+
+sub add_autobuild
+{
+    my $type = "autobuild";
+    my $file = "";
+    my %entry =
+        (
+         'autobuildid'  => "",
+         'description'  => "",
+         'data'         => "",
+         'cert'         => "",
+         'status'       => "t",
+         'version'      => 1,
+         );
+
+    @ARGV = @_;
+    GetOptions
+        (
+         'name=s'         => \$entry{'autobuildid'},
+         'description=s'  => \$entry{'description'},
+         'file=s'         => \$file,
+         'enable!'        => \$entry{'status'},
+         'disable'        => sub { $entry{'status'} = 0 },
+         'cert=s'         => \&multiarg_handler,
+         );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    &help('add', $type) unless ( $entry{'autobuildid'} );
+
+    $entry{'cert'}     =
+        $multiarg{ 'cert'     } if (defined $multiarg{ 'cert'     });
+
+    my $findcount = &find( $type, $entry{'autobuildid'} );
+    unless ( defined $findcount ) {
+        $LASTERROR = "Failed in add $type.\n" . $LASTERROR;
+        return 1;
+    }
+    if ( $findcount ) {
+        $LASTERROR = "Entry already exists:  $type $entry{'autobuildid'}.\n";
+        return 1;
+    }
+
+    if ( $entry{'status'} ne "" ) {
+        if ( $entry{'status'} ) {
+            $entry{'status'} = "t";
+        } else {
+            $entry{'status'} = "f";
+        }
+    }
+
+    unless ( $file ne "" ) {
+        print "Need --file <file>.\n";
+        &help( "add", $type );
+    }
+
+    unless ( -f $file and -r $file ) {
+        $LASTERROR = "Unable to find or read file: $file.\n";
+        return 1;
+    }
+
+    open (FILE, "<$file") || die "unable to open $file: $!\n";
+    undef $/;
+    $entry{'data'}=<FILE>;      # slurp mode
+    $/ = "\n";
+    close FILE;
+
+    unless ( $entry{'cert'} eq "" ) {
+        print "checking certs: $entry{'cert'}\n" if $debug;
+        my $status = &check_distros ( $entry{'cert'} );
+        return $status if $status; # LASTERROR set in call
+    }
+
+    my $sql_cols = lc get_cols( $baTbls{ $type } );
+    $sql_cols =~ s/[ \t]*//g;
+    my @cols = split( /,/, $sql_cols );
+    my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+    my $sql = qq|INSERT INTO $baTbls{ $type }
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+
+    print $sql . "\n" if $debug;
+
+    my $sth = $dbh->prepare( $sql );
+
+    unless ( defined $sth ) {
+        $LASTERROR = "Unable to prepare 'add' $type statement\n" .
+            $dbh->errstr;
+        return 1;
+    }
+
+    my $paramidx = 0;
+    foreach my $col (@cols) {
+        $paramidx += 1;
+        $sth->bind_param( $paramidx, $entry{ $col } );
+    }
+
+    unless( $sth->execute( ) ) {
+        $LASTERROR = "Unable to execute 'add' $type statement\n" .
+            $sth->err;
+        return 1;
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    # foreign key references require that hardwareid exist before certs added
+
+    unless ( $entry{'cert'} eq "" ) {
+        my $status = &add_certs ( $type, $entry{'autobuildid'}, $entry{'cert'} );
+        if ($status) {
+            $LASTERROR .= "\nAdd succeeded but certification failed.\nUse 'modify $type' next time to try adding certification again.\n";
+            return $status;
+        }
+    }
+
+    return 0;
+}
+
 =head2 add tftp <options and args>
 
 Where <options and args> are
@@ -917,7 +1064,7 @@ sub add_tftp
 #   - do we really need the trigger to convert the 'update' to an 'add'?
 #   - highest version
 #   - enabled version
-#   - highest + 1 for new file content ( enabled by default - disable former )
+#   - highest + 1 for new file content ( not enabled by default - disable former )
 #   - specified version ( if enabled former enabled version must be disabled )
 
 sub update
@@ -928,15 +1075,12 @@ sub update
     $type = lc $type;
     &check_type( $type );
 
-    if ( $type eq "hardware" ) {
-        $status = &update_hardware( @_ );
-    } elsif ( $type eq "module" ) {
-        $status = &update_module( @_ );
-    } elsif ( $type eq "profile" ) {
-        $status = &update_profile( @_ );
-    } elsif ( $type eq "tftp" ) {
-        $status = &update_tftp( @_ );
-    } else {
+    if    ( $type eq "hardware"  ) { $status = &update_hardware( @_ );  }
+    elsif ( $type eq "module"    ) { $status = &update_module( @_ );    }
+    elsif ( $type eq "profile"   ) { $status = &update_profile( @_ );   }
+    elsif ( $type eq "autobuild" ) { $status = &update_autobuild( @_ ); }
+    elsif ( $type eq "tftp"      ) { $status = &update_tftp( @_ );      }
+    else {
         # should be redundant with &check_type above
         $LASTERROR = "Invalid <type> '$type' passed for update.\n";
         return 1;
@@ -1063,8 +1207,13 @@ sub update_hardware
               $entry{'rootdisk'} eq "" and
               $entry{'rootpart'} eq ""
              ) {
-        $LASTERROR = "Need param(s) or specified --version for update.\n";
-        return 1;
+        if ( defined $enabled_href && $enabled_href->{version} != 0) {
+            print "working with enabled by default\n" if $debug;
+            $entry{'version'} = $enabled_href->{version};
+        } else {
+            $LASTERROR = "Need param(s) or specified --version for update.\n";
+            return 1;
+        }
     }
 
     # finished processing command line
@@ -1246,7 +1395,7 @@ sub update_module
         (
          'name=s'         => \$entry{'moduleid'},
          'description=s'  => \$entry{'description'},
-#         'interpreter=s'  => \$entry{'interpreter'},
+         #         'interpreter=s'  => \$entry{'interpreter'},
          'file=s'         => \$file,
          'enable!'        => \$entry{'status'},
          'disable'        => sub { $entry{'status'} = 0 },
@@ -1306,8 +1455,13 @@ sub update_module
             return 1;
         }
     } elsif ( $file eq "" ) {
-        $LASTERROR = "Need --file <file> or specified --version for update.\n";
-        return 1;
+        if ( defined $enabled_href && $enabled_href->{version} != 0) {
+            print "working with enabled by default\n" if $debug;
+            $entry{'version'} = $enabled_href->{version};
+        } else {
+            $LASTERROR = "Need --file <file> or specified --version for update.\n";
+            return 1;
+        }
     } elsif ( ! ( -f $file and -r $file ) ) {
         $LASTERROR = "Unable to find or read: $file.\n";
         return 1;
@@ -1544,8 +1698,13 @@ sub update_profile
             return 1;
         }
     } elsif ( $file eq "" ) {
-        $LASTERROR = "Need --file <file> or specified --version for update.\n";
-        return 1;
+        if ( defined $enabled_href && $enabled_href->{version} != 0) {
+            print "working with enabled by default\n" if $debug;
+            $entry{'version'} = $enabled_href->{version};
+        } else {
+            $LASTERROR = "Need --file <file> or specified --version for update.\n";
+            return 1;
+        }
     } elsif ( ! ( -f $file and -r $file ) ) {
         $LASTERROR = "Unable to find or read: $file.\n";
         return 1;
@@ -1672,6 +1831,245 @@ sub update_profile
     return 0;
 }
 
+=head2 update autobuild <options and args>
+
+Where <options and args> are
+
+    --name id              Required unique id.
+    --enable | --noenable  Enable module for use. [ no default ]
+    --description "note"   Quoted note describing this autobuild template.
+
+you may only specify one of the following
+
+    --file <path/abuild>   Create a new version with this content.
+or
+    --version <version>    Modify parameters of an existing version.
+
+=cut
+
+sub update_autobuild
+{
+    my $type = 'autobuild';
+    my $file = "";
+
+    my %entry =
+        (
+         'autobuildid' => "",
+         'description' => "",
+         'addcert'     => "",
+         'rmcert'      => "",
+         'data'        => "",
+         'status'      => "",
+         'version'     => 0,
+         );
+
+    @ARGV = @_;
+    GetOptions
+        (
+         'name=s'         => \$entry{'autobuildid'},
+         'description=s'  => \$entry{'description'},
+         'addcert=s'      => \&multiarg_handler,
+         'rmcert=s'       => \&multiarg_handler,
+         'enable!'        => \$entry{'status'},
+         'disable'        => sub { $entry{'status'} = 0 },
+         'file=s'         => \$file,
+         'version=i'      => \$entry{'version'},
+         );
+
+    if ( scalar @ARGV ) {
+        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    &help('update', $type) unless ( $entry{'autobuildid'} );
+
+    if ( $entry{'status'} ne "" ) {
+        print "enable or noenable passed: $entry{'status'}\n" if $debug;
+        if ( $entry{'status'} ) {
+            $entry{'status'} = "t";
+        } else {
+            $entry{'status'} = "f";
+        }
+    }
+
+    # fetch needed entries from db
+    my ( $version_href, $highest_href, $enabled_href ) =
+        &get_versions( $type, $entry{'autobuildid'}, $entry{'version'});
+
+    unless (defined $highest_href) {
+        unless ( $LASTERROR ) {
+            $LASTERROR =
+                "Unable to update $type, entry '$entry{'autobuildid'}' not found\n";
+        }
+        return 1;
+    }
+
+    # multiarg creates hash entry with a space seperated list of unique values
+
+    $entry{'addcert'} =
+        $multiarg{ 'addcert' } if (defined $multiarg{ 'addcert' });
+    $entry{'rmcert'}  =
+        $multiarg{ 'rmcert'  } if (defined $multiarg{ 'rmcert'  });
+
+    if ( $entry{'version'} != 0 ) {
+        if ( $file ) {
+            $LASTERROR = "Change of --file content for a version unsupported.\n";
+            return 1;
+        }
+        unless (defined $version_href) {
+            $LASTERROR = "Specified version was not found.\n";
+            return 1;
+        }
+    } elsif ( $file eq "" ) {
+        if ( defined $enabled_href && $enabled_href->{version} != 0) {
+            print "working with enabled by default\n" if $debug;
+            $entry{'version'} = $enabled_href->{version};
+        } else {
+            $LASTERROR = "Need --file <file> or specified --version for update.\n";
+            return 1;
+        }
+    } elsif ( ! ( -f $file and -r $file ) ) {
+        $LASTERROR = "Unable to find or read: $file.\n";
+        return 1;
+    } else {
+        open (FILE, "<$file") || die "unable to open $file: $!\n";
+        undef $/;
+        $entry{'data'}=<FILE>;  # slurp mode
+        $/ = "\n";
+        close FILE;
+    }
+
+    # finished processing command line
+
+    unless ( $entry{'addcert'} eq "" ) {
+        print "checking certs: $entry{'addcert'}\n" if $debug;
+        my $status = &check_distros ( $entry{'addcert'} );
+        return $status if $status; # LASTERROR set in call
+    }
+
+    unless ( $entry{'addcert'} eq "" ) {
+        my $status = &add_certs("autobuild", $entry{'autobuildid'}, $entry{'addcert'});
+        return $status if $status; # LASTERROR set in call
+    }
+
+    unless ( $entry{'rmcert'} eq "" ) {
+        my $status = &rm_certs("autobuild", $entry{'autobuildid'}, $entry{'rmcert'});
+        return $status if $status; # LASTERROR set in call
+    }
+
+    if ( $entry{'version'} != 0 ) {
+
+        # true UPDATE for specified version
+        # possibly two UPDATEs this 'status' changes to enable
+
+        if ( defined $enabled_href->{'version'} &&
+             $entry{'version'} != $enabled_href->{'version'} &&
+             $entry{'status'} eq "t" ) {
+
+            # disable enabled version - in preperation to enable specified version
+            return 1 if &change_status( $type, "f", $enabled_href );
+        }
+        if ( $entry{'status'} ne "" ) {
+            return 1 if &change_status( $type, $entry{'status'}, $version_href );
+        }
+
+        # the only other param to modify is description
+        # because we don't support intreperter now
+        # and data modification is not allowed.
+
+        if ( $entry{'description'} ne "" ) {
+            return 1
+                if &change_description( $type,
+                                        $entry{'description'},
+                                        $version_href );
+        }
+
+        # done with the genuine UPDATE of the version specified
+
+    } else {
+
+        # not UPDATE but instead INSERT a new version of <file> (highest ver + 1)
+        # if --enable passed then may need UPDATE to disable earlier entry
+
+        my $new_vers = $highest_href->{'version'} + 1;
+
+        return 1 if (&redundant_data($type, $entry{'autobuild'}, $entry{'data'}));
+
+        if ( defined $enabled_href->{'version'} &&
+             $entry{'status'} eq "t" ) {
+
+            # disable enabled version - in preperation to enable new version
+            return 1 if &change_status( $type, "f", $enabled_href );
+        }
+
+        # use information from enabled version if found
+        # and if not then highest version for all the fields
+        # not provided with the new version of this file
+
+        my $use_href;
+
+        if ( defined $enabled_href->{'version'} ) {
+            $use_href = $enabled_href;
+        } else {
+            $use_href = $highest_href;
+        }
+
+        while ( my ($key, $value) = each %entry ) {
+            # change only what was passed
+            if ( $value ) {
+                $use_href->{ $key } = $value;
+            }
+        }
+
+        # if not explicitly enabled we default to disabled
+        if ( $entry{'status'} ne "t" ) {
+            $use_href->{ 'status' } = "f";
+        }
+
+        # and assign the new version
+        $use_href->{'version'} = $new_vers;
+
+        # now add it
+
+        my $sql_cols = lc get_cols( $baTbls{ $type } );
+        $sql_cols =~ s/[ \t]*//g;
+        my @cols = split( /,/, $sql_cols );
+        my $sql_vals = "?," x scalar @cols; chop $sql_vals;
+
+        my $sql = qq|INSERT INTO $baTbls{ $type }
+                ( $sql_cols )
+                VALUES ( $sql_vals )
+                |;
+        print $sql . "\n" if $debug;
+
+        my $sth;
+        unless ( $sth = $dbh->prepare( $sql ) ) {
+            $LASTERROR = "Unable to prepare 'update' $type statement\n" .
+                $dbh->errstr;
+            return 1;
+        }
+
+        my $paramidx = 0;
+        foreach my $col (@cols) {
+            $paramidx += 1;
+            $sth->bind_param( $paramidx, $use_href->{ $col } );
+        }
+
+        # finished with last entry
+        unless( $sth->execute( ) ) {
+            $LASTERROR = "Unable to execute 'update' $type statement\n" .
+                $sth->err;
+            return 1;
+        }
+
+        $sth->finish;
+        undef $sth;
+
+    }
+
+    return 0;
+}
+
 =head2 update tftp <options and args>
 
 Where <options and args> are
@@ -1722,13 +2120,23 @@ sub update_tftp
 
     &help('update', $type) unless ( $entry{'name'} );
 
+    my $findcount = &find( $type, $entry{'name'} );
+    unless ( defined $findcount ) {
+        $LASTERROR = "Failed in update $type.\n" . $LASTERROR;
+        return 1;
+    }
+    unless ( $findcount ) {
+        $LASTERROR = "Entry not found for update: $type $entry{'name'}.\n";
+        return 1;
+    }
+
     # get the current description and enabled states to see if we need to change
     my $sql_cols = lc get_cols( $baTbls{ $type } );
     $sql_cols =~ s/[ \t]*//g;
 
     $sql = qq|SELECT $sql_cols
               FROM $baTbls{ $type }
-              WHERE name = ?
+              WHERE name = '$entry{'name'}'
               ORDER BY id
               |;
     print "$sql\n" if $debug;
@@ -1739,7 +2147,7 @@ sub update_tftp
         return 1;
     }
 
-    unless ( $sth->execute( $entry{'name'} ) ) {
+    unless ( $sth->execute(  ) ) {
         $LASTERROR = "Unable to execute 'update' $type query\n" .
             $sth->err;
         return 1;
@@ -1771,11 +2179,6 @@ sub update_tftp
         $entry_data .= &bytea_decode( $href->{'bin'} );
     }
 
-    unless ( $rowcount ) {
-        $LASTERROR = "Entry not found for update: $type $entry{'name'}.\n";
-        return 1;
-    }
-
     my $desc_needed = 0;
     my $stat_needed = 0;
 
@@ -1787,7 +2190,7 @@ sub update_tftp
     }
 
     if ( defined $entry{'description'} && $entry{'description'} ne "" ) {
-        if ( $save{'description'} ne $entry{'description'} ) {
+        if ( "$save{'description'}" ne "$entry{'description'}" ) {
             $save{'description'} = $entry{'description'};
             $desc_needed = 1;
         }
@@ -1862,7 +2265,7 @@ sub update_tftp
                  |;
         print $sql . "\n" if $debug;
 
-        unless ( $sth = $dbh->prepare( $sql ) ) {
+        unless ( $sth = $tftph->prepare( $sql ) ) {
             $LASTERROR = "Unable to prepare 'update' $type statement\n" .
                 $dbh->errstr;
             return 1;
@@ -1935,15 +2338,15 @@ sub update_tftp
 
 =head2 export E<lt>typeE<gt> <options and args>
 
-Where <type> may be module, profile, or tftp.  Not hardware.
+Where <type> may be module, profile, autobuild, or tftp.  Not hardware.
 
-For similar functionality with hardware type it is suggested to simply redirect the 'detail <type>' output. With these types there is no actual 'data' portion and no related '--file' argument used to add them.
+For similar functionality with hardware type it is suggested to simply redirect the 'detail <type>' output.  With hardware there is no related '--file' argument used to add or update it.
 
 Where <options and args> are
 
     --name <name>          Data of named entry used. [ default <file> ].
     --file <path/file>     Create this new flie with db data contents.
-    --version <ver>        Required specifier for module or profile types.
+    --version <ver>        Required for module, profile, or autobuild types.
 
 =cut
 
@@ -2010,6 +2413,11 @@ sub export
                   FROM $baTbls{ $type }
                   WHERE profileid = '| . $entry{'name'} . qq|'
                   AND version = '| . $entry{'version'} . qq|'|;
+    } elsif ( $type eq "autobuild" ) {
+        $sql = qq|SELECT data
+                  FROM $baTbls{ $type }
+                  WHERE autobuildid = '| . $entry{'name'} . qq|'
+                  AND version = '| . $entry{'version'} . qq|'|;
     } elsif ( $type eq "tftp" ) {
         $sql = qq|SELECT bin as data
                   FROM $baTbls{ $type }
@@ -2062,7 +2470,12 @@ Takes <type> and <name> as arguments.
 
 Fetch and display the details about the entry in the type database.
 
-Only the 'enabled' version is shown unless --all or --version specified. If option --all is used all module or profile versions are displayed.  Also, --version <ver> can be used to display on the desired version.
+Only the 'enabled' version is shown unless --all or --version specified.
+
+  --all            all module, profile, autobuild, hardware versions displayed.
+
+or
+  --version <ver>  show specified version (by default show enabled version).
 
 =cut
 
@@ -2074,7 +2487,11 @@ sub detail
     my $version = 0;
 
     @ARGV=@_;
-    if ( ( $type eq "module" ) || ( $type eq "profile" ) || ( $type eq "hardware" ) ) {
+    if ( ( $type eq "module" )    ||
+         ( $type eq "profile" )   ||
+         ( $type eq "autobuild" ) ||
+         ( $type eq "hardware" )
+        ) {
         GetOptions(
                    'version=i'      => \$version,
                    );
@@ -2128,6 +2545,14 @@ sub detail
     } elsif ( $type eq "profile" ) {
         $sql .= "WHERE profileid = ?";
         $sql .= " AND version = $version" if ( $version );
+    } elsif ( $type eq "autobuild" ) {
+        $sql .= "WHERE autobuildid = ?";
+        $sql .= " AND version = $version" if ( $version );
+
+        # $sql_cols = lc get_cols( $baTbls{ 'abcert' } );
+        $sql_cert = qq|SELECT distroid
+                       FROM $baTbls{ 'abcert' }
+                       WHERE autobuildid = '| . $name . qq|'|;
     } elsif ( $type eq "tftp" ) {
         $sql .= "WHERE name = ?";
         $sql .= " ORDER BY id";
@@ -2139,6 +2564,10 @@ sub detail
 
         $db2use = $tftph;
     }
+
+    print $sql      . "\n" if $debug;
+    print $sql_cert . "\n" if $debug;
+    print $sql_man  . "\n" if $debug;
 
     my $sth;
     unless ( $sth = $db2use->prepare( $sql ) ) {
@@ -2158,27 +2587,55 @@ sub detail
 
     while ( $href = $sth->fetchrow_hashref( ) ) {
         $rowcount += 1;
-        if ( $type eq "module" ) {
+        if ( $type eq "hardware" ) {
             if ( $all ||
                  $href->{'status'} ||
                  $href->{'version'} == $version ) {
                 print "# ba #####\n" if $all;
                 unless ( $nolabels ) {
-                    print  "# ba Baracus Informational Header ('#ba ' prefix) - begin \n";
-                    printf "# ba module: %s\n",      $href->{'moduleid'};
-                    printf "# ba description: %s\n", $href->{'description'};
-                    #printf "# ba interpreter: %s\n", $href->{'interpreter'};
-                    printf "# ba enabled: %s\n",     $href->{'status'}
+                    print  "# ba BEGIN  Baracus Informational Header  BEGIN\n";
+                    printf "# ba hardware=%s\n",    $href->{'hardwareid'};
+                    printf "# ba description=%s\n", $href->{'description'};
+                    printf "# ba enabled=%s\n",     $href->{'status'}
                         if ( $all || $version );
-                    printf "# ba version: %s\n",     $href->{'version'};
-                    print  "# ba\n";
+                    printf "# ba version=%s\n",     $href->{'version'};
+                }
+                my $hwcert = "";
+                my $certs = $db2use->selectall_arrayref( $sql_cert, { slice => {} } );
+                if ( defined $certs ) {
+                    foreach my $cert ( @{$certs} ) {
+                        $hwcert .= "," if ( $hwcert ne "" );
+                        $hwcert .= @{$cert}[0];
+                    }
+                    printf "# ba cert=%s\n", $hwcert if ( defined $hwcert );
+                    print  "# ba END    Baracus Informational Header    END\n";
+                }
+                printf "bootArgs=%s\n",     $href->{'bootargs'};
+                printf "rootDisk=%s\n",     $href->{'rootdisk'};
+                printf "rootPart=%s\n",     $href->{'rootpart'};
+                printf "hwdriver=%s\n",     $href->{'hwdriver'};
+                $printcount += 1;
+            }
+        } elsif ( $type eq "module" ) {
+            if ( $all ||
+                 $href->{'status'} ||
+                 $href->{'version'} == $version ) {
+                print "# ba #####\n" if $all;
+                unless ( $nolabels ) {
+                    print  "# ba BEGIN  Baracus Informational Header  BEGIN\n";
+                    printf "# ba module=%s\n",      $href->{'moduleid'};
+                    printf "# ba description=%s\n", $href->{'description'};
+                    #printf "# ba interpreter=%s\n", $href->{'interpreter'};
+                    printf "# ba enabled=%s\n",     $href->{'status'}
+                        if ( $all || $version );
+                    printf "# ba version=%s\n",     $href->{'version'};
                 }
 
                 my $modcert = "";
                 my $certs = $db2use->selectall_arrayref( $sql_cert, { slice => {} } );
                 if ( defined $certs ) {
                     foreach my $cert ( @{$certs} ) {
-                        $modcert .= ":" if ( $modcert ne "" );
+                        $modcert .= "," if ( $modcert ne "" );
                         $modcert .= @{$cert}[0];
                     }
                 }
@@ -2195,62 +2652,60 @@ sub detail
                 }
                 unless ( $nolabels ) {
                     printf "# ba mandatory=%s\n", $modman if ( defined $modman );
-                    print  "# ba Baracus Informational Header - end\n";
+                    print  "# ba END    Baracus Informational Header    END\n";
                 }
                 print  $href->{'data'};
                 $printcount += 1;
             }
-        }
-        if ( $type eq "profile" ) {
+        } elsif ( $type eq "profile" ) {
             if ( $all ||
                  $href->{'status'} ||
                  $href->{'version'} == $version ) {
                 print "# ba #####\n" if $all;
                 unless ( $nolabels ) {
-                    print  "# ba Baracus Informational Header ('#ba ' prefix) - begin\n";
-                    printf "# ba profile: %s\n",     $href->{'profileid'};
-                    printf "# ba description: %s\n", $href->{'description'};
-                    printf "# ba enabled: %s\n",     $href->{'status'}
+                    print  "# ba BEGIN  Baracus Informational Header  BEGIN\n";
+                    printf "# ba profile=%s\n",     $href->{'profileid'};
+                    printf "# ba description=%s\n", $href->{'description'};
+                    printf "# ba enabled=%s\n",     $href->{'status'}
                         if ( $all || $version );
-                    printf "# ba version: %s\n",     $href->{'version'};
-                    print  "# ba Baracus Informational Header - end\n";
+                    printf "# ba version=%s\n",     $href->{'version'};
+                    print  "# ba END    Baracus Informational Header    END\n";
                 }
                 print  $href->{'data'};
                 $printcount += 1;
             }
-        }
-        if ( $type eq "hardware" ) {
+        } elsif ( $type eq "autobuild" ) {
             if ( $all ||
                  $href->{'status'} ||
                  $href->{'version'} == $version ) {
                 print "# ba #####\n" if $all;
                 unless ( $nolabels ) {
+                    print  "# ba BEGIN  Baracus Informational Header  BEGIN\n";
                     print  "# ba Baracus Informational Header ('#ba ' prefix) - begin\n";
-                    printf "# ba hardware: %s\n",    $href->{'hardwareid'};
-                    printf "# ba description: %s\n", $href->{'description'};
-                    printf "# ba enabled: %s\n",     $href->{'status'}
+                    printf "# ba autobuild=%s\n",   $href->{'autobuildid'};
+                    printf "# ba description=%s\n", $href->{'description'};
+                    printf "# ba enabled=%s\n",     $href->{'status'}
                         if ( $all || $version );
-                    printf "# ba version: %s\n",     $href->{'version'};
-                    print  "# ba Baracus Informational Header - end\n";
+                    printf "# ba version=%s\n",     $href->{'version'};
                 }
-                printf "bootArgs=%s\n",     $href->{'bootargs'};
-                printf "rootDisk=%s\n",     $href->{'rootdisk'};
-                printf "rootPart=%s\n",     $href->{'rootpart'};
-                printf "hwdriver=%s\n",     $href->{'hwdriver'};
-                $printcount += 1;
 
-                my $hwcert = "";
+                my $abcert = "";
                 my $certs = $db2use->selectall_arrayref( $sql_cert, { slice => {} } );
                 if ( defined $certs ) {
                     foreach my $cert ( @{$certs} ) {
-                        $hwcert .= ":" if ( $hwcert ne "" );
-                        $hwcert .= @{$cert}[0];
+                        $abcert .= "," if ( $abcert ne "" );
+                        $abcert .= @{$cert}[0];
                     }
-                    printf "hwcert=%s\n", $hwcert if ( defined $hwcert );
                 }
+                unless ( $nolabels ) {
+                    printf "# ba cert=%s\n", $abcert if ( defined $abcert );
+                    print  "# ba END    Baracus Informational Header    END\n";
+                }
+
+                print  $href->{'data'};
+                $printcount += 1;
             }
-        }
-        if ( $type eq "tftp" ) {
+        } elsif ( $type eq "tftp" ) {
             # because tftp file data is stored in chunks
             # need to collect the chunks before output
             if ( $tftpname ne $name ) {
@@ -2258,17 +2713,16 @@ sub detail
                 # first time for 'name' encountered - get chunks
                 my $chunks = $db2use->selectall_arrayref($sql_chunks,{slice=>{}});
                 if ( defined $chunks and ( $all or $href->{'enabled'} ) ) {
-
                     unless ( $nolabels ) {
-                        print  "# ba Baracus Informational Header ('#ba ' prefix) - begin\n";
-                        printf "# ba name: %s\n",     $href->{'name'};
-                        printf "# ba description: %s\n", $href->{'description'};
-                        printf "# ba enabled: %s\n",     $href->{'enabled'};
-                        printf "# ba inserted: %s\n",    $href->{'insertion'}
+                        print  "# ba BEGIN Baracus Informational Header BEGIN\n";
+                        printf "# ba name=%s\n",     $href->{'name'};
+                        printf "# ba description=%s\n", $href->{'description'};
+                        printf "# ba enabled=%s\n",     $href->{'enabled'};
+                        printf "# ba inserted=%s\n",    $href->{'insertion'}
                             if $verbose;
-                        printf "# ba modified: %s\n",    $href->{'change'}
+                        printf "# ba modified=%s\n",    $href->{'change'}
                             if ( defined $href->{'change'} && $verbose );
-                        print  "# ba Baracus Informational Header - end\n";
+                        print  "# ba END    Baracus Informational Header    END\n";
                     }
                     foreach my $chunk ( @{$chunks} ) {
                         $tftpdata .= &bytea_decode( @{$chunk}[0] );
@@ -2328,12 +2782,19 @@ sub remove
     $name =~ s|.*/||;           # only the short name for the lookup
 
     @ARGV = @_;
-    if ( ( $type eq "module" ) || ( $type eq "profile" ) || ( $type eq "hardware" ) ) {
+    if ( ( $type eq "hardware"  ) ||
+         ( $type eq "module"    ) ||
+         ( $type eq "profile"   ) ||
+         ( $type eq "autobuild" )
+        ) {
         GetOptions(
                    'version=i' => \$version,
                    );
     }
-    if ( ( $type eq "module" ) || ( $type eq "hardware" ) ) {
+    if ( ( $type eq "hardware"  ) ||
+         ( $type eq "module"    ) ||
+         ( $type eq "autobuild" )
+        ) {
         GetOptions(
                    'optcert=s' => \&multiarg_handler,
                    'rmcert=s'  => \&multiarg_handler,
@@ -2370,7 +2831,11 @@ sub remove
     # and if only removing a single version we don't remove certs....
 
     if ( $type eq "hardware" ) {
-        @sql = ( qq|DELETE FROM $baTbls{ $type } WHERE hardwareid = ?|, qq|DELETE FROM $baTbls{ hwcert } WHERE hardwareid = ?| );
+        @sql =
+            (
+             qq|DELETE FROM $baTbls{ $type  } WHERE hardwareid = ?|,
+             qq|DELETE FROM $baTbls{ hwcert } WHERE hardwareid = ?|
+             );
     } elsif ( $type eq "module" ) {
         my $check = &check_mandatory( $name );
         unless( defined $check ) {
@@ -2382,11 +2847,27 @@ sub remove
             $LASTERROR = "Cannot remove module marked as mandatory\n";
             return 1;
         }
-        @sql = ( qq|DELETE FROM $baTbls{ $type } WHERE moduleid = ?|, qq|DELETE FROM $baTbls{ modcert } WHERE moduleid = ?| );
+        @sql =
+            (
+             qq|DELETE FROM $baTbls{ $type   } WHERE moduleid = ?|,
+             qq|DELETE FROM $baTbls{ modcert } WHERE moduleid = ?|
+             );
     } elsif ( $type eq "profile" ) {
-        @sql = ( qq|DELETE FROM $baTbls{ $type } WHERE profileid = ?| );
+        @sql =
+            (
+             qq|DELETE FROM $baTbls{ $type } WHERE profileid = ?|
+             );
+    } elsif ( $type eq "autobuild" ) {
+        @sql =
+            (
+             qq|DELETE FROM $baTbls{ $type  } WHERE autobuildid = ?|,
+             qq|DELETE FROM $baTbls{ abcert } WHERE autobuildid = ?|
+             );
     } elsif ( $type eq "tftp" ) {
-        @sql = ( qq|DELETE FROM $baTbls{ $type } WHERE name = ?| );
+        @sql =
+            (
+             qq|DELETE FROM $baTbls{ $type } WHERE name = ?|
+             );
         $db2use = $tftph;
     }
 
@@ -2443,7 +2924,7 @@ sub check_command
 sub check_type
 {
     my $type = shift;
-    my $type_list = "hardware, module, profile, tftp";
+    my $type_list = "hardware, module, profile, autobuild, tftp";
 
     return $type_list if ( $type eq "all" );
 
@@ -2477,30 +2958,35 @@ sub find
     if ( $type eq "hardware" ) {
         $sql = qq|SELECT hardwareid as name
                   FROM $baTbls{ $type }
-                  WHERE hardwareid = ?
+                  WHERE hardwareid = '$name'
                  |;
     } elsif ( $type eq "module" ) {
         $sql = qq|SELECT moduleid as name
                   FROM $baTbls{ $type }
-                  WHERE moduleid = ?
+                  WHERE moduleid = '$name'
                  |;
     } elsif ( $type eq "profile" ) {
         $sql = qq|SELECT profileid as name
                   FROM $baTbls{ $type }
-                  WHERE profileid = ?
+                  WHERE profileid = '$name'
                  |;
+    } elsif ( $type eq "autobuild" ) {
+        $sql = qq|SELECT autobuildid as name
+                  FROM $baTbls{ $type }
+                  WHERE autobuildid = '$name'
+                 |;
+    } elsif ( $type eq "tftp" ) {
+        $sql = qq|SELECT name, id
+                  FROM $baTbls{ $type }
+                  WHERE name = '$name'
+                  ORDER BY id
+                 |;
+        $db2use = $tftph;
     } elsif ( $type eq "distro" ) {
         $sql = qq|SELECT distroid as name
                   FROM $baTbls{ $type }
-                  WHERE distroid = ?
+                  WHERE distroid = '$name'
                  |;
-    } elsif ( $type eq "tftp" ) {
-        $sql = qq|SELECT name, COUNT( id ) as count
-                  FROM $baTbls{ $type }
-                  WHERE name = ?
-                  GROUP BY name
-                 |;
-        $db2use = $tftph;
     }
     print $sql . "\n" if $debug;
 
@@ -2511,7 +2997,7 @@ sub find
         return undef;
     }
 
-    unless( $sth->execute( $name ) ) {
+    unless( $sth->execute( ) ) {
         $LASTERROR = "Unable to execute 'find' $type query" . $sth->err;
         return undef;
     }
@@ -2519,6 +3005,7 @@ sub find
     my $rowcount = 0;
     while ( $sth->fetchrow_hashref() ) {
         $rowcount += 1;
+        print "rowcount +1 $rowcount\n" if $debug;
     }
 
     $sth->finish;
@@ -2552,6 +3039,12 @@ sub list_start
                   FROM $baTbls{ $type }
                   WHERE profileid LIKE ? ORDER BY profileid, version
                  |;
+    } elsif ( $type eq "autobuild" ) {
+        $sql = qq|SELECT autobuildid as name, description, version, status
+                  FROM $baTbls{ $type }
+                  WHERE autobuildid LIKE ?
+                  ORDER BY autobuildid, version
+                 |;
     } elsif ( $type eq "tftp" ) {
         $sql = qq|SELECT name, description, COUNT( id ) as count, enabled
                   FROM $baTbls{ $type }
@@ -2562,17 +3055,12 @@ sub list_start
         $db2use = $tftph;
     }
 
+    print $sql . "\n" if $debug;
+
     my $sth;
     unless ( $sth = $db2use->prepare( $sql ) ) {
         $LASTERROR = "Unable to prepare 'list' query\n" . $db2use->errstr;
         return undef;
-    }
-
-    if (defined $name) {
-        $name =~ s|.*/||;       # only the short name for the lookup
-        $name = "%" . $name . "%";
-    } else {
-        $name = "%";
     }
 
     unless( $sth->execute( $name ) ) {
@@ -2620,14 +3108,12 @@ sub get_versions
     my $sql_cols = lc get_cols( $baTbls{ $type } );
     my $sql = qq| SELECT $sql_cols FROM $baTbls{ $type } |;
 
-    if ( $type eq "module" ) {
-        $sql .= "WHERE moduleid = ?";
-    } elsif ( $type eq "profile" ) {
-        $sql .= "WHERE profileid = ?";
-    } elsif ( $type eq "hardware" ) {
-        $sql .= "WHERE hardwareid = ?";
-    } else {
-        print "Expected 'module', 'profile' or 'hardware' for type.\n";
+    if    ( $type eq "hardware"  ) { $sql .= "WHERE hardwareid = ?";  }
+    elsif ( $type eq "module"    ) { $sql .= "WHERE moduleid = ?";    }
+    elsif ( $type eq "profile"   ) { $sql .= "WHERE profileid = ?";   }
+    elsif ( $type eq "autobuild" ) { $sql .= "WHERE autobuildid = ?"; }
+    else {
+        print "Expected 'module', 'profile', 'autobuild' or 'hardware' for type.\n";
         exit 1;
     }
 
@@ -2675,6 +3161,9 @@ sub add_certs
         $certtype = "modcert";
         $entry{ moduleid } = $id;
         $entry{ mandatory } = 'f';
+    } elsif ( $type eq "autobuild") {
+        $certtype = "abcert";
+        $entry{ autobuildid } = $id;
     }
 
     my $sql_cols = lc get_cols( $baTbls{ $certtype } );
@@ -2742,7 +3231,7 @@ sub man_certs
         return 1;
     }
 
-    &update_certs ( $type, $id, $cert, "mancert" );
+    &optman_certs ( $type, $id, $cert, "mancert" );
 }
 
 sub opt_certs
@@ -2751,10 +3240,10 @@ sub opt_certs
     my $id     = shift;
     my $cert   = shift;
 
-    &update_certs ( $type, $id, $cert, "optcert" );
+    &optman_certs ( $type, $id, $cert, "optcert" );
 }
 
-sub update_certs
+sub optman_certs
 {
     my $type   = shift;
     my $id     = shift;
@@ -2848,11 +3337,9 @@ sub rm_certs
 
     my $cert_href = &check_cert( $type, $id );
 
-    if ( $type eq "hardware") {
-        $certtype = "hwcert";
-    } elsif ( $type eq "module" ) {
-        $certtype = "modcert";
-    }
+    if    ( $type eq "hardware"  ) { $certtype = "hwcert";  }
+    elsif ( $type eq "autobuild" ) { $certtype = "abcert";  }
+    elsif ( $type eq "module"    ) { $certtype = "modcert"; }
 
     my @cert_rm = split( /\s/, $cert );
 
@@ -2921,16 +3408,22 @@ sub check_enabled
     my $href;
 
     my $sql;
-    if ($type eq "module") {
+    if ($type eq "hardware") {
+        $sql = qq| SELECT status, version
+                   FROM $baTbls{ $type }
+                   WHERE hardwareid = '$id'
+                   AND version >= 1
+                 |;
+    } elsif ($type eq "module") {
         $sql = qq| SELECT status, version
                    FROM $baTbls{ $type }
                    WHERE moduleid = '$id'
                    AND version >= 1
                  |;
-    } elsif ($type eq "hardware") {
+    } elsif ($type eq "autobuild") {
         $sql = qq| SELECT status, version
                    FROM $baTbls{ $type }
-                   WHERE hardwareid = '$id'
+                   WHERE autobuildid = '$id'
                    AND version >= 1
                  |;
     }
@@ -2961,12 +3454,12 @@ sub check_enabled
     return 0;
 }
 
-    # checks for presence of mandatory module
-    #
-    # return value
-    #   undef on failure
-    #   zero if no mandatory certification was found
-    #   array ref of distroid for mandatory certs found
+# checks for presence of mandatory module
+#
+# return value
+#   undef on failure
+#   zero if no mandatory certification was found
+#   array ref of distroid for mandatory certs found
 
 sub check_mandatory
 {
@@ -3059,15 +3552,21 @@ sub check_cert
 
     if ( $type eq "hardware" ) {
         $sql = qq| SELECT distroid
-                      FROM $baTbls{ "hwcert" }
-                      WHERE hardwareid = '$id'
-                    |;
+                   FROM $baTbls{ "hwcert" }
+                   WHERE hardwareid = '$id'
+                 |;
         #                      AND distroid = '$cert_in'  # get 'em all
     } elsif ( $type eq "module" ) {
         $sql = qq| SELECT distroid, mandatory
-                      FROM $baTbls{ modcert }
-                      WHERE moduleid = '$id'
-                    |;
+                   FROM $baTbls{ modcert }
+                   WHERE moduleid = '$id'
+                 |;
+        #                      AND distroid = '$cert_in'  # get 'em all
+    } elsif ( $type eq "autobuild" ) {
+        $sql = qq| SELECT distroid
+                   FROM $baTbls{ abcert }
+                   WHERE autobuildid = '$id'
+                 |;
         #                      AND distroid = '$cert_in'  # get 'em all
     }
 
@@ -3116,14 +3615,12 @@ sub redundant_data
     my $sql_cols = lc get_cols( $baTbls{ $type } );
     my $sql = qq| SELECT $sql_cols FROM $baTbls{ $type } |;
 
-    if ( $type eq "module" ) {
-        $sql .= "WHERE moduleid = ?";
-    } elsif ( $type eq "profile" ) {
-        $sql .= "WHERE profileid = ?";
-    } elsif ( $type eq "hardware" ) {
-        $sql .= "WHERE hardwareid = ?";
-    } else {
-        print "Expected 'module', 'profile' or 'hardware'\n";
+    if    ( $type eq "hardware"  ) { $sql .= "WHERE hardwareid = ?";  }
+    elsif ( $type eq "module"    ) { $sql .= "WHERE moduleid = ?";    }
+    elsif ( $type eq "profile"   ) { $sql .= "WHERE profileid = ?";   }
+    elsif ( $type eq "autobuild" ) { $sql .= "WHERE autobuildid = ?"; }
+    else {
+        print "Expected 'module', 'profile', 'autobuild' or 'hardware'\n";
         exit 1;
     }
 
@@ -3184,7 +3681,9 @@ sub change_status
 
     my $id;
 
-    if ( $type eq "module" ) {
+    if ( $type eq "hardware" ) {
+        $id = 'hardwareid';
+    } elsif ( $type eq "module" ) {
         $id = 'moduleid';
         if ( $stat eq "f") {
             ## Verify that the module is not mandatory
@@ -3202,10 +3701,10 @@ sub change_status
         }
     } elsif ( $type eq "profile" ) {
         $id = 'profileid';
-    } elsif ( $type eq "hardware" ) {
-        $id = 'hardwareid';
+    } elsif ( $type eq "autobuild" ) {
+        $id = 'autobuildid';
     } else {
-        print "Expected 'module', 'profile' or 'hardware'\n";
+        print "Expected 'module', 'profile', 'autobuild' or 'hardware'\n";
         exit 1;
     }
 
@@ -3247,13 +3746,11 @@ sub change_description
 
     my $id;
 
-    if ( $type eq "module" ) {
-        $id = 'moduleid';
-    } elsif ( $type eq "profile" ) {
-        $id = 'profileid';
-    } elsif ( $type eq "hardware" ) {
-        $id = 'hardwareid';
-    } else {
+    if    ( $type eq "hardware"  ) { $id = 'hardwareid';  }
+    elsif ( $type eq "module"    ) { $id = 'moduleid';    }
+    elsif ( $type eq "profile"   ) { $id = 'profileid';   }
+    elsif ( $type eq "autobuild" ) { $id = 'autobuildid'; }
+    else {
         print "Expected 'module', 'profile' or 'hardware'\n";
         exit 1;
     }

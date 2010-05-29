@@ -48,7 +48,7 @@ __ADDON__
     <loader_type>grub</loader_type>
     <sections config:type="list">
       <section>
-        <append>resume=__ROOTPART__2 splash=silent showopts</append>
+        <append>__BOOTARGS__ resume=__ROOTPART__2 splash=silent showopts</append>
         <image>/boot/vmlinuz-2.6.16.60-0.21-default</image>
         <initial>1</initial>
         <initrd>/boot/initrd-2.6.16.60-0.21-default</initrd>
@@ -384,11 +384,11 @@ nameserver __DNS1__]]></file_contents>
     <version>1.0</version>
   </iscsi-client>
   <keyboard>
-    <keymap>english-us</keymap>
+    <keymap>__KEYMAP__</keymap>
   </keyboard>
   <language>
-    <language>en_US</language>
-    <languages></languages>
+    <language>__LANG__</language>
+    <languages>__LANGS__</languages>
   </language>
   <ldap>
     <base_config_dn></base_config_dn>
@@ -450,6 +450,8 @@ nameserver __DNS1__]]></file_contents>
     </routing>
   </networking>
   <scripts>
+    <chroot-scripts config:type="list">
+    </chroot-scripts>
     <post-scripts config:type="list">
     </post-scripts>
     <init-scripts config:type="list">

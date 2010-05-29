@@ -28,8 +28,8 @@ echo Creating BCD...
 cd %PEPath%\mount\Windows\System32
 bcdedit -createstore %BCDStore%
 bcdedit -store %BCDStore% -create {ramdiskoptions} /d "Ramdisk options"
-bcdedit -store %BCDStore% -set {ramdiskoptions} ramdisksdidevice  boot
-bcdedit -store %BCDStore% -set {ramdiskoptions} ramdisksdipath  \boot\boot.sdi
+bcdedit -store %BCDStore% -set {ramdiskoptions} ramdisksdidevice  Boot
+bcdedit -store %BCDStore% -set {ramdiskoptions} ramdisksdipath  \Boot\boot.sdi
 
 for /f "Tokens=3" %%i in ('bcdedit /store %BCDStore% /create /d "Windows Install Image" /application osloader') do set GUID=%%i
 

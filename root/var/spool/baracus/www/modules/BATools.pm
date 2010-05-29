@@ -144,6 +144,63 @@ sub getHardwareSelectionList
 }
 
 ###########################################################################################
+#  Generate autobuild selection list for form based on baconfig <cmd> autobuild tools
+###########################################################################################
+sub getAutobuildSelectionList
+{
+	my $disabled;
+	my $autobuild = $_[0];
+	my $disable = $_[1];
+	my $script = $_[2];
+
+	if( $disable)
+	{
+		$disabled = "disabled";
+	}
+	else
+	{
+		$disabled = "";
+	}
+
+	$retString = "<select name='autobuild' enabled $script>\n";
+
+	@autobuilds = BAdb::getAutobuildList();
+
+	foreach $val (@autobuilds)
+	{
+		if( length($val) > 1)
+		{
+			# If parameter was passed in make that hwtype selected and disable, otherwise select kvm
+			if( length($_[0]) > 1)
+			{
+				# FIX: This could potentially result in multiple selected items if they start with the same prefix 
+				#		(example: kvm1, and kvm2 are in autobuild list and kvm is passed)
+				if( $autobuild =~ m/^$val/)
+				{
+					$isSelected = "selected";
+					$retString =~ s/enabled/$disabled/;	
+				}
+				else
+				{
+					$isSelected = "no";
+				}
+			}
+			else
+			{
+					$isSelected = "no2";
+			}
+
+			$option = "<option value='$val' $isSelected>$val</option>\n";
+			$retString = $retString.$option;
+		}
+	}
+
+	$retString = $retString."</select><br>\n";
+
+	return $retString;
+}
+
+###########################################################################################
 #  Generate storage selection list for form based on bastorage
 #
 ###########################################################################################

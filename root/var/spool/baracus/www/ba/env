@@ -255,7 +255,65 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
             $output .= "$env => $ENV{ $env }\n";
         }
     }
-    elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/boot\?.*\s*$| ) {
+    elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/chain.*\s*$| ) {
+
+        my $default = qq|#!gpxe
+set use-cached 1
+dhcp net0
+ifstat
+set net0/210:string http://$baVar{serverip}/ba/
+set net0/209:string boot?mac=\${mac}&ip=\${ip}
+chain http://$baVar{serverip}/ba/pxelinux.0?mac=\${mac}
+|;
+
+        $input->{mac} = &check_mac($input->{mac});
+        $macref = &get_db_mac( $dbh, $input->{mac} );
+        $actref = &get_db_action( $dbh, $input->{mac} );
+        if ( not defined $macref or
+             not defined $actref
+            )
+        {
+            print STDERR "$input->{mac} - chain of unknown\n";
+            $output = $default;
+            print $cgi->header( -type => "text/plain",
+                                -content_length => length
+                                ($output)
+                               ), $output;
+            exit 0;
+        }
+
+        # found a mac and action entry - get the pxenext
+        $pxenext = $actref->{pxenext};
+
+        if ( $pxenext eq BA_ACTION_BUILD )
+        {
+            print STDERR "$input->{mac} - chain of build\n";
+            $distref = &get_distro( $dbh, $actref );
+
+            if ( $distref->{os} =~ m/solaris/i ) {
+#                # my $iqn = "iqn.2010-01.lab.lsg:gfs-b9";
+                $output = qq|#!gpxe
+chain tftp://$baVar{serverip}/pxegrub
+|;
+            } elsif ( $distref->{os} =~ m/win/i ) {
+
+                my $iqn = "iqn.2010-01.lab.lsg:gfs-b9";
+                $output = qq|#!gpxe
+chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
+|;
+#dhcp net0
+#set keep-san-nb 1
+#sanboot iscsi:151.155.230.116::::$iqn
+#chain http://$baVar{serverip}/ba/startrom.0?mac=$input->{mac}
+#|;
+            } else {
+                $output = $default;
+            }
+        } else {
+            print STDERR "$input->{mac} - chain of non-build $pxenext\n";
+            $output = $default;
+        }
+    } elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/boot\?.*\s*$| ) {
 
         ##
         ## PXE - DIRECT TO INVENTORY, LOCALBOOT, INSTALL, WIPE
@@ -546,13 +604,18 @@ chain pxegrub
 
 # the mac isn't required here for operation but it identifies the requesting device 
 
-                $output = qq|DEFAULT label_$actref->{hostname}
-PROMPT 0
-TIMEOUT 0
-
-LABEL label_$actref->{hostname}
-    kernel tftp://$baVar{serverip}/startrom.0
+                $output = qq|#!gpxe
+chain http://$baVar{serverip}/baracus/startrom.0
 |;
+
+#                $output = qq|DEFAULT label_$actref->{hostname}
+#PROMPT 0
+#TIMEOUT 0
+#
+#LABEL label_$actref->{hostname}
+#    kernel tftp://$baVar{serverip}/startrom.0
+#|;
+
 #    kernel http://$baVar{serverip}/baracus/startrom.0
 #    kernel http://$baVar{serverip}/ba/startrom.0?mac=$input->{mac}
 #    kernel http://$baVar{serverip}/ba/linux?mac=$input->{mac}
@@ -621,7 +684,8 @@ n:\\setup.exe /unattend:X:\\Autounattend.xml
 |;
     }
 
-    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(linux|initrd|auto|startrom.0)\?.*\s*$} ) {
+    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(linux|initrd|auto|startrom.0|pxelinux.0)\?.*\s*$} )
+    {
 
         my $file = $1;
 
@@ -658,9 +722,8 @@ n:\\setup.exe /unattend:X:\\Autounattend.xml
             $file = $input->{mac};
             $file =~ s|:|-|g;
             $file = "02-" . $file;
-        } elsif ( $file eq "startrom.0" ) {
-	    ; # nada
-	} else {
+        } elsif ( $file =~ m{^(linux|initrd)} )
+        {
             $file = "$file.$actref->{distro}";
         }
 

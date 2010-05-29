@@ -60,6 +60,12 @@ sub getContent
 		$r = "Hardware Detail\n\n";
 		$r = $r.`$cmd`;
 	}
+	elsif( $a eq "autobuild")
+	{
+		$cmd = "sudo baconfig detail autobuild $v";
+		$r = "Autobuild Detail\n\n";
+		$r = $r.`$cmd`;
+	}
 	elsif( $a eq "distro")
 	{
 		$cmd = "sudo basource detail --distro $v";

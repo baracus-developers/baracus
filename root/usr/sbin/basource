@@ -293,6 +293,7 @@ sub remove() {
     my @addons;
     my $share;
     my $is_loopback = "";
+    my $ret = 0;
 
     @ARGV = @_;
 
@@ -345,15 +346,19 @@ sub remove() {
             print "Removing addon $addon\n";
             ($share, undef) = &get_distro_share( $opts, $addon );
             $is_loopback = &get_loopback( $opts, $share );
+            &remove_build_service( $opts, "", $addons);
             print "$share ... removing\n" if $opts->{verbose};
             if ( $is_loopback ) {
-                system("umount $share");
+                $ret = system("umount $share");
+                if ( $ret > 0 ) {
+                    $opts->{LASTERROR} = "loopback unmount failed\n";
+                    return 1;
+                }
                 rmdir($share);
             } else {
                 rmtree($share);
             }
         }
-        &remove_build_service( $opts, "", $addons);
         &source_register( $opts, $command, "", $addons);
     }
 
@@ -376,28 +381,36 @@ sub remove() {
         if ( scalar @addons and defined $sdk and $addons[0] eq $sdk ) {
             ($share,undef) = &get_distro_share( $opts, $sdk );
             $is_loopback = &get_loopback( $opts, $share );
+            &remove_build_service( $opts, "", $sdk);
             print "$share ... removing\n" if $opts->{verbose};
             if ( $is_loopback ) {
-                system("umount $share");
+                $ret =  system("umount $share");
+                if ( $ret > 0 ) {
+                    $opts->{LASTERROR} = "loopback unmount failed\n";
+                    return 1;
+                }
                 rmdir($share);
             } else {
                 rmtree($share);
             }
-            &remove_build_service( $opts, "", $sdk);
             &source_register( $opts, $command, "", $sdk);
         }
         ($share,undef) = &get_distro_share( $opts, $distro );
         $is_loopback = &get_loopback( $opts,  $share );
+        &remove_build_service( $opts, $distro, $addons);
         print "$share ... removing\n" if $opts->{verbose};
         if ( $is_loopback ) {
-            system("umount $share");
+            $ret = system("umount $share");
+            if ( $ret > 0 ) {
+                    $opts->{LASTERROR} = "loopback unmount failed\n";
+                    return 1;
+                }
             rmdir($share);
         } else {
             rmtree($share);
         }
 
         &remove_bootloader_files( $opts, $distro );
-        &remove_build_service( $opts, $distro, $addons);
         &source_register( $opts, $command, $distro, $addons);
     }
     return 0;
@@ -645,11 +658,11 @@ sub detail() {
 
     my $dbref = &get_db_source_entry( $opts, $distro );
     if ( defined $dbref and
-         defined $dbref->{status} and
-         $dbref->{status} != BA_ADMIN_REMOVED ) {
+         defined $dbref->{status} )
+    {
         $status = $baState{ $dbref->{status} };
     } else {
-        $status = $baState{ BA_ADMIN_REMOVED };
+        $status = $baState{ BA_NONE };
     }
 
     my $dh = &baxml_distro_gethash( $opts, $distro );
@@ -796,21 +809,28 @@ sub list() {
         my $dbref = &get_db_source_entry( $opts, $adistro );
         my $status;
 
-        if ( defined $dbref and
-             $dbref->{status} and
-             $dbref->{status} != BA_ADMIN_REMOVED ) {
 
-            printf "%-28s ", $adistro;
+        if ( defined $dbref and
+             defined $dbref->{status} )
+        {
             $status = $baState{ $dbref->{status} };
+        } else {
+            $status = $baState{ BA_NONE };
+        }
+
+        if ( ($status ne $baState{ BA_NONE }) and
+             ($status ne $baState{ BA_ADMIN_REMOVED })
+            )
+        {
+            printf "%-28s ", $adistro;
             unless ( $opts->{quiet} ) {
-                printf "%-8s %s", $status, $dbref->{description};
+                printf "%-8s %s", $status, $dh->{description};
             }
             print "\n";
         } elsif ( $opts->{all} ) {
             printf "%-28s ", $adistro;
-            $status = $baState{ BA_ADMIN_REMOVED };
             unless ( $opts->{quiet} ) {
-                printf "%-8s %s", $status, $dh->{description};
+                printf "%-8s %s", $status, $dbref->{description};
             }
             print "\n";
         }

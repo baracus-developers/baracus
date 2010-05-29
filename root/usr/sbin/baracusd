@@ -54,8 +54,9 @@ unless( $listener->open() ) {
         "\tchkconfig atftpd off\n\n",
         "Or disabling the xinetd based 'tftp' service:\n\n",
         "\tchkconfig tftp off\n\tservice xinetd restart\n\n";
-    die "Unable to open port for TFTP connections: ", $@, "\n",
+    print STDERR "Unable to open port for TFTP connections: ", $@, "\n",
         "please refer to $baDir{'logs'}/baracusd for details.\n";
+    exit 3;
 }
 
 print STDOUT "baracusd launched with uid: $>\n";
@@ -114,6 +115,18 @@ while (1) {
             # upcase MAC portion of pxeboot 01-<mac> file
             &upcasepxefilename( $request );
 
+
+        $SIG{CHLD} = 'IGNORE';  # so we don't create zombies
+
+        my $child = fork();
+
+        if ( $child ) {
+#            print "forked pid $child for $request->{'_REQUEST_'}{'FileName'}\n";
+            ;
+        }
+        elsif ( ! $child ) {
+            $sqlfsOBJ->clone_dhb_for_child();
+
             printf "Received %s peer %s file '%s'\n",
                 $OPCODES{$request->{'_REQUEST_'}{'OPCODE'}},
                     $request->{'_REQUEST_'}{'PeerAddr'},
@@ -134,6 +147,12 @@ while (1) {
                     print STDOUT "Disabled PXE peer $request->{'_REQUEST_'}{'PeerAddr'} check tftp entry no|enable flag\n";
                 }
             }
+            # exit the forked proc
+            exit 0;
+        }
+        else {
+            print "Trouble forking\n";
+        }
 #            &deliverPXE( $request, $status );
 #        }
     }

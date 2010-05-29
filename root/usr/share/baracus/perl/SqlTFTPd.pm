@@ -315,8 +315,8 @@ sub processRQ
 					else
 					{
 						# error negotiating options
-						$LASTERROR = "TFTP error 8: Option negotiation\n";
-						$self->sendERR(8);
+#						$LASTERROR = "TFTP error 8: Option negotiation\n";
+#						$self->sendERR(8);
 						return(undef);
 					}
 				}
@@ -377,8 +377,8 @@ sub processRQ
 						else
 						{
 							# error negotiating options
-							$LASTERROR = "TFTP error 8: Option negotiation\n";
-							$self->sendERR(8);
+#							$LASTERROR = "TFTP error 8: Option negotiation\n";
+#							$self->sendERR(8);
 							return(undef);
 						}
 					}
@@ -995,53 +995,53 @@ sub checkFILE
 
     return undef unless (defined $hash);        # no entry
 
-    if ( $self->{'_REQUEST_'}{'FileName'} =~ m|01-((([0-9a-fA-F]){2}-?){6})| ) {
-        # special logic for PXE boot files served up via TFTP for baracus
-
-        my $mac = $1;
-        $mac =~ s|-|:|g;
-
-        if ( $hash->{'enabled'} ) {
-            # found 01- entry and it is enabled
-            # make sure to remove any _not entry for this ip
-            if ( defined $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} } ) {
-                undef $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} } ;
-            }
-            # we will deilver - store the mac for verify build hook
-            $pxeips_yes->{ $self->{'_REQUEST_'}{'PeerAddr'} } = $mac;
-        }
-        else {
-            # found 01- entry and it is disabled
-            # make sure to remove any _yes entry for this ip
-            if ( defined $pxeips_yes->{ $self->{'_REQUEST_'}{'PeerAddr'} } ) {
-                undef $pxeips_yes->{ $self->{'_REQUEST_'}{'PeerAddr'} } ;
-            }
-            # will not deilver - store the mac for 'miss' on request for 'default'
-            $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} } = $mac;
-
-            $LASTERROR = "Disabled PXE peer " .
-                $self->{'_REQUEST_'}{'PeerAddr'} . " file '" .
-                    $self->{'_REQUEST_'}{'FileName'} . "'\n";
-            return undef;   # entry disabled
-        }
-    }
-    elsif ( $self->{'_REQUEST_'}{'FileName'} =~ m|/default| ) {
-        # special logic for PXE boot files served up via TFTP for baracus
-
-        # if we are serving up the default we need to make sure
-        # that the IP of the requestor is not the same as that
-        # of the 01-<mac> that was 'missing' because it was disabled
-
-        if ( defined $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} } ) {
-            my $pxename = "01-";
-            $pxename .= $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} };
-            $pxename =~ s|:|-|g;
-            $LASTERROR = "Refused  PXE peer " .
-                $self->{'_REQUEST_'}{'PeerAddr'} . " file 'default' as $pxename is disabled\n";
-            return undef;
-        }
-    }
-
+#    if ( $self->{'_REQUEST_'}{'FileName'} =~ m|01-((([0-9a-fA-F]){2}-?){6})| ) {
+#        # special logic for PXE boot files served up via TFTP for baracus
+#
+#        my $mac = $1;
+#        $mac =~ s|-|:|g;
+#
+#        if ( $hash->{'enabled'} ) {
+#            # found 01- entry and it is enabled
+#            # make sure to remove any _not entry for this ip
+#            if ( defined $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} } ) {
+#                undef $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} } ;
+#            }
+#            # we will deilver - store the mac for verify build hook
+#            $pxeips_yes->{ $self->{'_REQUEST_'}{'PeerAddr'} } = $mac;
+#        }
+#        else {
+#            # found 01- entry and it is disabled
+#            # make sure to remove any _yes entry for this ip
+#            if ( defined $pxeips_yes->{ $self->{'_REQUEST_'}{'PeerAddr'} } ) {
+#                undef $pxeips_yes->{ $self->{'_REQUEST_'}{'PeerAddr'} } ;
+#            }
+#            # will not deilver - store the mac for 'miss' on request for 'default'
+#            $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} } = $mac;
+#
+#            $LASTERROR = "Disabled PXE peer " .
+#                $self->{'_REQUEST_'}{'PeerAddr'} . " file '" .
+#                    $self->{'_REQUEST_'}{'FileName'} . "'\n";
+#            return undef;   # entry disabled
+#        }
+#    }
+#    elsif ( $self->{'_REQUEST_'}{'FileName'} =~ m|/default| ) {
+#        # special logic for PXE boot files served up via TFTP for baracus
+#
+#        # if we are serving up the default we need to make sure
+#        # that the IP of the requestor is not the same as that
+#        # of the 01-<mac> that was 'missing' because it was disabled
+#
+#        if ( defined $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} } ) {
+#            my $pxename = "01-";
+#            $pxename .= $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} };
+#            $pxename =~ s|:|-|g;
+#            $LASTERROR = "Refused  PXE peer " .
+#                $self->{'_REQUEST_'}{'PeerAddr'} . " file 'default' as $pxename is disabled\n";
+#            return undef;
+#        }
+#    }
+#
 	return ( $self->{'FileSize'} = $hash->{'binsize'} );
 }
 
@@ -1103,6 +1103,8 @@ sub sendOACK
 						{
 							# other messages...
 							$LASTERROR = sprintf "Opcode %d not supported as a reply to OACK\n", $opcode;
+#							$LASTERROR = "TFTP error 8: Option negotiation\n";
+							$self->sendERR(8);
 							return(undef);
 						}
 					}

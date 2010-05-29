@@ -268,6 +268,7 @@ sub update_db_action
     foreach my $field ( split( /,/, $fields ) ) {
         next if ( $field eq "mac"    );  # skip key
         next if ( $field eq "change" );  # skip update col
+        next if ( $field eq "creation" );  # skip creation col
         push @fields, $field;
     }
     $fields = join(', ', @fields);

@@ -10,11 +10,11 @@ my $op = param('op') || "Hardware";
 my $sub = param('sub') || "";
 my $current = "";
 
-my @tmenu = ( 	"Hardware",
+my @tmenu = ( 	"Hardware/status",
 				"Module/status/update/add/delete",
 				"Profile/status/update/add/delete");
 				
-my @tlink = ( 	"configHW",
+my @tlink = ( 	"configHW/configHWS",
 				"configModS/configModS/configModU/configModA/configModD",
 				"configProfS/configProfS/configProfU/configProfA/configProfD");		
 

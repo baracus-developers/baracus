@@ -14,6 +14,45 @@ my %tbl = (
            );
 
 ###########################################################################################
+# Configure Functions
+###########################################################################################
+
+sub configEnable
+{
+	my $name = shift @_;
+	my $ver = shift @_;
+	my $type = shift @_;
+
+	my $version = "";
+	if( $ver ne -1 && $ver ne "")
+	{
+		$version = "--version $ver";
+	}
+	
+	my $cmd = "sudo baconfig update $type --name $name $version --enable";
+	my $result = `$cmd`;
+	return $result;	
+}
+
+sub configDisable
+{
+	my $name = shift @_;
+	my $ver = shift @_;
+	my $type = shift @_;
+	
+	my $version = "";
+	
+	if( $ver ne -1 && $ver ne "")
+	{
+		$version = "--version $ver";
+	}
+	
+	my $cmd = "sudo baconfig update $type --name $name $version --noenable";
+	my $result = `$cmd`;
+	return $result;	
+}
+
+###########################################################################################
 # Distribution Functions
 ###########################################################################################
 
@@ -129,7 +168,7 @@ sub getDistroStatus
 
 sub getProfileList
 {
-	my $cmd = "sudo baconfig list profile --quiet";
+	my $cmd = "sudo baconfig list profile \"*\" --quiet";
 	my $result = `$cmd`;
 	my @array = split( "\n", $result);
 	
@@ -143,7 +182,7 @@ sub getProfileList
 
 sub getProfileListAll
 {
-	my $cmd = "sudo baconfig list profile -all --quiet | uniq";
+	my $cmd = "sudo baconfig list profile \"*\" -all --quiet | uniq";
 	my $result = `$cmd`;
 	my @array = split( "\n", $result);
 	
@@ -301,6 +340,7 @@ sub getModule
 	my $result = `$cmd`;
 	return $result."\n\n";
 }
+
 sub addModuleFromFile
 {
 	my $name = shift @_;
@@ -393,35 +433,21 @@ sub enableModule
 {
 	my $name = shift @_;
 	my $ver = shift @_;
-	my $version = "";
-	if( $ver ne -1 && $ver ne "")
-	{
-		$version = "--version $ver";
-	}
-	
-	my $cmd = "sudo baconfig update module --name $name $version --enable";
-	my $result = `$cmd`;
-	return $result;	
+
+	configEnable( $name, $ver, "module");
 }
 
 sub disableModule
 {
 	my $name = shift @_;
 	my $ver = shift @_;
-	my $version = "";
-	if( $ver ne -1 && $ver ne "")
-	{
-		$version = "--version $ver";
-	}
-	
-	my $cmd = "sudo baconfig update module --name $name $version --noenable";
-	my $result = `$cmd`;
-	return $result;	
+
+	configDisable( $name, $ver, "module");
 }
 
 sub getModuleList
 {
-	my $mcmd = "sudo baconfig list module --quiet";
+	my $mcmd = "sudo baconfig list module \"*\" --quiet";
 	
 	my $mstring = `$mcmd`; 
 	my @marray = split("\n", $mstring);
@@ -435,7 +461,7 @@ sub getModuleList
 
 sub getModuleListAll
 {
-	my $cmd = "sudo baconfig list module -all --quiet | uniq";
+	my $cmd = "sudo baconfig list module \"*\" -all --quiet | uniq";
 	my $result = `$cmd`;
 	my @array = split( "\n", $result);
 	
@@ -472,7 +498,6 @@ sub getModuleVersionList
 	return @vArray;
 }
 
-
 ###########################################################################################
 # Storage Functions
 ###########################################################################################
@@ -491,13 +516,103 @@ sub getStorageList
 	return @array;
 }
 
+sub cmd2array
+{
+    $cmd = shift;
+	my $string = BATools::execute( $cmd );
+	my @array = split("\n", $string);
+	foreach( @array)
+	{
+		$_ = BATools::trim($_);
+	}
+	return @array;
+}
+###########################################################################################
+# Autobuild Functions
+###########################################################################################
+
+sub getAutobuildList
+{
+    # this returns the list of names for the "enabled" entries / versions only
+    my @tmp = &cmd2array( "sudo baconfig list autobuild --quiet" );
+    unshift @tmp, "none";
+    return @tmp;
+}
+
 ###########################################################################################
 # Hardware Functions
 ###########################################################################################
 
+sub getHardware
+{
+	my $name = shift @_;
+	my $ver = shift @_;
+	my $labels = shift @_;
+	if( $labels eq "no")
+	{
+		$labels = "--nolabels";
+	}
+	else
+	{
+		$labels = "";
+	}
+	my $cmd = "sudo baconfig detail hardware $name $labels";
+	if( $ver ne -1 && $ver ne "" && $ver ne "undefined")
+	{
+		$cmd = $cmd." --version $ver";
+	}
+	my $result = `$cmd`;
+	return $result."\n\n";
+}
+
+sub getHardwareVersionList
+{
+	my $name = shift @_;
+	my $enabled = shift @_;
+	my $cmd = "sudo baconfig list hardware $name -a -n";
+	my @vArray;
+	my $count = 0;
+	open( RSLT, "$cmd |") || die "Failed: $!\n";
+	
+	while( $line = <RSLT>)
+	{
+		++ $count;	
+		my @items = split( " ", $line);
+		my $pushVer =  @items[1];
+		if( $enabled eq "yes")
+		{
+			$pushVer = @items[1]."/".@items[2];
+		}
+		push( @vArray, $pushVer);
+	}
+
+	return @vArray;
+}
+
+sub enableHardware
+{
+	my $name = shift @_;
+	my $ver = shift @_;
+
+	return configEnable( $name, $ver, "hardware");
+}
+
+sub disableHardware
+{
+	my $name = shift @_;
+	my $ver = shift @_;
+
+	return configDisable( $name, $ver, "hardware");
+}
+
 sub getHardwareList
 {
-	my $hwcmd = "sudo baconfig list hardware --quiet";
+    return &cmd2array( "sudo baconfig list hardware --quiet" );
+}
+
+sub getHardwareListAll
+{
+	my $hwcmd = "sudo baconfig list hardware \"*\" -a -q | uniq";
 	
 	my $hwstring = `$hwcmd`; 
 	my @hwarray = split("\n", $hwstring);
@@ -508,12 +623,10 @@ sub getHardwareList
 	
 	return @hwarray;
 }
-sub getHardware
-{
-	my $name = shift @_;
-	$cmd = "sudo baconfig detail hardware $name";
-	return `$cmd`;
-}
+
+###########################################################################################
+# 
+###########################################################################################
 
 sub getHostTemplates
 {
@@ -617,6 +730,34 @@ sub getPowerList
 		$_ = BATools::trim($_);
 	}
 	return @hostArray;
+}
+
+###########################################################################################
+# Repository Functions
+###########################################################################################
+
+sub getRepoList
+{
+        my $filterVal = shift @_;
+        #$filter = $filter eq "" ? "" : "--host='*$filter*'";
+        my @repoArray;
+        my $repoCmd = "sudo barepo list \"$filterVal\" --quiet";
+        my $repos = BATools::execute( $repoCmd );
+        @repoArray = split("\n", $repos);
+	foreach( @repoArray)
+	{
+		$_ = BATools::trim($_);
+	}
+        return @repoArray;
+}
+
+sub getRepoDetail
+{
+        my $repo = shift @_;
+        my $cmd = "sudo barepo detail $repo --quiet";
+        my $data = BATools::execute( $cmd );
+        my @detailArray = split( "\n", $data);
+        return @detailArray;
 }
 
 ###########################################################################################

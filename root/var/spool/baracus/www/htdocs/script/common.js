@@ -249,6 +249,13 @@ function hwUpdate( sel)
 	document.getElementById("infoBox").src=url;
 }
 
+function autobuildUpdate( sel)
+{
+	var selection = sel.value;
+	var url = "/baracus/ba/createContent?caller=create&attr=autobuild&val=" + selection;
+	document.getElementById("infoBox").src=url;
+}
+
 function storageUpdate( sel)
 {
 	var selection = sel.value;

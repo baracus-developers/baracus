@@ -8,7 +8,8 @@ use warnings;
 use DBI;
 
 # for sql tftp db binary file chunking 1MB blobs
-use constant BA_DBMAXLEN => 1048575;
+use constant BA_DBMAXLEN => 268435456; # 256 MB
+#use constant BA_DBMAXLEN => 1048575;
 
 
 =head1 NAME
@@ -93,7 +94,8 @@ sub new
                       |;
 
     # sql for file detail - cannot use sum(length(bin)) as 'text' its encoded
-    my $file_detail = qq|SELECT id, name, description, size, enabled, insertion, change, bin
+#    my $file_detail = qq|SELECT id, name, description, size, enabled, insertion, change, bin
+    my $file_detail = qq|SELECT id, name, description, size, enabled, insertion, change
                          FROM $cfg{'TableName'}
                          WHERE name = ?
                         |;
@@ -134,7 +136,7 @@ sub new
     $dbh->{'RaiseError'} = 1;
 
     # max_allowed_packets a mysql specific construct
-    my $maxlen = 1048575;
+    my $maxlen = BA_DBMAXLEN;
 
     #    my $max_pkts = qq|SHOW VARIABLES LIKE "max_allowed_packets"|;
     #    my $rows = $dbh->selectall_arrayref( $max_pkts );
@@ -154,6 +156,18 @@ sub new
                    'sql_file_fetch' => $file_fetch,
                    'sql_file_find' => $file_find
                   }, $class;
+}
+
+sub clone_dhb_for_child()
+{
+    my $self = shift;
+
+    my $child_dbh = $self->{dbh}->clone();
+
+    $self->{dbh}->{InactiveDestroy} = 1;
+    undef $self->{dbh};
+
+    $self->{dbh} = $child_dbh;
 }
 
 sub discard {
@@ -275,7 +289,7 @@ sub detail
     $hash->{'binsize'} = 0;
     my $flag_first = 1;
     foreach my $ar ( @{ $array_lol } ) {
-        my ($id, $nm, $des, $size, $ena, $idate, $cdate, $bin) = @{ $ar };
+        my ($id, $nm, $des, $size, $ena, $idate, $cdate) = @{ $ar };
         if ( $flag_first == 1 ) {
             $flag_first = 0;
             $hash->{'rowcount'} = $size / BA_DBMAXLEN; + 1;

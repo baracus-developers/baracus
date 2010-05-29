@@ -12,7 +12,7 @@ my $current = "";
 my @tmenu = ( "List", "Add", "Remove");
 my @tlink = ( "hostList", "hostAdd", "hostRemove");		
 
-my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, "power");
+my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, "host");
 		 
 print "Content-type: text/html\n\n";
 
