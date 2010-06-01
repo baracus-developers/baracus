@@ -156,7 +156,7 @@ sub list_start_lun
     }
 
     unless ( $fkey eq "id" or $fkey eq "name" ) {
-        print print "Filter key not valid.\n";
+        print "Filter key not valid.\n";
         exit 1;
     }
 
