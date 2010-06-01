@@ -127,12 +127,13 @@ sub get_db_iso_entry
 {
     my $opts   = shift;
     my $iso    = shift;
+    my $distro = shift;
     my $dbh    = $opts->{dbh};
 
     my $sth;
     my $sql = qq|SELECT *
                  FROM $baTbls{ 'iso' }
-                 WHERE iso = '$iso' |;
+                 WHERE iso = '$iso' AND distroid = '$distro' |;
 
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
     die "$!$sth->err\n"    unless ( $sth->execute( ) );
@@ -288,7 +289,7 @@ sub add_db_iso_entry
     my $sql;
     my $sth;
 
-    my $dbref = &get_db_iso_entry( $opts, $iso );
+    my $dbref = &get_db_iso_entry( $opts, $iso, $distro );
 
     my $dh = &baxml_distro_gethash( $opts, $distro );
     if ( $dh->{'sharetype'} ) {
@@ -1531,7 +1532,7 @@ sub add_build_service
                     $ret = system("exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$share");
                     print "exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$share\n" if ( $opts->{debug} > 1 );
                     if ( $ret > 0 ) {
-                        $opts->{LASTERROR} = "share failed\n$!";
+                        $opts->{LASTERROR} = "umount failed\n$!";
                         return 1;
                     }
                 }
@@ -1607,13 +1608,11 @@ sub remove_build_service
 
     my $ret = 0;
     my @dalist;
-
     push @dalist, $distro if $distro;
     push @dalist, split( /\s+/, $addons) if ( $addons );
 
     my $restartservice = 0;
     foreach my $da ( @dalist ) {
-
         foreach my $prod ( &baxml_products_getlist( $opts, $da ) ) {
 
             my ($file, $share, $state) =
@@ -1626,7 +1625,7 @@ sub remove_build_service
                 if ($baVar{sharetype} eq "nfs") {
                   $ret = system("exportfs -u *:$share");
                   if ( $ret > 0 ) {
-                      $opts->{LASTERROR} = "ushare failed\n$!";
+                      $opts->{LASTERROR} = "umount failed\n$!";
                       return 1;
                   }
                 }
