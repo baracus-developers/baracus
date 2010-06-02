@@ -71,18 +71,18 @@
     <arch>x86_64</arch>
     <description>SUSE Linux Enterprise Server 11.1 64bit</description>
 
-    <autodownload>no</autodownload>
+    <autodownload>auth</autodownload>
 
     <product name="dvd">
       <addon>base</addon>
-      <iso name="SLES-11-SP1-DVD-x86_64-GMC-DVD1.iso">
+      <iso name="SLES-11-SP1-DVD-x86_64-GM-DVD1.iso">
         <path/>
         <sharefiles>
           <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
           <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
         </sharefiles>
-        <md5>3b2058d3891f4419ec9ddef30116abe8</md5>
-        <url><![CDATA[]]></url>
+        <md5>d2e10420f3689faa49a004b60fb396b7</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2Fx4q3cbksW7Q%7E%2FSLES-11-SP1-DVD-x86_64-GM-DVD1.iso&buildid=x4q3cbksW7Q~&fileid=rJK5j5-Sd4Y~&mirror=AkamaiHost&nohost=false]]></url>
       </iso>
     </product>
   </distro>
@@ -96,14 +96,14 @@
     <requires>sles-11.1-x86_64</requires> <!-- flag! content ignored -->
     <description>SLES 11.1 Software Development Kit 64bit</description>
 
-    <autodownload>no</autodownload>
+    <autodownload>auth</autodownload>
 
     <product name="dvd">
       <addon>signed</addon>
-      <iso name="SLE-11-SP1-SDK-DVD-x86_64-GMC-DVD1.iso">
+      <iso name="SLE-11-SP1-SDK-DVD-x86_64-GM-DVD1.iso">
         <path/>
-        <md5>d64083eb3ea24bb61032c01cc29ef81b</md5>
-        <url><![CDATA[]]></url>
+        <md5>c045bef43dbf9d3de01569cee6853cf2</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzzeQqpY9nK4%7E%2FSLE-11-SP1-SDK-DVD-x86_64-GM-DVD1.iso&buildid=zzeQqpY9nK4~&fileid=kGzgMW9NCts~&mirror=AkamaiHost&nohost=false]]></url>
       </iso>
     </product>
   </distro>
@@ -115,18 +115,18 @@
     <arch>i586</arch>
     <description>SUSE Linux Enterprise Server 11.1 32bit</description>
 
-    <autodownload>no</autodownload>
+    <autodownload>auth</autodownload>
 
     <product name="dvd">
       <addon>base</addon>
-      <iso name="SLES-11-SP1-DVD-i586-GMC-DVD1.iso">
+      <iso name="SLES-11-SP1-DVD-i586-GM-DVD1.iso">
         <path/>
         <sharefiles>
-          <sharefile sharetype='tftp' name='kernel' file='boot/i586/loader/linux'/>
-          <sharefile sharetype='tftp' name='initrd' file='boot/i586/loader/initrd'/>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
         </sharefiles>
-        <md5>3cecb22635bea396992f3a251aa1b4b2</md5>
-        <url><![CDATA[]]></url>
+        <md5>0dd6886858d93501c38854552b9b1b0d</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FwGqu-GCcLaI%7E%2FSLES-11-SP1-DVD-i586-GM-DVD1.iso&buildid=wGqu-GCcLaI~&fileid=99Ag3s91ZNw~&mirror=AkamaiHost&nohost=false]]></url>
       </iso>
     </product>
   </distro>
@@ -141,14 +141,14 @@
     <requires>sles-11.1-i586</requires> <!-- flag! content ignored -->
     <description>SLES 11.1 Software Development Kit 32bit</description>
 
-    <autodownload>no</autodownload>
+    <autodownload>auth</autodownload>
 
     <product name="dvd">
       <addon>signed</addon>
-      <iso name="SLE-11-SP1-SDK-DVD-i586-GMC-DVD1.iso">
+      <iso name="SLE-11-SP1-SDK-DVD-i586-GM-DVD1.iso">
         <path/>
-        <md5>47170756035b41d26ed27d0c08f70a9a</md5>
-        <url><![CDATA[]]></url>
+        <md5>f00961bd4788751f22c91e062a3ac82b</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzzeQqpY9nK4%7E%2FSLE-11-SP1-SDK-DVD-i586-GM-DVD1.iso&buildid=zzeQqpY9nK4~&fileid=6VXYBbeQ4F0~&mirror=AkamaiHost&nohost=false]]></url>
       </iso>
     </product>
   </distro>
@@ -165,14 +165,14 @@
 
     <product name="dvd">
       <addon>base</addon>
-      <iso name="SLED-11-SP1-DVD-x86_64-GMC-DVD1.iso">
+      <iso name="SLED-11-SP1-DVD-x86_64-GM-DVD1.iso">
         <path/>
         <sharefiles>
           <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
           <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
         </sharefiles>
-        <md5>bd7c215a3caf179bd91285a2126c667f</md5>
-        <url></url>
+        <md5>f37c4159fdc3906c09ffb6817a20461b</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FefgnQnRkzh4%7E%2FSLED-11-SP1-DVD-x86_64-GM-DVD1.iso&buildid=efgnQnRkzh4~&fileid=8mDCw6PatAI~&mirror=AkamaiHost&nohost=false]]></url>
       </iso>
     </product>
   </distro>
@@ -186,14 +186,14 @@
 
     <product name="dvd">
       <addon>base</addon>
-      <iso name="SLED-11-SP1-DVD-i586-GMC-DVD1.iso">
+      <iso name="SLED-11-SP1-DVD-i586-GM-DVD1.iso">
         <path/>
         <sharefiles>
-          <sharefile sharetype='tftp' name='kernel' file='boot/i586/loader/linux'/>
-          <sharefile sharetype='tftp' name='initrd' file='boot/i586/loader/initrd'/>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
         </sharefiles>
-        <md5>06b48cb49827872d132ed0496438ba6f</md5>
-        <url></url>
+        <md5>314a93bec3667465480690911de16490</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FefgnQnRkzh4%7E%2FSLED-11-SP1-DVD-i586-GM-DVD1.iso&buildid=efgnQnRkzh4~&fileid=HHRkAJ0J1Jk~&mirror=AkamaiHost&nohost=false]]></url>
       </iso>
     </product>
   </distro>
@@ -253,8 +253,8 @@
       <iso name="SLES-11-DVD-i586-GM-DVD1.iso">
         <path/>
         <sharefiles>
-          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
-          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
         </sharefiles>
         <md5>4958d4dde2575666355c8a1c5858bab0</md5>
         <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-i586-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=-lJMHbIN6s8~&mirror=AkamaiHost&nohost=false]]></url>
@@ -317,8 +317,8 @@
       <iso name="SLED-11-DVD-i586-GM-DVD.iso">
         <path/>
         <sharefiles>
-          <sharefile sharetype='tftp' name='kernel' file='boot/i586/loader/linux'/>
-          <sharefile sharetype='tftp' name='initrd' file='boot/i586/loader/initrd'/>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
         </sharefiles>
         <md5>f581602b4547cb45e715f3ea1cb0c4e4</md5>
         <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F31O5iweTHlg%7E%2FSLED-11-DVD-i586-GM-DVD.iso&buildid=31O5iweTHlg~&fileid=BmoyRdppYOw~&mirror=AkamaiHost&nohost=false]]></url>
@@ -843,6 +843,48 @@
       </iso>
     </product>
   </distro>
+
+
+  <!-- SLES 11.1 HA -->
+
+  <distro name="sles-11.1-ha-x86_64">
+    <os>sles</os>
+    <release>11.1</release>
+    <addos>ha</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-11.1-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 11.1 High Availability Extension 64bit</description>
+    <autodownload>auth</autodownload>
+    <product name="dvd">
+      <addon>signed</addon>
+      <iso name="SLE-11-SP1-HA-x86_64-GM-Media1.iso">
+        <path/>
+        <md5>901423af1a8dc5431a5e7f34e29ca5f3</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F9xvsJDAsS04%7E%2FSLE-11-SP1-HA-x86_64-GM-Media1.iso&buildid=9xvsJDAsS04~&fileid=8KKCzn87R90~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-11.1-ha-i586">
+    <os>sles</os>
+    <release>11.1</release>
+    <addos>ha</addos>
+    <addrel/>
+    <arch>i586</arch>
+    <requires>sles-11.1-i586</requires> <!-- flag! content ignored -->
+    <description>SLES 11.1 High Availability Extension 32bit</description>
+    <autodownload>auth</autodownload>
+    <product name="dvd">
+      <addon>signed</addon>
+      <iso name="SLE-11-SP1-HA-i586-GM-Media1.iso">
+        <path/>
+        <md5>0a95efdfd74136f5f6bf81034eef5980</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzacLblosaRQ%7E%2FSLE-11-SP1-HA-i586-GM-Media1.iso&buildid=zacLblosaRQ~&fileid=MMVaSpbKBDw~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
 
   <!-- SLES 11.1 STUDIOONSITE 1.1 -->
 
