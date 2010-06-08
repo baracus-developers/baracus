@@ -33,6 +33,7 @@ Where command is one of
 
     add     --distro <x>  Add a new build source for distribution <x>
     remove  --distro <x>  Remove <x> as a build source
+    update  --distro <x>  Update sharetype and/or shareip for distribution <x>
     disable --distro <x>  Diable a build source for distribution <x>
     enable  --distro <x>  Enable a build source for distribution <x>
     verify  --distro <x>  Verify build source for distribution <x>
@@ -70,6 +71,7 @@ my $help = 0;
 my $cmds = {
             'add'      => \&add,
             'remove'   => \&remove,
+            'update'   => \&update,
             'enable'   => \&enable,
             'disable'  => \&disable,
             'verify'   => \&verify,
@@ -267,6 +269,156 @@ sub add() {
     &source_register( $opts, $command, $distro, $addons );
 }
 
+=head2 update --distro <name> [--addon <addos> [--addon ...]] [ --all ]
+
+Where
+
+  --distro <name>  specifies the full name of the base distribution
+                   to update, e.g., sles-11-x86_64, sles-10.2-x86_64,
+                   opensuse-11.1-i586
+
+  --addon <name>   specifies the addon(s) to be updated. like these
+                   distributions sles-10.2-rt-x86_64, sles-11-hae-i586
+
+  --all            update all the addons and the base distro.
+
+Without specifying --all, update will not update the base distro if it has any addons present so that a two step update process must be used to first update all the addons listed for the base distro and then another invocation with the base --distro alone.
+
+=cut
+
+sub update() {
+
+    my $command = 'update';
+    my $distro;
+    my $addons = "";
+    my @addons;
+    my $sharetype = "";
+    my $shareip = "";
+    my $dbref;
+    my $ret = 0;
+
+    @ARGV = @_;
+
+    GetOptions(
+               'distro=s'    => \$distro,
+               'addons=s'    => \&multiarg_handler,
+               'sharetype=s' => \$sharetype,
+               'shareip=s'   => \$shareip,
+               );
+
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help( $opts, $cmds, $command );
+    }
+
+    ## Test if selection is valid
+    ##
+    $distro = lc $distro;
+    &check_distro( $opts, $distro );
+
+    unless (( $shareip ne "" ) || ( $sharetype ne "" ))  {
+        $opts->{LASTERROR} = "update requires either --sharetype or --shareip\n";
+        return 1;
+    }
+
+    $addons = $multiarg{ 'addons' } if (defined $multiarg{ 'addons' });
+
+    if ( $opts->{all} and $addons ) {
+            $opts->{LASTERROR} = "Unsafe mix of --all and --addon <addon> usage\n";
+            return 1;
+    }
+
+    if ( $sharetype ne "") {
+        unless (( $sharetype eq "nfs" ) || ( $sharetype eq "http" )) {
+            $opts->{LASTERROR} = "$sharetype not valid. (supported types: nfs/http) \n";
+            return 1;
+        }
+    }
+
+    if ( $opts->{all} ) {
+        my $dh =  &baxml_distro_gethash( $opts, $distro );
+        @addons = @{$dh->{basedisthash}->{addons}};
+        $addons = join " ", @addons;
+        print "working with 'all': $addons\n" if $opts->{debug};
+    } else {
+        @addons = split( /\s+/, $addons );
+
+        # only check addons passed if not removing all
+        if ( scalar @addons ) {
+            print "Calling routine to verify addon(s) passed\n";
+            return 1 if &check_addons( $opts, $distro, $addons );
+        }
+    }
+
+    if ( scalar @addons ) {
+        foreach my $addon ( @addons ) {
+            my @shares;
+            print "Updating addon $addon\n";
+            if ( $sharetype ne "" ) {
+                $dbref = &get_db_source_entry( $opts, $addon );
+                &remove_build_service( $opts, $addon );
+                &update_db_source_entry( $opts, $sharetype, "", $addon);
+                &update_db_iso_entry( $opts, $addon, $sharetype );
+          #      &remove_build_service( $opts, $addon );
+                &add_build_service( $opts, $addon );
+                print "$sharetype ... Updated\n" if $opts->{verbose};
+            }
+            if ( $shareip ne "" ) {
+                print "Update ShareIP\n";
+                &update_db_source_entry( $opts, "", $shareip, $addon);
+            }
+        }
+    }
+
+    # only remove base if no addons specified or --all passed
+    if ( not scalar @addons or $opts->{all} ) {
+        my $dh = &baxml_distro_gethash( $opts, $distro );
+
+        # need to check if updating base which has dependent add-ons
+        my @addons = &list_installed_addons( $opts, $distro );
+
+        # handle default 'unspecified' sdk as transparent member of base
+        my $sdk = &get_distro_sdk( $opts, $distro );
+
+        if ( ( scalar @addons > 1 ) or
+             ( scalar @addons and not defined $sdk ) or
+             ( scalar @addons and $addons[0] ne $sdk ) ) {
+             $opts->{LASTERROR} = "Update these addons before Updating $distro (or use --all)\n\t" . join ("\n\t", @addons ) . "\n";
+             return 1;
+        }
+        if ( scalar @addons and defined $sdk and $addons[0] eq $sdk ) {
+            if ( $sharetype ne "" ) {
+                $dbref = &get_db_source_entry( $opts, $sdk );
+                &remove_build_service( $opts, $sdk );
+                &update_db_source_entry( $opts, $sharetype, "", $sdk);
+                &update_db_iso_entry( $opts, $sdk, $sharetype );
+               # &remove_build_service( $opts, $sdk );
+                &add_build_service( $opts, $sdk );
+                print "$sharetype ... updated\n" if $opts->{verbose};
+            }
+            if ( $shareip ne "" ) {
+                print "Update ShareIP\n";
+                &update_db_source_entry( $opts, "", $shareip, $sdk);
+            }
+        }
+        if ( $sharetype ne "" ) {
+            $dbref = &get_db_source_entry( $opts, $distro );
+            &remove_build_service( $opts, $distro );
+            &update_db_source_entry( $opts, $sharetype, "", $distro );
+            &update_db_iso_entry( $opts, $distro, $sharetype );
+   #         &remove_build_service( $opts, $distro );
+            &add_build_service( $opts, $distro );
+            print "$sharetype ... updated\n" if $opts->{verbose};
+        }
+        if ( $shareip ne "" ) {
+                print "Update ShareIP\n";
+                 &update_db_source_entry( $opts, "", $shareip, $distro );
+        }
+    }
+
+    return 0;
+
+}
 
 =head2 remove --distro <name> [--addon <addos> [--addon ...]] [ --all ]
 
@@ -574,6 +726,7 @@ sub verify() {
         print " ok";
     }
     print "\n";
+    print "Share IP:\t$dbref->{shareip}\n";
 
     my $oldshare = "";
     foreach my $prod ( &baxml_products_getlist( $opts, $distro ) ) {

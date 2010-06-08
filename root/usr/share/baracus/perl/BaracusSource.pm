@@ -45,6 +45,8 @@ BEGIN {
          [qw(
                 get_db_source_entry
                 add_db_source_entry
+                update_db_source_entry
+                update_db_iso_entry
                 sqlfs_getstate
                 sqlfs_store
                 sqlfs_storeScalar
@@ -126,14 +128,13 @@ my %stypes =
 sub get_db_iso_entry
 {
     my $opts   = shift;
-    my $iso    = shift;
     my $distro = shift;
     my $dbh    = $opts->{dbh};
 
     my $sth;
     my $sql = qq|SELECT *
                  FROM $baTbls{ 'iso' }
-                 WHERE iso = '$iso' AND distroid = '$distro' |;
+                 WHERE distroid = '$distro' |;
 
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
     die "$!$sth->err\n"    unless ( $sth->execute( ) );
@@ -271,6 +272,59 @@ sub add_db_source_entry
     }
 }
 
+sub update_db_source_entry
+{
+    my $opts      = shift;
+    my $sharetype = shift;
+    my $shareip   = shift;
+    my $distro    = shift;
+
+    if ($opts->{verbose}) {
+        print "Updating source: $distro to $sharetype\n";
+    }
+
+    my $dbh = $opts->{dbh};
+
+    my $sql;
+    my $sth;
+
+    my $dbref = &get_db_source_entry( $opts, $distro );
+  
+    if ( defined $dbref ) {
+        if ( $sharetype ne "" ) {
+            $sql = qq|UPDATE $baTbls{ 'distro' }
+                      SET change=CURRENT_TIMESTAMP(0),
+                          sharetype=?
+                      WHERE distroid='$distro'|;
+
+            $sth = $dbh->prepare( $sql )
+                or die "Cannot prepare sth: ",$dbh->errstr;
+
+            $sth->bind_param( 1, $sharetype );
+
+            $sth->execute()
+                or die "Cannot execute sth: ", $sth->errstr;
+         }
+        if ( $shareip ne "" ) {
+            $sql = qq|UPDATE $baTbls{ 'distro' }
+                      SET change=CURRENT_TIMESTAMP(0),
+                          shareip=?
+                      WHERE distroid='$distro'|;
+
+            $sth = $dbh->prepare( $sql )
+                or die "Cannot prepare sth: ",$dbh->errstr;
+
+            $sth->bind_param( 1, $shareip );
+
+            $sth->execute()
+                or die "Cannot execute sth: ", $sth->errstr;
+        }
+    } else {
+        $opts->{LASTERROR} = "$distro not available for updating\n";
+        return 1;
+    }
+}
+
 sub add_db_iso_entry
 {
     my $opts        = shift;
@@ -289,12 +343,17 @@ sub add_db_iso_entry
     my $sql;
     my $sth;
 
-    my $dbref = &get_db_iso_entry( $opts, $iso, $distro );
-
     my $dh = &baxml_distro_gethash( $opts, $distro );
-    if ( $dh->{'sharetype'} ) {
-        $baVar{sharetype} = $dh->{'sharetype'};
+    my $dbref = &get_db_source_entry( $opts, $distro );
+    if ( defined $dbref ) {
+        $baVar{sharetype} = $dbref->{sharetype};
+    } else {
+        if ( $dh->{'sharetype'} ) {
+            $baVar{sharetype} = $dh->{'sharetype'};
+        }
     }
+
+    $dbref = &get_db_iso_entry( $opts, $iso, $distro );
 
     if ( defined $dbref ) {
         $sql = qq|UPDATE $baTbls{ 'iso' }
@@ -337,6 +396,41 @@ sub add_db_iso_entry
             or die "Cannot execute sth: ", $sth->errstr;
     }
 
+}
+
+sub update_db_iso_entry
+{
+    my $opts        = shift;
+    my $distro      = shift;
+    my $sharetype   = shift;
+
+    if ($opts->{verbose}) {
+        print "Updating sharetype $sharetype iso entry for: $distro\n";
+    }
+
+    my $dbh = $opts->{dbh};
+    my $sql;
+    my $sth;
+
+    my $dbref = &get_db_iso_entry( $opts, $distro );
+
+    if ( defined $dbref ) {
+        $sql = qq|UPDATE $baTbls{ 'iso' }
+                  SET change=CURRENT_TIMESTAMP(0),
+                      sharetype=?
+                  WHERE distroid='$distro'|;
+
+    #    $sth->bind_param( 1, $stypes{$sharetype} );
+
+        $sth = $dbh->prepare( $sql )
+            or die "Cannot prepare sth: ",$dbh->errstr;
+
+        $sth->execute( $stypes{$sharetype} )
+            or die "Cannot execute sth: ", $sth->errstr;
+    } else {
+        $opts->{LASTERROR} = "iso for $distro not currently available\n";
+        return 1;
+    }
 }
 
 
@@ -457,6 +551,12 @@ sub prepdbwithxml
         $entry{'release'    } = $dh->{release};
         $entry{'arch'       } = $dh->{arch};
         $entry{'description'} = $dh->{description};
+
+        if ( defined $dh->{sharetype} ) {
+            $entry{'sharetype'  } = $dh->{sharetype}; 
+        } else {
+            $entry{'sharetype'  } = $baVar{sharetype};
+        }
 
         if ( defined $dh->{'requires'} ) {
             $entry{'addon'  } = 1;
@@ -1141,10 +1241,10 @@ sub make_paths
                   system( "mount -o loop $isofile $tdir" );
                   system( "/usr/bin/rsync -azHl $tdir/* $idir" );
                   system( "umount $tdir" );
-                  &add_db_iso_entry($opts, $distro, $iname, $idir, 0);
+                  &add_db_iso_entry($opts, $da, $iname, $idir, 0);
                 } else {
                     system( "mount -o loop $isofile $idir" );
-                    &add_db_iso_entry($opts, $distro, $iname, $idir, 1);
+                    &add_db_iso_entry($opts, $da, $iname, $idir, 1);
                 }
             }
         }
@@ -1502,12 +1602,24 @@ sub add_build_service
     my $distro = shift;
     my $addons = shift;
 
+    my $dh = &baxml_distro_gethash( $opts, $distro );
+
+    my $dbh = $opts->{dbh};
+
+    my $sql;
+    my $sth;
+
+    my $dbref = &get_db_source_entry( $opts, $distro );
+    if ( defined $dbref ) {
+        $baVar{sharetype} = $dbref->{sharetype};
+    } else {
+        if ( $dh->{'sharetype'} ) {
+            $baVar{sharetype} = $dh->{'sharetype'};
+        }
+    }
+
     print "+++++ add_build_service\n" if ( $opts->{debug} > 1 );
 
-    my $dh = &baxml_distro_gethash( $opts, $distro );
-    if ( $dh->{'sharetype'} ) {
-        $baVar{sharetype} = $dh->{'sharetype'};
-    }
     my $ret = 0;
     my @dalist;
 
@@ -1599,12 +1711,18 @@ sub remove_build_service
     my $distro = shift;
     my $addons = shift;
 
-    print "+++++ remove_build_service\n" if ( $opts->{debug} > 1 );
-
     my $dh = &baxml_distro_gethash( $opts, $distro );
+
+    my $dbh = $opts->{dbh};
+
+    my $sql;
+    my $sth;
+
     if ( $dh->{'sharetype'} ) {
         $baVar{sharetype} = $dh->{'sharetype'};
     }
+
+    print "+++++ remove_build_service\n" if ( $opts->{debug} > 1 );
 
     my $ret = 0;
     my @dalist;
@@ -1764,7 +1882,7 @@ sub check_service_product
 
     my ($share, $name) = &get_distro_share( $opts, $distro );
 
-    my $file;
+    my $file = "";
     my $state = 0;
 
     if ($sharetype eq "nfs") {
@@ -1880,6 +1998,8 @@ sub source_register
 
         my $sql = qq|UPDATE $baTbls{ distro }
                     SET change=CURRENT_TIMESTAMP(0),
+                        sharetype=?,
+                        shareip=?,
                         status=?
                     WHERE distroid=?|;
 
@@ -1898,7 +2018,7 @@ sub source_register
         push @dalist, split( /\s+/, $addons) if ( $addons );
 
         foreach my $da ( @dalist ) {
-            $sth->execute( BA_REMOVED, $da )
+            $sth->execute( $baVar{sharetype}, $baVar{shareip}, BA_REMOVED, $da )
                 or die "Cannot execute sth: ", $sth->errstr;
 
             $sthiso->execute( $da )
@@ -1974,6 +2094,30 @@ sub get_loopback
     $sth->finish;
 
     return $href->{'is_loopback'};
+}
+
+sub get_sharetype
+{
+    my $opts = shift;
+    my $distro = shift;
+    my $dbh = $opts->{dbh};
+
+    my $sql = qq| SELECT sharetype
+                  FROM $baTbls{'distro'}
+                  WHERE distroid = '$distro'
+               |;
+
+    my $sth;
+    my $href;
+
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
+
+    $href = $sth->fetchrow_hashref();
+
+    $sth->finish;
+
+    return $href->{'sharetype'};
 }
 
 sub get_distro_sdk
