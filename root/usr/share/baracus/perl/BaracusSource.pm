@@ -332,6 +332,7 @@ sub add_db_iso_entry
     my $iso         = shift;
     my $mntpoint    = shift;
     my $is_loopback = shift;
+    my $sharetype   = $baVar{sharetype};
 
     my $is_local = 1;  ## force local for now
 
@@ -346,10 +347,10 @@ sub add_db_iso_entry
     my $dh = &baxml_distro_gethash( $opts, $distro );
     my $dbref = &get_db_source_entry( $opts, $distro );
     if ( defined $dbref ) {
-        $baVar{sharetype} = $dbref->{sharetype};
+        $sharetype = $dbref->{sharetype};
     } else {
         if ( $dh->{'sharetype'} ) {
-            $baVar{sharetype} = $dh->{'sharetype'};
+            $sharetype = $dh->{'sharetype'};
         }
     }
 
@@ -389,7 +390,7 @@ sub add_db_iso_entry
         $sth->bind_param( 2, $distro                     );
         $sth->bind_param( 3, $is_loopback                );
         $sth->bind_param( 4, $mntpoint                   );
-        $sth->bind_param( 5, $stypes{$baVar{sharetype}}  );
+        $sth->bind_param( 5, $stypes{$sharetype}  );
         $sth->bind_param( 6, $is_local                   );
 
         $sth->execute()
@@ -1601,6 +1602,7 @@ sub add_build_service
     my $opts   = shift;
     my $distro = shift;
     my $addons = shift;
+    my $sharetype = $baVar{sharetype};
 
     my $dh = &baxml_distro_gethash( $opts, $distro );
 
@@ -1611,10 +1613,10 @@ sub add_build_service
 
     my $dbref = &get_db_source_entry( $opts, $distro );
     if ( defined $dbref ) {
-        $baVar{sharetype} = $dbref->{sharetype};
+        $sharetype = $dbref->{sharetype};
     } else {
         if ( $dh->{'sharetype'} ) {
-            $baVar{sharetype} = $dh->{'sharetype'};
+            $sharetype = $dh->{'sharetype'};
         }
     }
 
@@ -1632,15 +1634,15 @@ sub add_build_service
         foreach my $prod ( &baxml_products_getlist( $opts, $da ) ) {
 
             my ($file, $share, $state) =
-                &check_service_product( $opts, $da, $prod, $baVar{sharetype} );
+                &check_service_product( $opts, $da, $prod, $sharetype );
 
             if ( $state ) {
-                print "$baVar{sharetype} file $file found added for $da\n" if $opts->{verbose};
+                print "$sharetype file $file found added for $da\n" if $opts->{verbose};
             }
             else {
                 print "modifying $file adding $share\n" if ( $opts->{debug} );
 
-                if ($baVar{sharetype} eq "nfs") {
+                if ($sharetype eq "nfs") {
                     $ret = system("exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$share");
                     print "exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$share\n" if ( $opts->{debug} > 1 );
                     if ( $ret > 0 ) {
@@ -1649,7 +1651,7 @@ sub add_build_service
                     }
                 }
 
-                if ($baVar{sharetype} eq "http") {
+                if ($sharetype eq "http") {
                     $restartservice = 1;
                     open(FILE, "<$baDir{'data'}/templates/inst_server.conf.in") or
                         die ("Cannot open file\n");
@@ -1669,7 +1671,7 @@ sub add_build_service
 
                 }
 
-                if ($baVar{sharetype} eq "cifs") {
+                if ($sharetype eq "cifs") {
                     $restartservice = 1;
                     open(FILE, "<$baDir{'data'}/templates/samba.conf.in") or
                         die ("Cannot open file\n");
@@ -1695,10 +1697,10 @@ sub add_build_service
         }
     }
     if ( $restartservice ) {
-        if ($baVar{sharetype} eq "http") {
+        if ($sharetype eq "http") {
             system("/etc/init.d/apache2 reload");
         }
-        if ($baVar{sharetype} eq "cifs") {
+        if ($sharetype eq "cifs") {
             system("/etc/init.d/smb reload");
         }
     }
@@ -1710,6 +1712,7 @@ sub remove_build_service
     my $opts   = shift;
     my $distro = shift;
     my $addons = shift;
+    my $sharetype = $baVar{sharetype};
 
     my $dh = &baxml_distro_gethash( $opts, $distro );
 
@@ -1717,10 +1720,6 @@ sub remove_build_service
 
     my $sql;
     my $sth;
-
-    if ( $dh->{'sharetype'} ) {
-        $baVar{sharetype} = $dh->{'sharetype'};
-    }
 
     print "+++++ remove_build_service\n" if ( $opts->{debug} > 1 );
 
@@ -1731,16 +1730,26 @@ sub remove_build_service
 
     my $restartservice = 0;
     foreach my $da ( @dalist ) {
+
+        my $dbref = &get_db_source_entry( $opts, $da );
+        if ( defined $dbref ) {
+            $sharetype = $dbref->{sharetype};
+        } else {
+            if ( $dh->{'sharetype'} ) {
+                $sharetype = $dh->{'sharetype'};
+            }
+        }
+
         foreach my $prod ( &baxml_products_getlist( $opts, $da ) ) {
 
             my ($file, $share, $state) =
-                &check_service_product( $opts, $da, $prod, $baVar{sharetype} );
+                &check_service_product( $opts, $da, $prod, $sharetype );
 
             if ( not $state ) {
-                print "$baVar{sharetype} file $file found removed for $da\n" if $opts->{verbose};
+                print "$sharetype file $file found removed for $da\n" if $opts->{verbose};
             } else {
                 print "modifying $file removing $share\n" if ( $opts->{debug} );
-                if ($baVar{sharetype} eq "nfs") {
+                if ($sharetype eq "nfs") {
                   $ret = system("exportfs -u *:$share");
                   if ( $ret > 0 ) {
                       $opts->{LASTERROR} = "umount failed\n$!";
@@ -1748,12 +1757,12 @@ sub remove_build_service
                   }
                 }
 
-                if ($baVar{sharetype} eq "http") {
+                if ($sharetype eq "http") {
                     $restartservice = 1;
                     unlink( $file );
                 }
 
-                if ($baVar{sharetype} eq "cifs") {
+                if ($sharetype eq "cifs") {
                     $restartservice = 1;
                     unlink $file;
                     copy("/etc/samba/smb.conf", "/etc/samba/smb.conf.baback");
@@ -1772,10 +1781,10 @@ sub remove_build_service
         }
     }
     if ( $restartservice ) {
-        if ($baVar{sharetype} eq "http") {
+        if ($sharetype eq "http") {
             system("/etc/init.d/apache2 reload");
         }
-        if ($baVar{sharetype} eq "http") {
+        if ($sharetype eq "cifs") {
             system("/etc/init.d/smb reload");
         }
     }
@@ -1878,8 +1887,6 @@ sub check_service_product
 
     print "+++++ check_serviceconfig\n" if ( $opts->{debug} > 1 );
 
-    my $dh = &baxml_distro_gethash( $opts, $distro );
-
     my ($share, $name) = &get_distro_share( $opts, $distro );
 
     my $file = "";
@@ -1965,6 +1972,7 @@ sub source_register
     my $command = shift;
     my $distro  = shift;
     my $addons  = shift;
+    my $sharetype = $baVar{sharetype};
 
     print "+++++ source_register\n" if ( $opts->{debug} > 1 );
 
@@ -2018,7 +2026,12 @@ sub source_register
         push @dalist, split( /\s+/, $addons) if ( $addons );
 
         foreach my $da ( @dalist ) {
-            $sth->execute( $baVar{sharetype}, $baVar{shareip}, BA_REMOVED, $da )
+            my $dh = &baxml_distro_gethash( $opts, $da );
+            if ( $dh->{'sharetype'} ) {
+                $sharetype = $dh->{'sharetype'};
+            }
+ 
+            $sth->execute( $sharetype, $baVar{shareip}, BA_REMOVED, $da )
                 or die "Cannot execute sth: ", $sth->errstr;
 
             $sthiso->execute( $da )
@@ -2157,13 +2170,7 @@ sub get_distro_share
         my $dh = &baxml_distro_gethash( $opts, $distro );
         $share = $dh->{basedisthash}->{distpath};
         $name  = "$dh->{basedist}_server";
-    }
-#    elsif ( $distro =~ /opensuse-/  ) {
-#        my $dh = &baxml_distro_gethash( $opts, $distro );
-#        $share = $dh->{basedisthash}->{distpath};
-#        $name  = "$dh->{basedist}_server";
-#    }
-    else {
+    } else {
         my @prods = &baxml_products_getlist( $opts, $distro );
         if ( scalar @prods > 1 ) {
             die "get_distro_share: Unsure how to handle multiple product distro $distro\n";
