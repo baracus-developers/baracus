@@ -372,4 +372,4 @@ xserver-xorg xserver-xorg/config/monitor/mode-list \
 # packages and run commands in the target system.
 #d-i preseed/late_command string apt-install zsh; in-target chsh -s /bin/zsh
 
-d-i preseed/late_command string wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__
+
