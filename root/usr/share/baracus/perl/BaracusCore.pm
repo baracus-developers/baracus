@@ -69,6 +69,7 @@ sub help
     my $opts    = shift;
     my $cmds    = shift;
     my $command = shift;
+    my $type    = shift;
 
     unless ( defined $command ) {
         pod2usage( -verboase   => 0,
@@ -78,10 +79,24 @@ sub help
     $command = lc $command;
     &check_command( $opts, $cmds, $command );
 
-    pod2usage( -msg        => "$opts->{execname} $command ...\n",
-               -verbose    => 99,
-               -sections   => "COMMANDS/${command}.*",
-               -exitstatus => 0 );
+    # if type was passed caller supports extended perl doc
+    # 'execname help command type' for some or all sub-commands
+    # callback to see which are allowed - true if 'type' help avail else false
+    if ( defined $type and &main::check_type_help( $opts, $command, $type ) ) {
+        $type = lc $type;
+        # and another callback to make sure type is valid - should exit if not
+        &main::check_type( $opts, $type );
+
+        pod2usage( -msg        => "$opts->{execname} $command $type ...\n",
+                   -verbose    => 99,
+                   -sections   => "COMMANDS/${command} ${type}.*",
+                   -exitstatus => 0 );
+    } else {
+        pod2usage( -msg        => "$opts->{execname} $command ...\n",
+                   -verbose    => 99,
+                   -sections   => "COMMANDS/${command}.*",
+                   -exitstatus => 0 );
+    }
 }
 
 sub man
