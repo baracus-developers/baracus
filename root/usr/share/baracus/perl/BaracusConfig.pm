@@ -155,7 +155,7 @@ sub multiarg_handler() {
         # with ':s' should not get here
         # we could 'die("FINISH")'
         # but for now just return
-        @values = ( $baVar{sharetype}, "dhcpd" );
+        return;
     }
     foreach $value (@values) {
         $value = lc $value;
