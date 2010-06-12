@@ -87,6 +87,7 @@ $listener->setSqlFSHandle( $sqlfsOBJ );
 my @requiredfiles = ( "$baDir{'data'}/data/gpxe_baracus.0",
                       "$baDir{'data'}/data/linux.baracus",
                       "$baDir{'data'}/data/initrd.baracus",
+                      "$baDir{'data'}/data/pxelinux.0",
                      );
 
 foreach my $requiredfile ( @requiredfiles ) {
