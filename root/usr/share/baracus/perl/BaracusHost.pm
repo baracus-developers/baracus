@@ -52,6 +52,14 @@ BEGIN {
                 update_db_host
                 remove_db_host
                 remove_db_host_by_mac
+
+                add_action_autobuild
+                get_action_autobuild_hash
+                remove_action_autobuild
+
+                add_action_modules
+                get_action_modules_hash
+                remove_action_modules
             )],
          );
     Exporter::export_ok_tags('subs');
@@ -402,6 +410,120 @@ sub remove_db_host_by_mac
     $sth->finish;
     undef $sth;
 }
+
+
+sub add_action_autobuild
+{
+    my $dbh  = shift;
+    my $href = shift;
+    my %Hash = %{$href};
+
+    my $fields = lc get_cols( $baTbls{ actabld } );
+    $fields =~ s/[ \t]*//g;
+    my @fields;
+    foreach my $field ( split( /,/, $fields ) ) {
+        next if ( $field eq "creation" ); # not in this tbl but doesn't hurt
+        next if ( $field eq "change"   ); # in case we decide to add them...
+        push @fields, $field;
+    }
+    $fields = join(', ', @fields);
+    my $values = join(', ', (map { $dbh->quote($_) } @Hash{@fields}));
+
+#    $fields .= ", creation, change";
+#    $values .= ", CURRENT_TIMESTAMP(0), CURRENT_TIMESTAMP(0)";
+
+    my $sql = qq|INSERT INTO $baTbls{ actabld } ( $fields ) VALUES ( $values )|;
+    my $sth;
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
+    $sth->finish;
+    undef $sth;
+}
+
+sub get_action_autobuild_hash
+{
+    my $dbh = shift;
+    my $mac = shift;
+
+    my $sql = qq|SELECT * FROM $baTbls{ actabld } WHERE mac = '$mac' |;
+    my $sth;
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
+
+    return $sth->fetchrow_hashref();
+}
+
+sub remove_action_autobuild
+{
+    my $dbh = shift;
+    my $mac = shift;
+
+    my $sql = qq|DELETE FROM $baTbls{ actabld } WHERE mac='$mac'|;
+    my $sth;
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
+    $sth->finish();
+    undef $sth;
+}
+
+sub add_action_modules
+{
+    my $dbh  = shift;
+    my $href = shift;
+    my %Hash = %{$href};
+
+    my $fields = lc get_cols( $baTbls{ actmod } );
+    $fields =~ s/[ \t]*//g;
+    my @fields;
+    foreach my $field ( split( /,/, $fields ) ) {
+        next if ( $field eq "creation" ); # not in this tbl but doesn't hurt
+        next if ( $field eq "change"   ); # in case we decide to add them...
+        push @fields, $field;
+    }
+    $fields = join(', ', @fields);
+    my $values = join(', ', (map { $dbh->quote($_) } @Hash{@fields}));
+
+#    $fields .= ", creation, change";
+#    $values .= ", CURRENT_TIMESTAMP(0), CURRENT_TIMESTAMP(0)";
+
+    my $sql = qq|INSERT INTO $baTbls{ actmod } ( $fields ) VALUES ( $values )|;
+    my $sth;
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
+    $sth->finish;
+    undef $sth;
+}
+
+sub get_action_modules_hash
+{
+    my $dbh = shift;
+    my $mac = shift;
+
+    my $sql = qq|SELECT * FROM $baTbls{ actmod } WHERE mac = '$mac' |;
+    my $sth;
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
+
+    my %modules;
+    while ( my $href = $sth->fetchrow_hashref() ) {
+        $modules{ $href->{module} }= $href->{module_ver};
+    }
+    return \%modules;
+}
+
+sub remove_action_modules
+{
+    my $dbh = shift;
+    my $mac = shift;
+
+    my $sql = qq|DELETE FROM $baTbls{ actmod } WHERE mac='$mac'|;
+    my $sth;
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
+    $sth->finish();
+    undef $sth;
+}
+
 
 1;
 

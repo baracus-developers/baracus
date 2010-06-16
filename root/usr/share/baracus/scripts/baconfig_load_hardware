@@ -2,95 +2,62 @@
 
 baconfig detail hardware default --all &> /dev/null || \
 baconfig add hardware --name default \
---description="default" \
+--description="/dev/sda drive" \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=/dev/sda \
---rootpart=/dev/sda
-#--autobuild=template.xml 
-#--oscert=SLES9:SLES10
-#--addon="<!--no addon -->"
-#--hwdriver="<!--no hwdrivers -->"
+--rootpart=/dev/sda \
+--cert "sles-11.1-x86_64 sles-11.1-i586 sles-10.3-x86_64 sles-10.3-i386"
 
 baconfig detail hardware default-iscsi --all &> /dev/null || \
 baconfig add hardware --name default-iscsi \
---description="default-iscsi" \
---bootargs="acpi=on selinux=0 apm=off WithISCSI=1" \
+--description="bootargs +withiscsi +netsetup" \
+--bootargs="acpi=on selinux=0 apm=off WithISCSI=1 netsetup=1" \
 --rootdisk=/dev/sda \
 --rootpart=/dev/sda
-#--autobuild=template-iscsi.xml 
-#--oscert=SLES9:SLES10
-#--addon="<!--no addon -->"
-#--hwdriver="<!--no hwdrivers -->"
 
 baconfig detail hardware default-hda --all &> /dev/null || \
 baconfig add hardware --name default-hda \
---description="default-hda" \
+--description="/dev/hda drive" \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=/dev/hda \
 --rootpart=/dev/hda
-#--autobuild=template.xml 
-#--oscert=SLES9:SLES10
-#--addon="<!--no addon -->"
-#--hwdriver="<!--no hwdrivers -->"
 
-baconfig detail hardware default-HP --all &> /dev/null || \
-baconfig add hardware --name default-HP \
---description="default-HP" \
+baconfig detail hardware default-hp --all &> /dev/null || \
+baconfig add hardware --name default-hp \
+--description="/dev/cciss smart array" \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=/dev/cciss/c0d0 \
---rootpart=/dev/cciss/c0d0p
-#--autobuild=template.xml
-#--oscert=SLES9:SLES10
-#--addon="<!--no addon -->"
-#--hwdriver="<!--no hwdrivers -->"
+--rootpart=/dev/cciss/c0d0p \
+--cert "sles-11.1-x86_64 sles-11.1-i586 sles-10.3-x86_64 sles-10.3-i386"
 
 baconfig detail hardware default-rhel --all &> /dev/null || \
 baconfig add hardware --name default-rhel \
---description="default-rhel" \
+--description="hda drive (no /dev)" \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=hda \
---rootpart=hda
-#--autobuild=template.xml
-#--oscert=SLES9:SLES10
-#--addon="<!--no addon -->"
-#--hwdriver="<!--no hwdrivers -->"
+--rootpart=hda \
+--cert "rhel-5.5-x86_64 rhel-5.5-i386 rhel-5.4-x86_64 rhel-5.4-i386"
 
-baconfig detail hardware kvm-sda --all &> /dev/null || \
-baconfig add hardware --name kvm-sda \
---description="KVM (sda)" \
+baconfig detail hardware default-rhel-hp --all &> /dev/null || \
+baconfig add hardware --name default-rhel-hp \
+--description="cciss array (no /dev)" \
 --bootargs="acpi=on selinux=0 apm=off" \
---rootdisk=/dev/sda \
---rootpart=/dev/sda
-#--autobuild=template.xml 
-#--oscert=SLES9-64:SLES10-64:SLES11-64 \
-#--addon="<!--no addon -->"
-#--hwdriver="<!--no hwdrivers -->"
-
-baconfig detail hardware kvm-hda --all &> /dev/null || \
-baconfig add hardware --name kvm-hda \
---description="KVM (hda)" \
---bootargs="acpi=on selinux=0 apm=off" \
---rootdisk=/dev/hda \
---rootpart=/dev/hda
-#--autobuild=template.xml
-#--oscert=SLES9-64:SLES10-64:SLES11-64
-#--addon="<!--no addon -->"
-#--hwdriver="<!--no hwdrivers -->"
+--rootdisk=cciss/c0d0 \
+--rootpart=cciss/c0d0p \
+--cert "rhel-5.5-x86_64 rhel-5.5-i386 rhel-5.4-x86_64 rhel-5.4-i386"
 
 baconfig detail hardware default-ubuntu --all &> /dev/null || \
 baconfig add hardware --name default-ubuntu \
---description="default-ubuntu" \
+--description="ubuntu bootargs" \
 --bootargs="locale=en_US console-setup/ask_detect=false console-setup/layoutcode=us hostname=unassigned-hostname" \
 --rootdisk=/dev/hda \
---rootpart=/dev/hda
-#--autobuild=template.xml
-#--oscert=SLES9-64:SLES10-64:SLES11-64
-#--addon="<!--no addon -->"
-#--hwdriver="<!--no hwdrivers -->"
+--rootpart=/dev/hda \
+--cert "ubuntu-10.4-x86_64 ubuntu-10.4-i386 ubuntu_desktop-10.4-x86_64 ubuntu_desktop-10.4-i386 ubuntu-9.10-x86_64 ubuntu-9.10-i386"
 
 baconfig detail hardware ubuntu-virtio --all &> /dev/null || \
 baconfig add hardware --name ubuntu-virtio \
---description="ubuntu-virtio" \
+--description="/dev/vda +ubuntu bootargs" \
 --bootargs="locale=en_US console-setup/ask_detect=false console-setup/layoutcode=us hostname=unassigned-hostname" \
 --rootdisk=/dev/vda \
---rootpart=/dev/vda
+--rootpart=/dev/vda \
+--cert "ubuntu-10.4-x86_64 ubuntu-10.4-i386 ubuntu_desktop-10.4-x86_64 ubuntu_desktop-10.4-i386 ubuntu-9.10-x86_64 ubuntu-9.10-i386"

@@ -34,33 +34,40 @@ BEGIN {
         (
          subs   =>
          [qw(
+                get_name_version
+
                 get_distro
                 get_hardware
-                get_tftpfile
+                get_autobuild
+                get_profile
+                get_module
+
+                get_version_or_enabled
+
+                find_tftpfile
                 delete_tftpfile
 
                 load_profile
                 load_distro
                 load_addons
                 load_hardware
-                check_modules
+                load_autobuild
                 load_modules
-                add_autobuild
-                remove_autobuild
-                remove_inventory
-                db_get_mandatory
+                load_vars
+                get_autobuild_expanded
 
-                check_hwcert
-                check_hwuse
+                remove_inventory
+                get_mandatory_modules
+
                 check_enabled
                 check_mandatory
-                get_mandatory
-                check_distroid
-                check_hardware
-                check_module
+                check_distros
+                get_certs_hash
                 check_cert
+                cert_for_distro
                 get_versions
                 redundant_data
+                find_helper
             )],
          );
     Exporter::export_ok_tags('subs');
@@ -68,16 +75,34 @@ BEGIN {
 
 our $VERSION = '0.01';
 
-
 ###########################################################################
-##
-## originally from BaracusCgi
+
+sub get_name_version
+{
+    my $compound = shift;
+    my ($ver, $name);
+
+    # expected format is name:ver if :ver present at all
+
+    if ( $compound =~ m/:/ ) {
+        ( $name, $ver ) = split ( ':', $compound, 2 );
+    } else {
+        $ver = 0;
+        $name = $compound;
+    }
+    return ( $name, $ver );
+}
 
 sub get_distro() {
-    my $dbh = shift;
-    my $bref = shift;
+    my $type = "distro";
 
-    my $sql = qq|SELECT * FROM distro WHERE distroid = '$bref->{distro}'|;
+    my $opts = shift;
+    my $dbh  = shift;
+    my $aref = shift;
+
+    my $name = $aref->{$type};
+
+    my $sql = qq|SELECT * FROM $baTbls{$type} WHERE $baTblId{$type} = '$name'|;
     my $sth;
 
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
@@ -87,58 +112,104 @@ sub get_distro() {
 }
 
 sub get_hardware() {
-    my $dbh = shift;
-    my $bref = shift;
+    my $type = "hardware";
 
-    my $sql = qq|SELECT * FROM hardware WHERE hardwareid = '$bref->{hardware}' ORDER BY version|;
-    my $sth;
+    my $opts = shift;
+    my $dbh  = shift;
+    my $aref = shift;
+    my $vers = shift;
 
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
+    my $name = $aref->{$type};
 
-    my $rowcount = 0;
-    my $found = undef;
-    while ( my $sel = $sth->fetchrow_hashref( ) ) {
-        $rowcount += 1;
-        $found = $sel if ($sel->{'status'});
-    }
-    die "Unable to find hardware entry for $bref->{'hardware'}.\n"
-        unless ( $rowcount );
-    die "Unable to find *enabled* hardware entry for $bref->{'hardware'}.\n"
-        unless ( defined $found );
-
-    return $found;
+    return get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
 }
 
 sub get_autobuild() {
-    my $dbh = shift;
-    my $bref = shift;
+    my $type = "autobuild";
 
-    my $sql = qq|SELECT * FROM autobuild WHERE autobuildid = '$bref->{autobuild}' ORDER BY version|;
-    my $sth;
+    my $opts = shift;
+    my $dbh  = shift;
+    my $aref = shift;
+    my $vers = shift;
 
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
+    my $name = $aref->{$type};
 
-    my $rowcount = 0;
-    my $found = undef;
-    while ( my $sel = $sth->fetchrow_hashref( ) ) {
-        $rowcount += 1;
-        $found = $sel if ($sel->{'status'});
-    }
-    die "Unable to find hardware entry for $bref->{'autobuild'}.\n"
-        unless ( $rowcount );
-    die "Unable to find *enabled* hardware entry for $bref->{'autobuild'}.\n"
-        unless ( defined $found );
-
-    return $found;
+    return get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
 }
 
-sub get_tftpfile() {
-    my $tftph = shift;
+sub get_profile() {
+    my $type = "profile";
+
+    my $opts = shift;
+    my $dbh  = shift;
+    my $aref = shift;
+    my $vers = shift;
+
+    my $name = $aref->{$type};
+
+    return get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
+}
+
+sub get_module() {
+    my $type = "module";
+
+    my $opts = shift;
+    my $dbh  = shift;
+    my $aref = shift;
+    my $vers = shift;
+
+    my $name = $aref->{$type};
+
+    return get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
+}
+
+sub get_version_or_enabled
+{
+    my $opts = shift;
+    my $dbh  = shift;
+    my $type = shift;
+    my $name = shift;
+    my $vers = shift;
+
+    $vers = 0 unless ( defined $vers );
+
+    my ($vref, $href, $eref) = &get_versions( $opts, $dbh, $type, $name, $vers);
+    return undef unless ( defined $vref or defined $href or defined $eref );
+
+    # if no highest version found - no entry at all was found
+    unless ( defined $href ) {
+        $opts->{LASTERROR} = "Unable to find $type entry for $name.\n";
+        return undef;
+    }
+
+    # if vers passed we want a matching vref
+    if ( $vers > 0 and not defined $vref ) {
+        $opts->{LASTERROR} = "Unable to find *version* ($vers) $type entry for $name\n";
+        return undef;
+    }
+
+    # if no vers passed we want the enabled eref
+    if ( $vers == 0 and not defined $eref ) {
+        die "Unable to find *enabled* $type entry for $name.\n";
+        return undef;
+    }
+
+    return $vref if ( $vers > 0 );
+
+    return $eref;
+}
+
+
+# with chunking this is only good for non-data
+# fetch of name for checking if already exists
+sub find_tftpfile() {
+    my $type = "tftp";
+
+    my $opts     = shift;
+    my $tftph    = shift;
     my $filename = shift;
 
-    my $sql = qq|SELECT COUNT(id) as count, name FROM sqlfstable WHERE name = '$filename' GROUP BY name|;
+    my $sql = qq|SELECT COUNT(id) as count, name FROM $baTbls{$type} WHERE name = '$filename' GROUP BY name|;
     my $sth;
 
     die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
@@ -148,10 +219,13 @@ sub get_tftpfile() {
 }
 
 sub delete_tftpfile() {
-    my $tftph = shift;
+    my $type = "tftp";
+
+    my $opts     = shift;
+    my $tftph    = shift;
     my $filename = shift;
 
-    my $sql = qq|DELETE FROM sqlfstable WHERE name = '$filename'|;
+    my $sql = qq|DELETE FROM $baTbls{$type} WHERE name = '$filename'|;
     my $sth;
 
     die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
@@ -160,357 +234,333 @@ sub delete_tftpfile() {
     $sth->finish();
 }
 
-###########################################################################
-##
-## originally from bahost
 
 sub load_profile
 {
     use Config::General;
 
-    my $opts    = shift;
-    my $dbh     = shift;
-    my $hostref = shift;
-    my $tmphref = shift;
+    my $type = "profile";
 
-    my $sql_cols = get_cols( $baTbls{ profile } );
-    $sql_cols =~ s/[ \t]*//g;
-    my @cols = split(/,/, $sql_cols);
-    my $sql = qq|SELECT $sql_cols FROM $baTbls{'profile'}
-                 WHERE profileid = '| . $hostref->{'profile'} . qq|'
-                 ORDER BY version|;
+    my $opts = shift;
+    my $dbh  = shift;
+    my $aref = shift;
 
-    my $sth;
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        die "Unable to prepare 'profile' statement\n" . $dbh->errstr;
-    }
-    unless( $sth->execute( ) ) {
-        die "Unable to execute 'profile' statement\n" . $sth->err;
-    }
+    my $name = $aref->{$type};
+    my $vers = $aref->{"${type}_ver"};
 
-    my $rowcount = 0;
-    my $sel;
-    while( my $hostref = $sth->fetchrow_hashref( ) ) {
-        $rowcount += 1;
-        $sel = $hostref if ($hostref->{'status'});
-    }
-    die "Unable to find profile entry for $hostref->{'profile'}.\n"
-        unless ( $rowcount );
-    die "Unable to find *enabled* profile entry for $hostref->{'profile'}.\n"
-        unless ( defined $sel );
-    print $sel . "\n" if ( $opts->{debug} > 1 );
+    my $found = get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
+    return 1 unless ( defined $found );
+    print $found . "\n" if ( $opts->{debug} > 1 );
 
     # getall is a destructive assignment - so use tmp
-    my $conf = new Config::General( -String => $sel->{'data'} );
+    my $conf = new Config::General( -String => $found->{'data'} );
     my %tmpHash = $conf->getall;
-    $tmphref = \%tmpHash;
+    my $tmphref = \%tmpHash;
 
     while ( my ($key, $value) = each ( %$tmphref ) ) {
         if (ref($value) eq "ARRAY") {
             print "$key has more than one entry or value specified\n";
             print "Such ARRAYs are not supported.\n";
             exit(1);
-            #           foreach my $avalue (@{$hostref->{$key}}){
+            #           foreach my $avalue (@{$aref->{$key}}){
             #               print "$avalue\n";
             #           }
             next;
         }
         if (defined $value) {
-            $hostref->{$key} = $value;
+            $aref->{$key} = $value;
         } else {
-            $hostref->{$key} = "";
+            $aref->{$key} = "";
         }
-        print "profile: $key => $hostref->{$key}\n" if ( $opts->{debug} > 1 );
+        print "profile: $key => $aref->{$key}\n" if ( $opts->{debug} > 1 );
     }
+
+    # record the version from the entry for storage
+    $aref->{profile_ver} = $found->{version};
+
+    return 0;
 }
 
 sub load_distro
 {
-    my $opts    = shift;
-    my $dbh     = shift;
-    my $hostref = shift;
+    my $opts = shift;
+    my $dbh  = shift;
+    my $aref = shift;
 
-    my $sql_cols = get_cols( $baTbls{'distro'} );
-    $sql_cols =~ s/[ \t]*//g;
-    my $sql = qq|SELECT $sql_cols FROM $baTbls{'distro'}
-                 WHERE distroid = '| . $hostref->{'distro'} . qq|'|;;
-    my $sel = $dbh->selectrow_hashref( $sql );
-    die "Unable to find distro entry for $hostref->{'distro'}.\n"
-        unless ( defined $sel );
-    print $sel . "\n" if ( $opts->{debug} > 1 );
-    while ( my ($key, $value) = each( %$sel ) ) {
-        if (defined $value) {
-            $hostref->{$key} = $value;
-        } else {
-            $hostref->{$key} = "";
-        }
-        print "distro: $key => $hostref->{$key}\n" if ( $opts->{debug} > 1 );
+    my $found = &get_distro( $opts, $dbh, $aref );
+    unless ( defined $found ) {
+        $opts->{LASTERROR} = "Unable to find distro entry for $aref->{distro}\n";
+        return 1;
     }
+    print $found . "\n" if ( $opts->{debug} > 1 );
+
+    while ( my ($key, $value) = each( %$found ) ) {
+        if (defined $value) {
+            $aref->{$key} = $value;
+        } else {
+            $aref->{$key} = "";
+        }
+        print "distro: $key => $aref->{$key}\n" if ( $opts->{debug} > 1 );
+    }
+
+    return 0;
 }
 
 sub load_addons
 {
-    my $opts    = shift;
-    my $dbh     = shift;
-    my $hostref = shift;
-    my $addons  = shift;
+    my $opts = shift;
+    my $dbh  = shift;
+    my $aref = shift;
 
-    my $sth;
-    # incorporate addons passed into autoinstall formated xml
-
-    my $sql_cols = get_cols( $baTbls{'distro'} );
-    $sql_cols =~ s/[ \t]*//g;
-
-    foreach my $item ( split /\s+/, $addons ) {
-        print "load_addons: working with $item\n" if ($opts->{debug} > 1);
-        my $sql = qq|SELECT $sql_cols FROM $baTbls{'distro'}
-                 WHERE distroid = '| . $item . qq|'|;;
-        my $sel = $dbh->selectrow_hashref( $sql );
-
-        die "Unable to find distro entry for addon $item.\n"
-            unless ( defined $sel );
-        die "Unable to find needed distro entry for addon $item.\nMay need to run 'basource add --distro <base> --addon $item'\n"
-            unless ( defined $sel->{status} and
-                     $sel->{status} != BA_REMOVED );
-
-        my $addonbase = "$sel->{os}-$sel->{release}-$sel->{arch}";
-        if ( $hostref->{distro} ne $addonbase ) {
-            die "addon $item is for $addonbase not the specified $hostref->{distro}\n";
-        }
-        print $sel . "\n" if ($opts->{debug} > 1);
-
-        $hostref->{addon} .= "\n" if ( $hostref->{addon} );
-        $hostref->{addon} .="      <listentry>
-        <media_url>$sel->{sharetype}://$sel->{shareip}$sel->{basepath}</media_url>
-        <product>$sel->{distroid}</product>
-        <product_dir>/</product_dir>\n";
-        if ( $sel->{release} =~ m/11/ ) {
-            $hostref->{addon} .="        <ask_on_error config:type=\"boolean\">false</ask_on_error> <!-- available since openSUSE 11.0 -->
-        <name>$sel->{distroid}</name> <!-- available since openSUSE 11.1/SLES11 (bnc#433981) -->\n";
-        }
-        $hostref->{addon} .="      </listentry>"
+    my @addonlist;
+    if ( $aref->{addons} =~ m/[,\s]+/ ) {
+        @addonlist = split(/[,\s*]/, $aref->{addons});
+    } else {
+        push @addonlist, $aref->{addons};
     }
-}
 
+    # incorporate addons passed into 'addon' key for __ADDON__ autobuild sub
+    $aref->{addon} = "";
+
+    my $status = 0;
+    $opts->{LASTERROR} = "";
+
+    foreach my $name ( @addonlist ) {
+        print "load_addons: working with $name\n" if ($opts->{debug} > 1);
+        my $found = &get_distro( $opts, $dbh, $aref );
+        if ( not defined $found ) {
+            $status = 1 if ( $status == 0 );
+            $opts->{LASTERROR} = "Unable to find addon entry for $name\n";
+        } else {
+            my $addonbase = "$found->{os}-$found->{release}-$found->{arch}";
+            if ( $aref->{distro} ne $addonbase ) {
+                if ( $status == 0 ) {
+                    $status = 1;
+                }
+                $opts->{LASTERROR} .= "addon $name is for $addonbase not the specified $aref->{distro}\n";
+            } else {
+                print $found . "\n" if ($opts->{debug} > 1);
+
+                $aref->{addon} .= "\n" if ( $aref->{addon} );
+                $aref->{addon} .="      <listentry>
+        <media_url>$found->{sharetype}://$found->{shareip}$found->{basepath}</media_url>
+        <product>$found->{distroid}</product>
+        <product_dir>/</product_dir>\n";
+                if ( ( $found->{os} eq "sles"
+                       or $found->{os} eq "opensuse"
+                      ) and $found->{release} >= 11.0 )
+                {
+                    $aref->{addon} .="        <ask_on_error config:type=\"boolean\">false</ask_on_error> <!-- available since openSUSE 11.0 -->
+        <name>$found->{distroid}</name> <!-- available since openSUSE 11.1/SLES11 (bnc#433981) -->\n";
+                }
+                $aref->{addon} .="      </listentry>"
+            }
+        }
+    }
+    return $status;
+}
 
 sub load_hardware
 {
-    my $opts    = shift;
-    my $dbh     = shift;
-    my $hostref = shift;
+    my $type = "hardware";
 
-    my $sql_cols = get_cols(  $baTbls{'hardware'} );
-    $sql_cols =~ s/[ \t]*//g;
-    my $sql = qq|SELECT $sql_cols FROM $baTbls{'hardware'}
-                 WHERE hardwareid = '$hostref->{'hardware'}' ORDER BY version|;
-    my $sth;
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        die "Unable to prepare 'hardware' statement\n" . $dbh->errstr;
-    }
-    unless( $sth->execute( ) ) {
-        die "Unable to execute 'hardware' statement\n" . $sth->err;
-    }
-    my $rowcount = 0;
-    my $found = undef;
-    while ( my $sel = $sth->fetchrow_hashref( ) ) {
-        $rowcount += 1;
-        $found = $sel if ($sel->{'status'});
-    }
-    die "Unable to find hardware entry for $hostref->{'hardware'}.\n"
-        unless ( $rowcount );
-    die "Unable to find *enabled* hardware entry for $hostref->{'hardware'}.\n"
-        unless ( defined $found );
+    my $opts = shift;
+    my $dbh  = shift;
+    my $aref = shift;
+
+    my $name = $aref->{$type};
+    my $vers = $aref->{"${type}_ver"};
+
+    my $found = get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
+    return 1 unless ( defined $found );
     print $found . "\n" if ($opts->{debug} > 1);
 
     while ( my ($key, $value) = each( %$found ) ) {
         if (defined $value) {
-            $hostref->{$key} = $value;
+            $aref->{$key} = $value;
         } else {
-            $hostref->{$key} = "";
+            $aref->{$key} = "";
         }
-        print "hware: $key => $hostref->{$key}\n" if ( $opts->{debug} > 1 );
+        print "hware: $key => $aref->{$key}\n" if ( $opts->{debug} > 1 );
     }
+
+    # record the version from the entry for storage
+    $aref->{hardware_ver} = $found->{version};
+
+    return 0;
 }
 
-sub check_modules
+sub load_autobuild
 {
-    my $opts    = shift;
-    my $dbh     = shift;
-    my $distro  = shift;
-    my $modules = shift;
+    my $type = "autobuild";
 
-    my $sql = qq|SELECT '$distro'
-                 FROM $baTbls{ 'modcert' }
-                 WHERE moduleid = ? |;
+    my $opts = shift;
+    my $dbh  = shift;
+    my $aref = shift;
 
-    foreach my $item (split(/[,\s*]/, $modules)) {
-        my $sth;
-        unless ( $sth = $dbh->prepare( $sql ) ) {
-            die "Unable to prepare 'module' statement\n" . $dbh->errstr;
-        }
-        unless( $sth->execute( $item ) ) {
-            die "Unable to execute 'module' statement\n" . $sth->err;
-        }
+    my $name = $aref->{$type};
+    my $vers = $aref->{"${type}_ver"};
 
-        my $rowcount = 0;
-        while ( my $sel = $sth->fetchrow_hashref( ) ) {
-            $rowcount += 1;
-        }
-        die "module not certified for use with this distro.\nconfirm you want to use these in combination and then do:\n  baconfig update module --name $item --addcert $distro\n"
-            unless ( $rowcount );
-    }
+    print "load_autobuild name $name ver $vers\n" if ($opts->{debug} > 1);
 
+    my $found = get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
+    return 1 unless ( defined $found );
+    print $found . "\n" if ($opts->{debug} > 1);
+
+    # record the version from the entry for storage
+    $aref->{autobuild_ver} = $found->{version};
+
+    return 0;
 }
 
 sub load_modules
 {
-    my $opts    = shift;
-    my $dbh     = shift;
-    my $hostref = shift;
-    my $modules = shift;
+    my $type = "module";
+
+    my $opts = shift;
+    my $dbh  = shift;
+    my $aref = shift;
 
     my $sth;
-    # incorporate modules passed into autoinstall formated xml
 
-#   $hostref->{'module'} = "    <init-scripts config:type="list">\n";
-    foreach my $item (split(/[,\s*]/, $modules)) {
+    my @modulelist;
+    if ( $aref->{modules} =~ m/[,\s]+/ ) {
+        @modulelist = split(/[,\s*]/, $aref->{modules});
+    } else {
+        push @modulelist, $aref->{modules};
+    }
 
-        my $sql_cols = get_cols( $baTbls{ module } );
-        $sql_cols =~ s/[ \t]*//g;
-        my @cols = split(/,/, $sql_cols);
-        my $sql = qq|SELECT $sql_cols FROM $baTbls{'module'}
-                         WHERE moduleid = '| . $item . qq|' ORDER BY version|;
-        unless ( $sth = $dbh->prepare( $sql ) ) {
-            die "Unable to prepare 'module' statement\n" . $dbh->errstr;
-        }
-        unless( $sth->execute( ) ) {
-            die "Unable to execute 'module' statement\n" . $sth->err;
-        }
+    print "module list: " . join (", ", @modulelist) . "\n" if ( $opts->{debug} > 1 );
 
-        my $rowcount = 0;
-        my $found = undef;
-        while ( my $sel = $sth->fetchrow_hashref( ) ) {
-            $rowcount += 1;
-            $found = $sel if ($sel->{'status'});
-        }
-        die "Unable to find module entry for $item.\n"
-            unless ( $rowcount );
-        die "Unable to find *enabled* module entry for $item.\n"
-            unless ( defined $found );
-        print $found . "\n" if ($opts->{debug} > 1);
+    # incorporate modules passed into 'module' key for __MODULE__ autobuild sub
+    $aref->{'module'} = "";
 
-        $hostref->{'module'} .="<script>
+#   $aref->{'module'} = "    <post-scripts config:type="list">\n";
+    foreach my $item ( @modulelist ) {
+
+        # get verison and name from possible compound
+        my ( $name, $vers ) = get_name_version( $item );
+        print "working $item : $name + $vers\n" if ( $opts->{debug} > 1 );
+
+        my $found = get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
+        return 1 unless ( defined $found );
+        print "found $item : $name + $found->{version}\n" if ( $opts->{debug} > 1 );
+        print $found . "\n" if ( $opts->{debug} > 1 );
+
+        # hum... this format is only SUSE family
+        # what about post insatll scripts for other distros ???
+
+        $aref->{'module'} .="<script>
         <filename>$found->{'moduleid'}</filename>
         <source><![CDATA[";
-        $hostref->{'module'} .= $found->{'data'};
-        $hostref->{'module'} .="]]>\n        </source>\n      </script>";
+        $aref->{'module'} .= $found->{'data'};
+        $aref->{'module'} .="]]>\n        </source>\n      </script>";
     }
-#   $hostref->{'module'} .= "\n    </init-scripts>"
+#   $aref->{'module'} .= "\n    </post-scripts>"
+
+    return 0;
 }
 
+sub load_vars
+{
+    my $opts = shift;
+    my $dbh  = shift;
+    my $aref = shift;
 
-sub add_autobuild
+    if ($aref->{vars}) {
+        my @varray = split(/[,\s*]/, $aref->{vars});
+        foreach my $item (@varray) {
+            (my $key, my $value) = split(/=/, $item);
+            $aref->{$key} = $value;
+        }
+    }
+    return 0;
+}
+
+sub get_autobuild_expanded
 {
     use File::Temp qw/ tempdir /;
 
-    my $opts    = shift;
-    my $dbh     = shift;
-    my $hostref = shift;
-    my $dbtftp  = "sqltftp";
+    my $opts = shift;
+    my $dbh  = shift;
+    my $aref = shift;
 
-    my $deepdebug = $opts->{debug} > 2 ? 1 : 0;
-    my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp;port=5162",
-                               'User' => "baracus",
-                               'debug' => $deepdebug )
-        or die "Unable to create new instance of SqlFS\n";
+    my $name = $aref->{autobuild};
+    my $vers = $aref->{autobuild_ver};
 
-    my $abhref = &get_autobuild( $dbh, $hostref );
+    print "get_autobuild_expanded name $name ver $vers\n" if ($opts->{debug} > 1);
+
+    my $abhref = &get_autobuild( $opts, $dbh, $aref, $vers );
 
     unless ( defined $abhref && $abhref->{data} ne "" ) {
-        print "\nUnable to find autobuild template $hostref->{autobuild}\n";
-        print "View available templates with 'baconfig list autobuild'\n";
-        exit 1;
+        $opts->{LASTERROR} .= "\nUnable to find autobuild template $aref->{autobuild}\n View available templates with 'baconfig list autobuild'\n";
+        return undef;
     }
+
+    # record the version from the entry for storage
+    $aref->{autobuild_ver} = $abhref->{version};
 
     my $abfile  = $abhref->{data};
     my $date    = &get_rundate();
-    my $automac = &automac( $hostref->{'mac'} );
 
-    # add files to sqlfstable for sqltftpd server
-
-    my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
-    print "using tempdir $tdir\n" if ($opts->{debug} > 1);
-
-    if ( $sqlfsOBJ->find( $automac ) ) {
-        print "$automac already exists\n";
-    } else {
-        while ( my ($key, $value) = each %$hostref ) {
-            $key =~ tr/a-z/A-Z/;
-            $key = "__$key\__";
-            $abfile =~ s/$key/$value/g;
-        }
-
-        open(FILE, ">$tdir/$automac") or
-            die "Cannot open file $automac: $!\n";
-        print FILE $abfile;
-
-        # comment block for suse and win xml template families
-        my $cstart="<!--";
-        my $cstop="-->";
-
-        if ( $hostref->{os} eq "rhel"   ||
-             $hostref->{os} eq "fedora" ||
-             $hostref->{os} eq "centos" ) {
-            # comment block for rhel kickstart script families
-            $cstart="#";
-            $cstop="";
-        }
-
-        print FILE "$cstart baracus.Hostname: $hostref->{'hostname'} $cstop\n";
-        print FILE "$cstart baracus.MAC: $hostref->{'mac'}; $cstop\n";
-        print FILE "$cstart baracus.Generated: $date $cstop\n";
-
-        close(FILE);
-
-        if ( $sqlfsOBJ->store( "$tdir/$automac",
-                               "autoinst $hostref->{'basedist'}" ) ) {
-            warn "failed to store $tdir/$automac in sqlfs\n";
-        }
-
-        print $abfile if ( $opts->{debug} > 2 );
-
-        if ( $abfile =~ m/__.*__/ ) {
-            warn "Stored, but some vars still need to be replaced in $automac\n";
-            system "grep -Ene '__.*__' $tdir/$automac";
-        }
-        if ($opts->{verbose}) {
-            print "Successfully stored $automac\n";
-        }
-
-        unlink "$tdir/$automac";
-
+    while ( my ($key, $value) = each %$aref ) {
+        $key =~ tr/a-z/A-Z/;
+        $key = "__$key\__";
+        $abfile =~ s/$key/$value/g;
     }
-    print "removing tempdir $tdir\n" if ($opts->{debug} > 1);
-    rmdir $tdir;
+
+    # comment block for suse and win xml template families
+    my $cstart="<!--";
+    my $cstop="-->";
+
+    if ( $aref->{os} eq "rhel"   ||
+         $aref->{os} eq "esx"    ||
+         $aref->{os} eq "fedora" ||
+         $aref->{os} eq "centos" ) {
+        # comment block for rhel kickstart script families
+        $cstart="#";
+        $cstop="";
+    }
+
+    $abfile .= "$cstart baracus.Hostname: $aref->{'hostname'} $cstop\n";
+    $abfile .= "$cstart baracus.MAC: $aref->{'mac'}; $cstop\n";
+    $abfile .= "$cstart baracus.Generated: $date $cstop\n";
+
+    if ( $abfile =~ m/__.*__/ ) {
+        my $automac = $aref->{autobuild} . "-" . $aref->{autobuild_ver};
+        my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
+        print "using tempdir $tdir\n" if ($opts->{debug} > 1);
+        open(FILE, ">$tdir/$automac") or
+            die "Cannot open file $tdir/$automac: $!\n";
+        print FILE $abfile;
+        close(FILE);
+        warn "generated but some vars still need to be replaced in $automac\n";
+        system "grep -Ene '__.*__' $tdir/$automac";
+        unlink "$tdir/$automac";
+        print "removing tempdir $tdir\n" if ($opts->{debug} > 1);
+        rmdir $tdir;
+    }
+
+    return $abfile;
 }
 
-sub remove_autobuild
-{
-
-    my $opts    = shift;
-    my $hostref = shift;
-    my $dbtftp  = "sqltftp";
-
-    my $deepdebug = $opts->{debug} > 2 ? 1 : 0;
-    my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp;port=5162",
-                               'User' => "baracus",
-                               'debug' => $deepdebug )
-        or die "Unable to create new instance of SqlFS\n";
-
-    my $automac = &automac( $hostref->{'mac'} );
-
-    $sqlfsOBJ->remove( $automac );
-}
+# sub remove_autobuild
+# {
+#
+#     my $opts    = shift;
+#     my $hostref = shift;
+#     my $dbtftp  = "sqltftp";
+#
+#     my $deepdebug = $opts->{debug} > 2 ? 1 : 0;
+#     my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp;port=5162",
+#                                'User' => "baracus",
+#                                'debug' => $deepdebug )
+#         or die "Unable to create new instance of SqlFS\n";
+#
+#     my $automac = &automac( $hostref->{'mac'} );
+#
+#     $sqlfsOBJ->remove( $automac );
+# }
 
 sub remove_inventory
 {
@@ -529,159 +579,77 @@ sub remove_inventory
     $sqlfsOBJ->remove( $inventory );
 }
 
-sub db_get_mandatory
-{
-    my $opts   = shift;
-    my $dbh    = shift;
-    my $distro = shift;
 
-    my $sql;
-    my $sth;
-    my $m_modules;
+sub get_mandatory_modules
+{
+    my $type = "module";
+
+    my $opts = shift;
+    my $dbh  = shift;
+    my $dist = shift;
+
     my @modarray;
 
-    $sql = qq|SELECT moduleid
-              FROM $baTbls{ modcert }
-              WHERE distroid = ?
-              AND  mandatory = 't'
-             |;
+    my $cert_href = &cert_for_distro( $opts, $dbh, $type, $dist );
+    return undef unless ( defined $cert_href );
 
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $opts->{LASTERROR} =
-            "Unable to prepare 'mandatory' statement\n" . $dbh->errstr;
-        return 1;
+    while ( my ($key, $man) = each %$cert_href ) {
+        push(@modarray, $key) if ( $man );
     }
 
-    unless( $sth->execute( $distro ) ) {
-        $opts->{LASTERROR} =
-            "Unable to execute 'mandatory' statement\n" . $sth->err;
-        return 1;
-    }
-
-
-
-    while( my $href = $sth->fetchrow_hashref( ) ) {
-        push(@modarray, $href->{'moduleid'});
-    }
-    $m_modules = join " ", @modarray;
-
-    $sth->finish;
-    undef $sth;
-
-    return $m_modules;
+    return $modarray[0] unless ( @modarray > 1 );
+    return join ", ", @modarray;
 }
 
 
-###########################################################################
-##
-## originally from baconfig
-
-sub check_hwcert
-{
-    my $opts       = shift;
-    my $dbh        = shift;
-    my $hardwareid = shift;
-
-    my $sth;
-    my $href;
-
-    my $sql = qq| SELECT distroid
-                  FROM hardwareid
-                  WHERE hardwareid = ?
-                |;
-
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $opts->{LASTERROR} =
-            "Unable to prepare 'check_hwcert' statement\n" . $dbh->errstr;
-        return 1;
-    }
-
-    unless( $sth->execute( $hardwareid ) ) {
-        $opts->{LASTERROR} =
-            "Unable to execute 'check_hwcert' statement\n" . $sth->err;
-        return 1;
-    }
-
-    while( $href = $sth->fetchrow_hashref( ) ) {
-        if ($href->{'distroid'}) {
-            return 1;
-        }
-    }
-
-    $sth->finish;
-    undef $sth;
-
-    return 0;
-}
-
-sub check_hwuse
-{
-    my $opts       = shift;
-    my $dbh        = shift;
-    my $hardwareid = shift;
-
-    my $sth;
-    my $href;
-
-    my $sql = qq| SELECT hardwareid
-                  FROM build
-                  WHERE hardwareid = ?
-                |;
-
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $opts->{LASTERROR} =
-            "Unable to prepare 'check_hwuse' statement\n" . $dbh->errstr;
-        return 1;
-    }
-
-    unless( $sth->execute( $hardwareid ) ) {
-        $opts->{LASTERROR} =
-            "Unable to execute 'check_hwuse' statement\n" . $sth->err;
-        return 1;
-    }
-
-    while( $href = $sth->fetchrow_hashref( ) ) {
-        if ($href->{'hardareid'}) {
-            return 1;
-        }
-    }
-
-    $sth->finish;
-    undef $sth;
-
-    return 0;
-}
+# checks for presence of enabled version
+#
+# return value
+#   undef on failure
+#   zero if no enabled version was found
+#   non-zero version number of enabled entry
 
 sub check_enabled
 {
-    my $opts     = shift;
-    my $dbh        = shift;
-    my $moduleid = shift;
+    my $opts = shift;
+    my $dbh  = shift;
+    my $type = shift;
+    my $id   = shift;
 
     my $sth;
     my $href;
 
-    my $sql = qq| SELECT status
-                  FROM $baTbls{ module }
-                  WHERE moduleid = ?
+    unless ( $type eq "hardware" or
+             $type eq "module"   or
+             $type eq "autobuild"
+            )
+    {
+        die "Expected 'module', 'autobuild' or 'hardware'\n";
+    }
+
+    my $sql = qq| SELECT status, version
+                  FROM $baTbls{ $type }
+                  WHERE $baTblId{ $type } = '$id'
                   AND version >= 1
-                |;
+                 |;
+
+    print $sql . "\n" if $opts->{debug};
 
     unless ( $sth = $dbh->prepare( $sql ) ) {
         $opts->{LASTERROR} =
             "Unable to prepare 'check_enabled' statement\n" . $dbh->errstr;
-        return 1;
+        return undef;
     }
 
-    unless( $sth->execute( $moduleid ) ) {
+    unless( $sth->execute( ) ) {
         $opts->{LASTERROR} =
             "Unable to execute 'check_enabled' statement\n" . $sth->err;
-        return 1;
+        return undef;
     }
 
-    while( $href = $sth->fetchrow_hashref( ) ) {
-        if ($href->{'status'}) {
-            return 1;
+    while ( $href = $sth->fetchrow_hashref( ) ) {
+        if ( $href->{status} ) {
+            return $href->{version};
         }
     }
 
@@ -692,262 +660,269 @@ sub check_enabled
 }
 
 
+# checks for presence of mandatory module
+#
+# return value
+#   undef on failure
+#   zero if no mandatory certification was found
+#   array ref of distroid for mandatory certs found
+
 sub check_mandatory
 {
     my $opts     = shift;
-    my $dbh        = shift;
+    my $dbh      = shift;
     my $moduleid = shift;
 
     my $sth;
     my $href;
 
-    my $sql = qq| SELECT mandatory
-                  FROM $baTbls{ module }
-                  WHERE moduleid = ?
-                  AND version >= 1
+    my $sql = qq| SELECT mandatory, distroid
+                  FROM $baTbls{ modcert }
+                  WHERE moduleid = '$moduleid'
                 |;
 
     unless ( $sth = $dbh->prepare( $sql ) ) {
         $opts->{LASTERROR} =
             "Unable to prepare 'check_mandatory' statement\n" . $dbh->errstr;
-        return 1;
+        return undef;
     }
 
-    unless( $sth->execute( $moduleid ) ) {
+    unless( $sth->execute( ) ) {
         $opts->{LASTERROR} =
             "Unable to execute 'check_mandatory' statement\n" . $sth->err;
-        return 1;
+        return undef;
     }
 
-    while( $href = $sth->fetchrow_hashref( ) ) {
+    my @mancerts;
+    while ( $href = $sth->fetchrow_hashref( ) ) {
         if ($href->{'mandatory'}) {
-            return 1;
+            push @mancerts, $href->{'distroid'}
         }
     }
 
     $sth->finish;
     undef $sth;
 
+    return \@mancerts if ( scalar @mancerts > 0 );
+
     return 0;
 }
 
-sub get_mandatory
+# checks for distro usable for cert
+#
+# return value
+#   undef on failure
+#   count of distros passed that have problem
+#   0 if all distros are ok to use with cert
+
+sub check_distros
 {
-    my $opts     = shift;
-    my $dbh      = shift;
-    my $moduleid = shift;
-    my $cert     = shift;
+    my $opts  = shift;
+    my $dbh   = shift;
+    my $tftph = shift;
+    my $certs = shift;
 
-    my $sql = qq|SELECT mandatory
-                 FROM $baTbls{ modcert }
-                 WHERE moduleid = ?
-                |;
-
-    if ( $cert eq "all" ) {
-        $sql .= " AND distroid LIKE '%';";
+    my @certlist;
+    if ( $certs =~ m/[,\s]+/ ) {
+        @certlist = split(/[,\s*]/, $certs);
     } else {
-        $sql .= " AND distroid = '$cert';";
+        push @certlist, $certs;
     }
 
-    print $sql . "\n" if $opts->{debug};
+    my $cert_status = 0;
 
-    my $sth;
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $opts->{LASTERROR} = "Unable to prepare 'get_mandatory' statement\n" .
-            $dbh->errstr;
-        return 1;
-    }
-    unless ( $sth->execute( $moduleid ) ) {
-        $opts->{LASTERROR} = "Unable to execute 'get_mandatory' statement\n" .
-            $sth->err;
-        return 1;
-    }
-
-    my $href = $sth->fetchrow_hashref();
-
-    ## Return 3 if neither optional or mandatory
-    ## 3 = new entry
-    unless( defined $href->{'mandatory'} ) {
-        $href->{'mandatory'} = 3;
-    }
-
-    $sth->finish;
-    undef $sth;
-
-    return  $href->{'mandatory'};
-}
-
-sub check_distroid
-{
-    my $opts     = shift;
-    my $dbh      = shift;
-    my $distroid = shift;
-
-    my $sth;
-    my $href;
-
-    my $sql = qq| SELECT distroid
-                  FROM $baTbls{ distro }
-                  WHERE distroid = ?
-                |;
-
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $opts->{LASTERROR} =
-            "Unable to prepare 'check_distroid' statement\n" . $dbh->errstr;
-        return 1;
-    }
-
-    unless( $sth->execute( $distroid ) ) {
-        $opts->{LASTERROR} =
-            "Unable to execute 'check_distroid' statement\n" . $sth->err;
-        return 1;
-    }
-
-    while( $href = $sth->fetchrow_hashref( ) ) {
-        if ($href->{'distroid'}) {
-            return 1;
+    foreach my $cert_in ( @certlist ) {
+        my $findcount = &find_helper( $opts, $dbh, $tftph, "distro", $cert_in );
+        unless ( defined $findcount ) {
+            # &find call failed
+            $opts->{LASTERROR} = "Failed in check_distros\n" . $opts->{LASTERROR};
+            return undef;
+        }
+        unless ( $findcount ) {
+            print "Unable to certify: $cert_in does not exist\n";
+            $cert_status = 1;
+            next;
         }
     }
 
-    $sth->finish;
-    undef $sth;
-
-    return 0;
+    return $cert_status;
 }
 
-sub check_hardware
+
+# checks for distro cert
+#
+# return value
+#   undef on failure
+#   hash ref of distros associated with id if any found
+#     hash has key of distroid and value of mandatory_flag
+
+sub get_certs_hash
 {
-    my $opts       = shift;
-    my $dbh        = shift;
-    my $hardwareid = shift;
-
-    my $sth;
-    my $href;
-
-    my $sql = qq| SELECT hardwareid
-                  FROM $baTbls{ hardware }
-                  WHERE hardwareid = ?
-                |;
-
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $opts->{LASTERROR} =
-            "Unable to prepare 'check_hardwareid' statement\n" . $dbh->errstr;
-        return 1;
-    }
-
-    unless( $sth->execute( $hardwareid ) ) {
-        $opts->{LASTERROR} =
-            "Unable to execute 'check_hardware' statement\n" . $sth->err;
-        return 1;
-    }
-
-    while( $href = $sth->fetchrow_hashref( ) ) {
-        if ($href->{'hardwareid'}) {
-            return 1;
-        }
-    }
-
-    $sth->finish;
-    undef $sth;
-
-    return 0;
-}
-
-sub check_module
-{
-    my $opts     = shift;
-    my $dbh      = shift;
-    my $moduleid = shift;
-
-    my $sth;
-    my $href;
-
-    my $sql = qq| SELECT moduleid
-                  FROM $baTbls{ module }
-                  WHERE moduleid = ?
-                |;
-
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $opts->{LASTERROR} =
-            "Unable to prepare 'check_module' statement\n" . $dbh->errstr;
-        return 1;
-    }
-
-    unless( $sth->execute( $moduleid ) ) {
-        $opts->{LASTERROR} =
-            "Unable to execute 'check_module' statement\n" . $sth->err;
-        return 1;
-    }
-
-    while( $href = $sth->fetchrow_hashref( ) ) {
-        if ($href->{'moduleid'}) {
-            return 1;
-        }
-    }
-
-    $sth->finish;
-    undef $sth;
-
-    return 0;
-}
-
-sub check_cert
-{
-    my $opts    = shift;
-    my $dbh     = shift;
-    my $type    = shift;
-    my $id      = shift;
-    my $cert_in = shift;
+    my $opts = shift;
+    my $dbh  = shift;
+    my $type = shift;
+    my $name = shift;
 
     my $sth;
     my $href;
     my $sql;
 
-    if ( $type eq "hwcert" ) {
-        $sql = qq| SELECT distroid 
-                      FROM $baTbls{ $type }
-                      WHERE hardwareid = '$id'
-                      AND distroid = '$cert_in'
-                    |;
-    }
-    elsif ( $type eq "modcert" ) {
-        $sql = qq| SELECT distroid 
-                      FROM $baTbls{ $type }
-                      WHERE moduleid = '$id'
-                      AND distroid = '$cert_in'
-                    |;
-    }
-    elsif ( $type eq "abcert" ) {
-        $sql = qq| SELECT distroid 
-                      FROM $baTbls{ $type }
-                      WHERE autobuildid = '$id'
-                      AND distroid = '$cert_in'
-                    |;
+    if ( $type eq "hardware" ) {
+        $sql = qq| SELECT distroid
+                   FROM $baTblCert{ $type }
+                   WHERE $baTblId{ $type } = '$name'
+                 |;
+    } elsif ( $type eq "module" ) {
+        $sql = qq| SELECT distroid, mandatory
+                   FROM $baTblCert{ $type }
+                   WHERE $baTblId{ $type } = '$name'
+                 |;
+    } elsif ( $type eq "autobuild" ) {
+        $sql = qq| SELECT distroid
+                   FROM $baTblCert{ $type }
+                   WHERE $baTblId{ $type } = '$name'
+                 |;
+    } else {
+        die "Expected 'module', 'autobuild' or 'hardware'\n";
     }
 
     unless ( $sth = $dbh->prepare( $sql ) ) {
         $opts->{LASTERROR} =
-            "Unable to prepare 'check_cert' statement\n" . $dbh->errstr;
-        return 1;
+            "Unable to prepare 'get_certs_hash' statement\n" . $dbh->errstr;
+        return undef;
     }
 
-    unless( $sth->execute(  ) ) {
+    unless( $sth->execute( ) ) {
         $opts->{LASTERROR} =
-            "Unable to execute 'check_cert' statement\n" . $sth->err;
-        return 1;
+            "Unable to execute 'get_certs_hash' statement\n" . $sth->err;
+        return undef;
     }
 
-    while( $href = $sth->fetchrow_hashref( ) ) {
-        if ($href->{'distroid'}) {
-            return 0;
+    my %cert_hash;
+    while ( $href = $sth->fetchrow_hashref( ) ) {
+        # the fact that the distro is a key means
+        # this type is certified for this distro
+        if ( defined $href->{mandatory} ) {
+            $cert_hash{ $href->{'distroid'} }= $href->{mandatory};
+        } else {
+            $cert_hash{ $href->{'distroid'} }= 0;
         }
     }
 
     $sth->finish;
     undef $sth;
 
-    return 1;
+    return \%cert_hash;
 }
+
+
+sub check_cert
+{
+    my $opts = shift;
+    my $dbh  = shift;
+    my $dist = shift;
+    my $type = shift;
+    my $list = shift;  # this is a string not an array - w.s. seperated values
+
+    my $cert_hash;
+
+    my $status = 0;
+    $opts->{LASTERROR} = "";
+
+    my @listtocheck;
+    if ( $list =~ m/[,\s]+/ ) {
+        @listtocheck = split(/[,\s*]/, $list);
+    } else {
+        push @listtocheck, $list;
+    }
+
+    foreach my $item (@listtocheck) {
+
+        # we don't care about version here but
+        # make sure we strip it if it was specified
+        my ( $name, $ver ) = get_name_version( $item );
+
+        # not the most efficient call for this - but
+        # code reuse overrides efficiency
+        # at this level of perf impact for sure
+        $cert_hash = get_certs_hash( $opts, $dbh, $type, $name );
+
+        if ( defined $cert_hash and defined $cert_hash->{ $dist } ) {
+            print "$type $item is certified for $dist\n" if $opts->{debug};
+        } else {
+            if ( $status == 0 ) {
+                $status = 1;
+                $opts->{LASTERROR} = "$type not certified for use with $dist\nconfirm you want to use these in combination and then do:\n";
+            }
+            $opts->{LASTERROR} .= "   baconfig update $type --name $item --addcert $dist\n"
+        }
+    }
+    return $status;
+}
+
+
+# checks for all of a flavor certivied for given distro
+#
+# return value
+#   undef on failure
+#   hash ref of flavor items associated with distro if any found
+#     hash has key of id and value of mandatory_flag
+
+sub cert_for_distro
+{
+    my $opts = shift;
+    my $dbh  = shift;
+    my $type = shift;
+    my $dist = shift;
+
+    my $sth;
+    my $href;
+    my $sql;
+
+    if ( $type eq "hardware" ) {
+        $sql = qq| SELECT hardwareid AS name
+                   FROM $baTbls{ "hwcert" }
+                   WHERE distroid = '$dist'
+                 |;
+    } elsif ( $type eq "module" ) {
+        $sql = qq| SELECT moduleid AS name, mandatory
+                   FROM $baTbls{ modcert }
+                   WHERE distroid = '$dist'
+                 |;
+    } elsif ( $type eq "autobuild" ) {
+        $sql = qq| SELECT autobuildid AS name
+                   FROM $baTbls{ abcert }
+                   WHERE distroid = '$dist'
+                 |;
+    }
+
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $opts->{LASTERROR} =
+            "Unable to prepare 'cert_for_distro' statement\n" . $dbh->errstr;
+        return undef;
+    }
+
+    unless( $sth->execute( ) ) {
+        $opts->{LASTERROR} =
+            "Unable to execute 'cert_for_distro' statement\n" . $sth->err;
+        return undef;
+    }
+
+    my %cert_hash;
+    while ( $href = $sth->fetchrow_hashref( ) ) {
+        if ( defined $href->{mandatory} ) {
+            $cert_hash{ $href->{name} }= $href->{mandatory};
+        } else {
+            $cert_hash{ $href->{name} }= 0;
+        }
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return \%cert_hash;
+}
+
 
 # get_versions
 #
@@ -963,41 +938,38 @@ sub get_versions
     my $name = shift;
     my $vers = shift;
 
-    my $sth;
-    my $href;
     my $version_href;
     my $highest_href;
     my $enabled_href;
 
     $vers = 0 unless ( defined $vers );
 
-    my $sql_cols = get_cols( $type );
-    my $sql = qq| SELECT $sql_cols FROM $baTbls{ $type } |;
-
-    if ( $type eq "module" ) {
-        $sql .= "WHERE moduleid = ?";
-    }
-    elsif ( $type eq "profile" ) {
-        $sql .= "WHERE profileid = ?";
-    }
-    else {
-        print "Expected 'module' or 'profile'\n";
-        exit 1;
+    unless ( $type eq "hardware" or
+             $type eq "module"   or
+             $type eq "profile"  or
+             $type eq "autobuild"
+            )
+    {
+        die "Expected 'module', 'profile', 'autobuild' or 'hardware'\n";
     }
 
-    $sql .= " ORDER BY version;";
+    my $sql_cols = lc get_cols( $baTbls{ $type } );
+    my $sql = qq| SELECT $sql_cols FROM $baTbls{ $type } WHERE $baTblId{ $type } = '$name' ORDER BY version|;
 
+
+    my $sth;
     unless ( $sth = $dbh->prepare( $sql ) ) {
         $opts->{LASTERROR} = "Unable to prepare 'get_entry' statement\n" . $dbh->errstr;
         return ( undef, undef, undef );
     }
 
-    unless( $sth->execute( $name ) ) {
+    unless( $sth->execute() ) {
         $opts->{LASTERROR} = "Unable to execute 'get_entry' statement\n" . $sth->err;
         return ( undef, undef, undef );
     }
 
-    while( $href = $sth->fetchrow_hashref( ) ) {
+    my $href;
+    while ( $href = $sth->fetchrow_hashref( ) ) {
         $version_href = $href if ( $href->{'version'} == $vers);
         $highest_href = $href;
         $enabled_href = $href if ( $href->{'status'} == 1 );
@@ -1006,8 +978,14 @@ sub get_versions
     $sth->finish;
     undef $sth;
 
+    $opts->{LASTERROR} = "Unable to find $type entry for $name\n"
+        unless ( defined $version_href or
+                 defined $highest_href or
+                 defined $enabled_href );
+
     return ( $version_href, $highest_href, $enabled_href );
 }
+
 
 # rendundant_data
 #
@@ -1026,21 +1004,19 @@ sub redundant_data
     my $sth;
     my $href;
 
-    my $sql_cols = get_cols( $type );
-    my $sql = qq| SELECT $sql_cols FROM $baTbls{ $type } |;
+    print "args type: $type name: $name\n" if ( $opts->{debug} );
 
-    if ( $type eq "module" ) {
-        $sql .= "WHERE moduleid = ?";
-    }
-    elsif ( $type eq "profile" ) {
-        $sql .= "WHERE profileid = ?";
-    }
-    else {
-        print "Expected 'module' or 'profile'\n";
-        exit 1;
+    unless ( $type eq "hardware" or
+             $type eq "module"   or
+             $type eq "profile"  or
+             $type eq "autobuild"
+            )
+    {
+        die "Expected 'module', 'profile', 'autobuild' or 'hardware'\n";
     }
 
-    $sql .= " ORDER BY version;";
+    my $sql_cols = lc get_cols( $baTbls{ $type } );
+    my $sql = qq| SELECT $sql_cols FROM $baTbls{ $type } WHERE $baTblId{ $type } = '$name' ORDER BY version;|;
 
     unless ( $sth = $dbh->prepare( $sql ) ) {
         $opts->{LASTERROR} =
@@ -1048,14 +1024,27 @@ sub redundant_data
         return 1;
     }
 
-    unless( $sth->execute( $name ) ) {
+    unless( $sth->execute( ) ) {
         $opts->{LASTERROR} =
             "Unable to execute 'redundant_data' statement\n" . $sth->err;
         return 1;
     }
 
-    while( $href = $sth->fetchrow_hashref( ) ) {
-        if ($href->{'data'} eq $data) {
+    while ( $href = $sth->fetchrow_hashref( ) ) {
+        # hardware we compare values of params
+        # other items are stored as files / blobs
+        # so compared 'data' directly
+        if (
+            ( ( $type eq "hardware" ) and
+              (
+               ( $href->{'hwdriver'} eq $data->{'hwdriver'} ) and
+               ( $href->{'bootargs'} eq $data->{'bootargs'} ) and
+               ( $href->{'rootdisk'} eq $data->{'rootdisk'} ) and
+               ( $href->{'rootpart'} eq $data->{'rootpart'} )
+               )
+             ) or
+            ( ( $type ne "hardware" ) and ( $href->{'data'} eq $data ) )
+            ) {
             $opts->{LASTERROR} =
                 "Reject adding new version with content identical to this version: $href->{'version'}\n";
             return 1;
@@ -1068,6 +1057,79 @@ sub redundant_data
     return 0;
 }
 
+# find - simple lookup to see if entry already exists
+# return count of entries found or undef on error
+
+sub find_helper
+{
+    my $opts  = shift;
+    my $dbh   = shift;
+    my $tftph = shift;
+    my $type  = shift;
+    my $name  = shift;
+
+    my $sql;
+
+    my $db2use = $dbh;
+
+    if ( $type eq "hardware" ) {
+        $sql = qq|SELECT hardwareid as name
+                  FROM $baTbls{ $type }
+                  WHERE hardwareid = '$name'
+                 |;
+    } elsif ( $type eq "module" ) {
+        $sql = qq|SELECT moduleid as name
+                  FROM $baTbls{ $type }
+                  WHERE moduleid = '$name'
+                 |;
+    } elsif ( $type eq "profile" ) {
+        $sql = qq|SELECT profileid as name
+                  FROM $baTbls{ $type }
+                  WHERE profileid = '$name'
+                 |;
+    } elsif ( $type eq "autobuild" ) {
+        $sql = qq|SELECT autobuildid as name
+                  FROM $baTbls{ $type }
+                  WHERE autobuildid = '$name'
+                 |;
+    } elsif ( $type eq "tftp" ) {
+        $sql = qq|SELECT name, id
+                  FROM $baTbls{ $type }
+                  WHERE name = '$name'
+                  ORDER BY id
+                 |;
+        $db2use = $tftph;
+    } elsif ( $type eq "distro" ) {
+        $sql = qq|SELECT distroid as name
+                  FROM $baTbls{ $type }
+                  WHERE distroid = '$name'
+                 |;
+    }
+    print $sql . "\n" if $opts->{debug};
+
+    my $sth = $db2use->prepare( $sql );
+    unless ( defined $sth ) {
+        $opts->{LASTERROR} = "Unable to prepare 'find' $type statement\n" .
+            $db2use->errstr;
+        return undef;
+    }
+
+    unless( $sth->execute( ) ) {
+        $opts->{LASTERROR} = "Unable to execute 'find' $type query" . $sth->err;
+        return undef;
+    }
+
+    my $rowcount = 0;
+    while ( $sth->fetchrow_hashref() ) {
+        $rowcount += 1;
+        print "rowcount +1 $rowcount\n" if $opts->{debug};
+    }
+
+    $sth->finish;
+    undef $sth;
+
+    return $rowcount;
+}
 
 1;
 

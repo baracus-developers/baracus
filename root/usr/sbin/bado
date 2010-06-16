@@ -231,81 +231,77 @@ sub build
         &help( $opts, $cmds, $command );
     }
 
-    my $mac="";
-    my $hostname="";
-
     my $macref;
     my $hostref;
     my $actref;
 
-    my $ip="";
-    my $profile="";
-    my $distro="";
-    my $addon = "";
-    my $hardware="";
-    my $module="";
-    my $autobuild="";
     my $usevnc="";
     my $vncpass="";
     my $usessh="";
     my $sshpass="";
     my $serialtty="";
     my $serialbaud="";
-    my $vars;
+
+    my %entry;
+    my $cols = lc get_cols( $baTbls{ action });
+    foreach my $key (split(/[,\s*]/, $cols )) {
+        $entry{$key} = '';
+    }
 
     @ARGV = @_;
 
-    GetOptions(
-               'mac=s'          => \$mac,
-               'hostname=s'     => \$hostname,
-               'ip=s'           => \$ip,
-               'profile=s'      => \$profile,
-               'distro=s'       => \$distro,
-               'addon=s'        => \&multiarg_handler,
-               'hardware=s'     => \$hardware,
-               'module=s'       => \&multiarg_handler,
-               'autobuild=s'    => \$autobuild,
-               'usevnc!'        => \$usevnc,
-               'vncpass=s'      => \$vncpass,
-               'usessh!'        => \$usessh,
-               'sshpass=s'      => \$sshpass,
-               'serialtty=s'    => \$serialtty,
-               'serialbaud=s'   => \$serialbaud,
-               'vars=s'         => \&multiarg_handler,
-               );
+    GetOptions
+        (
+         'mac=s'         => \$entry{mac},
+         'hostname=s'    => \$entry{hostname},
+         'ip=s'          => \$entry{ip},
+         'distro=s'      => \$entry{distro},
+         'hardware=s'    => \$entry{hardware},
+         'profile=s'     => \$entry{profile},
+         'autobuild=s'   => \$entry{autobuild},
+         'addon=s'       => \&multiarg_handler,
+         'vars=s'        => \&multiarg_handler,
+         'module=s'      => \&multiarg_handler,
+         'usevnc!'       => \$usevnc,
+         'vncpass=s'     => \$vncpass,
+         'usessh!'       => \$usessh,
+         'sshpass=s'     => \$sshpass,
+         'serialtty=s'   => \$serialtty,
+         'serialbaud=s'  => \$serialbaud,
+         );
 
     if ( scalar @ARGV ) {
         $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
         return 1;
     }
 
-    $addon  = $multiarg{ 'addon'  } if (defined $multiarg{ 'addon'  });
-    $module = $multiarg{ 'module' } if (defined $multiarg{ 'module' });
-    $vars   = $multiarg{ 'vars'   } if (defined $multiarg{ 'vars'   });
+    $entry{addons}  = $multiarg{ 'addon'  } if (defined $multiarg{ 'addon'  });
+    $entry{vars}    = $multiarg{ 'vars'   } if (defined $multiarg{ 'vars'   });
+    $entry{modules} = $multiarg{ 'module' } if (defined $multiarg{ 'module' });
 
     ## Verify Mandatory parameters
     ##
-    if ( $hostname eq "" ) {
+    if ( $entry{hostname} eq "" ) {
         $opts->{LASTERROR} = "Missing  --hostname\n";
         return 1;
     }
-    if ( $ip eq "" ) {
+    if ( $entry{ip} eq "" ) {
         $opts->{LASTERROR} = "Missing  --ip\n";
         return 1;
     }
-    if ( $mac eq "" ) {
+    if ( $entry{mac} eq "" ) {
         $opts->{LASTERROR} = "Missing  --mac\n";
         return 1;
     }
 
-    $ip = lc $ip;
-    &check_ip( $ip );
+    $entry{ip} = lc $entry{ip};
+    &check_ip( $entry{ip} );
 
     # this routine checks for mac and hostname args
     # and if hostname passed finds related mac entry
     # returns undef on error (e.g., unable to find hostname)
-    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
-    unless ( defined $mac ) {
+    $entry{mac} = &get_mac_by_hostname( $opts, $dbh, $entry{mac}, $entry{hostname} );
+    unless ( defined $entry{mac} ) {
         # $opts->{LASTERROR} set in subroutine
         return 1;
     }
@@ -314,19 +310,19 @@ sub build
     # now get any existing action db entry
 
     # lookup by MAC
-    $actref = &get_db_action( $dbh, $mac );
+    $actref = &get_db_action( $dbh, $entry{mac} );
     if ( defined $actref
          and defined $actref->{hostname}
-         and $hostname ne $actref->{hostname} ) {
-        print "Attempt to create entry for $hostname with mac identical to existing 'action' entry $actref->{hostname}\n";
+         and $entry{hostname} ne $actref->{hostname} ) {
+        print "Attempt to create entry for $entry{hostname} with mac identical to existing 'action' entry $actref->{hostname}\n";
         exit 1;
     }
     # lookup by hostname
-    $actref = get_db_action_by_hostname( $dbh, $hostname );
+    $actref = get_db_action_by_hostname( $dbh, $entry{hostname} );
     if ( defined $actref
          and defined $actref->{mac}
-         and $mac ne $actref->{mac} ) {
-        print "Attempt to create entry for $mac with hostname identical to existing 'action' entry $actref->{mac}\n";
+         and $entry{mac} ne $actref->{mac} ) {
+        print "Attempt to create entry for $entry{mac} with hostname identical to existing 'action' entry $actref->{mac}\n";
         exit 1;
     }
 
@@ -334,12 +330,18 @@ sub build
     # begin loading of hash used for remainder of processing command
     undef $actref;
 
-    unless ($profile) {
+    unless ( defined $entry{profile} and $entry{profile} ne "" ) {
         print "--profile <prof> unspecified. Using 'default'\n";
-        $profile = "default";
+        $entry{profile} = "default";
     }
-    $actref->{'profile'} = $profile;
-    &load_profile( $opts, $dbh, $actref );
+
+    # breakout possible compound ver:name with call get back ( name, ver/undef )
+    ( $actref->{profile}, $actref->{profile_ver} ) =
+        &get_name_version( $entry{profile} );
+    print "profile $actref->{profile}\n" if ($opts->{debug});
+    print "profile version $actref->{profile_ver}\n" if (defined $actref->{profile_ver} and $opts->{debug});
+
+    return 1 if ( &load_profile( $opts, $dbh, $actref ) );
     if ($opts->{debug} > 1) {
         foreach my $key ( sort ( keys %{$actref} )) {
             print "add post-profile:  $key => $actref->{$key}\n";
@@ -348,29 +350,30 @@ sub build
 
     # distro file may be in profile *and* on command line
     # command line wins over profile entry
-    $actref->{'distro'} = $distro if ($distro);
+    $actref->{'distro'} = $entry{distro} if ($entry{distro});
 
     die "Need --distro via commandline or distro= in profile.\n"
         unless ($actref->{'distro'});
 
-    &load_distro( $opts, $dbh, $actref );
+    return 1 if ( &load_distro( $opts, $dbh, $actref ) );
     if ($opts->{debug} > 1) {
         foreach my $key ( sort ( keys %{$actref} )) {
             print "add post-distro:  $key => $actref->{$key}\n";
         }
     }
 
+    # now that we know what distro we're using verify the profile is cert for it
+    #    return 1 if ( &check_cert( $opts, $dbh, $actref->{'distro'}, "profile", $actref->{'profile'}) );
+
     my $addons_in;
-    # addons may be in profile
-    $addons_in = $actref->{'addon'};
+    # addons may have been specified in profile
+    $addons_in = $actref->{'addons'} if ( defined $actref->{addons} );
     # command line wins over profile entry
-    $addons_in = $addon if ($addon);
+    $addons_in = $entry{addons} if ($entry{addons});
 
     if ( defined $sdks{$actref->{distro}} ) {
-        if ( $opts->{debug} )
-        {
-            print "lumping in sdk addon $sdks{$actref->{distro}} for $actref->{distro}\n";
-        }
+        print "lumping in sdk addon $sdks{$actref->{distro}} for $actref->{distro}\n"
+            if ( $opts->{debug} );
 
         if ( $addons_in ) {
             $addons_in = "$sdks{$actref->{distro}} " . $addons_in;
@@ -382,11 +385,11 @@ sub build
     $actref->{addons} = $addons_in;
 
     # if actref->{'addon'} was set by reading a profile addon= line
-    # we need to clear it from $hash as that is for the yast xml
+    # we need to clear it from $hash as that is for the __ADDON__ autobuild
     $actref->{'addon'} = '';
-    if ( defined $addons_in and $addons_in ) {
+    if ( defined $addons_in and $addons_in ne "" ) {
         print "add pre-addons:  $addons_in\n" if ($opts->{debug} > 1);
-        &load_addons( $opts, $dbh, $actref, $addons_in );
+        return 1 if ( &load_addons( $opts, $dbh, $actref ) );
     }
     if ($opts->{debug} > 1) {
         foreach my $key ( sort ( keys %{$actref} )) {
@@ -396,17 +399,85 @@ sub build
 
     # hardware file may be in profile *and* on command line
     # command line wins over profile entry
-    $actref->{'hardware'}= $hardware if ($hardware);
+    $actref->{'hardware'}= $entry{hardware} if ($entry{hardware});
 
     die "Need --hardware via commandline or hardware= in profile.\n"
         unless ($actref->{'hardware'});
 
-    &load_hardware( $opts, $dbh, $actref );
+    # breakout possible compound ver:name with call get back ( name, ver/undef )
+    ( $actref->{hardware}, $actref->{hardware_ver} ) =
+        &get_name_version( $actref->{hardware} );
+    print "hardware $actref->{hardware}\n" if ($opts->{debug});
+    print "hardware version $actref->{hardware_ver}\n" if (defined $actref->{hardware_ver} and $opts->{debug});
+
+
+    return 1 if ( &load_hardware( $opts, $dbh, $actref ) );
+    return 1 if ( &check_cert( $opts, $dbh, $actref->{'distro'}, "hardware", $actref->{'hardware'}) );
     if ($opts->{debug} > 1) {
         foreach my $key ( sort ( keys %{$actref} )) {
             print "add post-hardware:  $key => $actref->{$key}\n";
         }
     }
+
+    my $modules_in;
+    # modules may have been specified in profile
+    $modules_in = $actref->{'modules'} if ( defined $actref->{'modules'} );
+    # command line wins over profile entry
+    $modules_in = $entry{modules} if ($entry{modules});
+
+    # Check for and add mandatory modules
+    my $mandatory_in = &get_mandatory_modules( $opts, $dbh, $actref->{distro} );
+    if ( defined $mandatory_in ) {
+        print "lumping in mandatory module(s) for $actref->{distro}\n  $mandatory_in\n"
+            if ( $opts->{debug} );
+
+        if ( $modules_in ) {
+            $modules_in = "$mandatory_in " . $modules_in;
+        } else {
+            $modules_in = $mandatory_in;
+        }
+    }
+
+    # we're going to store this list of modules in a join table
+    $actref->{modules} = $modules_in;
+
+    # if hash{'module'} was set by reading a profile module= line
+    # we need to clear it from $hash as that is for the __MODULE__ autobuild
+    $actref->{'module'} = '';
+
+    # modules are optional do not attempt to load if none specified
+    if ( defined $modules_in and $modules_in ne "" ) {
+        print "add pre-modules: $modules_in\n" if ( $opts->{debug} );
+        return 1 if ( &load_modules( $opts, $dbh, $actref ) );
+        return 1 if ( &check_cert( $opts, $dbh, $actref->{distro}, "module", $modules_in ));
+    }
+    if ($opts->{debug} > 1) {
+        foreach my $key ( sort ( keys %{$actref} )) {
+            print "add post-modules:  $key => $actref->{$key}\n";
+        }
+    }
+
+
+    # autobuild may be in profile *and* on command line
+    # command line wins over profile entry
+    $actref->{'autobuild'} = $entry{autobuild} if ($entry{autobuild});
+
+    unless ($actref->{'autobuild'}) {
+        $actref->{'autobuild'} = "none";
+        print "Without --autobuild <abuild> installer is defaulting to interactive\n"
+    }
+
+    # breakout possible compound ver:name with call get back ( name, ver/undef )
+    ( $actref->{'autobuild'}, $actref->{'autobuild_ver'} ) =
+        &get_name_version( $actref->{autobuild} );
+    print "autobuild $actref->{autobuild}\n" if ($opts->{debug});
+    print "autobuild version $actref->{autobuild_ver}\n" if (defined $actref->{autobuild_ver} and $opts->{debug});
+
+    if ( $actref->{'autobuild'} ne "none" ) {
+        return 1 if ( &load_autobuild( $opts, $dbh, $actref ));
+        return 1 if ( &check_cert( $opts, $dbh, $actref->{'distro'}, 'autobuild', $actref->{'autobuild'} ));
+    }
+
 
     # Remote Access configurations
     my @raccess;
@@ -425,11 +496,11 @@ sub build
         }
         $vncpass =~ s/$vncpass/vncpassword=$vncpass/;
         if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|esx|    or
              $actref->{os} =~ m|fedora| or
              $actref->{os} =~ m|centos| ) {
             push(@raccess, "vnc", $vncpass);
-        }
-        else {
+        } else {
             push(@raccess, "vnc=1", $vncpass);
         }
     }
@@ -438,16 +509,16 @@ sub build
     # command line wins over profile entry
     if (($sshpass) or ($usessh)) {
         if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|esx|    or
              $actref->{os} =~ m|fedora| or
              $actref->{os} =~ m|centos| ) {
-            $opts->{LASTERROR} = "RHEL, Fedora, CentOS do not support ssh install\n";
+            $opts->{LASTERROR} = "RHEL, ESX, Fedora, CentOS do not support ssh install\n";
             return 1;
         }
     }
     if (($sshpass) and !($usessh)) {
         die "--sshpass requires --usessh\n";
-    }
-    elsif (!($sshpass) and ($usessh)) {
+    } elsif (!($sshpass) and ($usessh)) {
         die "--usessh requires --sshpass\n";
     }
 
@@ -460,13 +531,14 @@ sub build
     # command line wins over profile entry
     $actref->{console} = "";
     if (($serialtty) and !($serialbaud)) {
-            die "--serialtty requires --serialbaud\n";
+        die "--serialtty requires --serialbaud\n";
     } elsif (!($serialtty) and ($serialbaud)) {
-            die "--serialbaud requires --serialtty\n";
+        die "--serialbaud requires --serialtty\n";
     }
 
     if (($serialbaud) and ($serialtty)) {
         if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|esx|    or
              $actref->{os} =~ m|fedora| or
              $actref->{os} =~ m|centos| or
              $actref->{distro} =~ m|sles-9| ) {
@@ -476,8 +548,7 @@ sub build
             my $serialopts = "console=tty0 console=$serialtty,$serialbaud";
             push(@raccess, $serialopts);
             $actref->{console} = $serialopts;
-        }
-        else {
+        } else {
             my $serialopts = "console=tty0 console=$serialtty,$serialbaud";
             $serialopts .= " earlyprintk=serial,$serialtty,$serialbaud";
             push(@raccess, $serialopts);
@@ -488,39 +559,6 @@ sub build
 
     # Join all raccess args
     $actref->{'raccess'} = join " ", @raccess;
-
-    # modules may be specified in profile
-    my $modules_in;
-    $modules_in = $actref->{'module'} if ( defined $actref->{'module'} );
-    # command line wins over profile entry
-    $modules_in = $module if ($module);
-
-    # Check for and add mandatory modules
-    my $mandatory_in = &db_get_mandatory( $opts, $dbh, $distro );
-    if ($modules_in) {
-        $modules_in = $modules_in . " $mandatory_in";
-    }
-    else {
-        $modules_in = $mandatory_in;
-    }
-    # we're going to store this list of addons in the db
-    $actref->{modules} = $modules_in;
-
-    # if hash{'module'} was set by reading a profile module= line
-    # we need to clear it from $hash as that is for the yast xml
-    $actref->{'module'}="";
-
-    print "modules to load: '$modules_in'\n" if ( defined $modules_in and $opts->{debug} );
-    # modules are optional do notattempt to load if none specified
-    if ( defined $modules_in and $modules_in ne "" ) {
-        &check_modules( $opts, $dbh, $distro, $modules_in );
-        &load_modules( $opts, $dbh, $actref, $modules_in );
-    }
-    if ($opts->{debug} > 1) {
-        foreach my $key ( sort ( keys %{$actref} )) {
-            print "add post-modules:  $key => $actref->{$key}\n";
-        }
-    }
 
     ## Commandline options
     ##   - comes after reading profile
@@ -534,35 +572,23 @@ sub build
     $actref->{'sharetype'} = $baVar{sharetype} if ($baVar{sharetype});
     $actref->{'shareip'}   = $baVar{shareip}   if ($baVar{shareip});
 
-    # autobuild may be in profile *and* on command line
-    # command line wins over profile entry
-    $actref->{'autobuild'} = $autobuild if ($autobuild);
-
-    unless ($actref->{'autobuild'}) {
-        $actref->{'autobuild'} = "none";
-        print "Without --autobuild <abuild> installer is defaulting to interactive\n"
-    }
 
     ## If passed on command line via vars, then honor those
     ##
-    if ($vars) {
-        $actref->{vars} = $vars;
-        my @varray = split(/ /, $vars);
-        foreach my $item (@varray) {
-            (my $key, my $value) = split(/=/, $item);
-            $actref->{$key} = $value;
-        }
+    if ($entry{vars}) {
+        $actref->{vars} = $entry{vars};
+        &load_vars( $opts, $dbh, $actref );
     }
 
     # do not want any setting to override these values
 
     $actref->{'cmdline'} = $cmdline;
-    $actref->{'hostname'} = $hostname;
-    $actref->{'ip'} = $ip;
-    $actref->{'mac'} = $mac;
+    $actref->{'hostname'} = $entry{hostname};
+    $actref->{'ip'} = $entry{ip};
+    $actref->{'mac'} = $entry{mac};
     $actref->{'uuid'} = &get_uuid;
     $actref->{'buildroot'} = $baDir{'builds'};
-    $actref->{'autoinst'} = &automac( $mac );
+    $actref->{'autoinst'} = &automac( $entry{mac} );
     $actref->{'basedist'} = "$actref->{'os'}-$actref->{'release'}-$actref->{'arch'}";
     $actref->{'initrd'} = "initrd.$actref->{'basedist'}";
     $actref->{'kernel'} = "linux.$actref->{'basedist'}";
@@ -576,6 +602,7 @@ sub build
 
     if ( $baVar{remote_logging} eq "yes" ) {
         if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|esx|    or
              $actref->{os} =~ m|fedora| or
              $actref->{os} =~ m|centos| ) {
             $actref->{'loghost'} = "syslog=$baVar{serverip}";
@@ -596,38 +623,22 @@ sub build
         }
     }
 
-    ## Test to see if oscert approved
-    ##
-
-    if ( &check_cert( $opts, $dbh, 'hwcert',
-                      $actref->{'hardware'},
-                      $actref->{'distro'} ) )
-    {
-        print "hardware not certified for use with this distro.\nconfirm you want to use these in combination and then do:\n  baconfig update hardware --name $actref->{'hardware'} --addcert $actref->{'distro'}\n";
-        exit 1;
-    }
-
-    if ( $actref->{'autobuild'} ne "none" ) {
-        if ( &check_cert( $opts, $dbh, 'abcert',
-                          $actref->{'autobuild'},
-                          $actref->{'distro'} ) ) {
-            print "autobuild not certified for use with this distro.\nconfirm you want to use these in combination and then do:\n    baconfig update autobuild --name $actref->{'autobuild'} --addcert $actref->{'distro'}\n";
-            exit 1;
-        }
-    }
-
     $macref = get_db_mac( $dbh, $actref->{mac} );
     unless ( defined $macref ) {
         &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED);
         $macref = get_db_mac( $dbh, $actref->{mac} );
     }
 
-    $hostref = &get_db_host( $dbh, $hostname );
+    $hostref = &get_db_host( $dbh, $entry{hostname} );
     unless ( defined $hostref ) {
         &add_db_host( $dbh, $actref );
-#        $hostref = get_db_host( $dbh, $hostname );
+#        $hostref = get_db_host( $dbh, $entry{hostname} );
     }
 #    &update_db_host( $opts, $dbh, $actref );
+
+    # reset action_module join table list
+    # now that modules have been checked and loaded
+    # create the action_module entries and store ver
 
     action_state_change( $dbh, BA_ACTION_BUILD, $macref, $actref );
 
@@ -641,10 +652,10 @@ sub build
         # to make sure we're not updating a dup
         my $gotdiff = 0;
         while ( my ($key, $val) = each %{$tmpref} ) {
-            next if $key eq "uuid";     # changes every invocation
+            next if $key eq "uuid"; # changes every invocation
             next if $key eq "creation";
             next if $key eq "change";
-            next if $key eq "cmdline";  # order diff and -d -v -q don't matter
+            next if $key eq "cmdline"; # order diff and -d -v -q don't matter
             unless ( defined $val ) {
                 if ( defined $actref->{$key} ) {
                     $gotdiff = 1;
@@ -661,22 +672,50 @@ sub build
             }
         }
         if ( $gotdiff != 0 ) {
-            &remove_autobuild( $opts, $actref );
-            unless ( $actref->{'autobuild'} eq "none" ) {
-                &add_autobuild( $opts, $dbh, $actref );
-            }
+#            &remove_autobuild( $opts, $actref );
             &update_db_action( $dbh, $actref);
         }
     } else {
         &add_db_action( $dbh, $actref);
-        unless ( $actref->{'autobuild'} eq "none" ) {
-            &add_autobuild( $opts, $actref );
+    }
+
+    return 1 if ( &remove_action_modules( $dbh, $actref->{mac} ) );
+
+    # prep action_module entry
+    my $actmodref->{mac} = $actref->{mac};
+    if ( $actref->{modules} ) {
+        foreach my $mod ( split( /[,\s*]/, $actref->{modules} ) ) {
+            my ( $mname, $mvers ) = &get_name_version( $mod );
+            my $mfound = get_version_or_enabled( $opts, $dbh, "module", $mname, $mvers );
+            return 1 unless ( defined $mfound );
+
+            $actmodref->{module} = $mname;
+            $actmodref->{module_ver} = $mfound->{version};
+            return 1 if ( &add_action_modules( $dbh, $actmodref ) );
         }
     }
 
-    if ( $opts->{verbose} )
-    {
-        printf "Build recipe set.\nNext pxeboot of $hostname will start install cycle.\n";
+    unless ( $actref->{'autobuild'} eq "none" ) {
+        # get_autobuild_expanded here is to make sure we have all
+        # the 'ingredients' collected to generate a 'recipe'
+        my $abfile = &get_autobuild_expanded( $opts, $dbh, $actref );
+        return 1 unless ( defined $abfile );
+
+        # prep action_autobuild entry
+        my $actabref =
+        {
+         mac           => $actref->{mac},
+         autobuild     => $actref->{autobuild},
+         autobuild_ver => $actref->{autobuild_ver},
+         };
+        return 1 if ( &remove_action_autobuild( $dbh, $actref->{mac} ) );
+        return 1 if ( &add_action_autobuild( $dbh, $actabref ) );
+
+        print $abfile if ( $opts->{debug} > 2 );
+    }
+
+    if ( $opts->{verbose} ) {
+        printf "Build recipe set.\nNext pxeboot of $entry{hostname} will start install cycle.\n";
     }
 
     return 0;
@@ -771,7 +810,7 @@ sub empty
     &update_db_mac_state( $dbh, $mac, BA_ACTION_NONE );
 
     # for proper command history update we update
-    &remove_autobuild( $opts, $actref );
+#    &remove_autobuild( $opts, $actref );
     if ( defined $chkref ) {
         &update_db_action( $dbh, $actref );
     }
@@ -1605,6 +1644,7 @@ sub rescue
         }
         $vncpass =~ s/$vncpass/vncpassword=$vncpass/;
         if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|esx|    or
              $actref->{os} =~ m|fedora| or
              $actref->{os} =~ m|centos| ) {
             push(@raccess, "vnc", $vncpass);
@@ -1618,9 +1658,10 @@ sub rescue
     # command line wins over profile entry
     if (($sshpass) or ($usessh)) {
         if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|esx|    or
              $actref->{os} =~ m|fedora| or
              $actref->{os} =~ m|centos| ) {
-            $opts->{LASTERROR} = "RHEL, Fedora, CentOS do not support ssh install\n";
+            $opts->{LASTERROR} = "RHEL, ESX, Fedora, CentOS do not support ssh install\n";
             return 1;
         }
     }
@@ -1647,6 +1688,7 @@ sub rescue
 
     if (($serialbaud) and ($serialtty)) {
         if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|esx|    or
              $actref->{os} =~ m|fedora| or
              $actref->{os} =~ m|centos| or
              $actref->{distro} =~ m|sles-9| ) {
@@ -1688,6 +1730,7 @@ sub rescue
 
     if ( $baVar{remote_logging} eq "yes" ) {
         if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|esx|    or
              $actref->{os} =~ m|fedora| or
              $actref->{os} =~ m|centos| ) {
             $actref->{'loghost'} = "syslog=$baVar{serverip}";

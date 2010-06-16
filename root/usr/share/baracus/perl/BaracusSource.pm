@@ -547,6 +547,8 @@ sub prepdbwithxml
 
     foreach my $distro ( keys %{$baXML->{distro}} ) {
         my $dh = $baXML->{distro}->{$distro};
+        my ($share, $name) = &get_distro_share( $opts, $distro );
+
         $entry{'distroid'   } = $distro;
         $entry{'os'         } = $dh->{os};
         $entry{'release'    } = $dh->{release};
@@ -558,6 +560,9 @@ sub prepdbwithxml
         } else {
             $entry{'sharetype'  } = $baVar{sharetype};
         }
+
+        $entry{'shareip'    } = $baVar{shareip};
+        $entry{'basepath'   } = $share;
 
         if ( defined $dh->{'requires'} ) {
             $entry{'addon'  } = 1;

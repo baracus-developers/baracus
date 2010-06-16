@@ -1,0 +1,88 @@
+#!/usr/bin/perl
+
+use strict;
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+use CGI qw(:standard);
+
+my $name = param('repo') || "";
+my $filterVal = param('filter') || "";
+
+my $items = getItems( $name, $filterVal );
+my $content = getContent( $name );
+
+print "Content-type: text/html\n\n";
+	
+print <<HTML0
+
+<html>
+	<head>
+		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<script type="text/javascript" src="/baracus/script/common.js"></script>
+		<link rel='stylesheet' href='/$BATools::baRoot/css/repo.css' type='text/css'>
+	</head>
+	<body onLoad='selectThis(document.form1.host, "$name");document.form1.host.focus()'>
+		<form name='form1' method="POST">
+		<div id='config'>
+		<div id='history' style="color:black">Repository /  </div>
+		<div id='textEdit'>
+		
+		<font class='name'>Repository Name</font><br><br>
+		$items
+		<br><br>
+		<font class='dataShort'>Repository Details</font>
+		<textarea class='short' name='data' readonly>$content</textarea>
+		</div>
+		</div>
+		</form>
+	</body>
+</html>
+HTML0
+;
+
+sub getItems
+{
+	my $name = $_[0];
+	my $filterVal = $_[1];
+	my $r = "";
+	my $selected;
+        my $tr = "odd";
+        my $linkD = "http://www.novell.com";
+        my $linkU = "http://blade10/baracus/ba/repo?op=Update&repo=";
+
+	my @items;
+       # $r = $r."<select class='nameWide' name='repo' size='16' onChange='doSubmit( this)'>";
+        $r = "<table>\n";
+	@items = BAdb::getRepoList( $filterVal );
+
+	foreach( @items)
+	{
+                if ( $tr eq "odd" ) { $tr = "even"; }
+                elsif ( $tr eq "even" ) { $tr = "odd" };
+		$r = $r."<tr class=\"$tr\"><td width=\"480\">$_<\/td><td width=\"20\"><a href=\"$linkD\" style=\"text-decoration : none\">Detail<\/a><\/td><td width=\"20\"><a href=\"$linkU$_\" style=\"text-decoration : none\">Update<\/a><\/td><\/tr> \n";	
+	}
+	
+	$r = $r."</table>\n";
+	return $r;	
+}
+
+sub getContent
+{
+        my $name = shift @_;
+        my $r;
+        my @items;
+	if( $name eq "")
+	{
+	    $r = "";
+	}
+	else
+	{
+            @items = BAdb::getRepoDetail( $name );
+            foreach( @items ) {
+                $r = $r."$_\n";
+            }
+	}
+	return $r;
+}
+
+;

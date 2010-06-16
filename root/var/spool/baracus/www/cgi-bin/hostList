@@ -90,7 +90,7 @@ sub getItems
 	my $fVal = $_[1];
 	my $fKey = $_[2];
 	my $lType = $_[3];
-	my $ filter = "";
+	my $filter = "";
 	if( $fVal ne "" && $fKey ne "")
 	{
 		$filter = "--filter $fKey\:\:$fVal";

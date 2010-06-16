@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# baconfig detail autobuild __name__ &> /dev/null || \
+# baconfig add autobuild --name __name__ \
+# --description="__desc__" \
+# --file=/usr/share/baracus/templates/autobuild/__file__ \
+# --cert=__distro__
+
+baconfig detail autobuild rhel-http-x86_64 &> /dev/null || \
+baconfig add autobuild --name rhel-http-x86_64 \
+--description="rhel http 64bit static ip" \
+--file=/usr/share/baracus/templates/autobuild/rhel-http-x86_64.ks \
+--cert="rhel-5.5-x86_64 rhel-5.4-x86_64"
+
+baconfig detail autobuild rhel-nfs-x86_64 &> /dev/null || \
+baconfig add autobuild --name rhel-nfs-x86_64 \
+--description="rhel nfs 64bit static ip" \
+--file=/usr/share/baracus/templates/autobuild/rhel-nfs-x86_64.ks \
+--cert="rhel-5.5-x86_64 rhel-5.4-x86_64"
+
+baconfig detail autobuild slert-10.2-x86_64 &> /dev/null || \
+baconfig add autobuild --name slert-10.2-x86_64 \
+--description="sles 10.2 real-time 64bit static ip" \
+--file=/usr/share/baracus/templates/autobuild/sles-10.2-rt-x86_64.xml \
+--cert="sles-10.3-x86_64 sles-10.2-x86_64"
+
+baconfig detail autobuild sles-10.2-x86_64-bnx2x &> /dev/null || \
+baconfig add autobuild --name sles-10.2-x86_64-bnx2x \
+--description="sles 10 sp2 64bit bnx2x chroot update" \
+--file=/usr/share/baracus/templates/autobuild/sles-10.2-x86_64_bnx2x-chroot.xml \
+--cert="sles-10.3-x86_64 sles-10.2-x86_64"
+
+baconfig detail autobuild sles-11.1-x86_64 &> /dev/null || \
+baconfig add autobuild --name sles-11.1-x86_64 \
+--description="sles 11.1 64bit" \
+--file=/usr/share/baracus/templates/autobuild/sles-11.1-x86_64.xml \
+--cert="sles-11.1-x86_64 sles-11-x86_64"
+
+
+baconfig detail autobuild win_ent-7-x86_64 &> /dev/null || \
+baconfig add autobuild --name win_ent-7-x86_64 \
+--description="win enterprise 7 64bit" \
+--file=/usr/share/baracus/templates/autobuild/win_ent-7-x86_64.xml \
+--cert="ubuntu_desktop-10.4-x86_64 ubuntu-10.4-x86_64 ubuntu-9.10-x86_64"
+

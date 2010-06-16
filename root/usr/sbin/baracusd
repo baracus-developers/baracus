@@ -84,10 +84,10 @@ my $sqlfsOBJ = SqlFS->new( 'DataSource' => "$dbsource",
 $listener->setSqlFSHandle( $sqlfsOBJ );
 
 # load any missing required files
-my @requiredfiles = ( "$baDir{'data'}/data/gpxe_baracus.0",
+my @requiredfiles = ( "$baDir{'data'}/data/pxelinux.0",
+                      "$baDir{'data'}/data/gpxe_baracus.0",
                       "$baDir{'data'}/data/linux.baracus",
                       "$baDir{'data'}/data/initrd.baracus",
-                      "$baDir{'data'}/data/pxelinux.0",
                      );
 
 foreach my $requiredfile ( @requiredfiles ) {

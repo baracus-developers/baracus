@@ -1,5 +1,10 @@
 # NETWORK
 
+# netmask=255.255.255.0
+# gateway=151.155.230.254
+# dnsdomain=lsg.lab.novell.com
+# dns1=155.155.230.1
+
 netmask=
 gateway=
 dnsdomain=
@@ -7,18 +12,34 @@ dns1=
 
 # LOCALIZATION
 #
-#           SUSE              RHEL
-# timezone= "America/Denver"  "America/Denver" 
-# keymap=   english-us        us
-# lang=     en_US             en_US.UTF-8
+#           SUSE                RHEL
+# timezone= "America/New York"  "America/New York" 
+# keymap=   english-us          us
+# lang=     en_US               en_US.UTF-8
+# langs=    "en_US de_DE"       # unused #
 
 timezone=
+keymap=
 lang=
-hardware=
+langs=
 
-# DISTRO and HARDWARE
-# can be here vs cmdline
 
-# distro=sles-11-x86_64
-# hardware=default-sda
+# UBUNTU SPECIFIC INSTALLER OPTIONS
+#
+# uncomment these for a profile to be used with Ubuntu
+
+# consoleaskdetect=false
+# consolelayoutcode=us
+
+
+# DISTRO and HARDWARE, MODULE and ADDON lists
+#
+# these can be specified within this file vs cmdline
+#
+# NOTE:  that command line values will override these
+
+# distro=sles-11.1-x86_64
+# hardware=default
+# addon="sles-11.1-ha-x86_64 sles-11.1-smt-x86_64"
+# module="lsg_serial.sh psoagent2.1_vmhost_sle11 reboot"
 

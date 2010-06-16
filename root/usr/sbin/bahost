@@ -289,7 +289,7 @@ sub remove()
         $actref->{cmdline} = $cmdline;
         &update_db_action( $dbh, $actref );
         remove_db_action( $dbh, $mac );
-        remove_autobuild( $opts, $actref );
+#        remove_autobuild( $opts, $actref );
     }
 
     # must come before removal of mac relation
@@ -534,7 +534,6 @@ sub detail
             # $opts->{LASTERROR} returned from db_list_start
             return 1;
         }
-    
 
         while ( $dbref = &db_list_next( $sth ) ) {
             print "Host Entry:\n";
@@ -553,11 +552,31 @@ sub detail
             print "Build\n";
             print "-----\n";
             printf "%-18s", "distro:";            print " $dbref->{distro}" if $dbref->{distro}; print "\n";
-            printf "%-18s", "hardware:";          print " $dbref->{hardware}" if $dbref->{hardware}; print "\n";
-            printf "%-18s", "profile:";           print " $dbref->{profile}" if $dbref->{profile}; print "\n";
-            printf "%-18s", "modules:";           print " $dbref->{modules}" if $dbref->{modules}; print "\n";
-            printf "%-18s", "Auto Build:";        print " $dbref->{autobuild}" if $dbref->{autobuild}; print "\n";
+            printf "%-18s", "addons:";            print " $dbref->{addons}" if $dbref->{addons}; print "\n";
+            printf "%-18s", "hardware:";          print " (ver $dbref->{hardware_ver}) $dbref->{hardware}" if $dbref->{hardware}; print "\n";
+            printf "%-18s", "profile:";           print " (ver $dbref->{profile_ver}) $dbref->{profile}" if $dbref->{profile}; print "\n";
+            my $abuild = &get_action_autobuild_hash( $dbh, $dbref->{mac});
+            if (defined $abuild)
+            {
+                printf "%-18s", "autobuild:";     print " (ver $abuild->{autobuild_ver}) $abuild->{autobuild}\n";
+            } else {
+                printf "%-18s", "autobuild:";     print " none\n";
+            }
             printf "%-18s", "vars:";              print " $dbref->{vars}" if $dbref->{vars}; print "\n";
+
+            print "\n";
+            print "Build Modules\n";
+            print "-------------\n";
+            printf "%-18s", "modules:";
+            my $modules = &get_action_modules_hash( $dbh, $dbref->{mac});
+            if (defined $modules)
+            {
+                while ( my ($mkey, $mver) = each( %{$modules} ) ) {
+                    printf "\n%-18s (ver $mver) $mkey", "";
+                }
+            }
+            print "\n";
+
             print "\n";
             print "Netboot\n";
             print "-------\n";
@@ -575,14 +594,17 @@ sub detail
         }
         &db_list_finish( $sth );
 
-    } elsif ( $subcommand eq "inventory" ) { 
-  
+    } elsif ( $subcommand eq "inventory" ) {
+
         my $inventory = $mac . ".inventory";
         my $inventoryFH = $sqlfsOBJ->readFH( $inventory );
+        unless ( defined $inventoryFH ) {
+            $opts->{LASTERROR} = "Unable to find $inventory\n";
+            return 1;
+        }
         while ( <$inventoryFH> ) {
             print $_;
         }
-
     }
 
     return 0;

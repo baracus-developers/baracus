@@ -32,6 +32,7 @@ if ( defined $reverse_flag ) {
     &main();
     system ( "/usr/sbin/basource init --all" );
     system ( "/usr/sbin/basource prepdbwithxml" );
+    system ( "/usr/share/baracus/scripts/baconfig_load_autobuild" );
     system ( "/usr/share/baracus/scripts/baconfig_load_hardware" );
     system ( "/usr/share/baracus/scripts/baconfig_load_profile" );
     my $cifs_reload = &add_cifs_perl();
@@ -221,12 +222,38 @@ sub niam {
 
 sub add_cifs_perl
 {
+
+    use BaracusConfig qw( :vars );
+
+    my $startnet_in = "/usr/share/baracus/templates/startnet.cmd";
+    my $startnet_out= "/$baDir{builds}/winstall/install/startnet.cmd";
     my $smbconf_in  = "/usr/share/baracus/templates/winstall.conf";
     my $smbconf_out = "/etc/samba/winstall.conf";
     my $sysconf_in  = "/etc/samba/smb.conf.bk";
     my $sysconf_out = "/etc/samba/smb.conf";
     my $mods = 1;
     my $restart = 0;
+
+    if ( ! -f $startnet_out ) {
+        # slurp carefully
+        # the use of local() sets $/ to undef and when the scope exits
+        # it will revert $/ back to its previous value (most likely ``\n'')
+        open( my $fh, "<$startnet_in" ) or
+            die "Unable to open $startnet_in: $!\n";
+        my $startnet = do { local( $/ ) ; <$fh> } ;
+        close $fh;
+
+        while ( my ($key, $value) = each %baVar ) {
+            $key =~ tr/a-z/A-Z/;
+            $key = "__$key\__";
+            $startnet =~ s/$key/$value/g;
+        }
+
+        open( my $fh, ">$startnet_out" ) or
+            die "Unable to open $startnet_out: $!\n";
+        print $fh $startnet;
+        close $fh;
+    }
 
     copy ($smbconf_out, $smbconf_in) if ( ! -f $smbconf_out );
     copy ($sysconf_out, $sysconf_in);

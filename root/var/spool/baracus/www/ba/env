@@ -20,6 +20,8 @@ use BaracusHost qw( :subs );
 use lib '/var/spool/baracus/www/modules';
 use BATools qw( :standard );
 
+$| = 1; # flush STDOUT
+
 my $cgi = new CGI;
 
 my $input = {};  # for CGI args or PUT cookie
@@ -72,6 +74,11 @@ my $output = "";
 
 
 if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
+    my $opts =
+    {
+     LASTERROR => "",
+     debug     => 0,
+     };
 
     ##
     ## Handle the uploading of files via "http PUT"
@@ -105,7 +112,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             $macref = &get_db_mac( $dbh, $input->{mac} );
         }
 
-        $href = &get_tftpfile( $tftph, $filename );
+        $href = &find_tftpfile( $opts, $tftph, $filename );
 
         # hum... always want the new inventory...
         # so we know we have to remove the old entry first
@@ -121,7 +128,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         my $bin;
         my $bytes = 1;
         while ( $bytes ) {
-            read( STDIN, $bytes, BA_DBMAXLEN ); # 
+            read( STDIN, $bytes, BA_DBMAXLEN );
             if ( $bytes ) {
                 $bin = pack( 'u', $bytes );
                 unless ( $sth->execute( $bin ) ) {
@@ -168,7 +175,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         }
 
         $filename = $input->{mac} . ".wipelog";
-        $href = &get_tftpfile( $tftph, $filename );
+        $href = &find_tftpfile( $opts, $tftph, $filename );
 
         # hum... always want the new log...
         # so we know we have to remove the old entry first
@@ -204,7 +211,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
 
         my $chkref = &get_db_action( $dbh, $input->{mac} );
         $actref = $chkref if ( defined $chkref );
-        $actref->{cmdline} = "# wipe log uploaded";
+        $actref->{cmdline} = "# wipe log uploaded ($input->{status})";
         &event_state_change( $dbh, $state, $macref, $actref );
         &update_db_mac_state( $dbh, $input->{mac}, $state );
         if ( defined $chkref ) {
@@ -230,6 +237,12 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
 }
 elsif ( $ENV{REQUEST_METHOD} eq "GET" )
 {
+    my $opts =
+    {
+     LASTERROR => "",
+     debug     => 0,
+     };
+
     ##
     ## Handle HTTP GET requests with or without CGI parameters
     ##
@@ -257,10 +270,10 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
     }
     elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/chain.*\s*$| ) {
 
+        die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
+
         my $default = qq|#!gpxe
-set use-cached 1
 dhcp net0
-ifstat
 set net0/210:string http://$baVar{serverip}/ba/
 set net0/209:string boot?mac=\${mac}&ip=\${ip}
 chain http://$baVar{serverip}/ba/pxelinux.0?mac=\${mac}
@@ -288,7 +301,7 @@ chain http://$baVar{serverip}/ba/pxelinux.0?mac=\${mac}
         if ( $pxenext eq BA_ACTION_BUILD )
         {
             print STDERR "$input->{mac} - chain of build\n";
-            $distref = &get_distro( $dbh, $actref );
+            $distref = &get_distro( $opts, $dbh, $actref );
 
             if ( $distref->{os} =~ m/solaris/i ) {
 #                # my $iqn = "iqn.2010-01.lab.lsg:gfs-b9";
@@ -380,9 +393,9 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
         # disabled, pxewait ( wiped, wipefail - push next action to pxewait )
 
         if ( $admin eq BA_ADMIN_IGNORED or
-             $pxenext eq BA_ACTION_NONE or
-             $actref->{autopxeoff}
-            ) {
+             $pxenext eq BA_ACTION_NONE
+            )
+        {
             # we shouldn't be here - we've already fed host pxe info...
             print STDERR "$input->{mac} - bad tftp daemon, bad.\n";
             exit 1;
@@ -390,8 +403,8 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 
         if ( $admin eq BA_ADMIN_DISABLED or
              $pxenext eq BA_ACTION_PXEWAIT
-            ) {
-
+            )
+        {
             print STDERR "$input->{mac} - serving pxewait\n";
             &do_pxewait( $cgi );
             # do_pxewait call exits
@@ -403,7 +416,8 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             &update_db_mac_state( $dbh, $macref->{mac}, $pxenext );
             if ( $actref->{oper} ne $pxenext or
                  $actref->{pxecurr} ne $pxenext
-                ) {
+                )
+            {
                 $actref->{oper} = $pxenext;
                 $actref->{pxecurr} = $pxenext;
                 $actref->{cmdline} = "# pxeboot network image";
@@ -418,8 +432,8 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 
             print STDERR "$input->{mac} - rescue mode\n";
 
-            $distref = &get_distro( $dbh, $actref );
-            $hardref = &get_hardware( $dbh, $actref );
+            $distref = &get_distro( $opts, $dbh, $actref );
+            $hardref = &get_hardware( $opts, $dbh, $actref, $actref->{hardware_ver} );
 
             unless ( defined $distref and defined $hardref ) {
                 print STDERR "$input->{mac} - missing distro or hardware in db\n";
@@ -429,7 +443,8 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             &update_db_mac_state( $dbh, $macref->{mac}, $pxenext );
             if ( $actref->{oper} ne $pxenext or
                  $actref->{pxecurr} ne $pxenext
-                ) {
+                )
+            {
                 $actref->{oper} = $pxenext;
                 $actref->{pxecurr} = $pxenext;
                 $actref->{cmdline} = "# pxeboot rescue mode";
@@ -446,6 +461,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 
             } elsif ( $distref->{os} eq "fedora" or
                       $distref->{os} eq "centos" or
+                      $distref->{os} eq "esx"    or
                       $distref->{os} eq "rhel" ) {
                 $rescue = qq|text rescue ks=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
             }
@@ -460,7 +476,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
         # or is it missing ? if so - get it now.
 
         $filename = $input->{mac} . ".inventory";
-        $href = &get_tftpfile( $tftph, $filename );
+        $href = &find_tftpfile( $opts, $tftph, $filename );
         if ( $pxenext eq BA_ACTION_INVENTORY
              or
              (not defined $href
@@ -468,13 +484,17 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
               or not defined $macref->{register}
               or $macref->{register} eq ""
               )
-            ) {
+            )
+        {
             ##
             ## INVENTORY - have 'mac' but still missing inventory
             ##
             my $args = "";
 
-            $args = $actref->{raccess};
+            $args = "$actref->{raccess} ";
+
+# we need to get hardware or at least bootargs in here somehow
+# to get around network level hangs with this:
 
 #            $args .= " netsetup=1 ";
 
@@ -533,20 +553,24 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 
             my $args;
 
-            $distref = &get_distro( $dbh, $actref );
-#            while ( my ($key, $val) = each %{$distref} ) {
-#                print STDERR "dist $key => " . $val eq "" ? "" : $val . "\n";
-#            }
+            $distref = &get_distro( $opts, $dbh, $actref );
+            $hardref = &get_hardware( $opts, $dbh, $actref, $actref->{hardware_ver} );
 
-            $hardref = &get_hardware( $dbh, $actref );
-#            while ( my ($key, $val) = each %{$hardref} ) {
-#                print STDERR "hard $key => " . $val eq "" ? "" : $val . "\n";
-#            }
+            &load_distro( $opts, $dbh, $actref );
+            &load_vars( $opts, $dbh, $actref ) if ($actref->{vars});
+
+            my $actauto = &get_action_autobuild_hash( $dbh, $input->{mac} );
+            if ( defined $actauto->{autobuild} ) {
+                $actref->{autobuild} = $actauto->{autobuild};
+                $actref->{autobuild_ver} = $actauto->{autobuild_ver};
+            } else {
+                $actref->{autobuild} = "none";
+            }
 
             if ( $distref->{os} eq "opensuse" or
                  $distref->{os} eq "sles"     or
-                 $distref->{os} eq "sled"   ) {
-#                $args = qq|textmode=1 install=$distref->{sharetype}://$distref->{shareip}$distref->{basepath} netsetup=1 WithISCSI=1|;
+                 $distref->{os} eq "sled"   )
+            {
                 $args = qq|textmode=1 install=$distref->{sharetype}://$distref->{shareip}$distref->{basepath}|;
                 if ( $actref->{autobuild} ne "none" ) {
                     $args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
@@ -563,6 +587,7 @@ LABEL label_$actref->{hostname}
 
             } elsif ( $distref->{os} eq "fedora" or
                       $distref->{os} eq "centos" or
+                      $distref->{os} eq "esx"    or
                       $distref->{os} eq "rhel" ) {
                 $args = qq|text|;
                 if ( $actref->{autobuild} ne "none" ) {
@@ -582,7 +607,7 @@ LABEL label_$actref->{hostname}
                 if ( $actref->{autobuild} ne "none" ) {
                     $args .= qq|url=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
                 } elsif ( $actref->{autobuild} eq "none" ) {
-                    $args .= qq|tasks=standard pkgsel/language-pack-patterns= pkgsel/install-language-support=false priority=low|;
+                    $args .= qq|tasks=standard pkgsel/language-pack-patterns= pkgsel/install-language-support=false priority=low hostname=unassigned-hostname locale=$actref->{lang} console-setup/ask_detect=$actref->{consoleaskdetect} console-setup/layoutcode=$actref->{consolelayoutcode}|;
                 }
 
                 $output = qq|DEFAULT label_$actref->{hostname}
@@ -662,7 +687,7 @@ LABEL wipe
         $input->{mac} = &check_mac($input->{mac});
         $macref = &get_db_mac( $dbh, $input->{mac} );
         $actref = &get_db_action( $dbh, $input->{mac} );
-        $distref = &get_distro( $dbh, $actref );
+        $distref = &get_distro( $opts, $dbh, $actref );
         if ( not defined $macref or
              not defined $actref or
              not defined $distref
@@ -675,18 +700,120 @@ LABEL wipe
             exit 1;
         }
 
-        $output = qq|\@echo off
+        my $actauto = &get_action_autobuild_hash( $dbh, $input->{mac} );
+        if ( defined $actauto->{autobuild} ) {
+            $output .= qq|\@echo off
 \@echo curl.exe -G http://$baVar{serverip}/ba/auto?mac=$input->{mac} -o X:\\Autounattend.xml
 curl.exe -G http://$baVar{serverip}/ba/auto?mac=$input->{mac} -o X:\\Autounattend.xml
 
 net use n: \\\\$distref->{shareip}\\$actref->{distro}
 n:\\setup.exe /unattend:X:\\Autounattend.xml
 |;
+        } else {
+            $output .=qq|\@echo off
+net use n: \\\\$distref->{shareip}\\$actref->{distro}
+n:\\setup.exe
+|;
+        }
+
     }
 
-    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(linux|initrd|auto|startrom.0|pxelinux.0)\?.*\s*$} )
+    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(startrom.0|pxelinux.0).*\s*$} )
     {
+        my $file = $1;
 
+        print STDERR "# no mac required to serve $file\n";
+
+        $sql = qq|SELECT bin FROM sqlfstable WHERE name = '$file'|;
+
+        die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
+        die "$!$sth->err\n" unless ( $sth->execute( ) );
+
+        while ( $href = $sth->fetchrow_hashref( ) ) {
+            $output .= unpack( 'u', $href->{'bin'} );
+        }
+        $sth->finish();
+    }
+
+    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(auto)\?.*\s*$} )
+    {
+        my $file = $1;
+
+#        my $date = &get_rundate();
+#        print STDERR "# start time for get $file : $date\n";
+
+        ##
+        ## AUTOBUILD FILE
+        ##
+
+        die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
+
+        $input->{mac} = &check_mac($input->{mac});
+        $macref = &get_db_mac( $dbh, $input->{mac} );
+        if ( not defined $macref ) {
+            $output = "$input->{mac} - user vs cgi... missing db mac entry\n";
+            print STDERR $output;
+            print $cgi->header( -type => "text/plain",
+                                -content_length => length
+                                ($output)
+                               ), $output;
+            exit 0;
+        }
+
+        $actref = &get_db_action( $dbh, $input->{mac} );
+        if (not defined $actref ) {
+            $output = "$input->{mac} - user vs cgi... missing db action entry\n";
+            print STDERR $output;
+            print $cgi->header( -type => "text/plain",
+                                -content_length => length
+                                ($output)
+                               ), $output;
+            exit 0;
+        }
+
+        $actref->{serverip} = $baVar{serverip};
+
+        # the mac and action might have been produced with an inventory req
+
+        my $actauto = &get_action_autobuild_hash( $dbh, $input->{mac} );
+        unless ( defined $actauto->{autobuild} ) {
+            # this entry has no related autobuild and shouldn't be asking
+            $output = "$input->{mac} - user vs cgi... no 'autobuild' entry\n";
+            print STDERR $output;
+            print $cgi->header( -type => "text/plain",
+                                -content_length => length
+                                ($output)
+                               ), $output;
+            exit 0;
+        }
+
+        $actref->{autobuild} = $actauto->{autobuild};
+        $actref->{autobuild_ver} = $actauto->{autobuild_ver};
+
+        my $actmod = &get_action_modules_hash( $dbh, $input->{mac} );
+        if ( defined $actmod ) {
+            $actref->{modules} = join ' ', keys %{$actmod};
+        } else {
+            $actref->{modules} = '';
+        }
+
+        &load_profile ( $opts, $dbh, $actref );
+        &load_hardware( $opts, $dbh, $actref );
+        &load_distro  ( $opts, $dbh, $actref );
+        &load_addons  ( $opts, $dbh, $actref );
+        &load_modules ( $opts, $dbh, $actref );
+        &load_vars    ( $opts, $dbh, $actref );
+
+        print STDERR "$input->{mac} - serving autobuild $file\n";
+
+        $output .= &get_autobuild_expanded( $opts, $dbh, $actref );
+
+#        $date = &get_rundate();
+#        print STDERR "# stop time for get $file : $date\n";
+    }
+
+    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(linux|initrd)\?.*\s*$} )
+    {
         my $file = $1;
 
         ##
@@ -718,14 +845,7 @@ n:\\setup.exe /unattend:X:\\Autounattend.xml
             exit 0;
         }
 
-        if ( $file eq "auto" ) {
-            $file = $input->{mac};
-            $file =~ s|:|-|g;
-            $file = "02-" . $file;
-        } elsif ( $file =~ m{^(linux|initrd)} )
-        {
-            $file = "$file.$actref->{distro}";
-        }
+        $file = "$file.$actref->{distro}";
 
         print STDERR "$input->{mac} - serving $file\n";
 

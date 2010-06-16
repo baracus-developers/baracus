@@ -37,12 +37,14 @@ BEGIN {
          [qw(
                 BA_DBMAXLEN
                 %baTbls
+                %baTblCert
+                %baTblId
             )],
          subs =>
          [qw(
-                keys2columns
                 hash2columns
                 get_cols
+                get_col_type_href
                 bytea_encode
                 bytea_decode
                 get_sqltftp_tables
@@ -59,7 +61,7 @@ BEGIN {
 use constant BA_DBMAXLEN => 268435456; # 256 MB
 #use constant BA_DBMAXLEN => 1048575;
 
-use vars qw ( %baTbls );
+use vars qw ( %baTbls %baTblCert %baTblId );
 
 %baTbls =
     (
@@ -78,8 +80,46 @@ use vars qw ( %baTbls );
      'abcert'    => 'autobuild_cert',
      'action'    => 'action',
      'history'   => 'action_hist',
+     'actabld'   => 'action_autobuild',
+     'actmod'    => 'action_module',
      'power'     => 'power',
      'lun'       => 'lun',
+     'user'      => 'auth',
+     );
+
+
+%baTblCert =
+    (
+     'hardware'  => 'hardware_cert',
+     'module'    => 'module_cert',
+     'autobuild' => 'autobuild_cert',
+     'profile'   => 'profile_cert',
+     );
+
+# the following hash if for the most common WHERE lookup values
+# not the actual key(s) for uniquely identifying a table row
+
+%baTblId =
+    (
+     'tftp'      => 'name',         # to get all chunks (key is SERIAL)
+
+     'mac'       => 'mac',          # unique id
+     'host'      => 'hostname',     # unique id
+     'distro'    => 'distroid',     # unique id
+     'iso'       => 'iso',          # unique id
+     'hardware'  => 'hardwareid',   # unique id
+     'hwcert'    => 'distroid',     # to get all hw certified for distro
+     'module'    => 'moduleid',     # unique id
+     'modcert'   => 'distroid',     # to get all mod certified for distro
+     'profile'   => 'profileid',    # unique id
+     'autobuild' => 'autobuildid',  # unique id
+     'abcert'    => 'distroid',     # to get all abuild certified for distro
+     'action'    => 'mac',          # unique id
+     'history'   => 'mac',          # to get all action hist for given mac
+     'actmod'    => 'mac',          # to get all modules for given action/mac
+     'power'     => 'mac',          # unique id
+     'lun'       => 'targetid',     # unique id
+     'user'      => 'username',     # unique id
      );
 
 
@@ -103,9 +143,30 @@ sub keys2columns
     return $str;
 }
 
+=item keys2shorthashdef
+
+generate an abbreviated hash of the key/col => val(len)
+for use in routines to do length and type checking
+
+=cut
+
+sub keys2shorthashdef
+{
+    my $hash = shift;
+    my %reth;
+    while ( my ( $key, $val ) = each %{ $hash } ) {
+        # by convention our UPPERCASE keys are SQL directives
+        next if ( $key =~ m|^[A-Z]+| );
+        # anything following the 'type(len)' value definition is stripped
+        $val =~ s|\w+.*$||;
+        $reth{$key} = $val;
+    }
+    return \%reth;
+}
+
 =item hash2columns
 
-generate a string column representation
+generate the string column name type representation
 suitable for sql CREATE TABLE statements
 from hash key, values pairs
 
@@ -138,6 +199,28 @@ sub get_cols
         return keys2columns( $baracustbls );
     } elsif ( defined $sqltftptbls ) {
         return keys2columns( $sqltftptbls );
+    } else {
+        carp "Internal database table/name usage error.\n";
+        return undef;
+    }
+}
+
+=item get_col_type_href
+
+wrapper to get abrivated column type[(len)] table definition
+no matter which baracus related database it is from
+
+=cut
+
+sub get_col_type_href
+{
+    my $tbl = shift;
+    my $baracustbls = get_baracus_tables()->{ $tbl };
+    my $sqltftptbls = get_sqltftp_tables()->{ $tbl };
+    if ( defined $baracustbls ) {
+        return keys2shorthashdef( $baracustbls );
+    } elsif ( defined $sqltftptbls ) {
+        return keys2shorthashdef( $sqltftptbls );
     } else {
         carp "Internal database table/name usage error.\n";
         return undef;
@@ -218,7 +301,7 @@ sub get_baracus_tables
     my %tbl_host_columns =
         (
          'hostname' => 'VARCHAR(64) PRIMARY KEY',
-         'mac'      => 'VARCHAR(17) REFERENCES mac',
+         'mac'      => 'VARCHAR(17) REFERENCES mac(mac) ON DELETE CASCADE',
          );
 
     my $tbl_distro = "distro";
@@ -227,11 +310,12 @@ sub get_baracus_tables
          'distroid'    => 'VARCHAR(128) PRIMARY KEY',
          'os'          => 'VARCHAR(64)',
          'release'     => 'VARCHAR(16)',
-         'arch'        => 'VARCHAR(16)',
-         'description' => 'VARCHAR(64)',
-         'addon'       => 'BOOLEAN',
          'addos'       => 'VARCHAR(16)',
          'addrel'      => 'VARCHAR(16)',
+         'arch'        => 'VARCHAR(16)',
+
+         'description' => 'VARCHAR(64)',
+         'addon'       => 'BOOLEAN',
          'shareip'     => 'VARCHAR(15)',
          'sharetype'   => 'VARCHAR(8)',
          'basepath'    => 'VARCHAR(128)',
@@ -243,12 +327,12 @@ sub get_baracus_tables
     my $tbl_iso = "iso";
     my %tbl_iso_columns =
         (
-         'iso'         => 'VARCHAR(128) NOT NULL',
-         'distroid'    => 'VARCHAR(128)',
+         'iso'         => 'VARCHAR(128)',
+         'mntpoint'    => 'VARCHAR(128)',
+         'distroid'    => 'VARCHAR(128) REFERENCES distro(distroid)',
          'is_loopback' => 'BOOLEAN',
          'sharetype'   => 'INTEGER',
          'is_local'    => 'BOOLEAN',
-         'mntpoint'    => 'VARCHAR(128)',
          'creation'    => 'TIMESTAMP',
          'change'      => 'TIMESTAMP',
          'CONSTRAINT'  => 'iso_pk PRIMARY KEY (iso, mntpoint)',
@@ -260,7 +344,7 @@ sub get_baracus_tables
     my $tbl_hardware = "hardware";
     my %tbl_hardware_columns =
         (
-         'hardwareid'   => 'VARCHAR(32) NOT NULL',
+         'hardwareid'   => 'VARCHAR(32)',
          'version'      => 'INTEGER',
          'description'  => 'VARCHAR(64)',
          'status'       => 'BOOLEAN',
@@ -274,17 +358,15 @@ sub get_baracus_tables
     my $tbl_hardware_cert = "hardware_cert";
     my %tbl_hardware_cert_columns =
         (
-         'hardwareid'   => 'VARCHAR(32) NOT NULL',
-         'distroid'     => 'VARCHAR(128) NOT NULL',
-         'FOREIGN KEY'  => '(hardwareid) REFERENCES hardware(hardwareid)',
-         'FOREIGN KEY'  => '(distroid) REFERENCES distro(distroid)',
+         'hardwareid'   => 'VARCHAR(32)',
+         'distroid'     => 'VARCHAR(128) REFERENCES distro(distroid)',
          'CONSTRAINT'   => 'hardware_cert_pk PRIMARY KEY (hardwareid, distroid)',
          );
 
     my $tbl_module = "module";
     my %tbl_module_columns =
         (
-         'moduleid'    => 'VARCHAR(32) NOT NULL',
+         'moduleid'    => 'VARCHAR(32)',
          'version'     => 'INTEGER',
          'description' => 'VARCHAR(64)',
          'interpreter' => 'VARCHAR(8)',
@@ -296,18 +378,16 @@ sub get_baracus_tables
     my $tbl_module_cert = "module_cert";
     my %tbl_module_cert_columns =
         (
-         'moduleid'    => 'VARCHAR(32) NOT NULL',
-         'distroid'    => 'VARCHAR(128) NOT NULL',
+         'moduleid'    => 'VARCHAR(32)',
+         'distroid'    => 'VARCHAR(128) REFERENCES distro(distroid)',
          'mandatory'   => 'BOOLEAN',
-         'FOREIGN KEY' => '(moduleid) REFERENCES module(moduleid)',
-         'FOREIGN KEY' => '(distroid) REFERENCES distro(distroid)',
          'CONSTRAINT'  => 'module_cert_pk PRIMARY KEY (moduleid, distroid)',
          );
 
     my $tbl_profile = "profile";
     my %tbl_profile_columns =
         (
-         'profileid'   => 'VARCHAR(32) NOT NULL',
+         'profileid'   => 'VARCHAR(32)',
          'version'     => 'INTEGER',
          'description' => 'VARCHAR(64)',
          'data'        => 'VARCHAR',
@@ -318,7 +398,7 @@ sub get_baracus_tables
     my $tbl_autobuild = "autobuild";
     my %tbl_autobuild_columns =
         (
-         'autobuildid' => 'VARCHAR(32) NOT NULL',
+         'autobuildid' => 'VARCHAR(32)',
          'version'     => 'INTEGER',
          'description' => 'VARCHAR(64)',
          'data'        => 'VARCHAR',
@@ -329,34 +409,29 @@ sub get_baracus_tables
     my $tbl_autobuild_cert = "autobuild_cert";
     my %tbl_autobuild_cert_columns =
         (
-         'autobuildid' => 'VARCHAR(32) NOT NULL',
-         'distroid'    => 'VARCHAR(128) NOT NULL',
-         'FOREIGN KEY' => '(autobuildid) REFERENCES autobuild(autobuildid)',
-         'FOREIGN KEY' => '(distroid) REFERENCES distro(distroid)',
+         'autobuildid' => 'VARCHAR(32)',
+         'distroid'    => 'VARCHAR(128) REFERENCES distro(distroid)',
          'CONSTRAINT'  => 'autobuild_cert_pk PRIMARY KEY (autobuildid, distroid)',
          );
 
     my $tbl_action = "action";
     my %tbl_action_columns =
         (
-         'mac'         => 'VARCHAR(17) PRIMARY KEY',
-         'hostname'    => 'VARCHAR(64)',
-         'distro'      => 'VARCHAR(128)',
+         'mac'           => 'VARCHAR(17)  PRIMARY KEY',
+         'hostname'      => 'VARCHAR(64)',
 
-         'hardware'    => 'VARCHAR(32)',
-         'hardwarever' => 'INTEGER',
-         'profile'     => 'VARCHAR(32)',
-         'profilever'  => 'INTEGER',
-         'autobuild'   => 'VARCHAR(32)',
-         'abuildver'   => 'INTEGER',
+         'distro'        => 'VARCHAR(128) DEFAULT NULL',
+         'hardware'      => 'VARCHAR(32)  DEFAULT NULL',
+         'hardware_ver'  => 'INTEGER      DEFAULT NULL',
+         'profile'       => 'VARCHAR(32)  DEFAULT NULL',
+         'profile_ver'   => 'INTEGER      DEFAULT NULL',
 
-         'modules'     => 'VARCHAR', # list of moudles to use for build
          'addons'      => 'VARCHAR', # list of addons to use for build
          'vars'        => 'VARCHAR', # list of additional vars for build
 
          'oper'        => 'INTEGER', # oper state action or event driven
          'admin'       => 'INTEGER', # admin enable / disabled / ignore
-         'autopxeoff'  => 'BOOLEAN', # has auto pxe disable been asserted
+
          'pxecurr'     => 'INTEGER', # current pxestate / action on pxeboot
          'pxenext'     => 'INTEGER', # next state / action on pxeboot
 
@@ -372,23 +447,39 @@ sub get_baracus_tables
          'creation'    => 'TIMESTAMP',
          'change'      => 'TIMESTAMP',
 
-         'FOREIGN KEY' => '(distro)       REFERENCES distro(distroid)',
-         'FOREIGN KEY' => '(hardware)     REFERENCES hardware(hardwareid)',
-         'FOREIGN KEY' => '(hardwarever)  REFERENCES hardware(version)',
-         'FOREIGN KEY' => '(profile)      REFERENCES profile(profileid)',
-         'FOREIGN KEY' => '(profilever)   REFERENCES profile(version)',
-         'FOREIGN KEY' => '(autobuild)    REFERENCES autobuild(autobuildid)',
-         'FOREIGN KEY' => '(autobuildver) REFERENCES autobuild(version)',
-
+         'FOREIGN KEY' => '(mac)                      REFERENCES mac(mac)',
+         'FOREIGN KEY' => '(distro)                   REFERENCES distro(distroid)',
+         'FOREIGN KEY' => '(hardware,  hardware_ver)  REFERENCES hardware(hardwareid,version)   ',
+         'FOREIGN KEY' => '(profile,   profile_ver)   REFERENCES profile(profileid,version)   ',
          );
 
     my $tbl_action_hist = "action_hist";
     # copy the action table and modify the 'mac' to remove the "KEY"
     my %tbl_action_hist_columns = %tbl_action_columns;
     $tbl_action_hist_columns{mac} = 'VARCHAR(17)';
-
     # don't define another hash
     # we have the action table already.
+
+    my $tbl_action_autobuild = "action_autobuild";
+    my %tbl_action_autobuild_columns =
+        (
+         'mac'           => 'VARCHAR(17)  PRIMARY KEY REFERENCES action(mac) ON DELETE CASCADE',
+         'autobuild'     => 'VARCHAR(32)',
+         'autobuild_ver' => 'INTEGER',
+         'FOREIGN KEY' => '(autobuild, autobuild_ver) REFERENCES autobuild(autobuildid,version)   ',
+         );
+
+    my $tbl_action_module = "action_module";
+    my %tbl_action_module_columns =
+        (
+         'mac'         => 'VARCHAR(17) REFERENCES action(mac) ON DELETE CASCADE',
+         'module'      => 'VARCHAR(32)',
+         'module_ver'  => 'INTEGER',
+
+         'FOREIGN KEY' => '(module, module_ver) REFERENCES module(moduleid, version)',
+         'CONSTRAINT'  => 'action_module_pk PRIMARY KEY (mac, module)',
+         );
+
 
     my $tbl_power = "power";
     my %tbl_power_columns =
@@ -419,31 +510,34 @@ sub get_baracus_tables
     my $tbl_auth = "auth";
     my %tbl_auth_columns =
         (
-         'username'    => 'VARCHAR(32) PRIMARY KEY',
-         'password'    => 'VARCHAR(128)',
-         'crypto'      => 'VARCHAR(16)',
-         'realm'       => 'VARCHAR(16)',
-         'creation'    => 'TIMESTAMP',
-         'change'      => 'TIMESTAMP',
+         'username'    => 'VARCHAR(255) PRIMARY KEY',  # htpasswd2 limit
+         'password'    => 'VARCHAR(128)', # sha-1 160bit, but prefix & base64 enc
+         'encryption'  => 'INTEGER',      # mapping in BaracusAuth
+         'status'      => 'BOOLEAN',
+         'realm'       => 'VARCHAR(16)',  # useless here with only key username
+         'creation'    => 'TIMESTAMP',    #   perhaps we need authrealm table
+         'change'      => 'TIMESTAMP',    #   like a module certs table
          );
 
     tie( my %baracus_tbls, 'Tie::IxHash',
-         $tbl_mac            => \%tbl_mac_cols,
-         $tbl_host           => \%tbl_host_columns,
-         $tbl_distro         => \%tbl_distro_columns,
-         $tbl_iso            => \%tbl_iso_columns,
-         $tbl_hardware       => \%tbl_hardware_columns,
-         $tbl_hardware_cert  => \%tbl_hardware_cert_columns,
-         $tbl_module         => \%tbl_module_columns,
-         $tbl_module_cert    => \%tbl_module_cert_columns,
-         $tbl_profile        => \%tbl_profile_columns,
-         $tbl_autobuild      => \%tbl_autobuild_columns,
-         $tbl_autobuild_cert => \%tbl_autobuild_cert_columns,
-         $tbl_action         => \%tbl_action_columns,
-         $tbl_action_hist    => \%tbl_action_hist_columns,
-         $tbl_power          => \%tbl_power_columns,
-         $tbl_lun            => \%tbl_lun_columns,
-         $tbl_auth           => \%tbl_auth_columns,
+         $tbl_mac               => \%tbl_mac_cols,
+         $tbl_host              => \%tbl_host_columns,
+         $tbl_distro            => \%tbl_distro_columns,
+         $tbl_iso               => \%tbl_iso_columns,
+         $tbl_hardware          => \%tbl_hardware_columns,
+         $tbl_hardware_cert     => \%tbl_hardware_cert_columns,
+         $tbl_module            => \%tbl_module_columns,
+         $tbl_module_cert       => \%tbl_module_cert_columns,
+         $tbl_profile           => \%tbl_profile_columns,
+         $tbl_autobuild         => \%tbl_autobuild_columns,
+         $tbl_autobuild_cert    => \%tbl_autobuild_cert_columns,
+         $tbl_action            => \%tbl_action_columns,
+         $tbl_action_hist       => \%tbl_action_hist_columns,
+         $tbl_action_module     => \%tbl_action_module_columns,
+         $tbl_action_autobuild  => \%tbl_action_autobuild_columns,
+         $tbl_power             => \%tbl_power_columns,
+         $tbl_lun               => \%tbl_lun_columns,
+         $tbl_auth              => \%tbl_auth_columns,
         );
     return \%baracus_tbls;
 }
