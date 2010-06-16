@@ -226,7 +226,7 @@ sub add_cifs_perl
     use BaracusConfig qw( :vars );
 
     my $startnet_in = "/usr/share/baracus/templates/startnet.cmd";
-    my $startnet_out= "/$baDir{builds}/winstall/install/startnet.cmd";
+    my $startnet_out= "$baDir{builds}/winstall/install/startnet.cmd";
     my $smbconf_in  = "/usr/share/baracus/templates/winstall.conf";
     my $smbconf_out = "/etc/samba/winstall.conf";
     my $sysconf_in  = "/etc/samba/smb.conf.bk";
@@ -234,7 +234,10 @@ sub add_cifs_perl
     my $mods = 1;
     my $restart = 0;
 
-    if ( ! -f $startnet_out ) {
+    if ( defined %baVar and $baVar{serverip} ) {
+        if ( -f $startnet_out ) {
+            print STDERR "(re)generating $startnet_out\n";
+        }
         # slurp carefully
         # the use of local() sets $/ to undef and when the scope exits
         # it will revert $/ back to its previous value (most likely ``\n'')
@@ -253,7 +256,10 @@ sub add_cifs_perl
             die "Unable to open $startnet_out: $!\n";
         print $fhout $startnet;
         close $fhout;
+    } else {
+        print STDERR "/etc/sysconfig/baracus needs setting for SERVER_IP\n";
     }
+
 
     copy ($smbconf_out, $smbconf_in) if ( ! -f $smbconf_out );
     copy ($sysconf_out, $sysconf_in);
