@@ -1,11 +1,11 @@
 # norootforbuild
 
-Summary:   Tool to create SLE/SUSE remote build trees and manage host builds
+Summary:   Tool to create network install build source and manage host builds
 Name:      baracus
-Version:   1.3.3
+Version:   1.4.0
 Release:   0
 Group:     System/Services
-License:   GPLv2
+License:   GPLv2 or Artistic V2
 BuildRoot: %{_tmppath}/%{name}-%{version}-buildroot
 Source:    %{name}-%{version}.tar.bz2
 Source1:   sysconfig.%{name}
@@ -13,14 +13,14 @@ Source2:   initd.%{name}d
 Source3:   sysconfig.%{name}db
 Source4:   initd.%{name}db
 Source5:   apache.baracus.conf
-Source6:   initrd.baracus
-Source7:   linux.baracus
+Source6:   apache.baracus-webserver.conf
 Requires:  apache2, apache2-mod_perl, perl-Apache-DBI, pidentd
 Requires:  perl, perl-XML-Simple, perl-libwww-perl, perl-Data-UUID
 Requires:  perl-Config-General, perl-Config-Simple, perl-AppConfig
 Requires:  perl-TermReadKey, perl-DBI, perl-DBD-Pg, perl-Tie-IxHash
 Requires:  rsync, dhcp-server, postgresql-server, createrepo, fence
 Requires:  samba, samba-client
+Requires:  baracus-kernel
 %if 0%{?suse_version} < 1030
 Requires:  nfs-utils
 %else
@@ -35,6 +35,15 @@ Baracus is a collection of tools to simplify the retrevial of distribution
 and add-on media, building distribution trees, creation and management of
 a network install server, and maintain a collection of build templates for
 rapid PXE boot installs of a collection of build clients.
+
+
+%package   webserver
+Summary:   Separate package for the baracus server web interface
+Group:     System/Services
+Requires:  baracus
+%description webserver
+Baracus is composed of many services and a command line interface.
+This package provides a web interface to these services.
 
 %prep
 %setup -q
@@ -55,8 +64,7 @@ sed -ire 's/ident sameuser/ident/' %{S:4}
 install -D -m755 %{S:4} %{buildroot}%{_initrddir}/%{name}db
 ln -s ../..%{_initrddir}/%{name}db %{buildroot}%{_sbindir}/rc%{name}db
 install -D -m644 %{S:5} %{buildroot}/etc/apache2/conf.d/%{name}.conf
-install -D -m644 %{S:6} %{buildroot}%{_datadir}/%{name}/data/initrd.%{name}
-install -D -m644 %{S:7} %{buildroot}%{_datadir}/%{name}/data/linux.%{name}
+install -D -m644 %{S:6} %{buildroot}/etc/apache2/conf.d/%{name}-webserver.conf
 chmod -R 700 %{buildroot}%{_datadir}/%{name}/gpghome
 mkdir %{buildroot}/var/spool/%{name}/isos
 mkdir %{buildroot}/var/spool/%{name}/logs
@@ -84,6 +92,15 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %restart_on_update baracusdb baracusd apache2
 %insserv_cleanup
 
+%files webserver
+%defattr(-,wwwrun,www)
+/var/spool/%{name}/www/htdocs
+/var/spool/%{name}/www/cgi-bin
+/var/spool/%{name}/www/modules
+%dir /var/spool/%{name}/www/tmp
+%dir /var/spool/%{name}/www/htdocs/pool
+%config %{_sysconfdir}/apache2/conf.d/%{name}-webserver.conf
+
 %files
 %defattr(-,root,root)
 /var/adm/fillup-templates/*
@@ -92,8 +109,9 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %config %{_initrddir}/%{name}d
 %config %{_initrddir}/%{name}db
 %dir %{_datadir}/%{name}
+%dir %{_datadir}/%{name}/data
 %doc %{_datadir}/%{name}/*.xml
-%{_datadir}/%{name}/data
+%{_datadir}/%{name}/data/*pxe*
 %{_datadir}/%{name}/driverupdate
 %{_datadir}/%{name}/profile_default
 %{_datadir}/%{name}/templates
@@ -111,11 +129,19 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %attr(755,root,root) /var/spool/%{name}/pgsql
 %attr(755,root,root) /var/spool/%{name}/modules
 %attr(755,root,root) /var/spool/%{name}/templates
-%attr(755,root,root) /var/spool/%{name}/www
-%attr(-,wwwrun,www) %dir /var/spool/%{name}/www/tmp
-%attr(-,wwwrun,www) %dir /var/spool/%{name}/www/htdocs/pool
+%attr(755,root,root) %dir /var/spool/%{name}/www
+%attr(755,root,root) /var/spool/%{name}/www/ba
+
 
 %changelog
+* Tue Jun 15 2010 dbahi@novell - 1.4.0
+- dynamically generate autobuild
+- autobuild is baconfig versioned and distro certified
+- hardware is baconfig versioned (already dist cert)
+- network install sources are loopback if possible
+- added ubuntu support 9.4 10.4 server and 10.4 desktop
+- gpxe chaining now more versatle
+- baracus, baracus-kernel, baracus-webserver packages
 * Thu Apr 10 2010 dbahi@novell - 1.3.3
 - repackage for cifs share and win install support
 * Wed Mar 10 2010 dbahi@novell - 1.3.2
