@@ -238,10 +238,10 @@ sub add_cifs_perl
         # slurp carefully
         # the use of local() sets $/ to undef and when the scope exits
         # it will revert $/ back to its previous value (most likely ``\n'')
-        open( my $fh, "<$startnet_in" ) or
+        open( my $fhin, "<$startnet_in" ) or
             die "Unable to open $startnet_in: $!\n";
-        my $startnet = do { local( $/ ) ; <$fh> } ;
-        close $fh;
+        my $startnet = do { local( $/ ) ; <$fhin> } ;
+        close $fhin;
 
         while ( my ($key, $value) = each %baVar ) {
             $key =~ tr/a-z/A-Z/;
@@ -249,10 +249,10 @@ sub add_cifs_perl
             $startnet =~ s/$key/$value/g;
         }
 
-        open( my $fh, ">$startnet_out" ) or
+        open( my $fhout, ">$startnet_out" ) or
             die "Unable to open $startnet_out: $!\n";
-        print $fh $startnet;
-        close $fh;
+        print $fhout $startnet;
+        close $fhout;
     }
 
     copy ($smbconf_out, $smbconf_in) if ( ! -f $smbconf_out );

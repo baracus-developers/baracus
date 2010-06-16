@@ -718,7 +718,7 @@ n:\\setup.exe
 
     }
 
-    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(startrom.0|pxelinux.0).*\s*$} )
+    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(startrom.0|pxelinux.0|sanboot.c32).*\s*$} )
     {
         my $file = $1;
 

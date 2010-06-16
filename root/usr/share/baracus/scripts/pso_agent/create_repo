@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ISO=/home/baracus/isos/PSO_Agent-2.1.0-SLE11.x86_64.iso
+ISO=~baracus/isos/PSO_Agent-2.1.0-SLE11.x86_64.iso
 
 MNT=/tmp/pso2.1
 

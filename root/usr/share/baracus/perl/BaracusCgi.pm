@@ -92,7 +92,7 @@ sub do_netboot() {
 PROMPT 0
 TIMEOUT 0
 LABEL netboot
-    kernel http://$serverip/baracus/sanboot.c32
+    kernel http://$serverip/ba/sanboot.c32
     append iscsi:$actref->{netbootip}::::$actref->{netboot}
 |;
 
