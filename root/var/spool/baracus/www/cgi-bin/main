@@ -58,7 +58,7 @@ print <<HTML1;
 	<head>
 		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
 		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
-		<link rel='stylesheet' href='/$BATools::baRoot/css/formsx.css' type='text/css' >
+		<link rel='stylesheet' href='/$BATools::baRoot/css/forms.css' type='text/css' >
 		<link rel='stylesheet' href='/baracus/css/tabs.css' type='text/css' >
 		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
 		<title>Baracus</title>

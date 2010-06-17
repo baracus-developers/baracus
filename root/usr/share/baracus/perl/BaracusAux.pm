@@ -312,6 +312,8 @@ sub load_addons
     my $dbh  = shift;
     my $aref = shift;
 
+    return 0 unless ( $aref->{addons} );
+
     my @addonlist;
     if ( $aref->{addons} =~ m/[,\s]+/ ) {
         @addonlist = split(/[,\s*]/, $aref->{addons});
@@ -422,6 +424,8 @@ sub load_modules
     my $aref = shift;
 
     my $sth;
+
+    return 0 unless ($aref->{modules});
 
     my @modulelist;
     if ( $aref->{modules} =~ m/[,\s]+/ ) {

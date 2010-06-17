@@ -190,7 +190,7 @@ print <<HTML0;
 	</div>
 
 	<div id='blockc'>
-		$addonListx
+		$addonList
 	</div>
 
 	<div id='blockd'>

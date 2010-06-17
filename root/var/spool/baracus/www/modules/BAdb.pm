@@ -125,6 +125,10 @@ sub getDistrosFromCL
 	{
 		$status = "| grep removed";
 	}
+	elsif( $status eq "none")
+	{
+		$status = "| grep none";
+	}
 	else
 	{
 		$status = "";

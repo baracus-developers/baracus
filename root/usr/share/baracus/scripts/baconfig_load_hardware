@@ -49,7 +49,6 @@ baconfig add hardware --name default-rhel-hp \
 baconfig detail hardware default-ubuntu --all &> /dev/null || \
 baconfig add hardware --name default-ubuntu \
 --description="ubuntu bootargs" \
---bootargs="locale=en_US console-setup/ask_detect=false console-setup/layoutcode=us hostname=unassigned-hostname" \
 --rootdisk=/dev/hda \
 --rootpart=/dev/hda \
 --cert "ubuntu-10.4-x86_64 ubuntu-10.4-i386 ubuntu_desktop-10.4-x86_64 ubuntu_desktop-10.4-i386 ubuntu-9.10-x86_64 ubuntu-9.10-i386"
@@ -57,7 +56,6 @@ baconfig add hardware --name default-ubuntu \
 baconfig detail hardware ubuntu-virtio --all &> /dev/null || \
 baconfig add hardware --name ubuntu-virtio \
 --description="/dev/vda +ubuntu bootargs" \
---bootargs="locale=en_US console-setup/ask_detect=false console-setup/layoutcode=us hostname=unassigned-hostname" \
 --rootdisk=/dev/vda \
 --rootpart=/dev/vda \
 --cert "ubuntu-10.4-x86_64 ubuntu-10.4-i386 ubuntu_desktop-10.4-x86_64 ubuntu_desktop-10.4-i386 ubuntu-9.10-x86_64 ubuntu-9.10-i386"

@@ -21,7 +21,7 @@ sub getData
 	foreach( BAdb::getAddonsForDistro( $distro, "", "ready"))
 	{
 		@addonLine = split( " ", $_);
-		$r = $r."<option value='@addonLine[0]'>@addonLine[0]</option>";
+		$r = $r."<option value='$addonLine[0]'>$addonLine[0]</option>";
 	}
 	$r = $r."</select>\n";
 	return $r;

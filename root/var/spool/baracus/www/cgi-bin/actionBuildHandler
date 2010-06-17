@@ -11,7 +11,7 @@ my $command;
 
 my $sub = param('sub') || "";
 my @names = $query->param;
-my @params = ("mac", "ip", "hostname", "distro", "hardware", "module", "profile", "addon");
+my @params = ("mac", "ip", "hostname", "distro", "hardware", "module", "profile", "addon", "autobuild" );
 my @vars = ( "netmask", "gateway", "dnsdomain", "dns1");
 my $varlist;
 my $redir = ' 2>&1';

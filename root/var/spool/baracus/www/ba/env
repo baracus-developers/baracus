@@ -557,6 +557,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             $hardref = &get_hardware( $opts, $dbh, $actref, $actref->{hardware_ver} );
 
             &load_distro( $opts, $dbh, $actref );
+            &load_profile( $opts, $dbh, $actref );
             &load_vars( $opts, $dbh, $actref ) if ($actref->{vars});
 
             my $actauto = &get_action_autobuild_hash( $dbh, $input->{mac} );
@@ -604,11 +605,13 @@ LABEL label_$actref->{hostname}
 |;
 
             } elsif ( $distref->{os} =~ m/ubuntu/ ) {
+                $args = qq|hostname=unassigned-hostname locale=$actref->{lang} console-setup/ask_detect=$actref->{consoleaskdetect} console-setup/layoutcode=$actref->{consolelayoutcode}|;
                 if ( $actref->{autobuild} ne "none" ) {
-                    $args .= qq|url=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
-                } elsif ( $actref->{autobuild} eq "none" ) {
-                    $args .= qq|tasks=standard pkgsel/language-pack-patterns= pkgsel/install-language-support=false priority=low hostname=unassigned-hostname locale=$actref->{lang} console-setup/ask_detect=$actref->{consoleaskdetect} console-setup/layoutcode=$actref->{consolelayoutcode}|;
+                    $args .= qq| url=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
+                } else {
+                    $args .= qq| tasks=standard pkgsel/language-pack-patterns= pkgsel/install-language-support=false priority=low|;
                 }
+
 
                 $output = qq|DEFAULT label_$actref->{hostname}
 PROMPT 0

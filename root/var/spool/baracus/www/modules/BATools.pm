@@ -10,8 +10,8 @@ our $baPath = "/var/spool/baracus/www";
 our $baLogPath = "/var/spool/baracus/logs/remote";
 our $baCGI = "baracus/ba";
 our $baRoot = "baracus";
-our	$debug = 0;
-our @statusList = ( "all", "enabled", "disabled", "removed");
+our $debug = 0;
+our @statusList = ( "all", "enabled", "disabled", "removed", "none");
 
 sub hello_message
 {
