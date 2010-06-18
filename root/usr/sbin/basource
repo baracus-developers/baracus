@@ -39,7 +39,7 @@ Where command is one of
     verify  --distro <x>  Verify build source for distribution <x>
     detail  --distro <x>  Display specifics about a distribution
 
-    list   [--distro <x>] List known distros
+    list [base|addon] [--distro <x>] [--all] List known distros
 
     service --start       Start defaults [ SHARE_TYPE and dhcpd ]
     service --stop        Stop defaults [ SHARE_TYPE and dhcpd ]

@@ -126,14 +126,13 @@ $baracusdir =~ s|/*\s*$||;
 
 # store baracus well know directories in global hash 'bdir'
 my @bdirs = qw( builds byum hooks isos logs pgsql templates www );
-%baDir =
-    (
-     'root' => "$baracusdir",
-     'data' => "/usr/share/baracus",
-     );
 foreach my $bd (@bdirs) {
     $baDir{ $bd } = "$baracusdir/$bd";
 }
+$baDir{ root } = $baracusdir;
+$baDir{ data } = "/usr/share/baracus";
+$baDir{ buildroot } = $baDir{builds};
+
 
 ###########################################################################
 

@@ -231,6 +231,7 @@ sub build
         &help( $opts, $cmds, $command );
     }
 
+    my $chkref;
     my $macref;
     my $hostref;
     my $actref;
@@ -279,24 +280,6 @@ sub build
     $entry{vars}    = $multiarg{ 'vars'   } if (defined $multiarg{ 'vars'   });
     $entry{modules} = $multiarg{ 'module' } if (defined $multiarg{ 'module' });
 
-    ## Verify Mandatory parameters
-    ##
-    if ( $entry{hostname} eq "" ) {
-        $opts->{LASTERROR} = "Missing  --hostname\n";
-        return 1;
-    }
-    if ( $entry{ip} eq "" ) {
-        $opts->{LASTERROR} = "Missing  --ip\n";
-        return 1;
-    }
-    if ( $entry{mac} eq "" ) {
-        $opts->{LASTERROR} = "Missing  --mac\n";
-        return 1;
-    }
-
-    $entry{ip} = lc $entry{ip};
-    &check_ip( $entry{ip} );
-
     # this routine checks for mac and hostname args
     # and if hostname passed finds related mac entry
     # returns undef on error (e.g., unable to find hostname)
@@ -310,20 +293,52 @@ sub build
     # now get any existing action db entry
 
     # lookup by MAC
-    $actref = &get_db_action( $dbh, $entry{mac} );
-    if ( defined $actref
-         and defined $actref->{hostname}
-         and $entry{hostname} ne $actref->{hostname} ) {
-        print "Attempt to create entry for $entry{hostname} with mac identical to existing 'action' entry $actref->{hostname}\n";
+    $chkref = &get_db_action( $dbh, $entry{mac} );
+    if ( defined $chkref
+         and $chkref->{hostname}
+         and $entry{hostname} ne ''
+         and $entry{hostname} ne $chkref->{hostname} ) {
+        print "Attempt to create entry for $entry{hostname} with mac identical to existing 'action' entry $chkref->{hostname}\n";
         exit 1;
     }
-    # lookup by hostname
-    $actref = get_db_action_by_hostname( $dbh, $entry{hostname} );
-    if ( defined $actref
-         and defined $actref->{mac}
-         and $entry{mac} ne $actref->{mac} ) {
-        print "Attempt to create entry for $entry{mac} with hostname identical to existing 'action' entry $actref->{mac}\n";
-        exit 1;
+    if ( $entry{hostname} ne '' ) {
+        # lookup by hostname
+        $actref = get_db_action_by_hostname( $dbh, $entry{hostname} );
+        if ( defined $actref
+             and defined $actref->{mac}
+             and $entry{mac} ne $actref->{mac} ) {
+            print "Attempt to create entry for $entry{mac} with hostname identical to existing 'action' entry $actref->{mac}\n";
+            exit 1;
+        }
+    } else {
+        # require hostname here or from entry
+        if ( $entry{hostname} eq "" and
+             defined $chkref and
+             $chkref->{hostname} ne ""
+            )
+        {
+            $entry{hostname} = $chkref->{hostname};
+        } else {
+            $opts->{LASTERROR} = "Missing  --hostname\n";
+            return 1;
+        }
+    }
+
+    # get the ip from the existing entry if any
+    if ( $entry{ip} eq "" and
+         defined $chkref and
+         $chkref->{ip} ne ""
+        )
+    {
+        $entry{ip}=$chkref->{ip};
+    }
+
+    $entry{ip} = lc $entry{ip};
+    &check_ip( $entry{ip} );
+
+    if ( $entry{ip} eq "" ) {
+        $opts->{LASTERROR} = "Missing  --ip\n";
+        return 1;
     }
 
     # done with all checking of hostname/mac/ip
@@ -478,7 +493,6 @@ sub build
         return 1 if ( &check_cert( $opts, $dbh, $actref->{'distro'}, 'autobuild', $actref->{'autobuild'} ));
     }
 
-
     # Remote Access configurations
     my @raccess;
     # vnc remote access may be specified in profile *and* on command line
@@ -564,20 +578,15 @@ sub build
     ##   - comes after reading profile
     ##   - harware, distro override profile values
     ##   - cmdline values override any file values
-    ##   - --vars overrides everything else
-    ## Mandatory: hostname ip mac
-    ##
 
-    $actref->{'serverip'}  = $baVar{serverip}  if ($baVar{serverip});
-    $actref->{'sharetype'} = $baVar{sharetype} if ($baVar{sharetype});
-    $actref->{'shareip'}   = $baVar{shareip}   if ($baVar{shareip});
-
+    # baDir and baVar into actref
+    &load_baracusconfig( $opts, $actref );
 
     ## If passed on command line via vars, then honor those
     ##
     if ($entry{vars}) {
         $actref->{vars} = $entry{vars};
-        &load_vars( $opts, $dbh, $actref );
+        &load_vars( $opts, $actref );
     }
 
     # do not want any setting to override these values
@@ -587,9 +596,8 @@ sub build
     $actref->{'ip'} = $entry{ip};
     $actref->{'mac'} = $entry{mac};
     $actref->{'uuid'} = &get_uuid;
-    $actref->{'buildroot'} = $baDir{'builds'};
     $actref->{'autoinst'} = &automac( $entry{mac} );
-    $actref->{'basedist'} = "$actref->{'os'}-$actref->{'release'}-$actref->{'arch'}";
+    $actref->{basedist} = "$actref->{os}-$actref->{release}-$actref->{arch}";
     $actref->{'initrd'} = "initrd.$actref->{'basedist'}";
     $actref->{'kernel'} = "linux.$actref->{'basedist'}";
 
@@ -605,11 +613,11 @@ sub build
              $actref->{os} =~ m|esx|    or
              $actref->{os} =~ m|fedora| or
              $actref->{os} =~ m|centos| ) {
-            $actref->{'loghost'} = "syslog=$baVar{serverip}";
+            $actref->{'loghost'} = "syslog=$actref->{serverip}";
         } elsif ( $actref->{os} =~ m|ubuntu| ) {
-            $actref->{'loghost'} = "log_host=$baVar{serverip}";
+            $actref->{'loghost'} = "log_host=$actref->{serverip}";
         } else {
-            $actref->{'loghost'} = "loghost=$baVar{serverip}";
+            $actref->{'loghost'} = "loghost=$actref->{serverip}";
         }
     } else {
         $actref->{'loghost'} = ""
@@ -658,6 +666,7 @@ sub build
             next if $key eq "cmdline"; # order diff and -d -v -q don't matter
             unless ( defined $val ) {
                 if ( defined $actref->{$key} ) {
+                    # relation doesn't have a value we've got on cmd line
                     $gotdiff = 1;
                     last;
                 } else {
@@ -667,12 +676,12 @@ sub build
             print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val '$val'\n"
                 if $opts->{debug};
             if ( "$actref->{$key}" ne "$val" ) {
+                # relation value not the same as what we got on cmd line
                 $gotdiff = 1;
                 last;
             }
         }
         if ( $gotdiff != 0 ) {
-#            &remove_autobuild( $opts, $actref );
             &update_db_action( $dbh, $actref);
         }
     } else {
@@ -695,6 +704,8 @@ sub build
         }
     }
 
+    return 1 if ( &remove_action_autobuild( $dbh, $actref->{mac} ) );
+
     unless ( $actref->{'autobuild'} eq "none" ) {
         # get_autobuild_expanded here is to make sure we have all
         # the 'ingredients' collected to generate a 'recipe'
@@ -708,7 +719,7 @@ sub build
          autobuild     => $actref->{autobuild},
          autobuild_ver => $actref->{autobuild_ver},
          };
-        return 1 if ( &remove_action_autobuild( $dbh, $actref->{mac} ) );
+
         return 1 if ( &add_action_autobuild( $dbh, $actabref ) );
 
         print $abfile if ( $opts->{debug} > 2 );
@@ -1500,17 +1511,11 @@ sub rescue
         &help( $opts, $cmds, $command );
     }
 
-    my $mac       = "";
-    my $hostname  = "";
-
     my $macref;
     my $actref;
+    my $hostref;
     my $chkref;
 
-    my $ip="";
-    my $profile="";
-    my $distro="";
-    my $hardware="";
     my $usevnc="";
     my $vncpass="";
     my $usessh="";
@@ -1518,81 +1523,108 @@ sub rescue
     my $serialtty="";
     my $serialbaud="";
 
+    my %entry =
+    (
+         'mac'           => '',
+         'hostname'      => '',
+         'ip'            => '',
+         'distro'        => '',
+         'hardware'      => '',
+         'profile'       => '',
+         'vars'          => '',
+     );
+
     @ARGV = @_;
 
-    GetOptions(
-               'mac=s'          => \$mac,
-               'hostname=s'     => \$hostname,
-               'ip=s'           => \$ip,
-               'profile=s'      => \$profile,
-               'distro=s'       => \$distro,
-               'hardware=s'     => \$hardware,
-               'usevnc!'        => \$usevnc,
-               'vncpass=s'      => \$vncpass,
-               'usessh!'        => \$usessh,
-               'sshpass=s'      => \$sshpass,
-               'serialtty=s'    => \$serialtty,
-               'serialbaud=s'   => \$serialbaud,
-               );
+    GetOptions
+        (
+         'mac=s'         => \$entry{mac},
+         'hostname=s'    => \$entry{hostname},
+         'ip=s'          => \$entry{ip},
+         'distro=s'      => \$entry{distro},
+         'hardware=s'    => \$entry{hardware},
+         'profile=s'     => \$entry{profile},
+         'vars=s'        => \&multiarg_handler,
+         'usevnc!'        => \$usevnc,
+         'vncpass=s'      => \$vncpass,
+         'usessh!'        => \$usessh,
+         'sshpass=s'      => \$sshpass,
+         'serialtty=s'    => \$serialtty,
+         'serialbaud=s'   => \$serialbaud,
+         );
 
     if ( scalar @ARGV ) {
         $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
         return 1;
     }
 
-    ## Verify Mandatory parameters
-    ##
-    if ( $hostname eq "" ) {
-        $opts->{LASTERROR} = "Missing  --hostname\n";
-        return 1;
-    }
-    if ( $ip eq "" ) {
-        $opts->{LASTERROR} = "Missing  --ip\n";
-        return 1;
-    }
-    if ( $mac eq "" ) {
-        $opts->{LASTERROR} = "Missing  --mac\n";
-        return 1;
-    }
-
-    &check_ip( $ip );
+    $entry{vars}    = $multiarg{ 'vars'   } if (defined $multiarg{ 'vars'   });
 
     # this routine checks for mac and hostname args
     # and if hostname passed finds related mac entry
     # returns undef on error (e.g., unable to find hostname)
-    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
-    unless ( defined $mac ) {
+    $entry{mac} = &get_mac_by_hostname( $opts, $dbh, $entry{mac}, $entry{hostname} );
+    unless ( defined $entry{mac} ) {
         # $opts->{LASTERROR} set in subroutine
         return 1;
     }
 
     # hosts <=> mac relations checked in get_mac_by_hostname above
-    # now get any existing action db entry
+    # now, if both passed, get any existing action db entry and check reuse
 
     # lookup by MAC
-    $actref = &get_db_action( $dbh, $mac );
-    if ( defined $actref
-         and defined $actref->{hostname}
-         and $hostname ne $actref->{hostname} ) {
-        print "Attempt to create entry for $hostname with mac identical to existing 'action' entry $actref->{hostname}\n";
+    $chkref = &get_db_action( $dbh, $entry{mac} );
+    if ( defined $chkref
+         and $chkref->{hostname}
+         and $entry{hostname} ne ''
+         and $entry{hostname} ne $chkref->{hostname} ) {
+        print "Attempt to create entry for $entry{hostname} with mac identical to existing 'action' entry $chkref->{hostname}\n";
         exit 1;
     }
-    # lookup by hostname
-    $actref = get_db_action_by_hostname( $dbh, $hostname );
-    if ( defined $actref
-         and defined $actref->{mac}
-         and $mac ne $actref->{mac} ) {
-        print "Attempt to create entry for $mac with hostname identical to existing 'action' entry $actref->{mac}\n";
-        exit 1;
+    if ( $entry{hostname} ne '' ) {
+        # lookup by hostname
+        $actref = get_db_action_by_hostname( $dbh, $entry{hostname} );
+        if ( defined $actref
+             and defined $actref->{mac}
+             and $entry{mac} ne $actref->{mac} ) {
+            print "Attempt to create entry for $entry{mac} with hostname identical to existing 'action' entry $actref->{mac}\n";
+            exit 1;
+        }
     }
+
+    # get the ip from the existing entry if any
+    if ( $entry{ip} eq "" and
+         defined $chkref and
+         $chkref->{ip} ne ""
+        )
+    {
+        $entry{ip}=$chkref->{ip};
+    }
+
+    if ( $entry{ip} eq "" ) {
+        $opts->{LASTERROR} = "Missing  --ip\n";
+        return 1;
+    }
+
+    $entry{ip} = lc $entry{ip};
+    &check_ip( $entry{ip} );
 
     # done with all checking of hostname/mac/ip
     # begin loading of hash used for remainder of processing command
     undef $actref;
 
-    $profile = "default" unless ($profile);
-    $actref->{'profile'} = $profile;
-    &load_profile( $opts, $dbh, $actref );
+    unless ( defined $entry{profile} and $entry{profile} ne "" ) {
+        print "--profile <prof> unspecified. Using 'default'\n";
+        $entry{profile} = "default";
+    }
+
+    # breakout possible compound ver:name with call get back ( name, ver/undef )
+    ( $actref->{profile}, $actref->{profile_ver} ) =
+        &get_name_version( $entry{profile} );
+    print "profile $actref->{profile}\n" if ($opts->{debug});
+    print "profile version $actref->{profile_ver}\n" if (defined $actref->{profile_ver} and $opts->{debug});
+
+    return 1 if ( &load_profile( $opts, $dbh, $actref ) );
     if ($opts->{debug} > 1) {
         foreach my $key ( sort ( keys %{$actref} )) {
             print "add post-profile:  $key => $actref->{$key}\n";
@@ -1601,26 +1633,37 @@ sub rescue
 
     # distro file may be in profile *and* on command line
     # command line wins over profile entry
-    $actref->{'distro'} = $distro if ($distro);
+    $actref->{'distro'} = $entry{distro} if ($entry{distro});
 
     die "Need --distro via commandline or distro= in profile.\n"
         unless ($actref->{'distro'});
 
-    &load_distro( $opts, $dbh, $actref );
+    return 1 if ( &load_distro( $opts, $dbh, $actref ) );
     if ($opts->{debug} > 1) {
         foreach my $key ( sort ( keys %{$actref} )) {
             print "add post-distro:  $key => $actref->{$key}\n";
         }
     }
 
+    # now that we know what distro we're using verify the profile is cert for it
+    #    return 1 if ( &check_cert( $opts, $dbh, $actref->{'distro'}, "profile", $actref->{'profile'}) );
+
     # hardware file may be in profile *and* on command line
     # command line wins over profile entry
-    $actref->{'hardware'}= $hardware if ($hardware);
+    $actref->{'hardware'}= $entry{hardware} if ($entry{hardware});
 
     die "Need --hardware via commandline or hardware= in profile.\n"
         unless ($actref->{'hardware'});
 
-    &load_hardware( $opts, $dbh, $actref );
+    # breakout possible compound ver:name with call get back ( name, ver/undef )
+    ( $actref->{hardware}, $actref->{hardware_ver} ) =
+        &get_name_version( $actref->{hardware} );
+    print "hardware $actref->{hardware}\n" if ($opts->{debug});
+    print "hardware version $actref->{hardware_ver}\n" if (defined $actref->{hardware_ver} and $opts->{debug});
+
+
+    return 1 if ( &load_hardware( $opts, $dbh, $actref ) );
+    return 1 if ( &check_cert( $opts, $dbh, $actref->{'distro'}, "hardware", $actref->{'hardware'}) );
     if ($opts->{debug} > 1) {
         foreach my $key ( sort ( keys %{$actref} )) {
             print "add post-hardware:  $key => $actref->{$key}\n";
@@ -1648,8 +1691,7 @@ sub rescue
              $actref->{os} =~ m|fedora| or
              $actref->{os} =~ m|centos| ) {
             push(@raccess, "vnc", $vncpass);
-        }
-        else {
+        } else {
             push(@raccess, "vnc=1", $vncpass);
         }
     }
@@ -1667,8 +1709,7 @@ sub rescue
     }
     if (($sshpass) and !($usessh)) {
         die "--sshpass requires --usessh\n";
-    }
-    elsif (!($sshpass) and ($usessh)) {
+    } elsif (!($sshpass) and ($usessh)) {
         die "--usessh requires --sshpass\n";
     }
 
@@ -1715,15 +1756,23 @@ sub rescue
     ##   - harware, distro override profile values
     ##   - cmdline values override any file values
 
-    $actref->{'serverip'}  = $baVar{serverip}  if ($baVar{serverip});
-    $actref->{'sharetype'} = $baVar{sharetype} if ($baVar{sharetype});
-    $actref->{'shareip'}   = $baVar{shareip}   if ($baVar{shareip});
+    # baDir and baVar into actref
+    &load_baracusconfig( $opts, $actref );
+
+    ## If passed on command line via vars, then honor those
+    ##
+    if ($entry{vars}) {
+        $actref->{vars} = $entry{vars};
+        &load_vars( $opts, $actref );
+    }
+
+    # do not want any setting to override these values
 
     $actref->{cmdline} = $cmdline;
-    $actref->{hostname} = $hostname;
-    $actref->{ip} = $ip;
-    $actref->{mac} = $mac;
-    $actref->{buildroot} = $baDir{builds};
+    $actref->{'hostname'} = $entry{hostname};
+    $actref->{'ip'} = $entry{ip};
+    $actref->{'mac'} = $entry{mac};
+
     $actref->{basedist} = "$actref->{os}-$actref->{release}-$actref->{arch}";
     $actref->{initrd} = "initrd.$actref->{basedist}";
     $actref->{kernel} = "linux.$actref->{basedist}";
@@ -1733,11 +1782,11 @@ sub rescue
              $actref->{os} =~ m|esx|    or
              $actref->{os} =~ m|fedora| or
              $actref->{os} =~ m|centos| ) {
-            $actref->{'loghost'} = "syslog=$baVar{serverip}";
+            $actref->{'loghost'} = "syslog=$actref->{serverip}";
         } elsif ( $actref->{os} =~ m|ubuntu| ) {
-            $actref->{'loghost'} = "log_host=$baVar{serverip}";
+            $actref->{'loghost'} = "log_host=$actref->{serverip}";
         } else {
-            $actref->{'loghost'} = "loghost=$baVar{serverip}";
+            $actref->{'loghost'} = "loghost=$actref->{serverip}";
         }
     } else {
         $actref->{'loghost'} = ""
@@ -1751,44 +1800,20 @@ sub rescue
         }
     }
 
-    ## Test to see if oscert approved
-    ##
-
-    if ( &check_cert( $opts, $dbh, 'hwcert',
-                      $actref->{'hardware'},
-                      $actref->{'distro'} ) )
-    {
-        print "hardware not certified for use with this distro.\nconfirm you want to use these in combination and then do:\n  baconfig update hardware --name $actref->{'hardware'} --addcert $actref->{'distro'}\n";
-        exit 1;
-    }
-
-    if ( &check_cert( $opts, $dbh, 'abcert',
-                      $actref->{'autobuild'},
-                      $actref->{'distro'} ) )
-    {
-        print "autobuild not certified for use with this distro.\nconfirm you want to use these in combination and then do:\n    baconfig update autobuild --name $actref->{'autobuild'} --addcert $actref->{'distro'}\n";
-        exit 1;
-    }
-
     $macref = get_db_mac( $dbh, $actref->{mac} );
     unless ( defined $macref ) {
         &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED);
         $macref = get_db_mac( $dbh, $actref->{mac} );
     }
-    if ( $opts->{debug} > 1 ) {
-        while ( my ($key, $val) = each %{$macref} ) {
-            print "mac $key => " . $val eq "" ? "" : $val . "\n";
-        }
-    }
 
-    # create a host table entry if missing
-    unless ( &get_db_host( $dbh, $hostname ) ) {
+    $hostref = &get_db_host( $dbh, $actref->{hostname} );
+    unless ( defined $hostref ) {
         &add_db_host( $dbh, $actref );
     }
 
     &action_state_change( $dbh, BA_ACTION_RESCUE, $macref, $actref );
 
-    &update_db_mac_state( $dbh, $mac, BA_ACTION_RESCUE );
+    &update_db_mac_state( $dbh, $actref->{mac}, BA_ACTION_RESCUE );
 
     # find existing action relation and update it or create if not found
     # avoid overwrite of the carefully constructed $actref hash
@@ -1824,14 +1849,11 @@ sub rescue
         }
     } else {
         &add_db_action( $dbh, $actref);
-        unless ( $actref->{'autobuild'} eq "none" ) {
-            &add_autobuild( $opts, $dbh, $actref );
-        }
     }
 
     if ( $opts->{verbose} ) {
         printf "Set complete. State of %s modified to support rescue mode on next boot.\n",
-            $hostname ne "" ? $hostname : $mac;
+            $actref->{hostname} ne "" ? $actref->{hostname} : $actref->{mac};
     }
 
     return 0;

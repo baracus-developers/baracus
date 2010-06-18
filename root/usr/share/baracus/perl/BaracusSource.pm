@@ -1495,8 +1495,10 @@ Make sure you have the helper cifs share available:
   > service smb start       # if not already running
   > smbclient -L localhost  # look for winstall
 
-Then in a running instance of Win 7/2008/Vista to mount the
-share "winstall" and run "bawinstall.bat" as follows:
+Then in a running instance of Win 7/2008/Vista,
+which has Auto Install Toolkit (AIK) installed,
+mount the share "winstall" and run "bawinstall.bat"
+as follows:
 
   c: net use x: \\\\$baVar{shareip}\\winstall
   x:

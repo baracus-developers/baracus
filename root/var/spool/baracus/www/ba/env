@@ -323,7 +323,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 $output = $default;
             }
         } else {
-            print STDERR "$input->{mac} - chain of non-build $pxenext\n";
+            print STDERR "$input->{mac} - chain of non-build\n";
             $output = $default;
         }
     } elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/boot\?.*\s*$| ) {
@@ -555,10 +555,10 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 
             $distref = &get_distro( $opts, $dbh, $actref );
             $hardref = &get_hardware( $opts, $dbh, $actref, $actref->{hardware_ver} );
-
             &load_distro( $opts, $dbh, $actref );
             &load_profile( $opts, $dbh, $actref );
-            &load_vars( $opts, $dbh, $actref ) if ($actref->{vars});
+            &load_vars( $opts, $actref );
+            &load_baracusconfig( $opts, $actref );
 
             my $actauto = &get_action_autobuild_hash( $dbh, $input->{mac} );
             if ( defined $actauto->{autobuild} ) {
@@ -633,7 +633,7 @@ chain pxegrub
 # the mac isn't required here for operation but it identifies the requesting device 
 
                 $output = qq|#!gpxe
-chain http://$baVar{serverip}/baracus/startrom.0
+chain http://$baVar{serverip}/ba/startrom.0
 |;
 
 #                $output = qq|DEFAULT label_$actref->{hostname}
@@ -805,7 +805,9 @@ n:\\setup.exe
         &load_distro  ( $opts, $dbh, $actref );
         &load_addons  ( $opts, $dbh, $actref );
         &load_modules ( $opts, $dbh, $actref );
-        &load_vars    ( $opts, $dbh, $actref );
+
+        &load_vars         ( $opts, $actref );
+        &load_baracusconfig( $opts, $actref );
 
         print STDERR "$input->{mac} - serving autobuild $file\n";
 

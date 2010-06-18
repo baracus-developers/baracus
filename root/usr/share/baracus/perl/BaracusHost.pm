@@ -106,7 +106,9 @@ sub get_mac_by_hostname
 
     if ( defined $mref ) {
         # mac found in host table
-        if ( $hostname ne "" and $hostname ne $mref->{hostname} ) {
+        if ( $hostname ne "" and
+             $mref->{hostname} ne "" and
+             $hostname ne $mref->{hostname} ) {
             # mac and hostname passed
             # but hostname passed differes from hostname in table
             $opts->{LASTERROR} = "MAC already bound to $mref->{hostname}\n";

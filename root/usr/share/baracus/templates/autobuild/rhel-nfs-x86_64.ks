@@ -1,8 +1,7 @@
-# NFS SHARE
-install __SHARETYPE__ --server=__SHAREIP__ --dir=__BUILDROOT__/__OS__/__RELEASE__/__ARCH__/dvd
+install 
 
-# HTTP SHARE
-# install URL --url __SHARETYPE__://__SHAREIP__/__BUILDROOT__/__OS__/__RELEASE__/__ARCH__/dvd
+# NFS SHARE
+__SHARETYPE__ --server=__SHAREIP__ --dir=__BUILDROOT__/__OS__/__RELEASE__/__ARCH__/dvd
 
 key --skip
 lang "__LANG__"
@@ -18,7 +17,7 @@ authconfig --enableshadow --enablemd5
 selinux --disabled
 timezone --utc "__TIMEZONE__"
 
-bootloader --location=mbr --driveorder="__ROOTDISK__" --append="__BOOTARGS__ __CONSOLE__"
+bootloader --location=mbr --driveorder="__ROOTDISK__" --append="__BOOTARGS__ __RACCESS__"
 
 # The following is the partition information you requested
 # Note that any partitions you deleted are not expressed

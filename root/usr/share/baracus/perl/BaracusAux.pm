@@ -54,6 +54,7 @@ BEGIN {
                 load_autobuild
                 load_modules
                 load_vars
+                load_baracusconfig
                 get_autobuild_expanded
 
                 remove_inventory
@@ -312,7 +313,10 @@ sub load_addons
     my $dbh  = shift;
     my $aref = shift;
 
-    return 0 unless ( $aref->{addons} );
+    unless ( $aref->{addons} ) {
+        $aref->{addon} = "";
+        return 0;
+    }
 
     my @addonlist;
     if ( $aref->{addons} =~ m/[,\s]+/ ) {
@@ -425,7 +429,10 @@ sub load_modules
 
     my $sth;
 
-    return 0 unless ($aref->{modules});
+    unless ($aref->{modules}) {
+        $aref->{module} = "";
+        return 0;
+    }
 
     my @modulelist;
     if ( $aref->{modules} =~ m/[,\s]+/ ) {
@@ -468,13 +475,31 @@ sub load_modules
 sub load_vars
 {
     my $opts = shift;
-    my $dbh  = shift;
     my $aref = shift;
 
     if ($aref->{vars}) {
         my @varray = split(/[,\s*]/, $aref->{vars});
         foreach my $item (@varray) {
             (my $key, my $value) = split(/=/, $item);
+            $aref->{$key} = $value;
+        }
+    }
+    return 0;
+}
+
+sub load_baracusconfig
+{
+    my $opts = shift;
+    my $aref = shift;
+    my ( $key, $value );
+
+    if (defined %baVar) {
+        while ( ( $key, $value ) = each %baVar )  {
+            $aref->{$key} = $value;
+        }
+    }
+    if (defined %baDir) {
+        while ( ( $key, $value ) = each %baDir )  {
             $aref->{$key} = $value;
         }
     }
