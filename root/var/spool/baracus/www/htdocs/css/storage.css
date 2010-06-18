@@ -117,7 +117,7 @@ body
 	top:15;
 	left:9;
 }
-#config font.repoversion
+#config font.createip
 {
         position:absolute;
         top:35;
@@ -133,6 +133,17 @@ body
 {
         position:absolute;
         top:10;
+        left:90;
+        width:215;
+        height:20;
+        border:none;
+        background-color:white;
+        color: #0B610B;
+}
+#config input.createip
+{
+        position:absolute;
+        top:35;
         left:90;
         width:215;
         height:20;
