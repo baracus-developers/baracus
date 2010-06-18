@@ -1,17 +1,43 @@
 package BAdb;
 
+
+use strict;
+use warnings;
+
+use Apache::DBI ();
+use DBI ();
+
 use lib "/usr/share/baracus/perl";
+use BaracusSql qw( :vars );
+
 use lib '/var/spool/baracus/www/modules';
 use BaracusDB;
 use BATools;
 
-my %tbl = (
-           'distro'   => 'distro_cfg',
-           'hardware' => 'hardware_cfg',
-           'module'   => 'module_cfg',  
-           'profile'  => 'profile_cfg', 
-           'oscert'   => 'hardwareid',  
-           );
+my $dbh = DBI->connect
+    ("DBI:Pg:dbname=baracus;port=5162",
+     "wwwrun",
+     "",
+     {
+      PrintError => 1,          # warn() on errors
+      RaiseError => 0,          # don't die on error
+      AutoCommit => 1,          # commit executes
+      # immediately
+      }
+     );
+
+my $tftph = DBI->connect
+    ("DBI:Pg:dbname=sqltftp;port=5162",
+     "wwwrun",
+     "",
+     {
+      PrintError => 1,          # warn() on errors
+      RaiseError => 0,          # don't die on error
+      AutoCommit => 1,          # commit executes
+      # immediately
+      }
+     );
+
 
 ###########################################################################################
 # Configure Functions
@@ -75,7 +101,7 @@ sub getAddonsForDistro
 			$status = "";
 		}
 
-        $cmd = "sudo basource list -a -n $quiet addon --distro $distro $status";
+        my $cmd = "sudo basource list -a -n $quiet addon --distro $distro $status";
 
         my $list = BATools::execute( $cmd);
         return split("\n", $list);
@@ -107,6 +133,7 @@ sub getDistrosFromCL
 	my @tmpArray;
 	my $name;
 	my $value;
+	my $all;
 		
 	if( $status eq "current")
 	{
@@ -134,7 +161,7 @@ sub getDistrosFromCL
 		$status = "";
 	}
 
-	$cmd = "sudo basource list -a -n $catagory --distro='*$filter*' $status";
+	my $cmd = "sudo basource list -a -n $catagory --distro='*$filter*' $status";
 
 	my $list = BATools::execute( $cmd);
 	@darray = split("\n", $list);
@@ -216,7 +243,7 @@ sub getPofileVersionList
 	my $count = 0;
 	open( RSLT, "$cmd |") || die "Failed: $!\n";
 	
-	while( $line = <RSLT>)
+	while( my $line = <RSLT>)
 	{
 		++ $count;	
 		if( $count > 3)
@@ -485,7 +512,7 @@ sub getModuleVersionList
 	my $count = 0;
 	open( RSLT, "$cmd |") || die "Failed: $!\n";
 	
-	while( $line = <RSLT>)
+	while( my $line = <RSLT>)
 	{
 		++ $count;	
 		if( $count > 3)
@@ -508,22 +535,31 @@ sub getModuleVersionList
 
 sub getStorageList
 {
-	my $storecmd = "sudo bastorage list --quiet";
+    my $storecmd = "sudo bastorage list --quiet";
+    my $filter = "";
+
+    my $sth = list_start_lun ( $dbh, $filter );
+
+    unless( defined $sth ) {
+        return 1;
+    }
+
+    my $dbref = &list_next_lun( $sth );
 	
-	my $string = `$storecmd`; 
-	my @array = split("\n", $string);
-	foreach( @array)
-	{
-		$_ = BATools::trim($_);
-	}
+#    my $string = `$storecmd`; 
+#    my @array = split("\n", $string);
+#    foreach( @array)
+#    {
+#        $_ = BATools::trim($_);
+#    }
 	
-	return @array;
+    return $dbref;
 }
 
 sub cmd2array
 {
-    $cmd = shift;
-	my $string = BATools::execute( $cmd );
+    my $cmd = shift;
+    my $string = BATools::execute( $cmd );
 	my @array = split("\n", $string);
 	foreach( @array)
 	{
@@ -578,7 +614,7 @@ sub getHardwareVersionList
 	my $count = 0;
 	open( RSLT, "$cmd |") || die "Failed: $!\n";
 	
-	while( $line = <RSLT>)
+	while( my $line = <RSLT>)
 	{
 		++ $count;	
 		my @items = split( " ", $line);
@@ -634,19 +670,19 @@ sub getHardwareListAll
 
 sub getHostTemplates
 {
-	$filter = shift @_;
+        my $filter = shift @_;
 	return getHostList( $filter, "templates");
 }
 
 sub getHostNodes
 {
-	$filter = shift @_;
+	my $filter = shift @_;
 	return getHostList( $filter, "nodes");
 }
 
 sub getHostStates
 {
-	$filter = shift @_;
+	my $filter = shift @_;
 	return getHostList( $filter, "states -n");
 }
 
@@ -761,7 +797,54 @@ sub getRepoDetail
         my $cmd = "sudo barepo detail $repo --quiet";
         my $data = BATools::execute( $cmd );
         my @detailArray = split( "\n", $data);
+        foreach( @detailArray)
+        {
+                $_ = BATools::trim($_);
+        }
         return @detailArray;
+}
+
+###########################################################################################
+# Storage Functions                                                                       #
+###########################################################################################
+
+sub getStorageList
+{
+        my $filterVal = shift @_;
+
+        my $sql = qq| SELECT *
+                  FROM $baTbls{'lun'}
+                  WHERE targetid LIKE '$filterVal%'
+               |;
+
+        my $sth;
+        my $href;
+
+        die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+        die "$!$sth->err\n" unless ( $sth->execute() );
+
+        my $href = $sth->fetchall_hashref('targetid');
+
+        return $href;
+}
+
+sub getStorageDetail
+{
+    my $targetid = shift @_;
+    my $sql = qq| SELECT *
+                  FROM $baTbls{'lun'}
+                  WHERE targetid = '$targetid'
+               |;
+
+    my $sth;
+    my $href;
+
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute() );
+
+    my $href = $sth->fetchrow_hashref();
+
+    return $href;
 }
 
 ###########################################################################################
@@ -783,4 +866,5 @@ sub getStateLog
 	my $log = BATools::execute( $cmd);
 	return $log	
 }
+
 1;

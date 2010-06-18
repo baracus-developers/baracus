@@ -31,6 +31,7 @@ $data = param('data');
                "Configuration",
                "Power Controller",
                "Repository",
+               "Storage",
                "Log Information",
                "Processing",
                "About" );
@@ -41,6 +42,7 @@ $data = param('data');
              "/$BATools::baCGI/config.iframe",
              "/$BATools::baCGI/power.iframe",
              "/$BATools::baCGI/repo.iframe",
+             "/$BATools::baCGI/storage.iframe",
              "/$BATools::baCGI/log.iframe",             
              "/$BATools::baCGI/procHandler.iframe",
              "/$BATools::baCGI/about.iframe" );

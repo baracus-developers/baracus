@@ -5,9 +5,9 @@ use lib '/var/spool/baracus/www/modules';
 use BATools qw(:standard);
 use CGI qw(:standard);
 
-my $repo = param('repo') || "";
+my $targetid = param('targetid') || "";
 
-my $items = getItems( $repo );
+my $detail = getdetail( $targetid );
 
 print "Content-type: text/html\n\n";
 	
@@ -32,42 +32,35 @@ print <<HTML0
 
 		<form name='form1' method="POST">
 		<div id='config'>
-		<div id='histbar' style="color:black"><a href=\"http://blade9/baracus/ba/repo\">Repository<\/a> \ >  $repo</div>
+		<div id='histbar' style="color:black">Storage</div>
+                <div id='histbar' style="color:black"><a href=\"http://blade9/baracus/ba/storage\">Storage<\/a> \ >  $targetid</div>
 		<div id='main'>
-		<img class='search' src='/$BATools::baRoot/images/searchI.gif' onClick='document.form1.submit()'/>
-		<img class='sweep' src='/$BATools::baRoot/images/sweepI.gif' onClick='document.form1.repo.value="";document.form1.submit()'/>
-                <font class='filter'>Filter</font>
-		<input type='text' class='filter' name='repo' value='$repo'>
 		<br><br>
                 <div id='repolist'>
-		$items
+		$detail
                 </div>
 		</div>
-                </div>
+		</div>
 		</form>
 	</body>
 </html>
 HTML0
 ;
 
-sub getItems
+sub getdetail
 {
-	my $name = $_[0];
-	my $r = "";
-	my $selected;
-        my $linkR = "http://blade9/baracus/ba/repoRemove?repo=test&rpm=";
+    my $targetid = shift;
+    my $r = "";
 
-	my @items;
-        $r = "<table class='repolist'>\n";
-	@items = BAdb::getRepoDetail( $repo );
+    my $hohref = BAdb::getStorageDetail( $targetid );
 
-	foreach( @items)
-	{
-            $r = $r."<tr>\n<td width=\"580\">$_<\/td>\n<td width=\"20\"><a href=\"$linkR$_\" style=\"text-decoration : none\">Remove<\/a><\/td>\n<\/tr> \n";
-	}
-	
-	$r = $r."</table>\n";
-	return $r;	
+    $r .= "<b>IP Address:</b> $hohref->{'targetip'}<br>\n";
+    $r .= "<b>Name:</b> $hohref->{'name'}<br>\n";
+    $r .= "<b>Description:</b> $hohref->{'description'}<br>\n";
+    $r .= "<b>Size:</b> $hohref->{'size'}<br>\n";
+    $r .= "<b>Type:</b> $hohref->{'type'}<br>\n";
+
+    return $r;	
 }
 
 ;

@@ -34,10 +34,7 @@ print <<HTML0
 		<div id='config'>
 		<div id='histbar' style="color:black"><a href=\"http://blade9/baracus/ba/repo\">Repository<\/a> \ >  $repo</div>
 		<div id='main'>
-		<img class='search' src='/$BATools::baRoot/images/searchI.gif' onClick='document.form1.submit()'/>
-		<img class='sweep' src='/$BATools::baRoot/images/sweepI.gif' onClick='document.form1.repo.value="";document.form1.submit()'/>
-                <font class='filter'>Filter</font>
-		<input type='text' class='filter' name='repo' value='$repo'>
+                <font class='name'>RPM List</font>
 		<br><br>
                 <div id='repolist'>
 		$items
