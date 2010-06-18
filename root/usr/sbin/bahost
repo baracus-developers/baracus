@@ -367,36 +367,17 @@ sub list
 
         unless ( $opts->{quiet} || $opts->{nolabels} ) {
             print "---------------------------------------------------------------------------\n";
-            printf "%-17s %-17s %-9s\n", "mac", "hostname", "tftp";
+            printf "%-17s %-17s %-9s\n", "mac", "hostname", "autobuild";
             print "---------------------------------------------------------------------------\n";
         }
 
         while ( $dbref = &db_list_next( $sth ) ) {
-            my $autostate = "missing";
+            my $name = "";
+            my $auto = "none";
 
-            my $automac = &automac( $dbref->{'mac'} );
-
-            my $macref = &get_db_mac( $dbh, $dbref->{'mac'} );
-
-            my $sel;
-            $sel = $sqlfsOBJ->detail( $automac );
-            if ( defined $sel ) {
-                if ( $sel->{'enabled'} ) {
-                    $autostate = "ok";
-                } else {
-                    $autostate = "disabled";
-                }
-            }
-
-            my $hname = "";
-            $hname = $dbref->{'hostname'} if ( defined $dbref->{'hostname'} );
-            printf "%-17s %-17s ", $dbref->{'mac'}, $hname;
-            if ( $autostate ne "ok" ) {
-                print "autobuild 'none' or disabled";
-            } else {
-               print "verified";
-            }
-            print "\n";
+            $name = $dbref->{'hostname'}  if ( defined $dbref->{'hostname'} );
+            $auto = $dbref->{'autobuild'} if ( defined $dbref->{'autobuild'} );
+            printf "%-17s %-17s %s\n", $dbref->{'mac'}, $name, $auto;
         }
     }
     elsif ( $subcommand eq "states" ) {
@@ -499,12 +480,14 @@ sub detail
     my $subcommand = shift;
 
     my $filter = "";
+    my $hostname = "";
     my $mac = "";
     my $name = $mac;
 
     @ARGV = @_;
     GetOptions(
-               'mac=s'    => \$mac,
+               'mac=s'      => \$mac,
+               'hostname=s' => \$hostname,
                );
 
     if ( scalar @ARGV ) {
@@ -512,15 +495,17 @@ sub detail
         &help( $opts, $command );
     }
 
-    $subcommand = lc $subcommand;
-    &check_subcommand( $command, $subcommand);
-
-    unless ( $mac ne "" ) {
-        $opts->{LASTERROR} = "detail requires --mac\n";
+    # this routine checks for mac and hostname args
+    # and if hostname passed finds related mac entry
+    # returns undef on error (e.g., unable to find hostname)
+    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
+    unless ( defined $mac ) {
+        # $opt->{LASTERROR} set in subroutine
         return 1;
     }
 
-    $mac = &check_mac( $mac );
+    $subcommand = lc $subcommand;
+    &check_subcommand( $command, $subcommand);
 
     my $dbref;
 
@@ -859,8 +844,16 @@ sub db_list_start
         $fkey = "mac";
         $filter = "%";
     } else {
-        ( $fkey, $filter ) = split ( /::/, $filter, 2 );
-        $filter =~ s/\*/\%/g;
+        if ( $filter =~ m/::/ ) {
+            ( $fkey, $filter ) = split ( /::/, $filter, 2 );
+        } else {
+            $fkey = "mac";
+        }
+        if ( $filter =~ m{\*|\?} ) {
+            print "handling wildcard to postgres expression\n" if $opts->{debug};
+            $filter =~ s|\*|%|g;
+            $filter =~ s|\?|_|g;
+        }
     }
 
     unless ( $fkey eq "mac" or $fkey eq "hostname" ) {
@@ -872,10 +865,10 @@ sub db_list_start
 
     if ( $type eq "templates" ) {
 
-        $sql = qq|SELECT hostname,
-                         mac
-                  FROM $baTbls{'action'}
-                  WHERE $fkey LIKE ? |;
+        $sql = qq|SELECT hostname, action.mac AS mac, action_autobuild.autobuild AS autobuild
+                  FROM $baTbls{'action'} LEFT OUTER JOIN $baTbls{actabld}
+                  ON ( action.mac = action_autobuild.mac )
+                  WHERE action.$fkey LIKE ? |;
 
     } elsif ( $type eq "states" ) {
 
