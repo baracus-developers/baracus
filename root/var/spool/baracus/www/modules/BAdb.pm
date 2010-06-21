@@ -38,312 +38,150 @@ my $tftph = DBI->connect
       }
      );
 
-
 ###########################################################################################
-# Configure Functions
+# Helper Functions
 ###########################################################################################
 
-sub configEnable
+sub cmd2array
 {
-	my $name = shift @_;
-	my $ver = shift @_;
-	my $type = shift @_;
+    my $cmd = shift;
+    my $string = BATools::execute( $cmd );
+	my @array = split("\n", $string);
+	foreach ( @array) {
+		$_ = BATools::trim($_);
+	}
+	return @array;
+}
+
+sub getVersionStatus
+{
+    # returns list of versions for a given type and name
+    # if enabled is "yes" then "version/status" is returned
+
+	my $name    = shift;
+	my $enabled = shift;
+	my $type    = shift;
+
+	my @list_in = &cmd2array( "sudo baconfig list $type $name -a -n" );
+
+	my @list_out;
+
+    foreach ( @list_in ) {
+        my (undef, $ver, $sts, undef ) = split( /\s+/, $_, 4);
+        if ( $enabled eq "yes" ) {
+            push( @list_out, "${ver}/${sts}");
+        } else {
+            push( @list_out, "${ver}");
+        }
+    }
+	return @list_out
+}
+
+sub configEnableDisable
+{
+	my $name = shift;
+	my $ver  = shift;
+	my $type = shift;
+    my $mode = shift;
 
 	my $version = "";
-	if( $ver ne -1 && $ver ne "")
-	{
+
+	if ( $ver ne -1 && $ver ne "") {
 		$version = "--version $ver";
 	}
-	
-	my $cmd = "sudo baconfig update $type --name $name $version --enable";
+	my $cmd = "sudo baconfig update $type --name $name $version --${mode}";
 	my $result = `$cmd`;
-	return $result;	
-}
-
-sub configDisable
-{
-	my $name = shift @_;
-	my $ver = shift @_;
-	my $type = shift @_;
-	
-	my $version = "";
-	
-	if( $ver ne -1 && $ver ne "")
-	{
-		$version = "--version $ver";
-	}
-	
-	my $cmd = "sudo baconfig update $type --name $name $version --noenable";
-	my $result = `$cmd`;
-	return $result;	
-}
-
-###########################################################################################
-# Distribution Functions
-###########################################################################################
-
-sub getAddonsForDistro
-{
-        my $distro = shift @_;
-        my $flag = shift @_;
-        my $status = shift @_;
-        
-		my $quiet;
-		$quiet = $flag =~ m/q/ ? "-q" : "";
-		
-		if( $status)
-		{
-			$quiet = "";
-			$status = "| grep $status";
-		}
-		else
-		{
-			$status = "";
-		}
-
-        my $cmd = "sudo basource list -a -n $quiet addon --distro $distro $status";
-
-        my $list = BATools::execute( $cmd);
-        return split("\n", $list);
-}
-
-sub getDistros
-{
-		my $filter = shift @_;
-		my $status = shift @_;
-		my $catagory = shift @_;
-		my @darray;
-		
-		if( !$filter || $filter eq "")
-		{
-			$filter = "*";
-		}
-
-		my @darray = BAdb::getDistrosFromCL( $filter, $status, $catagory);
-
-		return @darray;
-}
-
-sub getDistrosFromCL
-{
-	my $filter = shift @_;
-	my $status = shift @_;
-	my $catagory = shift @_;	
-	my @darray;
-	my @tmpArray;
-	my $name;
-	my $value;
-	my $all;
-		
-	if( $status eq "current")
-	{
-		$all = "";
-		$status = "";
-	}
-	elsif( $status eq "enabled")
-	{
-		$status = "| grep enabled";
-	}
-	elsif( $status eq "disabled")
-	{
-		$status = "| grep disabled";
-	}
-	elsif( $status eq "removed")
-	{
-		$status = "| grep removed";
-	}
-	elsif( $status eq "none")
-	{
-		$status = "| grep none";
-	}
-	else
-	{
-		$status = "";
-	}
-
-	my $cmd = "sudo basource list -a -n $catagory --distro='*$filter*' $status";
-
-	my $list = BATools::execute( $cmd);
-	@darray = split("\n", $list);
-	return @darray;
-}
-
-sub getDistro
-{
-	my $name = shift @_;
-	my $cmd = "sudo basource detail --distro $name";
-	my $data = BATools::execute( $cmd);
-	return $data;
-}
-
-sub getDistroStatus
-{
-	my $name = shift @_;
-	my $cmd = "sudo basource list -a -n --distro $name";
-	my $data = BATools::execute( $cmd);
-	my $r = "";
-	
-	foreach( @BATools::statusList)
-	{
-		if( $data =~ m/$_/)
-		{
-			return $_;
-		}
-	}
-	return "NONE";
+	return $result;
 }
 
 ###########################################################################################
 # Profile Functions
 ###########################################################################################
 
-sub getProfileList
-{
-	my $cmd = "sudo baconfig list profile \"*\" --quiet";
-	my $result = `$cmd`;
-	my @array = split( "\n", $result);
-	
-	foreach( @array)
-	{
-		$_ = BATools::trim($_);
-	}
-	return @array;
-}
-
-
-sub getProfileListAll
-{
-	my $cmd = "sudo baconfig list profile \"*\" -all --quiet | uniq";
-	my $result = `$cmd`;
-	my @array = split( "\n", $result);
-	
-	foreach( @array)
-	{
-		$_ = BATools::trim($_);
-	}
-	return @array;
-}
-
-sub getPofileVersionCount
-{
-	my $name = shift @_;
-	my $cmd = "sudo baconfig list profile $name --all --quiet";
-	my $result = `$cmd`;
-	my $count = split( "\n", $result);
-	return $count;
-}
-
-#Retrieve an array of versions for profile $name.  If $enabled return version/enabled
-sub getPofileVersionList
-{
-	my $name = shift @_;
-	my $enabled = shift @_;
-	my $cmd = "sudo baconfig list profile $name --all";
-	my @vArray;
-	my $count = 0;
-	open( RSLT, "$cmd |") || die "Failed: $!\n";
-	
-	while( my $line = <RSLT>)
-	{
-		++ $count;	
-		if( $count > 3)
-		{
-			my @items = split( " ", $line);
-			my $pushVer =  @items[1];
-			if( $enabled eq "yes")
-			{
-				$pushVer = @items[1]."/".@items[2];
-			}
-			push( @vArray, $pushVer);
-		}
-	}
-	return @vArray;
-}
-
 sub getProfile
 {
-	my $name = shift @_;
-	my $ver = shift @_;
-	my $labels = shift @_;
-	if( $labels eq "no")
-	{
+	my $name = shift;
+	my $ver = shift;
+	my $labels = shift;
+	if ( $labels eq "no") {
 		$labels = "--nolabels";
-	}
-	else
-	{
+	} else {
 		$labels = "";
 	}
 	my $cmd = "sudo baconfig detail profile $name $labels";
-	if( $ver ne -1 && $ver ne "" && $ver ne "undefined")
-	{
+	if ( $ver ne -1 && $ver ne "" && $ver ne "undefined") {
 		$cmd = $cmd." --version $ver";
 	}
 	my $result = `$cmd`;
 	return $result."\n\n";
 }
+
 sub addProfileFromFile
 {
-	my $name = shift @_;
-	my $file = shift @_;
+	my $name = shift;
+	my $file = shift;
 	chomp( $file);
 	chomp( $name);
 	my $cmd = "sudo baconfig add profile --name $name --file $file";
 	my $result = `$cmd`;
-	return $result;	
+	return $result;
 }
 sub updateProfileFromFile
 {
-	my $name = shift @_;
-	my $file = shift @_;
+	my $name = shift;
+	my $file = shift;
 	chomp( $file);
 	chomp( $name);
 	my $cmd = "sudo baconfig update profile --name $name --file $file";
 	my $result = `$cmd`;
-	return $result;	
+	return $result;
 }
 sub removeProfile
 {
-	my $name = shift @_;
-	my $ver = shift @_;
+	my $name = shift;
+	my $ver = shift;
 	my $version = "";
-	if( $ver ne -1 && $ver ne "")
-	{
+	if ( $ver ne -1 && $ver ne "") {
 		$version = "--version $ver";
 	}
-	
+
 	my $cmd = "sudo baconfig remove profile $name $version";
 	my $result = `$cmd`;
-	return $result;	
+	return $result;
 }
 
 sub enableProfile
 {
-	my $name = shift @_;
-	my $ver = shift @_;
-	my $version = "";
-	if( $ver ne -1 && $ver ne "")
-	{
-		$version = "--version $ver";
-	}
-	
-	my $cmd = "sudo baconfig update profile --name $name $version --enable";
-	my $result = `$cmd`;
-	return $result;	
+	my $name = shift;
+	my $ver  = shift;
+
+    return &configEnableDisable( $name, $ver, "profile", "enable" );
 }
 
 sub disableProfile
 {
-	my $name = shift @_;
-	my $ver = shift @_;
-	my $version = "";
-	if( $ver ne -1 && $ver ne "")
-	{
-		$version = "--version $ver";
-	}
-	
-	my $cmd = "sudo baconfig update profile --name $name $version --noenable";
-	my $result = `$cmd`;
-	return $result;	
+	my $name = shift;
+	my $ver  = shift;
+
+    return &configEnableDisable( $name, $ver, "profile", "disable" );
+}
+
+sub getProfileList
+{
+	return &cmd2array( "sudo baconfig list profile -q -n" );
+}
+
+sub getProfileListAll
+{
+	return &cmd2array( "sudo baconfig list profile -a -q -n | uniq" );
+}
+
+sub getProfileVersionList
+{
+    my $name    = shift;
+    my $enabled = shift;
+
+	return &getVersionStatus( $name, $enabled, "profile" );
 }
 
 ###########################################################################################
@@ -352,20 +190,16 @@ sub disableProfile
 
 sub getModule
 {
-	my $name = shift @_;
-	my $ver = shift @_;
-	my $labels = shift @_;
-	if( $labels eq "no")
-	{
+	my $name = shift;
+	my $ver = shift;
+	my $labels = shift;
+	if ( $labels eq "no") {
 		$labels = "--nolabels";
-	}
-	else
-	{
+	} else {
 		$labels = "";
 	}
 	my $cmd = "sudo baconfig detail module $name $labels";
-	if( $ver ne -1 && $ver ne "" && $ver ne "undefined")
-	{
+	if ( $ver ne -1 && $ver ne "" && $ver ne "undefined") {
 		$cmd = $cmd." --version $ver";
 	}
 	my $result = `$cmd`;
@@ -374,209 +208,177 @@ sub getModule
 
 sub addModuleFromFile
 {
-	my $name = shift @_;
-	my $file = shift @_;
+	my $name = shift;
+	my $file = shift;
 	chomp( $file);
 	chomp( $name);
 	my $cmd = "sudo baconfig add module --name $name --file $file";
-#	my $result = `$cmd`;
+    #	my $result = `$cmd`;
 	my $result = $cmd;
-	return $result;	
+	return $result;
 }
 
 sub addModuleFromFileWithCerts
 {
-	my $name = shift @_;
-	my $file = shift @_;
-	my $cert = shift @_;
-	my $mand = shift @_;
-	
-	if( $cert && $cert ne "")
-	{
+	my $name = shift;
+	my $file = shift;
+	my $cert = shift;
+	my $mand = shift;
+
+	if ( $cert && $cert ne "") {
 		$cert = "--cert $cert";
 	}
-	
-	if( $mand && $mand ne "")
-	{
+
+	if ( $mand && $mand ne "") {
 		$mand = "--mancert $mand";
 	}
 	chomp( $file);
 	chomp( $name);
 	my $cmd = "sudo baconfig add module --name $name $cert $mand --file $file";
-#	my $result = `$cmd`;
+    #	my $result = `$cmd`;
 	my $result = $cmd;
-	return $result;	
+	return $result;
 }
 
 sub updateModuleFromFile
 {
-	my $name = shift @_;
-	my $file = shift @_;
+	my $name = shift;
+	my $file = shift;
 	chomp( $file);
 	chomp( $name);
 	my $cmd = "sudo baconfig update module --name $name --file $file";
-#	my $result = `$cmd`;
+    #	my $result = `$cmd`;
 	my $result = $cmd;
-	return $result;	
+	return $result;
 }
 
 sub updateModuleFromFileWithCerts
 {
-	my $name = shift @_;
-	my $file = shift @_;
-	my $cert = shift @_;
-	my $mand = shift @_;	
+	my $name = shift;
+	my $file = shift;
+	my $cert = shift;
+	my $mand = shift;
 
-	if( $cert && $cert ne "")
-	{
+	if ( $cert && $cert ne "") {
 		$cert = "--cert $cert";
 	}
-	
-	if( $mand && $mand ne "")
-	{
+
+	if ( $mand && $mand ne "") {
 		$mand = "--mancert $mand";
 	}
-	
+
 	chomp( $file);
 	chomp( $name);
 	my $cmd = "sudo baconfig update module --name $name $cert $mand --file $file";
-#	my $result = `$cmd`;
+    #	my $result = `$cmd`;
 	my $result = $cmd;
-	return $result;	
+	return $result;
 }
 
 sub removeModule
 {
-	my $name = shift @_;
-	my $ver = shift @_;
+	my $name = shift;
+	my $ver = shift;
 	my $version = "";
-	if( $ver ne -1 && $ver ne "")
-	{
+	if ( $ver ne -1 && $ver ne "") {
 		$version = "--version $ver";
 	}
-	
+
 	my $cmd = "sudo baconfig remove module $name $version";
 	my $result = `$cmd`;
-	return $result;	
+	return $result;
 }
 
 sub enableModule
 {
-	my $name = shift @_;
-	my $ver = shift @_;
+	my $name = shift;
+	my $ver  = shift;
 
-	configEnable( $name, $ver, "module");
+	configEnableDisable( $name, $ver, "module", "enable");
 }
 
 sub disableModule
 {
-	my $name = shift @_;
-	my $ver = shift @_;
+	my $name = shift;
+	my $ver  = shift;
 
-	configDisable( $name, $ver, "module");
+	configEnableDisable( $name, $ver, "module", "disable");
 }
 
 sub getModuleList
 {
-	my $mcmd = "sudo baconfig list module \"*\" --quiet";
-	
-	my $mstring = `$mcmd`; 
-	my @marray = split("\n", $mstring);
-	foreach( @marray)
-	{
-		$_ = BATools::trim($_);
-	}
-	
-	return @marray;	
+	return &cmd2array( "sudo baconfig list module -q -n" );
 }
 
 sub getModuleListAll
 {
-	my $cmd = "sudo baconfig list module \"*\" -all --quiet | uniq";
-	my $result = `$cmd`;
-	my @array = split( "\n", $result);
-	
-	foreach( @array)
-	{
-		$_ = BATools::trim($_);
-	}
-	return @array;
+	return &cmd2array( "sudo baconfig list module -a -q -n | uniq" );
 }
 
 sub getModuleVersionList
 {
-	my $name = shift @_;
-	my $enabled = shift @_;
-	my $cmd = "sudo baconfig list module $name --all";
-	my @vArray;
-	my $count = 0;
-	open( RSLT, "$cmd |") || die "Failed: $!\n";
-	
-	while( my $line = <RSLT>)
-	{
-		++ $count;	
-		if( $count > 3)
-		{
-			my @items = split( " ", $line);
-			my $pushVer =  @items[1];
-			if( $enabled eq "yes")
-			{
-				$pushVer = @items[1]."/".@items[2];
-			}
-			push( @vArray, $pushVer);
-		}
-	}
-	return @vArray;
+    my $name     = shift;
+    my $enabled  = shift;
+
+	return &getVersionStatus( $name, $enabled, "module" );
 }
 
-###########################################################################################
-# Storage Functions
-###########################################################################################
-
-sub getStorageList
-{
-    my $storecmd = "sudo bastorage list --quiet";
-    my $filter = "";
-
-    my $sth = list_start_lun ( $dbh, $filter );
-
-    unless( defined $sth ) {
-        return 1;
-    }
-
-    my $dbref = &list_next_lun( $sth );
-	
-#    my $string = `$storecmd`; 
-#    my @array = split("\n", $string);
-#    foreach( @array)
-#    {
-#        $_ = BATools::trim($_);
-#    }
-	
-    return $dbref;
-}
-
-sub cmd2array
-{
-    my $cmd = shift;
-    my $string = BATools::execute( $cmd );
-	my @array = split("\n", $string);
-	foreach( @array)
-	{
-		$_ = BATools::trim($_);
-	}
-	return @array;
-}
 ###########################################################################################
 # Autobuild Functions
 ###########################################################################################
 
+sub getAutobuild
+{
+	my $name   = shift;
+	my $ver    = shift;
+	my $labels = shift;
+
+	if ( $labels eq "no") {
+		$labels = "--nolabels";
+	} else {
+		$labels = "";
+	}
+	my $cmd = "sudo baconfig detail autobuild $name $labels";
+
+	if ( $ver ne -1 && $ver ne "" && $ver ne "undefined") {
+		$cmd = $cmd." --version $ver";
+	}
+	my $result = `$cmd`;
+	return $result;
+}
+
+sub enableAutobuild
+{
+	my $name = shift;
+	my $ver  = shift;
+
+	configEnableDisable( $name, $ver, "autobuild", "enable");
+}
+
+sub disableAutobuild
+{
+	my $name = shift;
+	my $ver  = shift;
+
+	configEnableDisable( $name, $ver, "autobuild", "disable");
+}
+
 sub getAutobuildList
 {
-    # this returns the list of names for the "enabled" entries / versions only
-    my @tmp = &cmd2array( "sudo baconfig list autobuild --quiet" );
-    unshift @tmp, "none";
-    return @tmp;
+    return &cmd2array( "sudo baconfig list autobuild -q -n" );
+}
+
+sub getAutobuildListAll
+{
+    return &cmd2array( "sudo baconfig list autobuild -a -q -n | uniq" );
+}
+
+sub getAutobuildVersionList
+{
+    my $name     = shift;
+    my $enabled  = shift;
+
+	return &getVersionStatus( $name, $enabled, "autobuild" );
 }
 
 ###########################################################################################
@@ -585,142 +387,104 @@ sub getAutobuildList
 
 sub getHardware
 {
-	my $name = shift @_;
-	my $ver = shift @_;
-	my $labels = shift @_;
-	if( $labels eq "no")
-	{
+	my $name = shift;
+	my $ver = shift;
+	my $labels = shift;
+	if ( $labels eq "no") {
 		$labels = "--nolabels";
-	}
-	else
-	{
+	} else {
 		$labels = "";
 	}
 	my $cmd = "sudo baconfig detail hardware $name $labels";
-	if( $ver ne -1 && $ver ne "" && $ver ne "undefined")
-	{
+	if ( $ver ne -1 && $ver ne "" && $ver ne "undefined") {
 		$cmd = $cmd." --version $ver";
 	}
 	my $result = `$cmd`;
 	return $result."\n\n";
 }
 
-sub getHardwareVersionList
-{
-	my $name = shift @_;
-	my $enabled = shift @_;
-	my $cmd = "sudo baconfig list hardware $name -a -n";
-	my @vArray;
-	my $count = 0;
-	open( RSLT, "$cmd |") || die "Failed: $!\n";
-	
-	while( my $line = <RSLT>)
-	{
-		++ $count;	
-		my @items = split( " ", $line);
-		my $pushVer =  @items[1];
-		if( $enabled eq "yes")
-		{
-			$pushVer = @items[1]."/".@items[2];
-		}
-		push( @vArray, $pushVer);
-	}
-
-	return @vArray;
-}
-
 sub enableHardware
 {
-	my $name = shift @_;
-	my $ver = shift @_;
+	my $name = shift;
+	my $ver  = shift;
 
-	return configEnable( $name, $ver, "hardware");
+	return configEnableDisable( $name, $ver, "hardware", "enable");
 }
 
 sub disableHardware
 {
-	my $name = shift @_;
-	my $ver = shift @_;
+	my $name = shift;
+	my $ver  = shift;
 
-	return configDisable( $name, $ver, "hardware");
+	return configEnableDisable( $name, $ver, "hardware", "disable");
 }
 
 sub getHardwareList
 {
-    return &cmd2array( "sudo baconfig list hardware --quiet" );
+    return &cmd2array( "sudo baconfig list hardware -q -n" );
 }
 
 sub getHardwareListAll
 {
-	my $hwcmd = "sudo baconfig list hardware \"*\" -a -q | uniq";
-	
-	my $hwstring = `$hwcmd`; 
-	my @hwarray = split("\n", $hwstring);
-	foreach( @hwarray)
-	{
-		$_ = BATools::trim($_);
-	}
-	
-	return @hwarray;
+	return &cmd2array( "sudo baconfig list hardware -a -q -n | uniq" );
+}
+
+sub getHardwareVersionList
+{
+    my $name     = shift;
+    my $enabled  = shift;
+
+	return &getVersionStatus( $name, $enabled, "hardware" );
 }
 
 ###########################################################################################
-# 
+#
 ###########################################################################################
 
 sub getHostTemplates
 {
-        my $filter = shift @_;
+    my $filter = shift;
 	return getHostList( $filter, "templates");
 }
 
 sub getHostNodes
 {
-	my $filter = shift @_;
+	my $filter = shift;
 	return getHostList( $filter, "nodes");
 }
 
 sub getHostStates
 {
-	my $filter = shift @_;
+	my $filter = shift;
 	return getHostList( $filter, "states -n");
 }
 
 sub getHostList
 {
-	my $filter = shift @_;
-	my $listType = shift @_;
-	#$filter = $filter eq "" ? "" : "--host='*$filter*'";
-	my @hostArray;
-	my $hostCmd = "sudo bahost list $listType $filter --quiet";
-	my $hosts = BATools::execute( $hostCmd);
-	@hostArray = split("\n", $hosts);
-	foreach( @hostArray)
-	{
-		$_ = BATools::trim($_);
-	}
-	#push( @hostArray, $hostCmd);
-	return @hostArray;
+	my $filter   = shift;
+	my $listType = shift;
+
+	return &cmd2array( "sudo bahost list $listType $filter -q -n" );
 }
 
 sub getNodeDetail
 {
-	my $mac = shift @_;
-	my $hostCmd = "sudo bahost detail node --mac='$mac' -q";
+	my $mac = shift;
+	my $hostCmd = "sudo bahost detail node --mac='$mac' -q -n";
 	my $data = BATools::execute( $hostCmd);
 	return $data;
 }
 sub getHostTemplate
 {
-	my $name = shift @_;
-	my $hostCmd = "sudo bahost list templates --hostname='$name' --nolabels";
+	my $name = shift;
+	my $hostCmd = "sudo bahost list templates --hostname='$name' -n";
 	my $data = BATools::execute( $hostCmd);
 	return $data;
 }
 
 sub getNodeInventory
 {
-	my $mac = shift @_;
+	my $mac = shift;
 	my $cmd = "sudo baconfig list tftp $mac.inventory -q";
 	my $data = `$cmd`;
 	return $data;
@@ -732,25 +496,114 @@ sub getNodeInventory
 
 sub getSourceStatus
 {
-	my $distro = shift @_;
-	my $cmd = "sudo basource list --all -nolabels --distro $distro";
+	my $distro = shift;
+	my $cmd = "sudo basource list -a -n --distro $distro";
 	my $data = BATools::execute( $cmd);
 	my @oneArray = split( " ", $data);
-	return BATools::trim(@oneArray[1]);
+	return BATools::trim($oneArray[1]);
 }
 
 sub enableSource
 {
-	my $distro = shift @_;
+	my $distro = shift;
 	my $cmd = "sudo basource enable --distro $distro";
 	return BATools::execute( $cmd);
 }
 
 sub disableSource
 {
-	my $distro = shift @_;
+	my $distro = shift;
 	my $cmd = "sudo basource disable --distro $distro";
 	return BATools::execute( $cmd);
+}
+
+###########################################################################################
+# Distribution Functions
+###########################################################################################
+
+sub getAddonsForDistro
+{
+    my $distro = shift;
+    my $flag   = shift;
+    my $status = shift;
+
+    my $quiet;
+    $quiet = $flag =~ m/q/ ? "-q" : "";
+
+    if ( $status) {
+        $quiet = "";
+        $status = "| grep $status";
+    } else {
+        $status = "";
+    }
+
+    # notice that, in the command string, $status MUST COME LAST
+    my $cmd = "sudo basource list addon --distro $distro -a -n $quiet $status";
+
+    my $list = BATools::execute( $cmd);
+    return split("\n", $list);
+}
+
+sub getDistros
+{
+    my $filter = shift;
+    my $status = shift;
+    my $catagory = shift;
+
+    $filter = "*" if ( !$filter || $filter eq "");
+
+    return BAdb::getDistrosFromCL( $filter, $status, $catagory);
+}
+
+sub getDistrosFromCL
+{
+	my $filter = shift;
+	my $status = shift;
+	my $catagory = shift;
+	my @darray;
+	my @tmpArray;
+	my $name;
+	my $value;
+	my $all;
+
+	if ( $status eq "current") {
+		$all = "";
+		$status = "";
+	} elsif ( $status eq "enabled") {
+		$status = "| grep enabled";
+	} elsif ( $status eq "disabled") {
+		$status = "| grep disabled";
+	} elsif ( $status eq "removed") {
+		$status = "| grep removed";
+	} elsif ( $status eq "none") {
+		$status = "| grep none";
+	} else {
+		$status = "";
+	}
+
+    # notice that, in the command string, $status MUST COME LAST
+    return &cmd2array("sudo basource list $catagory --distro='*$filter*' -a -n $status");
+}
+
+sub getDistro
+{
+    my $name = shift;
+	return BATools::execute( "sudo basource verify --distro $name" );
+}
+
+sub getDistroStatus
+{
+	my $name = shift;
+	my $cmd = "sudo basource list -a -n --distro $name";
+	my $data = BATools::execute( $cmd);
+	my $r = "";
+
+	foreach ( @BATools::statusList) {
+		if ( $data =~ m/$_/) {
+			return $_;
+		}
+	}
+	return "NONE";
 }
 
 ###########################################################################################
@@ -759,17 +612,9 @@ sub disableSource
 
 sub getPowerList
 {
-	my $filter = shift @_;
-	#$filter = $filter eq "" ? "" : "--host='*$filter*'";
-	my @hostArray;
-	my $hostCmd = "sudo bapower list $filter --quiet";
-	my $hosts = BATools::execute( $hostCmd);
-	@hostArray = split("\n", $hosts);
-	foreach( @hostArray)
-	{
-		$_ = BATools::trim($_);
-	}
-	return @hostArray;
+	my $filter = shift;
+
+	return &cmd2array( "sudo bapower list \"$filter\" -q" );
 }
 
 ###########################################################################################
@@ -778,30 +623,21 @@ sub getPowerList
 
 sub getRepoList
 {
-        my $filterVal = shift @_;
-        #$filter = $filter eq "" ? "" : "--host='*$filter*'";
-        my @repoArray;
-        my $repoCmd = "sudo barepo list \"$filterVal\" --quiet";
-        my $repos = BATools::execute( $repoCmd );
-        @repoArray = split("\n", $repos);
-	foreach( @repoArray)
-	{
-		$_ = BATools::trim($_);
-	}
-        return @repoArray;
+    my $filter = shift;
+
+	return &cmd2array( "sudo barepo list \"$filter\" -q" );
 }
 
 sub getRepoDetail
 {
-        my $repo = shift @_;
-        my $cmd = "sudo barepo detail $repo --quiet";
-        my $data = BATools::execute( $cmd );
-        my @detailArray = split( "\n", $data);
-        foreach( @detailArray)
-        {
-                $_ = BATools::trim($_);
-        }
-        return @detailArray;
+    my $repo = shift;
+    my $cmd = "sudo barepo detail $repo -q";
+    my $data = BATools::execute( $cmd );
+    my @detailArray = split( "\n", $data);
+    foreach ( @detailArray) {
+        $_ = BATools::trim($_);
+    }
+    return @detailArray;
 }
 
 ###########################################################################################
@@ -810,35 +646,40 @@ sub getRepoDetail
 
 sub getStorageList
 {
-        my $filterVal = shift @_;
+    return cmd2array( "sudo bastorage list -q" );
+}
 
-        my $sql = qq| SELECT *
+###########################################################################################
+# Storage Functions
+###########################################################################################
+
+sub getStorageListDb
+{
+    my $filter = shift;
+
+    my $sql = qq| SELECT *
                   FROM $baTbls{'lun'}
-                  WHERE targetid LIKE '$filterVal%'
+                  WHERE targetid LIKE '$filter%'
                |;
 
-        my $sth;
-        my $href;
+    my $sth;
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute() );
 
-        die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-        die "$!$sth->err\n" unless ( $sth->execute() );
+    my $href = $sth->fetchall_hashref('targetid');
 
-        my $href = $sth->fetchall_hashref('targetid');
-
-        return $href;
+    return $href;
 }
 
 sub getStorageDetail
 {
-    my $targetid = shift @_;
+    my $targetid = shift;
     my $sql = qq| SELECT *
                   FROM $baTbls{'lun'}
                   WHERE targetid = '$targetid'
                |;
 
     my $sth;
-    my $href;
-
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
     die "$!$sth->err\n" unless ( $sth->execute() );
 
@@ -853,18 +694,18 @@ sub getStorageDetail
 
 sub getCommandLog
 {
-	my $mac = shift @_;
-	my $cmd = "sudo balog list commands --filter mac\:\:$mac --verbose";
+	my $mac = shift;
+	my $cmd = "sudo balog list commands --filter \"mac\:\:${mac}\" --verbose";
 	my $log = BATools::execute( $cmd);
-	return $log	
+	return $log
 }
 
 sub getStateLog
 {
-	my $mac = shift @_;
-	my $cmd = "sudo balog list states --filter mac\:\:$mac";
+	my $mac = shift;
+	my $cmd = "sudo balog list states --filter \"mac\:\:$mac\" ";
 	my $log = BATools::execute( $cmd);
-	return $log	
+	return $log
 }
 
 1;

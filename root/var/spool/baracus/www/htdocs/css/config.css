@@ -59,15 +59,15 @@ body
 {
 	position:absolute;
 	top:130;
-	left:155;
+	left:180;
 }
 #config input.nname
 {
 	position:absolute;
 	top:130;
 	left:230;
-	width:330;
-	background-color:B2D68C;
+	width:230;
+/*	background-color:B2D68C;*/
 }
 #config font.dataShort
 {
@@ -108,10 +108,30 @@ body
 	font-size:9pt;
 }
 
+#config input.submitt
+{
+	position:absolute;
+	left:470px;
+	top:25px;
+	padding-right:10;
+	color:green;
+	width: 100px;
+}
+
+#config input.submitd
+{
+	position:absolute;
+	left:470px;
+	top:90px;
+	padding-right:10;
+	color:green;
+	width: 100px;
+}
+
 #config input.submit
 {
 	position:absolute;
-	left:465px;
+	left:470px;
 	top:130px;
 	padding-right:10;
 	color:green;
@@ -156,7 +176,7 @@ body
 {
 	position:absolute;
 	left:20;
-	top:150;
+	top:160;
 	width: 550;
 	height: 370;
 	background-color: white;

@@ -165,6 +165,7 @@ sub getAutobuildSelectionList
 	$retString = "<select name='autobuild' enabled $script>\n";
 
 	@autobuilds = BAdb::getAutobuildList();
+    unshift( @autobuilds, "none" );
 
 	foreach $val (@autobuilds)
 	{

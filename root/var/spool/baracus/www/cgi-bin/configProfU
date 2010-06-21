@@ -86,14 +86,9 @@ sub getVersions
 	
 	$r = $r."<select class='version' size='5' onClick='confReload( \"$Name\", \"\", this.value)'>\n";
 
-	if( $Name ne "")
-	{
-		my @vList = BAdb::getPofileVersionList( $Name, "yes");
-		foreach( @vList)
-		{
-			@verSplit = split( "/", $_);
-			$xVer = @verSplit[0];
-			$xSta = @verSplit[1];
+	if( $Name ne "") {
+		foreach( BAdb::getProfileVersionList( $Name, "yes") ) {
+			my ($xVer,$xSta) = split( "/", $_);
 			$status = $xSta eq  1 ? "enabled" : "disabled";
 			if( $ver eq -1 && $count eq 0)
 			{
