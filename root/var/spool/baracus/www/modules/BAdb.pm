@@ -825,8 +825,21 @@ sub getDistroStatus
 sub getPowerList
 {
     my $filter = shift;
+    my $sql = qq| SELECT *
+                  FROM $baTbls{'power'}
+                  WHERE mac LIKE '$filter%'
+               |;
 
-    return &cmd2array( "sudo bapower list \"$filter\" -q" );
+    my $sth;
+    my $href;
+
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute() );
+
+    my $href = $sth->fetchall_hashref('mac');
+
+    return $href;
+
 }
 
 ################################################################################

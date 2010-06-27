@@ -34,7 +34,7 @@ print <<HTML0
                 <ul></ul>
                 </div>
 
-		<form name='form1' action='storageHandler' method="POST">
+		<form name='form1' method="POST">
 		<div id='config'>
 		<div id='histbar' style="color:black"><a href=\"http://$baVar{serverip}/baracus/ba/storage\">Storage<\/a> \ >  Create</div>
 		<div id='main'>

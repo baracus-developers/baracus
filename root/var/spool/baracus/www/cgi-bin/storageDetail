@@ -2,7 +2,9 @@
 
 use strict;
 use lib '/var/spool/baracus/www/modules';
+use lib '/usr/share/baracus/perl/';
 use BATools qw(:standard);
+use BaracusConfig qw( :vars );
 use CGI qw(:standard);
 
 my $targetid = param('targetid') || "";
@@ -33,7 +35,7 @@ print <<HTML0
 		<form name='form1' method="POST">
 		<div id='config'>
 		<div id='histbar' style="color:black">Storage</div>
-                <div id='histbar' style="color:black"><a href=\"http://blade9/baracus/ba/storage\">Storage<\/a> \ >  $targetid</div>
+                <div id='histbar' style="color:black"><a href=\"http://$baVar{serverip}/baracus/ba/storage\">Storage<\/a> \ >  $targetid</div>
 		<div id='main'>
 		<br><br>
                 <div id='repolist'>

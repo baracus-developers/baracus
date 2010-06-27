@@ -2,7 +2,9 @@
 
 use strict;
 use lib '/var/spool/baracus/www/modules';
+use lib '/usr/share/baracus/perl/';
 use BATools qw(:standard);
+use BaracusConfig qw( :vars );
 use CGI qw(:standard);
 
 my $repo = param('repo') || "";
@@ -28,7 +30,7 @@ print <<HTML0
 
 		<form name='form1' method="POST">
 		<div id='config'>
-		<div id='histbar' style="color:black"><a href=\"http://blade9/baracus/ba/repo\">Repository<\/a> \ >  Create</div>
+		<div id='histbar' style="color:black"><a href=\"http://baVar{serverip}/baracus/ba/repo\">Repository<\/a> \ >  Create</div>
 		<div id='main'>
                 <font class='name'>Repo Name</font>
 		<input type='text' class='createname' name='repo' value='$repo'>

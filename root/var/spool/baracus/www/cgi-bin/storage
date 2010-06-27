@@ -2,7 +2,9 @@
 
 use strict;
 use lib '/var/spool/baracus/www/modules';
+use lib '/usr/share/baracus/perl/';
 use BATools qw(:standard);
+use BaracusConfig qw( :vars );
 use CGI qw(:standard);
 
 my $name = param('repo') || "";
@@ -21,7 +23,7 @@ print <<HTML0
 		<script type="text/javascript" src="/baracus/script/common.js"></script>
                 <link rel='stylesheet' href='/baracus/css/tabs.css' type='text/css' >  
                 <link rel='stylesheet' href='/$BATools::baRoot/css/tablecloth.css' type='text/css'>
-		<link rel='stylesheet' href='/$BATools::baRoot/css/repo.css' type='text/css'>
+		<link rel='stylesheet' href='/$BATools::baRoot/css/storage.css' type='text/css'>
 	</head>
 
 	<body>
@@ -39,9 +41,9 @@ print <<HTML0
 		<img class='sweep' src='/$BATools::baRoot/images/sweepI.gif' onClick='document.form1.filter.value="";document.form1.submit()'/>
                 <font class='filter'>Filter</font>
 		<input type='text' class='filter' name='filter' value='$filterVal'>
-                <font class='name'><a href="http://blade9/baracus/ba/storageCreate">Create Storage Entry</a></font>
+                <font class='clink'><a href="http://$baVar{serverip}/baracus/ba/storageCreate">Create Storage Entry</a></font>
 		<br><br>
-                <div id='repolist'>
+                <div id='list'>
 		$items
                 </div>
 		</div>
@@ -57,8 +59,8 @@ sub getItems
 	my $name = shift;
 	my $filterVal = shift;
 	my $r = "";
-        my $linkD = "http://blade9/baracus/ba/storageDetail?targetid=";
-        my $linkU = "http://blade9/baracus/ba/storageUpdate?targetid=";
+        my $linkD = "http://$baVar{serverip}/baracus/ba/storageDetail?targetid=";
+        my $linkR = "http://$baVar{serverip}/baracus/ba/storageRemove?targetid=";
 
         if ( $filterVal eq "" ) { $filterVal = "%"; }
 
@@ -68,9 +70,9 @@ sub getItems
 	foreach  my $row ( keys %{$hohref} ) {
 	    $r = $r."<tr>\n";
             $r .= "<td width=\"225\">$hohref->{$row}->{'targetid'}<\/td>\n";
-            $r .= "<td width=\"270\">$hohref->{$row}->{'name'}<\/td>\n";
-            $r .= "<td width=\"20\"><a href=\"$linkD$hohref->{$row}->{'targetid'}\" style=\"text-decoration : none\">Detail<\/a><\/td>\n";
-            $r .= "<td width=\"20\"><a href=\"$linkU$hohref->{$row}->{'targetid'}\" style=\"text-decoration : none\">Update<\/a><\/td>\n";
+            $r .= "<td width=\"295\">$hohref->{$row}->{'name'}<\/td>\n";
+            $r .= "<td width=\"35\"><a href=\"$linkD$hohref->{$row}->{'targetid'}\" style=\"text-decoration : none\">Detail<\/a><\/td>\n";
+            $r .= "<td width=\"10\"><a href=\"$linkR$hohref->{$row}->{'targetid'}\" style=\"text-decoration : none\"><font color=\"red\">X</font><\/a><\/td>\n";
 	    $r .= "<\/tr> \n";
 	}	
 

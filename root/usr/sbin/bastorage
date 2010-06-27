@@ -323,7 +323,7 @@ sub list
     return 0;
 }
 
-=head2 detail --id <targetid>
+=head2 detail --targetid <targetid>
 
 Show details for specified network storage device
 
@@ -331,7 +331,7 @@ Show details for specified network storage device
 
 sub detail
 {
-    my $command = "list";
+    my $command = "detail";
 
     unless ( scalar @_ ) {
         &help( $opts, $cmds, $command );
@@ -343,7 +343,7 @@ sub detail
     @ARGV = @_;
 
     GetOptions(
-               'id=s' => \$id,
+               'targetid=s' => \$id,
                );
 
     if ( scalar @ARGV ) {

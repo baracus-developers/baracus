@@ -97,7 +97,7 @@ body
 #config img.search
 {
 	position:absolute;
-	left:337;
+	left:333;
 	top:10;
 	height:20;
 	background-color:white;
@@ -144,7 +144,7 @@ body
 {
         position:absolute;
         top:15;
-        left:305;
+        left:300;
 }
 #config font.preview
 {

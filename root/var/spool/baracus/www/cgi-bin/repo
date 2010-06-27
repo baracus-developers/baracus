@@ -2,14 +2,15 @@
 
 use strict;
 use lib '/var/spool/baracus/www/modules';
+use lib '/usr/share/baracus/perl/';
 use BATools qw(:standard);
+use BaracusConfig qw( :vars );
 use CGI qw(:standard);
 
 my $name = param('repo') || "";
 my $filterVal = param('filter') || "";
 
 my $items = getItems( $name, $filterVal );
-my $content = getContent( $name );
 
 print "Content-type: text/html\n\n";
 	
@@ -40,7 +41,7 @@ print <<HTML0
 		<img class='sweep' src='/$BATools::baRoot/images/sweepI.gif' onClick='document.form1.filter.value="";document.form1.submit()'/>
                 <font class='filter'>Filter</font>
 		<input type='text' class='filter' name='filter' value='$filterVal'>
-                <font class='name'><a href="http://blade9/baracus/ba/repoCreate">Create Repo</a></font>
+                <font class='name'><a href="http://$baVar{serverip}/baracus/ba/repoCreate">Create Repo</a></font>
 		<br><br>
                 <div id='repolist'>
 		$items
@@ -59,8 +60,8 @@ sub getItems
 	my $filterVal = $_[1];
 	my $r = "";
 	my $selected;
-        my $linkD = "http://blade9/baracus/ba/repoDetail?repo=";
-        my $linkU = "http://blade9/baracus/ba/repoUpdate?repo=";
+        my $linkD = "http://$baVar{serverip}/baracus/ba/repoDetail?repo=";
+        my $linkR = "http://$baVar{serverip}/baracus/ba/repoRemove?repo=";
 
 	my @items;
        # $r = $r."<select class='nameWide' name='repo' size='16' onChange='doSubmit( this)'>";
@@ -69,30 +70,15 @@ sub getItems
 
 	foreach( @items)
 	{
-            $r = $r."<tr>\n<td width=\"495\">$_<\/td>\n<td width=\"20\"><a href=\"$linkD$_\" style=\"text-decoration : none\">Detail<\/a><\/td>\n<td width=\"20\"><a href=\"$linkU$_\" style=\"text-decoration : none\">Update<\/a><\/td>\n<\/tr> \n";
+            $r = $r."<tr>\n";
+            $r .= "<td width=\"530\">$_<\/td>\n";
+            $r .= "<td width=\"25\"><a href=\"$linkD$_\" style=\"text-decoration : none\">Detail<\/a><\/td>\n";
+            $r .= "<td width=\"10\"><a href=\"$linkR$_\" style=\"text-decoration : none\"><font color=\"red\">X</font><\/a><\/td>\n";
+            $r .= "<\/tr>\n";
 	}
 	
 	$r = $r."</table>\n";
 	return $r;	
-}
-
-sub getContent
-{
-        my $name = shift @_;
-        my $r;
-        my @items;
-	if( $name eq "")
-	{
-	    $r = "";
-	}
-	else
-	{
-            @items = BAdb::getRepoDetail( $name );
-            foreach( @items ) {
-                $r = $r."$_\n";
-            }
-	}
-	return $r;
 }
 
 ;
