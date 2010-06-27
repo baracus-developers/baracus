@@ -65,7 +65,7 @@ sub getItems
         if ( $filterVal eq "" ) { $filterVal = "%"; }
 
         $r = "<table class='repolist'>\n";
-	my $hohref = BAdb::getStorageList( $filterVal );
+	my $hohref = BAdb::getStorageListDb( $filterVal );
 
 	foreach  my $row ( keys %{$hohref} ) {
 	    $r = $r."<tr>\n";
