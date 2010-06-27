@@ -748,6 +748,9 @@ Where <options and args> are
     --description "note"   Quoted note describing this autobuild template.
     --file <path/abuild>   File to import for this autobuild template.
 
+    --cert "distro1,distro2,etc..."  A list of supported distros, for this
+                                     hardware. May be spcified multiple times.
+
 =cut
 
 sub add_autobuild

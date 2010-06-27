@@ -1,29 +1,32 @@
 #!/usr/bin/perl
 
-use lib '/var/spool/baracus/www/modules';
-use BATools qw(:standard);
+use strict;
+use warnings;
+
 use CGI qw(:standard);
 
-print "Content-type: text/html\n\n";
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+
 
 our $rURL = "config";
 our $ref = "no";
 our $seconds = 1;
 
-my $op = param('op');
-my $sub = param('sub');
-my $content = getContent( $op, $sub);
-my $header = getHeader( $op, $sub);
-my $proc;
+my $op = param('op') || "";
+
+my $header  = &getConfigHandlerHeader( $op );
+my $content = &getConfigHandlerContent( $op );
 
 my $refresh = "";
 
-if( $ref eq "yes")
-{
-	$refresh = "onLoad=\"doLoad( '$rURL', '$qStr', $seconds)\"";
+if ( $ref eq "yes") {
+	$refresh = qq|onLoad="doLoad( '$rURL', '', $seconds)"|;
 }
 
-print <<HTML0
+print "Content-type: text/html\n\n";
+
+print<<HTML0
 
 <html>
 	<head>
@@ -33,9 +36,8 @@ print <<HTML0
 	</head>
 	<div id='output'>
 	<body background="/baracus/images/bg-grad.jpg" $refresh>
+	<h1>$header</h1><br/>
 	<pre>$content</pre>
-	<h1>$header</h1>
-	<h3>$proc</h3>
 	<body>
 	</div>
 </html>
@@ -43,321 +45,472 @@ print <<HTML0
 HTML0
 ;
 
-########################################################################################################
-#  
-########################################################################################################
-
-sub getContent
+sub getConfigHandlerContent
 {
 	my $r = "Not Implemented";
-	my $op = shift @_;
-	my $sub = shift @_;
-		
-	if( $op eq "prof")
-	{
-		$rURL = $rURL."Prof";
-		my $pData;
-		my $ver;
-		if( $sub eq "add")
-		{
-			$pData = param('data');
-			my $pName = param('nname');
-		
-			my $tFile = "/tmp/".BATools::generate_random_string().".ba";
-			open( TFILE, "> $tFile");
-			print TFILE $pData;
-			close TFILE;	
-		
-			if( !$pName || $pName eq "")
-			{
-				$r = "Invalid Request\n\nPlease enter a profile name";
-			}
-			else
-			{
-				$r = BAdb::addProfileFromFile( $pName, $tFile);
-			}			
-			
-			if( !$r || $r eq "")
-			{
-				$ref = "yes";
-				$rURL = $rURL."A";
-				$seconds = 3;
-				$r = "Add Success: $pName";
-			}
-		}
-		elsif( $sub eq "upd")
-		{
-			$pData = param('data');
-			$pName = param('profile');
-		
-			my $tFile = "/tmp/".BATools::generate_random_string().".ba";
-			open( TFILE, "> $tFile");
-			print TFILE $pData;
-			close TFILE;	
-		
-			$r = BAdb::updateProfileFromFile( $pName, $tFile);
-			
-			if( !$r || $r eq "")
-			{
-				$r = $pData;
-				$ref = "yes";
-				$rURL = $rURL."U?name=$pName";
-				$seconds = 3;
-			}
-		}
-		
-		elsif( $sub eq "del")
-		{
-			$pName = param('profile');
-			$ver = param('ver') || -1;
+	my $op = shift;
 
-			if( $pName)
-			{
-				$r = BAdb::removeProfile( $pName, $ver);
-			}
-			else
-			{
-				$r = "Error: No profile selected.\n";	
-			}		
-			
-			if( !$r || $r eq "")
-			{
-				$ref = "yes";
-				$rURL = $rURL."D";
-				$r = "Delete Success";
-			}
-		}
-		elsif( $sub eq "sta")
-		{
-		
-			$pName = param('profile');
-			$ver = param('ver') || -1;
-			$sta = param('sta') || -1;
+    my $Data     = param('data')     || "";
+    my $Cert     = param('cert')     || "";
+    my $RMCert   = param('rmcert')   || "";
+    my $Mand     = param('mancert')  || "";
+    my $OptCert  = param('optcert')  || "";
+    my $ver      = param('ver')      || -1;
+    my $sta      = param('sta')      || -1;
 
-			if( $pName)
-			{
-				if( $sta eq 1)
-				{
-					$r = BAdb::disableProfile( $pName, $ver);
-				}
-				elsif( $sta < 1)
-				{
-					$r = BAdb::enableProfile( $pName, $ver);
-				}
-				else
-				{
-					$r = "Error: Invalid Status: $sta";
-				}
-			}
-			else
-			{
-				$r = "Error: No profile selected.\n";	
-			}		
-			
-			if( !$r || $r eq "")
-			{
-				$ref = "yes";
-				$rURL = $rURL."S?name=$pName&ver=$ver";
-				$r = "Status Change Success";
-			}
-		}
-	}
-	elsif( $op eq "mod")
-	{
-		$rURL = $rURL."Mod";
-		my $Data;
-		my $ver;
-		if( $sub eq "add")
-		{
-			$Data = param('data');
-			my $Name = param('nname');
-			my $Cert = param('cert');
-			my $Mand = param('mancert');
-		
-			my $tFile = "/tmp/".BATools::generate_random_string().".ba";
-			open( TFILE, "> $tFile");
-			print TFILE $Data;
-			close TFILE;	
-		
-			if( !$Name || $Name eq "")
-			{
-				$r = "Invalid Request\n\nPlease enter a module name";
-			}
-			else
-			{
-				if( !$Cert)
-				{
-					$r = BAdb::addModuleFromFile( $Name, $tFile);
-				}
-				else
-				{
-					$r = BAdb::addModuleFromFileWithCerts( $Name, $tFile, $Cert, $Mand);
-				}
-			}			
-			
-			if( !$r || $r eq "")
-			{
-				$ref = "yes";
-				$rURL = $rURL."A";
-				$seconds = 3;
-				$r = "Add Success: $Name $temp";
-			}
-		}
-		elsif( $sub eq "upd")
-		{
-			$Data = param('data');
-			$Name = param('module');
-			my $Cert = param('cert');
-			my $Mand = param('mancert');			
-		
-			my $tFile = "/tmp/".BATools::generate_random_string().".ba";
-			open( TFILE, "> $tFile");
-			print TFILE $Data;
-			close TFILE;	
+    # handle 'sub' from any of three buttons
+    my $submitau = param('submitau') || "";
+    my $submitt  = param('submitt')  || "";
+    my $submitd  = param('submitd')  || "";
 
-			if( !$Cert)
-			{
-				$r = BAdb::updateModuleFromFile( $Name, $tFile);
-			}
-			else
-			{
-				$r = BAdb::updateModuleFromFileWithCerts( $Name, $tFile, $Cert, $Mand);
-			}
+    my $Name;
+    my $tFile;
 
-			if( !$r || $r eq "")
-			{
-				$r = $Data;
+	if ( $op eq "module") {
+		$rURL .= "Module";
+
+		if ( $submitau eq "Add") {
+            $Name = param('nname') || "";
+
+            if ( $Name eq "") {
+				$r = "Invalid Request\n\nPlease enter a name for this $op";
+			} elsif ( $Data =~ m/^\s*$/ ) {
+                $r = "Invalid Request\n\nCannot create entry without data";
+            } else {
+                $r = BAdb::checkRedundant( $op, $Name, $Data);
+            }
+
+            if ( $r eq "" ) {
+                $tFile = "/tmp/".BATools::generate_random_string().".ba";
+                open( TFILE, "> $tFile");
+                print TFILE $Data;
+                close TFILE;
+
+                # we add the cert for distros this includes the distros
+                # for which this module is to be flagged mandatory
+                if ( $Cert eq "" ) {
+                    $r = BAdb::addModuleFromFile( $Name, $tFile);
+                } else {
+                    $r = BAdb::addModuleFromFileWithCerts( $Name, $tFile, $Cert, $Mand );
+                }
+            }
+
+			if ( $r eq "") {
 				$ref = "yes";
-				$rURL = $rURL."U?name=$Name";
-				$seconds = 3;
+                $rURL .= "?name=$Name";
+				$r = "Add Success: $Name";
 			}
-		}
-		elsif( $sub eq "del")
-		{
-			$Name = param('module');
-			$ver = param('ver') || -1;
+		} elsif ( $submitau eq "Update") {
+            $Name = param("$op") || "";
 
-			if( $Name)
-			{
+            if ( $Name eq "") {
+				$r = "Invalid Request\n\nPlease enter a name for this $op";
+            } else {
+                $r = BAdb::checkRedundant( $op, $Name, $Data);
+            }
+
+            if ( $r eq "" ) {
+
+                if ( $Data =~ m/^\s*$/ ) {
+                    $tFile = "";
+                } else {
+                    $tFile = "/tmp/".BATools::generate_random_string().".ba";
+                    open( TFILE, "> $tFile");
+                    print TFILE $Data;
+                    close TFILE;
+                }
+
+                # we add the cert for distros this includes the distros
+                # for which this module is to be flagged mandatory
+                if ( $Cert or $RMCert or $Mand or $OptCert ) {
+                    # this call will handle tFile eq ""
+                    $r = BAdb::updateModuleFromFileWithCerts
+                        ( $Name, $tFile, $Cert, $RMCert, $Mand, $OptCert );
+                } elsif ( $tFile ne "" ) {
+                    $r = BAdb::updateModuleFromFile( $Name, $tFile);
+                } else {
+                    $r = "No data modifications nor certifications to update.";
+                }
+            }
+
+			if ( $r eq "") {
+				$ref = "yes";
+                $rURL .= "?name=$Name";
+                $r = "Update Success: $Name";
+			}
+		} elsif ( $submitd eq "Delete") {
+			$Name = param("$op") || "";
+
+			if ( $Name ) {
 				$r = BAdb::removeModule( $Name, $ver);
+			} else {
+				$r = "Error: No module selected.\n";
 			}
-			else
-			{
-				$r = "Error: No module selected.\n";	
-			}		
-			
-			if( !$r || $r eq "")
-			{
+
+			if ( $r eq "") {
 				$ref = "yes";
-				$rURL = $rURL."D";
 				$r = "Delete Success";
 			}
-		}
-		elsif( $sub eq "sta")
-		{
-		
-			$Name = param('module');
-			$ver = param('ver') || -1;
-			$sta = param('sta') || -1;
+		} elsif ( $submitt eq "Toggle Status") {
+			$Name = param("$op") || "";
 
-			if( $Name)
-			{
-				if( $sta eq 1)
-				{
+			if ( $Name ) {
+				if ( $sta eq 1) {
 					$r = BAdb::disableModule( $Name, $ver);
-				}
-				elsif( $sta < 1)
-				{
+				} elsif ( $sta < 1) {
 					$r = BAdb::enableModule( $Name, $ver);
-				}
-				else
-				{
+				} else {
 					$r = "Error: Invalid Status: $sta";
 				}
-			}
-			else
-			{
-				$r = "Error: No module selected.\n";	
-			}		
-			
-			if( !$r || $r eq "")
-			{
-				$ref = "yes";
-				$rURL = $rURL."S?name=$Name&ver=$ver";
-				$r = "Status Change Success";
-			}
-		}
-	}
-	elsif( $op eq "hw")
-	{
-		$rURL = $rURL."HW";
-		if( $sub eq "sta")
-		{
-		
-			$Name = param('hardware');
-			$ver = param('ver') || -1;
-			$sta = param('sta') || -1;
+			} else {
+				$r = "Error: No module selected.\n";
+            }
 
-			if( $Name)
-			{
-				if( $sta eq 1)
-				{
-					$r = BAdb::disableHardware( $Name, $ver);
-				}
-				elsif( $sta < 1)
-				{
-					$r = BAdb::enableHardware( $Name, $ver);
-				}
-				else
-				{
-					$r = "Error: Invalid Status: $sta";
-				}
-			}
-			else
-			{
-				$r = "Error: No hardware selected.\n";	
-			}		
-			
-			if( !$r || $r eq "")
-			{
+			if ( $r eq "") {
 				$ref = "yes";
-				$rURL = $rURL."S?name=$Name&ver=$ver";
+				$rURL .="?name=$Name&ver=$ver";
 				$r = "Status Change Success";
 			}
 		}
-		else
-		{
-			$r = "Invalid Subfunction";
-		}
-	}
-	return $r; 
+	} elsif ( $op eq "autobuild") {
+        $rURL .= "Autobuild";
+
+        if ( $submitau eq "Add") {
+            $Name = param('nname') || "";
+
+            if ( $Name eq "") {
+				$r = "Invalid Request\n\nPlease enter a name for this $op";
+			} elsif ( $Data =~ m/^\s*$/ ) {
+                $r = "Invalid Request\n\nCannot create entry without data";
+            } else {
+                $r = BAdb::checkRedundant( $op, $Name, $Data);
+            }
+
+            if ( $r eq "" ) {
+                $tFile = "/tmp/".BATools::generate_random_string().".ba";
+                open( TFILE, "> $tFile");
+                print TFILE $Data;
+                close TFILE;
+
+                if ( $Cert eq "" ) {
+                    $r = BAdb::addAutobuildFromFile( $Name, $tFile);
+                } else {
+                    $r = BAdb::addAutobuildFromFileWithCerts( $Name, $tFile, $Cert );
+                }
+            }
+
+            if ( $r eq "") {
+				$ref = "yes";
+                $rURL .= "?name=$Name";
+                $r = "Add Success: $Name";
+            }
+        } elsif ( $submitau eq "Update") {
+            $Name = param("$op") || "";
+
+            if ( $Name eq "") {
+				$r = "Invalid Request\n\nPlease enter a name for this $op";
+            } else {
+                $r = BAdb::checkRedundant( $op, $Name, $Data);
+            }
+
+            if ( $r eq "" ) {
+
+                if ( $Data =~ m/^\s*$/ ) {
+                    $tFile = "";
+                } else {
+                    $tFile = "/tmp/".BATools::generate_random_string().".ba";
+                    open( TFILE, "> $tFile");
+                    print TFILE $Data;
+                    close TFILE;
+                }
+
+                if ( $Cert or $RMCert ) {
+                    # this call will handle tFile eq ""
+                    $r = BAdb::updateAutobuildFromFileWithCerts
+                        ( $Name, $tFile, $Cert, $RMCert);
+                } elsif ( $tFile ne "" ) {
+                    $r = BAdb::updateAutobuildFromFile( $Name, $tFile);
+                } else {
+                    $r = "No data modifications nor certifications to update.";
+                }
+            }
+
+            if ( $r eq "") {
+				$ref = "yes";
+                $rURL .= "?name=$Name";
+                $r = "Update Success: $Name";
+            }
+        } elsif ( $submitd eq "Delete") {
+            $Name = param("$op") || "";
+
+            if ( $Name ) {
+                $r = BAdb::removeAutobuild( $Name, $ver);
+            } else {
+                $r = "Error: No autobuild selected.\n";
+            }
+
+            if ( $r eq "") {
+                $ref = "yes";
+                $r = "Delete Success";
+            }
+        } elsif ( $submitt eq "Toggle Status") {
+            $Name = param("$op") || "";
+
+            if ( $Name ) {
+                if ( $sta eq 1) {
+                    $r = BAdb::disableAutobuild( $Name, $ver);
+                } elsif ( $sta < 1) {
+                    $r = BAdb::enableAutobuild( $Name, $ver);
+                } else {
+                    $r = "Error: Invalid Status: $sta";
+                }
+            } else {
+                $r = "Error: No autobuild selected.\n";
+            }
+            if ( $r eq "") {
+                $ref = "yes";
+                $rURL .= "?name=$Name&ver=$ver";
+                $r = "Status Change Success";
+            }
+        }
+    } elsif ( $op eq "profile") {
+        $rURL .= "Profile";
+
+        if ( $submitau eq "Add") {
+            $Name = param('nname') || "";
+
+            if ( $Name eq "") {
+                $r = "Invalid Request\n\nPlease enter a name for this $op";
+            } elsif ( $Data =~ m/^\s*$/ ) {
+                $r = "Invalid Request\n\nCannot create entry without data";
+            } else {
+                $r = BAdb::checkRedundant( $op, $Name, $Data);
+            }
+
+            if ( $r eq "" ) {
+                $tFile = "/tmp/".BATools::generate_random_string().".ba";
+                open( TFILE, "> $tFile");
+                print TFILE $Data;
+                close TFILE;
+
+                $r = BAdb::addProfileFromFile( $Name, $tFile);
+            }
+
+            if ( $r eq "" ) {
+				$ref = "yes";
+                $rURL .= "?name=$Name";
+                $r = "Add Success: $Name";
+            }
+        } elsif ( $submitau eq "Update") {
+            $Name = param("$op") || "";
+
+            if ( $Name eq "") {
+				$r = "Invalid Request\n\nPlease enter a name for this $op";
+            } else {
+                $r = BAdb::checkRedundant( $op, $Name, $Data);
+            }
+
+            if ( $r eq "" ) {
+
+                if ( $Data =~ m/^\s*$/ ) {
+                    $r = "No data modifications to update.";
+                } else {
+                    $tFile = "/tmp/".BATools::generate_random_string().".ba";
+                    open( TFILE, "> $tFile");
+                    print TFILE $Data;
+                    close TFILE;
+
+                    $r = BAdb::updateProfileFromFile( $Name, $tFile);
+                }
+            }
+
+            if ( $r eq "")  {
+				$ref = "yes";
+                $rURL .= "?name=$Name";
+                $r = "Update Success: $Name";
+            }
+        } elsif ( $submitd eq "Delete") {
+            $Name = param("$op") || "";
+
+            if ( $Name ) {
+                $r = BAdb::removeProfile( $Name, $ver);
+            } else {
+                $r = "Error: No profile selected.\n";
+            }
+
+            if ( $r eq "" ) {
+                $ref = "yes";
+                $r = "Delete Success";
+            }
+        } elsif ( $submitt eq "Toggle Status") {
+            $Name = param("$op") || "";
+
+            if ( $Name ) {
+                if ( $sta eq 1) {
+                    $r = BAdb::disableProfile( $Name, $ver);
+                } elsif ( $sta < 1) {
+                    $r = BAdb::enableProfile( $Name, $ver);
+                } else {
+                    $r = "Error: Invalid Status: $sta";
+                }
+            } else {
+                $r = "Error: No profile selected.\n";
+            }
+            if ( $r eq "" ) {
+                $ref = "yes";
+                $rURL .= "?name=$Name&ver=$ver";
+                $r = "Status Change Success";
+            }
+        }
+    } elsif ( $op eq "hardware") {
+        $rURL .= "Hardware";
+
+        if ( $submitau eq "Add") {
+            $Name = param('nname') || "";
+
+            my $has_field = 0;
+            my $fields = {};
+            foreach my $key ( qw( bootargs rootdisk rootpart hwdriver ) ) {
+                $fields->{ $key } = param("$key") || "" ;
+                if ( $fields->{ $key } ne "" ) {
+                    $has_field = 1;
+                }
+            }
+
+            if ( $Name eq "") {
+				$r = "Invalid Request\n\nPlease enter a name for this $op";
+			} elsif ( $has_field eq 0 ) {
+                $r = "Invalid Request\n\nCannot create entry without data";
+            } else {
+                $r = BAdb::checkRedundant( $op, $Name, $fields);
+            }
+
+            if ( $r eq "" ) {
+                if ( $Cert eq "" ) {
+                    $r = BAdb::addHardwareFromFields( $Name, $fields );
+                } else {
+                    $r = BAdb::addHardwareFromFieldsWithCerts( $Name, $fields, $Cert );
+                }
+            }
+
+            if ( $r eq "") {
+				$ref = "yes";
+                $rURL .= "?name=$Name";
+                $r = "Add Success: $Name";
+            }
+        } elsif ( $submitau eq "Update") {
+            $Name = param("$op") || "";
+
+            my $has_field = 1;
+            my $fields = {};
+            foreach my $key ( qw( bootargs rootdisk rootpart hwdriver ) ) {
+                $fields->{ $key } = param("$key") || "" ;
+            }
+
+            if ( $Name eq "") {
+				$r = "Invalid Request\n\nPlease enter a name for this $op";
+            } else {
+                $r = BAdb::checkRedundant( $op, $Name, $fields);
+                if ( $r ne "" ) {
+                    $has_field = 0;
+                    $fields = undef;
+                }
+            }
+
+            if ( $r eq "" ) {
+                if ( $Cert or $RMCert ) {
+                    # this call will handle fields eq undef
+                    $r = BAdb::updateHardwareFromFieldsWithCerts( $Name, $fields, $Cert, $RMCert );
+                } elsif ( $has_field ) {
+                    $r = BAdb::updateHardwareFromFields( $Name, $fields );
+                } else {
+                    $r = "No data modifications nor certifications to update.";
+                }
+            }
+
+            if ( $r eq "") {
+				$ref = "yes";
+                $rURL .= "?name=$Name";
+                $r = "Update Success: $Name";
+            }
+        } elsif ( $submitd eq "Delete") {
+            $Name = param("$op") || "";
+
+            if ( $Name ) {
+                $r = BAdb::removeHardware( $Name, $ver);
+            } else {
+                $r = "Error: No hardware selected.\n";
+            }
+
+            if ( $r eq "") {
+                $ref = "yes";
+                $r = "Delete Success";
+            }
+        } elsif ( $submitt eq "Toggle Status") {
+            $Name = param("$op") || "";
+
+            if ( $Name ) {
+                if ( $sta eq 1) {
+                    $r = BAdb::disableHardware( $Name, $ver);
+                } elsif ( $sta < 1) {
+                    $r = BAdb::enableHardware( $Name, $ver);
+                } else {
+                    $r = "Error: Invalid Status: $sta";
+                }
+            } else {
+                $r = "Error: No hardware selected.\n";
+            }
+
+            if ( $r eq "") {
+                $ref = "yes";
+                $rURL .= "?name=$Name&ver=$ver";
+                $r = "Status Change Success";
+            }
+        }
+    }
+    return $r;
 }
-sub getHeader
+
+sub getConfigHandlerHeader
 {
-	my $op = shift @_;
-	my $sub = shift @_;
-	my $r = "";
-	if( $op eq "prof")
-	{
-		if( $sub eq "add")
-		{
-			$r = "Adding: ".param('nname');
-		}
-		elsif( $sub eq "del")
-		{
-			$r = "Deleting: ".param('profile');
-		}
-	}
-	elsif( $op eq "mod")
-	{
-		if( $sub eq "add")
-		{
-			$r = "Adding: ".param('nname');
-		}
-		elsif( $sub eq "del")
-		{
-			$r = "Deleting: ".param('module');
-		}
-	}
-	return $r
+    my $op = shift;
+
+    my $r;
+    my $ver      = param('ver')      || -1;
+    my $sta      = param('sta')      || -1;
+
+    my $submitau = param('submitau') || "";
+    my $submitt  = param('submitt')  || "";
+    my $submitd  = param('submitd')  || "";
+
+    if ( $submitau eq "Add") {
+        $r = param('nname'); chomp $r;
+        $r = "Adding $op:  $r (version 1)";
+    } elsif ( $submitau eq "Update") {
+        $r = param($op); chomp $r;
+        $r = "Updating $op:  $r" ;
+        if ( $ver != -1 and $ver ne "" ) {
+            chomp $ver;
+            $r .= " (version $ver)";
+        }
+    } elsif ( $submitt eq "Toggle Status") {
+        $r = param($op); chomp $r;
+        if ( $sta eq 1 ) {
+            $r = "Disabling $op:  $r";
+        } else {
+            $r = "Enabling $op:  $r";
+        }
+        if ( $ver != -1 and $ver ne "" ) {
+            chomp $ver;
+            $r .= " (version $ver)";
+        }
+    } elsif ( $submitd eq "Delete") {
+        $r = param($op); chomp $r;
+        $r = "Deleting $op:  $r";
+        if ( $ver != -1 and $ver ne "" ) {
+            chomp $ver;
+            $r .= " (version $ver)";
+        }
+    }
+    return $r
 }

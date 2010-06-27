@@ -122,7 +122,7 @@ function hostRemoveEnterKey(e, filterKey)
      }
      if(key == 13)
      {
-    	 hostReload( document.form1.host.value, filterKey, document.form1.filter.value)
+          hostReload( document.form1.host.value, filterKey, document.form1.filter.value);
           return false;
      }
      else
@@ -134,12 +134,6 @@ function hostRemoveEnterKey(e, filterKey)
 function hostReload( host, filterKey, filter)
 {
 	var url = rURL + "?host=" + host + "&filter=" + filter + "&filterKey=" + filterKey;
-	refresh( url);
-}
-
-function confReload( name, nname, ver)
-{
-	var url = rURL + "?name=" + name + "&nname=" + nname + "&ver=" + ver;
 	refresh( url);
 }
 
@@ -175,7 +169,7 @@ function sourceRemoveEnterKey(e)
      	  	status = document.form1.status.value;
      	  }
      	  
-          sourceReload( document.form1.distro.value, addon, document.form1.filter.value, status)
+          sourceReload( document.form1.distro.value, addon, document.form1.filter.value, status);
           return false;
      }
      else
@@ -189,6 +183,39 @@ function sourceReload( name, addon, filter, status)
 	var url = rURL + "?distro=" + name + "&addon=" + addon + "&filter=" + filter + "&status=" + status;
 	refresh( url);
 }
+
+function configRemoveEnterKey(e, name, filter, ver)
+{
+        var key;
+
+        if(window.event)
+        {
+                key = window.event.keyCode;   //IE
+        }
+        else
+        {
+                key = e.which;     			//firefox
+        }
+        if(key == 13)
+        {
+                configReload( name, filter, ver );
+                return false;
+        }
+        else
+        {
+                return true;
+        }
+}
+
+function configReload( name, filter, ver)
+{
+	var url = rURL
+            + "?name="   + name
+            + "&filter=" + filter
+            + "&ver="    + ver;
+	refresh( url);
+}
+
 
 function clearText( text)
 {

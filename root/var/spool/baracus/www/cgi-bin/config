@@ -1,40 +1,48 @@
 #!/usr/bin/perl
 
 use strict;
+use warnings;
+
 use lib '/var/spool/baracus/www/modules';
 use BATools qw(:standard);
-use vars qw( %hash @array);
+
 use CGI qw(:standard);
 
-my $op = param('op') || "Hardware";
+my $op = param('op') || "Profile";
 my $sub = param('sub') || "";
 my $current = "";
 
-my @tmenu = ( 	"Hardware/status",
-				"Module/status/update/add/delete",
-				"Profile/status/update/add/delete");
-				
-my @tlink = ( 	"configHW/configHWS",
-				"configModS/configModS/configModU/configModA/configModD",
-				"configProfS/configProfS/configProfU/configProfA/configProfD");		
+my @tmenu =
+    (
+     "Profile",
+     "Hardware",
+     "Autobuild",
+     "Module",
+     );
+
+my @tlink =
+    (
+     "configProfile",
+     "configHardware",
+     "configAutobuild",
+     "configModule",
+     );
 
 my $tabs = BATools::getTabs( \@tmenu, \@tlink, $op, $sub, "/baracus/ba/config");
-		 
+
 print header();
 
 print <<HTML;
 <html>
-<head>
+  <head>
 	<link rel='stylesheet' href='/baracus/css/tabs.css' type='text/css' >
-</head>
-<body>
-<br>
-<br>
-$tabs
-</body>
+  </head>
+  <body>
+    <br>
+    <br>
+    $tabs
+  </body>
 </html>
 
 HTML
 ;
-
-

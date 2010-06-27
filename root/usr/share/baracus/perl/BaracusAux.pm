@@ -792,9 +792,13 @@ sub get_certs_hash
     my $type = shift;
     my $name = shift;
 
+    my %cert_hash;
+
     my $sth;
     my $href;
     my $sql;
+
+    return \%cert_hash if ( not defined $name or $name eq "" );
 
     if ( $type eq "hardware" ) {
         $sql = qq| SELECT distroid
@@ -827,7 +831,6 @@ sub get_certs_hash
         return undef;
     }
 
-    my %cert_hash;
     while ( $href = $sth->fetchrow_hashref( ) ) {
         # the fact that the distro is a key means
         # this type is certified for this distro

@@ -1,0 +1,316 @@
+#!/usr/bin/perl
+
+use CGI qw( :standard );
+
+use lib '/var/spool/baracus/www/modules';
+use BATools qw( :standard );
+
+my $blank = "New";
+
+my $name     = param('name')    || "$blank";
+my $nname    = param('nname')   || "";
+my $filter   = param('filter')  || "";
+
+our $version  = param('ver') || -1;
+our $status   = param('sta') || -1;
+
+my $items    = &getItems( $filter );
+my $versions = &getVersions( $name, $filter );
+my $content  = &getContent( $name, $version );
+my $distros  = &getDistros( $name );
+my $certs    = &getCerts( $name );
+my $mancerts = &getManCerts( $name );
+
+
+#my $statsel  = getStatus( $name, $filter, $status);
+
+my $addupButtonValue = "";
+
+$nname_placeholder = "undefined";
+
+if( $name eq $blank)
+{
+	$addupButtonValue = "Add";
+    $nname            = $nname_placeholder;
+    $version          = -1;
+    $status           = -1;
+} else {
+	$addupButtonValue = "Update";
+    $nname            = $name;
+}
+
+print "Content-type: text/html\n\n";
+
+print <<HTML0
+
+<html>
+  <head>
+    <link type='text/css' rel='stylesheet' href='/$BATools::baRoot/css/config.css'>
+    <script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
+	<script type="text/javascript" src="/$BATools::baRoot/script/lists.js"></script>
+	<style type="text/css">
+	  #cols div{position:absolute;top:165;border:0px solid white;}
+	  #cols font{margin-left:5px;}
+	  #cols select{width:150;margin-left:5px;color:#6DB33F;}
+	  #colCert    {left:  0; width:164;}
+	  #colButtonL {left:166; width:50}
+	  #colDistro  {left:219; width:164;}
+	  #colButtonR {left:384; width:50}
+	  #colMand    {left:438; width:164;}
+	  #colButtonL input{align:center;width:50px;color:white;font-weight:bold}
+	  #colButtonR input{align:center;width:50px;color:white;font-weight:bold}
+	</style>
+    <script language="javascript" type="text/javascript">
+      /*
+        To use columnEventHandler we need to implement these functions to
+        identify the three columns and relavent buttons.
+      */
+      function getCenter(){return document.form1.distro;}
+      function getLeft()  {return document.form1.optional;}
+      function getRight() {return document.form1.mandatory;}
+      function cTOl()     {return document.form1.cTOl;}
+      function cTOr()     {return document.form1.cTOr;}
+      function lTOc()     {return document.form1.lTOc;}
+      function rTOc()     {return document.form1.rTOc;}
+      function localVerify(){
+        cert =  getLeftList(",");
+        mancert = getRightList(",");
+        if( mancert != "") {
+          if( cert != "")	{
+            cert = cert + ",";
+          }
+          cert = cert + mancert;
+        }
+        document.form1.mancert.value = mancert;
+        document.form1.cert.value = cert;
+        return verify( document.form1.nname, "You must enter a name for this autobuild");
+      }
+    </script>
+  </head>
+  <body
+     onLoad='selectThis(document.form1.autobuild, "$name");
+       document.form1.autobuild.focus();
+       document.form1.filter.value = "$filter";
+       document.form1.nname.disabled   = ("$name" == "$blank") ? false : true;
+       document.form1.submitt.disabled = ("$name" == "$blank") ? true  : false;
+       document.form1.submitd.disabled = ("$name" == "$blank") ? true  : false; '>
+
+     <form name='form1' action="configHandler" method="GET">
+
+      <div id='config'>
+
+        <div id='history'>Autobuild</div>
+
+        <div id='textEdit'>
+
+          <font class='name'>Name</font><br>
+
+		  <img class='search'
+               src='/$BATools::baRoot/images/searchI.gif'
+               onClick='configReload( "", document.form1.filter.value, -1 );'/>
+          <img class='sweep'
+               src='/$BATools::baRoot/images/sweepI.gif'
+               onClick='configReload( document.form1.autobuild.value, "", document.form1.ver.value );'/>
+          <input type='text' class='filter' name='filter' value='$filterVal' onKeyPress='return configRemoveEnterKey(event, "", document.form1.filter.value, -1 );'>
+
+          $items
+
+          <font class='version'>Version</font><br>
+          $versions
+
+          <input class='submitt'
+                 type='submit'
+                 name='submitt'
+                 value='Toggle Status'
+                 onClick='document.form1.data.value = "";'
+                 disabled />
+
+          <input class='submitd'
+                 type='submit'
+                 name='submitd'
+                 value='Delete'
+                 onClick='document.form1.data.value = ""; return verifyDelete( document.form1.autobuild.value + " (version " + document.form1.autobuild.ver.value + ")");'
+                 disabled />
+
+          <input class='nname'
+                 type='text'
+                 name='nname'
+                 value="$nname"
+                 onFocus='this.form.nname.value="";'
+                 disabled />
+
+		  <input class='submit'
+                 type='submit'
+                 name='submitau'
+                 value='$addupButtonValue'
+                 onClick='if ( "$addupButtonValue" == "Add" )
+                          {
+                            return verify( document.form1.nname, "You must enter a name for this autobuild");
+                          } else
+                          {
+                            return verify( document.form1.autobuild, "You must select an entry to Update");
+                          }' />
+
+          <div id='cols'>
+            <div id='colCert'>
+              <font class='basic'>Certified Optional</font>
+              $certs
+            </div>
+            <div id='colButtonL'>
+              <br>
+              <input type='button' disabled name='cTOl' value='<<' onClick='colEventHandler(this.name)'>
+              <input  type='button' disabled name='lTOc' value='>>' onClick='colEventHandler(this.name)'>
+            </div>
+            <div id='colDistro'>
+              <font class='basic'>Available Distros</font>
+              $distros
+            </div>
+            <div id='colButtonR'>
+              <br>
+              <input  type='button' disabled name='cTOr' value='>>' onClick='colEventHandler(this.name)'>
+              <input  type='button' disabled name='rTOc' value='<<' onClick='colEventHandler(this.name)'>
+            </div>
+            <div id='colMand'>
+              <font class='basic'>Certified Mandatory</font>
+              $mancerts
+            </div>
+          </div> <!-- cols -->
+
+          <font class='dataShort'>Recipe</font>
+          <textarea class='short' name='data'>$content</textarea>
+        </div>
+
+        <input type='hidden' name='op' value='autobuild'>
+
+      </div>
+    </form>
+  </body>
+</html>
+HTML0
+;
+
+sub getItems
+{
+    my $filter = shift;
+	my $r = "";
+
+	$r .= qq|<select class='name' name='autobuild' size='6' onClick='configReload(this.value, "$filter", -1)'>\n|;
+	$r .= "<option value='$blank'>$blank</option>\n";
+	foreach( BAdb::getAutobuildListAll( $filter ) ) {
+		$r .= "<option value='$_'>$_</option>\n";
+	}
+	$r .= "</select>";
+	return $r;
+}
+
+sub getVersions
+{
+	my $name = shift;
+	my $filter = shift;
+
+	my $r = "";
+	my $selected = "";
+	my $count = 0;
+
+	$r .= qq|<select class='version' size='5' onClick='configReload( "$name", "$filter", this.value)'>\n|;
+
+	if( $name ne "" and $name ne $blank ) {
+		foreach( BAdb::getAutobuildVersionList( $name, "yes")) {
+			my ($xVer,$xSta) = split( "/", $_);
+
+			$statString = $xSta eq 0 ? "disabled" : "enabled" ;
+			if( $version eq -1 && $count eq 0)
+			{
+				$selected = "selected";
+				$version = $xVer;
+                $status = $xSta;
+			}
+			elsif( $version ne -1 and $version eq $xVer)
+			{
+				$selected = "selected";
+                $status = $xSta;
+			}
+			else
+			{
+				$selected = "";
+			}
+			$r .= "<option $selected value='$xVer'>version $xVer&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;( $statString )</option>\n";
+			++ $count;
+		}
+	}
+	$r .= "</select>\n";
+	$r .= "<input type='hidden' name='ver' value='$version'>\n";
+	$r .= "<input type='hidden' name='sta' value='$status'>\n";
+
+	return $r;
+}
+
+sub getContent
+{
+    my $name = shift;
+    my $version = shift;
+
+    my $r;
+    unless ( $name eq "" or $name eq $blank ) {
+        $r = BAdb::getAutobuild( $name, $version, "no" );
+    }
+    return $r;
+}
+
+sub getDistros()
+{
+    my $name = shift;
+
+	my $r = "<select name='distro' size=5 onClick='colSelectHandler(this.name)'>\n";
+
+	@distros = BAdb::getDistros( "", "*", "base");
+
+	my $chref = {};
+    $chref = BAdb::getCerts( "autobuild", $name ) unless ( $name eq "" );
+
+	foreach (@distros)
+	{
+        $val = $_;
+        chomp($val);
+        @oneArray = split( " ", $val);
+        $n = @oneArray[0];
+
+        #mlt list needs to be filtered to exclude certs and mancerts
+        next if ( defined $chref->{ $n } );
+
+        $option = "<option value='$n'>$n</option>\n";
+        $r = $r.$option;
+	}
+
+	$r = $r."</select><br>\n";
+
+	return $r;
+}
+
+sub getCerts()
+{
+    my $name = shift;
+	my $r = "<select name='optional' size=5 onClick='colSelectHandler(this.name)'>";
+	my $chref = BAdb::getCerts( "autobuild", $name );
+    while ( my ($key, $value) = each %{$chref} ) {
+        $r .= "<option value='$key'>$key</option>\n" if ( $value == 0 );
+    }
+
+	$r .= "</select>";
+	return $r;
+}
+
+sub getManCerts()
+{
+    my $name = shift;
+	my $r = "<select name='mandatory' size=5 onClick='colSelectHandler(this.name)'>";
+	my $chref = BAdb::getCerts( "autobuild", $name );
+    while ( my ($key, $value) = each %{$chref} ) {
+        $r .= "<option value='$key'>$key</option>\n" if ( $value == 1 );
+    }
+
+	$r = $r."</select>";
+	return $r;
+}
+
+
