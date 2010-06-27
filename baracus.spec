@@ -2,7 +2,7 @@
 
 Summary:   Tool to create network install build source and manage host builds
 Name:      baracus
-Version:   1.4.0
+Version:   1.4.4
 Release:   0
 Group:     System/Services
 License:   GPLv2 or Artistic V2
@@ -68,7 +68,6 @@ install -D -m644 %{S:6} %{buildroot}/etc/apache2/conf.d/%{name}-webserver.conf
 chmod -R 700 %{buildroot}%{_datadir}/%{name}/gpghome
 mkdir %{buildroot}/var/spool/%{name}/isos
 mkdir %{buildroot}/var/spool/%{name}/logs
-mkdir %{buildroot}/var/spool/%{name}/modules
 mkdir %{buildroot}/var/spool/%{name}/pgsql
 rm -rf %{buildroot}/var/spool/baracus/www/pfork
 
@@ -93,12 +92,10 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %insserv_cleanup
 
 %files webserver
-%defattr(-,wwwrun,www)
+%defattr(-,root,root)
 /var/spool/%{name}/www/htdocs
 /var/spool/%{name}/www/cgi-bin
-/var/spool/%{name}/www/modules
-%dir /var/spool/%{name}/www/tmp
-%dir /var/spool/%{name}/www/htdocs/pool
+%attr(755,wwwrun,www) %dir /var/spool/%{name}/www/htdocs/pool
 %config %{_sysconfdir}/apache2/conf.d/%{name}-webserver.conf
 
 %files
@@ -111,7 +108,7 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %dir %{_datadir}/%{name}
 %dir %{_datadir}/%{name}/data
 %doc %{_datadir}/%{name}/*.xml
-%{_datadir}/%{name}/data/*pxe*
+%{_datadir}/%{name}/data/*
 %{_datadir}/%{name}/driverupdate
 %{_datadir}/%{name}/profile_default
 %{_datadir}/%{name}/templates
@@ -122,18 +119,32 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %dir %{_sysconfdir}/apache2/conf.d
 %config %{_sysconfdir}/apache2/conf.d/%{name}.conf
 %attr(755,baracus,users) %dir /var/spool/%{name}
-%attr(755,baracus,users) /var/spool/%{name}/builds
-%attr(755,root,root) /var/spool/%{name}/isos
-%attr(755,root,root) /var/spool/%{name}/logs
-%attr(755,root,root) /var/spool/%{name}/hooks
-%attr(755,root,root) /var/spool/%{name}/pgsql
-%attr(755,root,root) /var/spool/%{name}/modules
-%attr(755,root,root) /var/spool/%{name}/templates
+%attr(755,baracus,users) %dir /var/spool/%{name}/builds
+%attr(-,root,root) /var/spool/%{name}/builds/*
+%attr(-,root,root) /var/spool/%{name}/isos
+%attr(-,root,root) /var/spool/%{name}/logs
+%attr(-,root,root) /var/spool/%{name}/hooks
+%attr(-,root,root) /var/spool/%{name}/pgsql
+%attr(-,root,root) /var/spool/%{name}/templates
 %attr(755,root,root) %dir /var/spool/%{name}/www
 %attr(755,root,root) /var/spool/%{name}/www/ba
+%attr(755,root,root) /var/spool/%{name}/www/modules
+%attr(755,wwwrun,www) %dir /var/spool/%{name}/www/tmp
 
 
 %changelog
+* Sun Jun 27 2010 dbahi@novell - 1.4.4
+- massive amounts of web updates for
+  config storage, repo, power
+* Fri Jun 18 2010 dbahi@novell - 1.4.3
+- more template fixes and var expansion fixes
+- bado build and rescue work with host/mac/ip more flexibly
+* Thu Jun 17 2010 dbahi@novell - 1.4.2
+- several small web fixes
+- ubuntu profile (instead of hardware) fix and template added
+* Wed Jun 16 2010 dbahi@novell - 1.4.1
+- consolidate to serve non-webserver files from db
+- www/modules required for base pkg hook handling
 * Tue Jun 15 2010 dbahi@novell - 1.4.0
 - dynamically generate autobuild
 - autobuild is baconfig versioned and distro certified
