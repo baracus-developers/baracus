@@ -1,0 +1,105 @@
+#!/usr/bin/perl
+
+use lib '/var/spool/baracus/www/modules';
+use BATools qw(:standard);
+use CGI qw(:standard);
+
+our $rURL = "storage";
+our $ref = "yes";
+our $seconds = 3;
+our $qStr = "";
+
+my $refresh = "";
+
+
+print "Content-type: text/html\n\n";
+
+my $op           = param('op') || "";
+my $createname   = param('createname') || "";
+my $targetip     = param('targetip') || "";
+my $targetid     = param('targetid') || "";
+my $type         = param('type') || "";
+my $targetsize   = param('targetsize') || "";
+my $targetdesc   = param('targetdesc') || "";
+my $username     = param('username') || "";
+my $passwd       = param('passwd') || "";
+
+my $content = "";
+
+my $headError = "<font class='error'>Error</font>";
+
+if ( $op eq "remove" ) {
+    if ( $targetid eq "" ) {
+        $content = $content."Missing required data";
+        $header = $headError;
+    } else {
+        $content = $content.RemoveStorageContent();
+        $header = "Remove Storage Entry";
+    }
+}
+elsif ($op eq "" ) {
+    if (( $createname ne "" ) && ( $targetip ne "") && ( $targetid ne "") && ( $type ne "")) {
+        $content = $content.RemoveStorageContent();
+        $header = "Remove Storage Entry";
+    } else {
+        $content = $content."Missing required data";
+        $header = $headError;
+    }
+}
+else {
+    $content = $content."Routing error";
+    $header = $headError;
+}
+
+if( $ref eq "yes")
+{
+	$refresh = "onLoad=\"doLoad( '$rURL', '$qStr', $seconds)\"";
+}
+
+$content = $content."\n\n\n";
+
+print <<HTML0
+
+<html>
+	<head>
+		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+		<link rel='stylesheet' href='/$BATools::baRoot/css/common.css' type='text/css' >
+		<script type="text/javascript" src="/$BATools::baRoot/script/common.js"></script>
+	</head>
+	<div id='output'>
+	<body background="/baracus/images/bg-grad.jpg" $refresh>
+	<pre>$content</pre>
+	<h1>$header</h1>
+	<h3>$proc</h3>
+	<body>
+	</div>
+</html>
+
+HTML0
+
+;
+########################################################################################################
+# Add
+########################################################################################################
+
+sub AddStorageContent()
+{
+        my $cmd = "sudo bastorage add --id $targetid --ip $targetip --name $createname ";
+        if ( $targetsize ne "" )   { $cmd .= "--size \"$targetsize\" "; }
+        if ( $targetdesc ne "" )   { $cmd .= "--description \"$targetdesc\" "; }
+        if ( $username ne "" )  { $cmd .= "--username $username "; }
+        if ( $passwd ne "" ) { $cmd .= "--passwd $passwd "; }
+
+        my $r = $cmd . "\n";
+        $r .= `$cmd`;
+        return $r;
+}
+
+sub RemoveStorageContent()
+{
+        my $cmd = "sudo bastorage remove --id $targetid ";
+
+        my $r = $cmd . "\n";
+        $r .= `$cmd`;
+        return $r;
+}
