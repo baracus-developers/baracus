@@ -60,7 +60,7 @@ sub getItems
 	my $filterVal = shift;
 	my $r = "";
         my $linkD = "http://$baVar{serverip}/baracus/ba/storageDetail?targetid=";
-        my $linkR = "http://$baVar{serverip}/baracus/ba/storageRemove?targetid=";
+        my $linkR = "http://$baVar{serverip}/baracus/ba/storageHandler?op=remove&&targetid=";
 
         if ( $filterVal eq "" ) { $filterVal = "%"; }
 

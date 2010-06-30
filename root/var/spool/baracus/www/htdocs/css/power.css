@@ -73,7 +73,7 @@ body
         background-color:white;
         color: #0B610B;
 }
-#config input.createsize
+#config input.createuser
 {
         position:absolute;
         left:120;
@@ -84,7 +84,7 @@ body
         background-color:white;
         color: #0B610B;
 }
-#config input.createdesc
+#config input.createpasswd
 {
         position:absolute;
         left:120;
@@ -95,33 +95,11 @@ body
         background-color:white;
         color: #0B610B;
 }
-#config input.createuser
-{
-        position:absolute;
-        left:120;
-        top:160;
-        width:315;
-        height:20;
-        border:none;
-        background-color:white;
-        color: #0B610B;
-}
-#config input.createpasswd
-{
-        position:absolute;
-        left:120;
-        top:185;
-        width:315;
-        height:20;
-        border:none;
-        background-color:white;
-        color: #0B610B;
-}
 #config input.createentry
 {
         position:absolute;
         left:9;
-        top:210;
+        top:170;
         width:115;
         height:20;
         border:none;
@@ -192,28 +170,16 @@ body
         top:90;
         left:9;
 }
-#config font.createsize
+#config font.createuser
 {
         position:absolute;
         top:115;
         left:9;
 }
-#config font.createdesc
-{
-        position:absolute;
-        top:140;
-        left:9;
-}
-#config font.createuser
-{
-        position:absolute;
-        top:165;
-        left:9;
-}
 #config font.createpasswd
 {
         position:absolute;
-        top:190;
+        top:140;
         left:9;
 }
 #config font.filter

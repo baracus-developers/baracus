@@ -7,11 +7,10 @@ use BATools qw(:standard);
 use BaracusConfig qw( :vars );
 use CGI qw(:standard);
 
-my $targetid = "";
-my $targetip = "";
-my $name = "";
-my $size = "";
-my $description = "";
+my $mac = "";
+my $hostname = "";
+my $bmcaddr = "";
+my $type = "";
 my $username = "";
 my $passwd = "";
 
@@ -24,7 +23,7 @@ print <<HTML0
 		<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
 		<script type="text/javascript" src="/baracus/script/common.js"></script>
                 <link rel='stylesheet' href='/baracus/css/tabs.css' type='text/css' >  
-		<link rel='stylesheet' href='/$BATools::baRoot/css/storage.css' type='text/css'>
+		<link rel='stylesheet' href='/$BATools::baRoot/css/power.css' type='text/css'>
 	</head>
 
 	<body>
@@ -34,31 +33,31 @@ print <<HTML0
                 <ul></ul>
                 </div>
 
-		<form name='form1' method="POST">
+		<form name='form1' method="POST" action="powerHandler">
 		<div id='config'>
-		<div id='histbar' style="color:black"><a href=\"http://$baVar{serverip}/baracus/ba/storage\">Storage<\/a> \ >  Create</div>
+		<div id='histbar' style="color:black"><a href=\"http://$baVar{serverip}/baracus/ba/power\">Power<\/a> \ >  Create</div>
 		<div id='main'>
-                <font class='createname'>Target Name</font>
-		<input type='text' class='createname' name='createname' value='$name'>
-                <font class='createip'>Target IP</font>
-                <input type='text' class='createip' name='targetip' value='$targetip'>
-                <font class='createid'>Target ID</font>
-                <input type='text' class='createid' name='targetid' value='$targetid'>
-                <font class='createtype'>Target Type</font>
+                <font class='createname'>mac</font>
+		<input type='text' class='createname' name='mac' value='$mac'>
+                <font class='createip'>hostname</font>
+                <input type='text' class='createip' name='hostname' value='$hostname'>
+                <font class='createid'>BMC address</font>
+                <input type='text' class='createid' name='bmcaddr' value='$bmcaddr'>
+                <font class='createtype'>BMC Type</font>
                 <select class='createtype' name='type'>
-                   <option value='isci'>ISCI</option>
-                   <option value='aoe'>AOE</option>
-                   <option value='nfs'>NFS</option>
+                   <option value='ipmi'>IPMI</option>
+                   <option value='ilo'>ILO</option>
+                   <option value='drac'>DRAC</option>
+                   <option value='racs'>RACS</option>
+                   <option value='bladecenter'>BLADECENTER</option>
+                   <option value='apc'>APC</option>
+                   <option value='virsh'>VIRSH</option>
                 </select>
-                <font class='createsize'>Target Size</font>
-                <input type='text' class='createsize' name='targetsize' value='$size'>
-                <font class='createdesc'>Target Description</font>
-                <input type='text' class='createdesc' name='targetdesc' value='$description'>
                 <font class='createuser'>Username</font>
                 <input type='text' class='createuser' name='username' value='$username'>
                 <font class='createpasswd'>Password</font>
                 <input type='text' class='createpasswd' name='passwd' value='$passwd'>
-                <input type='submit' class='createentry' value='Create Entry'>
+                <input type='submit' class='createentry' value='Add' name='submit'>
 		<br><br>
                 </div>
 		</div>

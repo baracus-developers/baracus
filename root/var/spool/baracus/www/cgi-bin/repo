@@ -61,7 +61,7 @@ sub getItems
 	my $r = "";
 	my $selected;
         my $linkD = "http://$baVar{serverip}/baracus/ba/repoDetail?repo=";
-        my $linkR = "http://$baVar{serverip}/baracus/ba/repoRemove?repo=";
+        my $linkR = "http://$baVar{serverip}/baracus/ba/repoHandler?op=remove&&repo=";
 
 	my @items;
        # $r = $r."<select class='nameWide' name='repo' size='16' onChange='doSubmit( this)'>";

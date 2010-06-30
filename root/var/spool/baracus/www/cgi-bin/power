@@ -48,7 +48,7 @@ print <<HTML0
                 <font class='filter'>Filter</font>
 		<input type='text' class='filter' name='filter' value='$filter'>
                 <input type='hidden' name='mac' value='test'>
-                <font class='clink'><a href="http://$baVar{serverip}/baracus/ba/PowerCreate">Create Power Entry</a></font>
+                <font class='clink'><a href="http://$baVar{serverip}/baracus/ba/powerCreate">Create Power Entry</a></font>
 		<br><br>
                 <div id='list'>
 		$items

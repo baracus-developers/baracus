@@ -46,7 +46,7 @@ print <<HTML0
                 <input type='text' class='createid' name='targetid' value='$targetid'>
                 <font class='createtype'>Target Type</font>
                 <select class='createtype' name='type'>
-                   <option value='isci'>ISCI</option>
+                   <option value='iscsi'>ISCSI</option>
                    <option value='aoe'>AOE</option>
                    <option value='nfs'>NFS</option>
                 </select>

@@ -17,9 +17,14 @@ our $refresh = "";
 
 print "Content-type: text/html\n\n";
 
-my $hostname = param('hostname');
-my $mac = param('mac');
-my $op = param('submit');
+my $hostname = param('hostname') || "";
+my $mac      = param('mac') || "";
+my $bmcaddr  = param('bmcaddr') || "";
+my $type     = param('type') || "";
+my $username = param('username') || "";
+my $passwd   = param('passwd') || "";
+my $op       = param('submit') || "";
+
 if( $op eq "")
 {
 	$op = param('submit2');
@@ -30,39 +35,42 @@ my $content = "$mac $op\n\n";
 my $header="Power Control";
 my $headError = "<font class='error'>Error</font>";
 
-if( $op eq "On")
-{
-	#$content = $content.onContent( $mac);
-	$content = $content . onContent( $mac );
-	$header = onHeader();
+if( $op eq "On" ) {
+    $content = $content . onContent( $mac );
+    $header = "Power On";
 }
-elsif( $op eq "Off")
-{
-	$content = $content . offContent( $mac);
-	$header = offHeader();
+elsif( $op eq "Off" ) {
+    $content = $content . offContent( $mac );
+    $header = "Power Off";
 }
-elsif( $op eq "Status")
-{
-	$content = $content . statusContent( $mac);
-	$header = statusHeader();
+elsif( $op eq "Status" ) {
+    $content = $content . statusContent( $mac );
+    $header = "Power Status";
 }
-elsif( $op eq "VNC")
-{
-	$header = vncHeader();
-	$applet = vncContent( $hostname);
-	$title = $hostname;
-	$autoClose = "";
-	$close = "";
+elsif( $op eq "VNC" ) {
+    $header = "Power VNC";
+    $applet = vncContent( $hostname );
+    $title = $hostname;
+    $autoClose = "";
+    $close = "";
 }
-else
-{
-	$content = $content."Invalid Operation: $op";
-	$header = $headError;
+elsif( $op eq "Add" ) {
+    if (( $mac eq "" ) || ( $bmcaddr eq "" ) || ( $type eq "" )) {
+        $content = $content."Missing required field: $op";
+        $header = $headError;
+    } else {
+        $content .= addContent();
+        $header = "Adding Power Entry";
+    }
+}
+else {
+    $content = $content."Invalid Operation: $op";
+    $header = $headError;
 }
 
 if( $ref ne "yes")
 {
-	$refresh = "";
+    $refresh = "";
 }
 
 $content = $content."\n\n\n";
@@ -93,10 +101,15 @@ HTML0
 #  
 ########################################################################################################
 
-sub onHeader()
-{
-	return "Power On";
+sub addContent() {
+    my $cmd = "sudo bapower add --mac $mac --host $hostname --bmcaddr $bmcaddr --ctype $type";
+    if ( $username ne "" ) { $cmd .= " --login $username"; }
+    if ( $passwd ne "" )   { $cmd .= " --passwd $passwd"; }
+    my $r = $cmd . "\n";
+    $r .= `$cmd`;
+    return $r;
 }
+
 sub onContent($)
 {
 	my $cmd = "sudo bapower on --mac=$_[0]";
@@ -104,10 +117,6 @@ sub onContent($)
 	return $r;
 }
 
-sub offHeader()
-{
-	return "Power Off";
-}
 sub offContent($)
 {
 	my $cmd = "sudo bapower off --mac=$_[0]";
@@ -115,10 +124,6 @@ sub offContent($)
 	return $r;
 }
 
-sub statusHeader()
-{
-	return "Power Status";
-}
 sub statusContent($)
 {
 	my $cmd = "sudo bapower status --mac=$_[0]";
@@ -126,10 +131,6 @@ sub statusContent($)
 	return $r;
 }
 
-sub vncHeader()
-{
-	return "Power VNC";
-}
 sub vncContent($)
 {
 	my $host;
