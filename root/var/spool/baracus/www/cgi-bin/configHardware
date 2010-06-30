@@ -98,7 +98,8 @@ print <<HTML0
     </script>
   </head>
   <body
-     onLoad='selectThis(document.form1.hardware, "$name");
+     onLoad='initColsLRB("l");
+       selectThis(document.form1.hardware, "$name");
        document.form1.hardware.focus();
        document.form1.filter.value = "$filter";
        document.form1.bootargs.value = "$bootargs";
@@ -179,6 +180,7 @@ print <<HTML0
               <font class='basic'>Available Distros</font>
               $distros
             </div>
+<!--
             <div id='colButtonR'>
               <br>
               <input  type='button' disabled name='cTOr' value='>>' onClick='colEventHandler(this.name)'>
@@ -188,6 +190,7 @@ print <<HTML0
               <font class='basic'>Certified Mandatory</font>
               $mancerts
             </div>
+-->
           </div> <!-- cols -->
 <!--
           <font class='dataShort'>Recipe</font>

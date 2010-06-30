@@ -88,7 +88,8 @@ print <<HTML0
     </script>
   </head>
   <body
-     onLoad='selectThis(document.form1.autobuild, "$name");
+     onLoad='initColsLRB("l");
+       selectThis(document.form1.autobuild, "$name");
        document.form1.autobuild.focus();
        document.form1.filter.value = "$filter";
        document.form1.nname.disabled   = ("$name" == "$blank") ? false : true;
@@ -164,15 +165,6 @@ print <<HTML0
             <div id='colDistro'>
               <font class='basic'>Available Distros</font>
               $distros
-            </div>
-            <div id='colButtonR'>
-              <br>
-              <input  type='button' disabled name='cTOr' value='>>' onClick='colEventHandler(this.name)'>
-              <input  type='button' disabled name='rTOc' value='<<' onClick='colEventHandler(this.name)'>
-            </div>
-            <div id='colMand'>
-              <font class='basic'>Certified Mandatory</font>
-              $mancerts
             </div>
           </div> <!-- cols -->
 

@@ -88,7 +88,8 @@ print <<HTML0
     </script>
   </head>
   <body
-     onLoad='selectThis(document.form1.module, "$name");
+     onLoad='initColsLRB("b");
+       selectThis(document.form1.module, "$name");
        document.form1.module.focus();
        document.form1.filter.value = "$filter";
        document.form1.nname.disabled   = ("$name" == "$blank") ? false : true;
