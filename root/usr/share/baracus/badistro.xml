@@ -65,6 +65,50 @@
 
   <!-- SLES 11 SP 1 -->
 
+  <distro name="sles-11.1-s390x">
+    <os>sles</os>
+    <release>11.1</release>
+    <arch>s390x</arch>
+    <description>SUSE Linux Enterprise Server 11.1 s390x</description>
+
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <addon>base</addon>
+      <iso name="SLES-11-SP1-DVD-s390x-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/s390x/vmrdr.ikr'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/s390x/initrd'/>
+        </sharefiles>
+        <md5>71819d092e6177356f85e7d6f2d4085d</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FPOsTpMbyzxM%7E%2FSLES-11-SP1-DVD-s390x-GM-DVD1.iso&buildid=POsTpMbyzxM~&fileid=C1zTvC7NXSk~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-11.1-sdk-s390x">
+    <os>sles</os>
+    <release>11.1</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>s390x</arch>
+    <requires>sles-11.1-s390x</requires> <!-- flag! content ignored -->
+    <description>SLES 11.1 Software Development Kit s390x</description>
+
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <addon>signed</addon>
+      <iso name="SLE-11-SP1-SDK-DVD-s390x-GM-DVD1.iso">
+        <path/>
+        <md5>beaeca77b2ea1a299e0efbb2e33fe80f</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzzeQqpY9nK4%7E%2FSLE-11-SP1-SDK-DVD-s390x-GM-DVD1.iso&buildid=zzeQqpY9nK4~&fileid=YOm0LHvVPB8~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+
   <distro name="sles-11.1-x86_64">
     <os>sles</os>
     <release>11.1</release>
@@ -326,7 +370,49 @@
     </product>
   </distro>
 
-  <!-- SLES 10.3 -->
+  <!-- SLES 10 SP 3 -->
+
+  <distro name="sles-10.3-s390x">
+    <os>sles</os>
+    <release>10.3</release>
+    <arch>s390x</arch>
+    <description>SUSE Linux Enterprise Server 10.3 s390x</description>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <addon>base</addon>
+      <iso name="SLES-10-SP3-DVD-s390x-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/s390x/vmrdr.ikr'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/s390x/initrd'/>
+        </sharefiles>
+        <md5>12be536b4d3e81f48e77287c8d6a4088</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FTUSxhcEcFiI%7E%2FSLES-10-SP3-DVD-s390x-GM-DVD1.iso&buildid=TUSxhcEcFiI~&fileid=qfz5dUTFuDE~&mirror=AkamaiHost&nohost=false
+]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-sdk-s390x">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>s390x</arch>
+    <requires>sles-10.3-s390x</requires> <!-- flag! content ignored -->
+    <description>SLES 10.3 Software Development Kit s390x</description>
+    <autodownload>auth</autodownload>
+    <product name="dvd">
+      <addon>flat</addon>
+      <iso name="SLE-10-SP3-SDK-DVD-s390x-GM-DVD1.iso">
+        <path/>
+        <md5>fdf61e060cebb6df6957a7bc4839b569</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP3-SDK-DVD-s390x-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=vmnSmmlmzg8~&mirror=AkamaiHost&nohost=false
+]]></url>
+      </iso>
+    </product>
+  </distro>
 
   <distro name="sles-10.3-x86_64">
     <os>sles</os>
@@ -1065,8 +1151,8 @@
       <addon>flat</addon>
       <iso name="SLES-10-SP3-SMT-BiArch-GM-CD1.iso">
         <path/>
-        <md5>567acac65aebf0c0565d7635b3f61e07</md5>
-        <url><![CDATA[]]></url>
+        <md5>6d0b3e22a102f560737a4d7cee1e50b5</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FBuDsKIXgkz4%7E%2FSLES-10-SP3-SMT-BiArch-GM-CD1.iso&buildid=BuDsKIXgkz4~&fileid=R3VYRPn6ncI~&mirror=AkamaiHost&nohost=false]]></url>
       </iso>
     </product>
   </distro>
@@ -1085,7 +1171,7 @@
       <iso name="SLES-10-SP3-SMT-BiArch-GM-CD1.iso">
         <path/>
         <md5>567acac65aebf0c0565d7635b3f61e07</md5>
-        <url><![CDATA[]]></url>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FBuDsKIXgkz4%7E%2FSLES-10-SP3-SMT-BiArch-GM-CD1.iso&buildid=BuDsKIXgkz4~&fileid=R3VYRPn6ncI~&mirror=AkamaiHost&nohost=false]]></url>
       </iso>
     </product>
   </distro>

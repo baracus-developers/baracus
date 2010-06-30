@@ -721,6 +721,76 @@ n:\\setup.exe
 
     }
 
+    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(parm)\?.*\s*$} )
+    {
+        die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
+
+        $input->{mac} = &check_mac($input->{mac});
+        $macref = &get_db_mac( $dbh, $input->{mac} );
+        $actref = &get_db_action( $dbh, $input->{mac} );
+        $distref = &get_distro( $opts, $dbh, $actref );
+        if ( not defined $macref or
+             not defined $actref or
+             not defined $distref
+            )
+        {
+            ##
+            ## WINST - missing 'mac' or 'action' entry (or entries)
+            ##
+            print STDERR "$input->{mac} - missing mac, action, distro in db\n";
+            exit 1;
+        }
+
+        &load_distro( $opts, $dbh, $actref );
+
+        if ( $actref->{arch} !~ m/s390/ ) {
+            print STDERR "$input->{mac} - non-s390 arch request for parm file\n";
+            exit 1;
+        }
+
+        &load_profile( $opts, $dbh, $actref );
+        &load_vars( $opts, $actref );
+        &load_baracusconfig( $opts, $actref );
+
+## example parm
+#
+# ramdisk_size=65536 root=/dev/ram1 ro init=/linuxrc TERM=dumb
+# ReadChannel=0.0.0700 WriteChannel=0.0.0701 DataChannel=0.0.0702
+# OsaInterface=qdio OsaMedium=eth
+# InstNetDev=osa layer2=0 PortNo=0
+# Portname=VSW1
+# Hostname=s390vm01.suse.de HostIP=10.10.220.97
+# Gateway=10.10.0.8 Nameserver=10.10.0.1
+# Netmask=255.255.0.0 Broadcast=10.10.255.255
+# Install=nfs://10.10.0.100/dist/install/SLP/SLES-11-GM/s390x/DVD1/
+# UseSSH=1 SSHPassword=testing linuxrcstderr=/dev/console
+
+        $output = qq|ramdisk_size=65536 root=/dev/ram1 ro init=/linuxrc TERM=dumb
+ReadChannel=0.0.0700 WriteChannel=0.0.0701 DataChannel=0.0.0702
+OsaInterface=qdio OsaMedium=eth
+InstNetDev=osa layer2=0 PortNo=0
+Portname=VSW1
+Hostname=$actref->{hostname}.$actref->{dnsdomain}
+Install=$actref->{sharetype}://$actref->{shareip}$actref->{basepath}
+linuxrcstderr=/dev/console
+|;
+
+        my $args = "";
+
+        if ( $actref->{ip} ne "dhcp" ) {
+            $args .= "HostIP=$actref->{ip} Netmask=$actref->{netmask} Broadcast=$actref->{broadcast} Gateway=$actref->{gateway} Nameserver=$actref->{dns1}\n";
+        }
+        if ( $actref->{raccess} =~ m|(usessh=1)| ) {
+            $args .= $1 . " " ;
+            $args .= $1 . " " if ( $actref->{raccess} =~ m|(sshpassword=[^ \t\s]+)| );
+        }
+#       if ( $actref->{autobuild} ne "none" )
+#       {
+#           $args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
+#       }
+        $output .= $args;
+
+    }
     elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(startrom.0|pxelinux.0|sanboot.c32).*\s*$} )
     {
         my $file = $1;
