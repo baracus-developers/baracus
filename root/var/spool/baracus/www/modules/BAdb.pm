@@ -836,7 +836,7 @@ sub getPowerList
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
     die "$!$sth->err\n" unless ( $sth->execute() );
 
-    my $href = $sth->fetchall_hashref('mac');
+    $href = $sth->fetchall_hashref('hostname');
 
     return $href;
 

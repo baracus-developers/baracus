@@ -13,9 +13,10 @@ function checkVNC( name)
     }
 }
 
-function setTarget( target)
+function setTarget( target, hostname)
 {
     document.form1.target = target;
+    document.form1.hostname.value = hostname;
 }
 
 function popResponse( id)
