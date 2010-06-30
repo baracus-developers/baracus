@@ -221,7 +221,7 @@ sub add
 }
 
 
-=head2 remove --targetid <id>
+=head2 remove --id <id>
 
 This command does not remove any data from the network storage device. Instead this only removes the info from Baracus so that it cannot easily be assigned to a host.
 
@@ -323,7 +323,7 @@ sub list
     return 0;
 }
 
-=head2 detail --targetid <targetid>
+=head2 detail --id <targetid>
 
 Show details for specified network storage device
 
@@ -343,7 +343,7 @@ sub detail
     @ARGV = @_;
 
     GetOptions(
-               'targetid=s' => \$id,
+               'id=s' => \$id,
                );
 
     if ( scalar @ARGV ) {
