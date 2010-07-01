@@ -274,6 +274,7 @@ sub updateModuleFromFileWithCerts
     my $rmcerts  = shift;  # remove non-mandatory cert for module
     my $mancerts = shift;  # modify cert so that module is required with dist
     my $optcerts = shift;  # modify cert so that module is not required
+    my $ver      = shift;
 
     my $certs = "";
 
@@ -282,6 +283,13 @@ sub updateModuleFromFileWithCerts
 
     if ( $file ne "" ) {
         $file = "--file $file ";
+
+        # new data creates it's own version
+        $ver = "";
+    }
+
+    if ( $ver ne "" ) {
+        $ver = "--version $ver ";
     }
 
     if ( defined $addcerts and $addcerts ne "") {
@@ -300,7 +308,7 @@ sub updateModuleFromFileWithCerts
         $certs .= qq|--rmcert "$rmcerts" |;
     }
 
-    my $cmd = "sudo baconfig update module --name $name $certs $file 2>&1";
+    my $cmd = "sudo baconfig update module --name $name $certs $file $ver 2>&1";
 #   my $result = `$cmd`;
     my $result = $cmd;
     return $result;
@@ -425,6 +433,7 @@ sub updateAutobuildFromFileWithCerts
     my $file = shift;
     my $addcerts = shift;  # certify module for use with named distro
     my $rmcerts  = shift;  # remove non-mandatory cert for module
+    my $ver  = shift;
 
     my $certs = "";
 
@@ -433,6 +442,13 @@ sub updateAutobuildFromFileWithCerts
 
     if ( $file ne "" ) {
         $file = "--file $file ";
+
+        # new data creates it's own version
+        $ver = "";
+    }
+
+    if ( $ver ne "" ) {
+        $ver = "--version $ver ";
     }
 
     if ( defined $addcerts and $addcerts ne "") {
@@ -443,7 +459,7 @@ sub updateAutobuildFromFileWithCerts
         $certs .= qq|--rmcert "$rmcerts" |;
     }
 
-    my $cmd = "sudo baconfig update autobuild --name $name $certs $file 2>&1";
+    my $cmd = "sudo baconfig update autobuild --name $name $certs $file $ver 2>&1";
     my $result = `$cmd`;
     return $result;
 }
@@ -530,8 +546,8 @@ sub addHardwareFromFields
 sub addHardwareFromFieldsWithCerts
 {
     my $name  = shift;
-    my $certs = shift;
     my $fields = shift;
+    my $certs = shift;
     my $args = "";
 
     if ( defined $fields ) {
@@ -569,12 +585,23 @@ sub updateHardwareFromFieldsWithCerts
     my $fields   = shift;
     my $addcerts = shift;
     my $rmcerts  = shift;
+    my $ver      = shift;
+
     my $args     = "";
     my $certs    = "";
-
     while ( my ($key, $val) = each %{$fields} ) {
         $args .= qq|--${key} "$val" |;
     }
+
+    if ( $args ne "" ) {
+        # new data creates it's own version
+        $ver = "";
+    }
+
+    if ( $ver ne "" ) {
+        $ver = "--version $ver ";
+    }
+
 
     if ( defined $addcerts and $addcerts ne "") {
         $certs .= qq|--addcert "$addcerts" |;
@@ -584,7 +611,7 @@ sub updateHardwareFromFieldsWithCerts
         $certs .= qq|--rmcert "$rmcerts" |;
     }
     chomp( $name);
-    my $cmd = "sudo baconfig update hardware --name $name $certs $args 2>&1";
+    my $cmd = "sudo baconfig update hardware --name $name $certs $args $ver 2>&1";
     my $result = `$cmd`;
     return $result;
 }

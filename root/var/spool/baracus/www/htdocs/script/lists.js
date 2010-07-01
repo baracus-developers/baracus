@@ -4,16 +4,24 @@ var lName = "undefined";
 var cName = "undefined";
 var disColor = "white";
 var enaColor = "#6DB33F";
+var leftaddlist = new Array();
+var leftrmlist = new Array();
+var rightaddlist = new Array();
+var rightrmlist = new Array();
 	
 function initColsLRB( style) {
         listStyle = style;
         cName = getCenter().name;
         if( style == "r" || style == "b")
         {
+                getRightAddList().value = '';
+                getRightRmList().value = '';
                 rName = getRight().name;
         }
         if( style == "l" || style == "b")
         {
+                getLeftAddList().value = '';
+                getLeftRmList().value = '';
                 lName = getLeft().name;
         }
 }
@@ -109,15 +117,17 @@ function colEventHandler( name)
         if( name == cTOl().name)	{
             var value = getSelectedItem( getCenter());
             if( value != "") {					
-                    addItem( getLeft(), value);
-                    removeCurrent( getCenter());
-                    colSelectHandler( lName);
+                addItem( getLeft(), value);
+                pushLeftAddList( value );
+                removeCurrent( getCenter());
+                colSelectHandler( lName);
             }
         }
         else if ( name == lTOc().name) {
             var value = getSelectedItem( getLeft());
             if( value != "") {
                 addItem( getCenter(), value);
+                popLeftAddList( value );
                 removeCurrent( getLeft());
                 colSelectHandler( cName);
             }
@@ -128,6 +138,7 @@ function colEventHandler( name)
             var value = getSelectedItem( getCenter());
             if( value != "") {
                 addItem( getRight(), value);
+                pushRightAddList( value );
                 removeCurrent( getCenter());
                 colSelectHandler( rName);
             }
@@ -136,6 +147,7 @@ function colEventHandler( name)
             var value = getSelectedItem( getRight());
             if( value != "") {
                 addItem( getCenter(), value);
+                popRightAddList( value );
                 removeCurrent( getRight());
                 colSelectHandler( cName);
             }
@@ -249,5 +261,76 @@ function getRightList( delim)
 		r = r + getRight().options[i].value;
 	}
 	return r;
+}
+
+function getListToString( liststr, delim)
+{
+	var r = "";
+
+    if ( liststr == "la" ) {
+            r = leftaddlist.toString();
+    } else if  ( liststr == "lr" ) {
+            r = leftrmlist.toString();
+    } else if ( liststr == "ra" ) {
+            r = rightaddlist.toString();
+    } else if  ( liststr == "rr" ) {
+            r = rightrmlist.toString();
+    } else {
+            r = "";
+    }
+	return r;
+}
+
+function getIndexOfValueInList( value, list )
+{
+	for( var i = 0; i < list.length; i++)
+	{
+		if( list[i] == value ){
+                return i;
+		}
+	}
+    return -1;
+}
+
+function pushLeftAddList( value )
+{
+        var index = getIndexOfValueInList( value, leftrmlist  );
+
+        if ( index == -1 ) {
+                leftaddlist.push( value );
+        } else {
+                leftrmlist.splice(index, 1);
+        }
+}
+function popLeftAddList( value )
+{
+        var index = getIndexOfValueInList( value, leftaddlist  );
+
+        if ( index == -1 ) {
+                leftrmlist.push( value );
+        } else {
+                leftaddlist.splice(index, 1);
+        }
+}
+
+function pushRightAddList( value )
+{
+        var index = getIndexOfValueInList( value, rightrmlist  );
+
+        if ( index == -1 ) {
+                rightaddlist.push( value );
+        } else {
+                rightrmlist.splice(index, 1);
+        }
+}
+function popRightAddList( value )
+{
+        var index = getIndexOfValueInList( value, rightaddlist  );
+
+        if ( index == -1 ) {
+                rightrmlist.push( value );
+        } else {
+                rightaddlist.splice(index, 1);
+        }
 }
 

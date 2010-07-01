@@ -2844,33 +2844,45 @@ sub remove
         $db2use = $tftph;
     }
 
-    my $count=0;
-    foreach my $sql (@sql) {
-        $count++;
+    my $findcount = &find_helper( $opts, $dbh, $tftph, $type, $name );
 
-        # do this if version specified
-        if ( defined $version and $count == 1 ) {
-            $sql .= " AND version = $version";
+    unless ( defined $findcount ) {
+        # &find call failed
+        $opts->{LASTERROR} = "Failed in remove\n" . $opts->{LASTERROR};
+        return 1;
+    }
+
+    if ( $findcount ) {
+
+        my $count=0;
+        foreach my $sql (@sql) {
+            $count++;
+
+            # do this if version specified
+            if ( defined $version and $count == 1 ) {
+                $sql .= " AND version = $version";
+            }
+
+            # and skip all but main tbl (first sql in array) if version
+            # unless this is the last version in the table
+            if ( defined $version and $count != 1 and $findcount != 1 ) {
+                next;
+            }
+
+            my $sth;
+            unless ( $sth = $db2use->prepare( $sql ) ) {
+                $opts->{LASTERROR} = "Unable to prepare 'remove' statement\n" . $db2use->errstr;
+                return 1;
+            }
+
+            unless ( $sth->execute( $name ) ) {
+                $opts->{LASTERROR} = "Unable to execute 'remove' statement\n" . $sth->err;
+                return 1;
+            }
+
+            $sth->finish;
+            undef $sth;
         }
-
-        # and skip all but main tbl (first sql in array) if version
-        if ( defined $version and $count != 1 ) {
-            next;
-        }
-
-        my $sth;
-        unless ( $sth = $db2use->prepare( $sql ) ) {
-            $opts->{LASTERROR} = "Unable to prepare 'remove' statement\n" . $db2use->errstr;
-            return 1;
-        }
-
-        unless ( $sth->execute( $name ) ) {
-            $opts->{LASTERROR} = "Unable to execute 'remove' statement\n" . $sth->err;
-            return 1;
-        }
-
-        $sth->finish;
-        undef $sth;
     }
 
     return 0;

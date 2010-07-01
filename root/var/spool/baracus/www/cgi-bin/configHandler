@@ -102,34 +102,40 @@ sub getConfigHandlerContent
 			}
 		} elsif ( $submitau eq "Update") {
             $Name = param("$op") || "";
+            $ver = "" if ( $ver == -1 );
 
             if ( $Name eq "") {
 				$r = "Invalid Request\n\nPlease enter a name for this $op";
-            } else {
-                $r = BAdb::checkRedundant( $op, $Name, $Data);
             }
+            else
+            {
+                my $a = "";
 
-            if ( $r eq "" ) {
-
+                # have data or not
                 if ( $Data =~ m/^\s*$/ ) {
                     $tFile = "";
                 } else {
-                    $tFile = "/tmp/".BATools::generate_random_string().".ba";
-                    open( TFILE, "> $tFile");
-                    print TFILE $Data;
-                    close TFILE;
+                    # data redundant or not
+                    $a = BAdb::checkRedundant( $op, $Name, $Data);
+                    if ( $a ne "" ) {
+                        $tFile = "";
+                    } else {
+                        $tFile = "/tmp/".BATools::generate_random_string().".ba";
+                        open( TFILE, "> $tFile");
+                        print TFILE $Data;
+                        close TFILE;
+                    }
                 }
-
                 # we add the cert for distros this includes the distros
                 # for which this module is to be flagged mandatory
                 if ( $Cert or $RMCert or $Mand or $OptCert ) {
                     # this call will handle tFile eq ""
                     $r = BAdb::updateModuleFromFileWithCerts
-                        ( $Name, $tFile, $Cert, $RMCert, $Mand, $OptCert );
+                        ( $Name, $tFile, $Cert, $RMCert, $Mand, $OptCert, $ver );
                 } elsif ( $tFile ne "" ) {
                     $r = BAdb::updateModuleFromFile( $Name, $tFile);
                 } else {
-                    $r = "No data modifications nor certifications to update.";
+                    $r = $a . "\nNo data modifications nor certifications to update.";
                 }
             }
 
@@ -206,32 +212,39 @@ sub getConfigHandlerContent
             }
         } elsif ( $submitau eq "Update") {
             $Name = param("$op") || "";
+            $ver = "" if ( $ver == -1 );
 
             if ( $Name eq "") {
 				$r = "Invalid Request\n\nPlease enter a name for this $op";
-            } else {
-                $r = BAdb::checkRedundant( $op, $Name, $Data);
             }
+            else
+            {
+                my $a = "";
 
-            if ( $r eq "" ) {
-
+                # have data or not
                 if ( $Data =~ m/^\s*$/ ) {
                     $tFile = "";
                 } else {
-                    $tFile = "/tmp/".BATools::generate_random_string().".ba";
-                    open( TFILE, "> $tFile");
-                    print TFILE $Data;
-                    close TFILE;
+                    # data redundant or not
+                    $a = BAdb::checkRedundant( $op, $Name, $Data);
+                    if ( $a ne "" ) {
+                        $tFile = "";
+                    } else {
+                        $tFile = "/tmp/".BATools::generate_random_string().".ba";
+                        open( TFILE, "> $tFile");
+                        print TFILE $Data;
+                        close TFILE;
+                    }
                 }
 
                 if ( $Cert or $RMCert ) {
                     # this call will handle tFile eq ""
                     $r = BAdb::updateAutobuildFromFileWithCerts
-                        ( $Name, $tFile, $Cert, $RMCert);
+                        ( $Name, $tFile, $Cert, $RMCert, $ver);
                 } elsif ( $tFile ne "" ) {
                     $r = BAdb::updateAutobuildFromFile( $Name, $tFile);
                 } else {
-                    $r = "No data modifications nor certifications to update.";
+                    $r = $a . "\nNo data modifications nor certifications to update.";
                 }
             }
 
@@ -379,18 +392,10 @@ sub getConfigHandlerContent
 
             if ( $Name eq "") {
 				$r = "Invalid Request\n\nPlease enter a name for this $op";
-			} elsif ( $has_field eq 0 ) {
-                $r = "Invalid Request\n\nCannot create entry without data";
+			} elsif ( $Cert eq "" ) {
+                $r = BAdb::addHardwareFromFields( $Name, $fields );
             } else {
-                $r = BAdb::checkRedundant( $op, $Name, $fields);
-            }
-
-            if ( $r eq "" ) {
-                if ( $Cert eq "" ) {
-                    $r = BAdb::addHardwareFromFields( $Name, $fields );
-                } else {
-                    $r = BAdb::addHardwareFromFieldsWithCerts( $Name, $fields, $Cert );
-                }
+                $r = BAdb::addHardwareFromFieldsWithCerts( $Name, $fields, $Cert );
             }
 
             if ( $r eq "") {
@@ -400,6 +405,7 @@ sub getConfigHandlerContent
             }
         } elsif ( $submitau eq "Update") {
             $Name = param("$op") || "";
+            $ver = "" if ( $ver == -1 );
 
             my $has_field = 1;
             my $fields = {};
@@ -410,21 +416,20 @@ sub getConfigHandlerContent
             if ( $Name eq "") {
 				$r = "Invalid Request\n\nPlease enter a name for this $op";
             } else {
-                $r = BAdb::checkRedundant( $op, $Name, $fields);
-                if ( $r ne "" ) {
+                # always have fields: redundant or not
+                my $a = BAdb::checkRedundant( $op, $Name, $fields);
+                if ( $a ne "" ) {
                     $has_field = 0;
                     $fields = undef;
                 }
-            }
 
-            if ( $r eq "" ) {
                 if ( $Cert or $RMCert ) {
                     # this call will handle fields eq undef
-                    $r = BAdb::updateHardwareFromFieldsWithCerts( $Name, $fields, $Cert, $RMCert );
+                    $r = BAdb::updateHardwareFromFieldsWithCerts( $Name, $fields, $Cert, $RMCert, $ver );
                 } elsif ( $has_field ) {
                     $r = BAdb::updateHardwareFromFields( $Name, $fields );
                 } else {
-                    $r = "No data modifications nor certifications to update.";
+                    $r = $a . "\nNo data modifications nor certifications to update.";
                 }
             }
 

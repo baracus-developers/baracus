@@ -52,11 +52,11 @@ print <<HTML0
 	  #cols div{position:absolute;top:165;border:0px solid white;}
 	  #cols font{margin-left:5px;}
 	  #cols select{width:150;margin-left:5px;color:#6DB33F;}
-	  #colCert    {left:  0; width:164;}
+	  #colMand    {left:  0; width:164;}
 	  #colButtonL {left:166; width:50}
 	  #colDistro  {left:219; width:164;}
 	  #colButtonR {left:384; width:50}
-	  #colMand    {left:438; width:164;}
+	  #colCert    {left:438; width:164;}
 	  #colButtonL input{align:center;width:50px;color:white;font-weight:bold}
 	  #colButtonR input{align:center;width:50px;color:white;font-weight:bold}
 	</style>
@@ -66,25 +66,16 @@ print <<HTML0
         identify the three columns and relavent buttons.
       */
       function getCenter(){return document.form1.distro;}
-      function getLeft()  {return document.form1.optional;}
-      function getRight() {return document.form1.mandatory;}
+      function getLeft()  {return document.form1.mandatory;}
+      function getLeftAddList() {return document.form1.mancert;}
+      function getLeftRmList()  {return document.form1.optcert;}
       function cTOl()     {return document.form1.cTOl;}
-      function cTOr()     {return document.form1.cTOr;}
       function lTOc()     {return document.form1.lTOc;}
+      function getRight() {return document.form1.optional;}
+      function getRightAddList() {return document.form1.cert;}
+      function getRightRmList() {return document.form1.rmcert;}
+      function cTOr()     {return document.form1.cTOr;}
       function rTOc()     {return document.form1.rTOc;}
-      function localVerify(){
-        cert =  getLeftList(",");
-        mancert = getRightList(",");
-        if( mancert != "") {
-          if( cert != "")	{
-            cert = cert + ",";
-          }
-          cert = cert + mancert;
-        }
-        document.form1.mancert.value = mancert;
-        document.form1.cert.value = cert;
-        return verify( document.form1.nname, "You must enter a name for this module");
-      }
     </script>
   </head>
   <body
@@ -144,7 +135,11 @@ print <<HTML0
                  type='submit'
                  name='submitau'
                  value='$addupButtonValue'
-                 onClick='if ( "$addupButtonValue" == "Add" )
+                 onClick='getLeftAddList().value = getListToString("la", ",");
+                          getLeftRmList().value  = getListToString("lr", ",");
+                          getRightAddList().value = getListToString("ra", ",");
+                          getRightRmList().value  = getListToString("rr", ",");
+                          if ( "$addupButtonValue" == "Add" )
                           {
                             return verify( document.form1.nname, "You must enter a name for this module");
                           } else
@@ -153,14 +148,14 @@ print <<HTML0
                           }' />
 
           <div id='cols'>
-            <div id='colCert'>
-              <font class='basic'>Certified Optional</font>
-              $certs
+            <div id='colMand'>
+              <font class='basic'>Certified Mandatory</font>
+              $mancerts
             </div>
             <div id='colButtonL'>
               <br>
               <input type='button' disabled name='cTOl' value='<<' onClick='colEventHandler(this.name)'>
-              <input  type='button' disabled name='lTOc' value='>>' onClick='colEventHandler(this.name)'>
+              <input type='button' disabled name='lTOc' value='>>' onClick='colEventHandler(this.name)'>
             </div>
             <div id='colDistro'>
               <font class='basic'>Available Distros</font>
@@ -168,12 +163,12 @@ print <<HTML0
             </div>
             <div id='colButtonR'>
               <br>
-              <input  type='button' disabled name='cTOr' value='>>' onClick='colEventHandler(this.name)'>
-              <input  type='button' disabled name='rTOc' value='<<' onClick='colEventHandler(this.name)'>
+              <input type='button' disabled name='cTOr' value='>>' onClick='colEventHandler(this.name)'>
+              <input type='button' disabled name='rTOc' value='<<' onClick='colEventHandler(this.name)'>
             </div>
-            <div id='colMand'>
-              <font class='basic'>Certified Mandatory</font>
-              $mancerts
+            <div id='colCert'>
+              <font class='basic'>Certified Optional</font>
+              $certs
             </div>
           </div> <!-- cols -->
 
@@ -182,6 +177,11 @@ print <<HTML0
         </div>
 
         <input type='hidden' name='op' value='module'>
+
+        <input type='hidden' name='cert'   value=''>
+        <input type='hidden' name='rmcert' value=''>
+        <input type='hidden' name='mancert' value=''>
+        <input type='hidden' name='optcert' value=''>
 
       </div>
     </form>
