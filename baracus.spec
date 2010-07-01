@@ -2,7 +2,7 @@
 
 Summary:   Tool to create network install build source and manage host builds
 Name:      baracus
-Version:   1.4.5
+Version:   1.4.6
 Release:   0
 Group:     System/Services
 License:   GPLv2 or Artistic V2
@@ -133,8 +133,10 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 
 
 %changelog
-* Wed Jun 30 2010 dbahi@novell - 1.4.5
+* Wed Jun 30 2010 dbahi@novell - 1.4.6
 - more web updates and proxied s390 support
+- repo create and add
+- certs working for hardware and autobuild
 * Sun Jun 27 2010 dbahi@novell - 1.4.4
 - massive amounts of web updates for
   config storage, repo, power
