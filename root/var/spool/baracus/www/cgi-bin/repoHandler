@@ -3,6 +3,8 @@
 use lib '/var/spool/baracus/www/modules';
 use BATools qw(:standard);
 use CGI qw(:standard);
+use CGI::Carp qw ( fatalsToBrowser );
+use File::Basename;
 
 our $rURL = "repo";
 our $ref = "yes";
@@ -16,6 +18,7 @@ print "Content-type: text/html\n\n";
 
 my $op   = param('op') || "";
 my $repo = param('repo') || "";
+my $rpm  = param("rpm") || "";
 
 my $content = "";
 
@@ -28,6 +31,24 @@ if ( $op eq "remove" ) {
     } else {
         $content = $content.RemoveRepoContent();
         $header = "Remove Repo";
+    }
+}
+elsif ( $op eq "Create" ) {
+    if (( $repo eq "" ) || ( $rpm eq "" )) {
+        $content = $content."Missing required data";
+        $header = $headError;
+    } else {
+        $content = $content.CreateRepoContent();
+        $header = "Create Repo";
+    }
+}
+elsif ( $op eq "Add" ) {
+    if (( $repo eq "" ) || ( $rpm eq "" )) {
+        $content = $content."Missing required data";
+        $header = $headError;
+    } else {
+        $content = $content.AddRepoContent();
+        $header = "Adding to Repo";
     }
 }
 else {
@@ -68,9 +89,69 @@ HTML0
 
 sub RemoveRepoContent()
 {
-        my $cmd = "sudo barepo remove $repo ";
+    my $cmd = "sudo barepo remove $repo ";
 
-        my $r = $cmd . "\n";
-        $r .= `$cmd`;
-        return $r;
+    my $r = $cmd . "\n";
+    $r .= `$cmd`;
+    return $r;
+}
+
+sub CreateRepoContent()
+{
+    my $rpmfile = SaveRepoRpm();
+    my $cmd = "sudo barepo create $repo /tmp/$rpmfile ";
+
+    my $r = $cmd . "\n";
+    $r .= `$cmd`;
+    return $r;
+}
+
+sub AddRepoContent()
+{
+    my $rpmfile = SaveRepoRpm();
+    $rURL = "repoDetail?repo=$repo";
+    my $cmd = "sudo barepo add $repo /tmp/$rpmfile ";
+
+    my $r = $cmd . "\n";
+    $r .= `$cmd`;
+    return $r;
+}
+
+sub SaveRepoRpm()
+{
+    $CGI::POST_MAX = 1024 * 50000;  
+    my $safe_filename_characters = "a-zA-Z0-9_.-";  
+    my $upload_dir = "/tmp";  
+ 
+    my $query = new CGI;  
+ 
+    if ( !$rpm ) { 
+        print $query->header ( );  
+        print "There was a problem uploading your photo (try a smaller file).";  
+        exit;  
+    }  
+ 
+    my ( $name, $path, $extension ) = fileparse ( $rpm, '\..*' );  
+    $rpm = $name . $extension;  
+    $rpm =~ tr/ /_/;  
+    $rpm =~ s/[^$safe_filename_characters]//g;  
+ 
+    if ( $rpm =~ /^([$safe_filename_characters]+)$/ ) {
+        $rpm = $1;  
+    } else { 
+        die "Filename contains invalid characters";  
+    }  
+ 
+    my $upload_filehandle = $query->upload("photo");  
+ 
+    open ( UPLOADFILE, ">/tmp/$rpm" ) or die "$!";  
+    binmode UPLOADFILE;  
+ 
+    while ( <$upload_filehandle> ) {
+        print UPLOADFILE;  
+    }  
+
+    close UPLOADFILE;
+
+    return $rpm;
 }

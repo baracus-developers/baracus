@@ -30,14 +30,13 @@ print <<HTML0
 
 		<form name='form1' method="POST" action='repoHandler' enctype='multipart/form-data'>
 		<div id='config'>
-		<div id='histbar' style="color:black"><a href=\"http://$baVar{serverip}/baracus/ba/repo\">Repository<\/a> \ >  Add</div>
+		<div id='histbar' style="color:black"><a href=\"http://$baVar{serverip}/baracus/ba/repo\">Repository<\/a> \>  Add \> $repo</div>
 		<div id='main'>
-                <font class='name'>Repo Name</font>
-		<input type='text' class='createname' name='repo' value='$repo'>
                 <font class='reporpm'>RPM</font>
                 <input type='file' class='reporpm' name='rpm' size='29'>
-                <input type="hidden" name="op" value="Create">
-                <input type='submit' class='reposubmit' name='submit' value='create'>
+                <input type="hidden" name="repo" value="$repo">
+                <input type="hidden" name="op" value="Add">
+                <input type='submit' class='reposubmit' name='submit' value='add'>
 		<br><br>
                 </div>
 		</div>

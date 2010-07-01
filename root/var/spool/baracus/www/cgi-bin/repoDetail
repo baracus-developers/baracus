@@ -41,6 +41,7 @@ print <<HTML0
                 <div id='repolist'>
 		$items
                 </div>
+                <div id='addlink'><a href=\"http://$baVar{serverip}/baracus/ba/repoAdd?op=Add&&repo=$repo\">Add RPM<\/a></div>
 		</div>
                 </div>
 		</form>
@@ -63,7 +64,7 @@ sub getItems
 
 	foreach( @items)
 	{
-            $r .= "<tr>\n<td width=\"580\">$_<\/td>\n<td width=\"20\"><a href=\"$linkR$_\" style=\"text-decoration : none\">Remove<\/a><\/td>\n<\/tr> \n";
+            $r .= "<tr>\n<td width=\"530\">$_<\/td>\n<td width=\"20\"><a href=\"$linkR$_\" style=\"text-decoration : none\">Remove<\/a><\/td>\n<\/tr> \n";
 	}
 	
 	$r .= "</table>\n";

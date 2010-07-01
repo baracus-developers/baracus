@@ -77,15 +77,6 @@ body
 	background-color:white;
 	color: #6DB33F;
 }
-#config input.submit
-{
-	float:right;
-	margin-top:305;
-	margin-right:10px;
-	padding-right:10;
-	padding-right:10;
-	width: 100px;
-}
 #config img.sweep
 {
 	position:absolute;
@@ -111,16 +102,23 @@ body
 	font-size:12pt;
 	color:white;
 }
+#config #addlink
+{
+        position:absolute;
+        top:10;
+        left:530;
+        font-size:12pt;
+}
 #config font.name
 {
 	position:absolute;
 	top:15;
 	left:9;
 }
-#config font.repoversion
+#config font.reporpm
 {
         position:absolute;
-        top:35;
+        top:40;
         left:9;
 }
 #config font.version
@@ -136,7 +134,29 @@ body
         left:90;
         width:215;
         height:20;
-        border:none;
+        border:1;
+        background-color:white;
+        color: #0B610B;
+}
+#config input.reporpm
+{
+        position:absolute;
+        top:35;
+        left:90;
+        width:215;
+        height:20;
+        border:1;
+        background-color:white;
+        color: #0B610B;
+}
+#config input.reposubmit
+{
+        position:absolute;
+        top:60;
+        left:10;
+        width:90;
+        height:20;
+        border:1;
         background-color:white;
         color: #0B610B;
 }
