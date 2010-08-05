@@ -136,6 +136,10 @@ sub mymain
             return 1;
         }
         $bmc = &get_bmc($deviceid, $dbh);
+        unless ($bmc) {
+            print "invalid or non-existant controler type for $deviceid\n";
+            return 1;
+        }
         $cmds{ $command }( $bmc );
     }
 }
