@@ -493,12 +493,12 @@ sub load_baracusconfig
     my $aref = shift;
     my ( $key, $value );
 
-    if (defined %baVar) {
+    if ( %baVar) {
         while ( ( $key, $value ) = each %baVar )  {
             $aref->{$key} = $value;
         }
     }
-    if (defined %baDir) {
+    if ( %baDir) {
         while ( ( $key, $value ) = each %baDir )  {
             $aref->{$key} = $value;
         }
@@ -534,7 +534,15 @@ sub get_autobuild_expanded
 
     while ( my ($key, $value) = each %$aref ) {
         $key =~ tr/a-z/A-Z/;
-        $key = "__$key\__";
+        $key = "__${key}__";
+        $abfile =~ s/$key/$value/g;
+    }
+
+    # we do the search and replace again
+    # to expand vars within __MODULE__ or other vars
+    while ( my ($key, $value) = each %$aref ) {
+        $key =~ tr/a-z/A-Z/;
+        $key = "__${key}__";
         $abfile =~ s/$key/$value/g;
     }
 

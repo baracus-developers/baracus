@@ -185,7 +185,7 @@ sub list
         $pattern = "%";
     }
 
-    $type = lc $type;
+    $type = lc $type if defined $type;
     my $tlist = &check_type( $opts, $type );
 
     # recursive call to list for all types - one shot whammy
@@ -1360,7 +1360,7 @@ sub update_module
         (
          'name=s'         => \$entry{'moduleid'},
          'description=s'  => \$entry{'description'},
-         #         'interpreter=s'  => \$entry{'interpreter'},
+#         'interpreter=s'  => \$entry{'interpreter'},
          'file=s'         => \$file,
          'enable!'        => \$entry{'status'},
          'disable'        => sub { $entry{'status'} = 0 },
@@ -2914,7 +2914,7 @@ sub check_type
     my $type = shift;
     my $type_list = "hardware, module, profile, autobuild, tftp";
 
-    return $type_list if ( $type eq "all" );
+    return $type_list if ( defined $type and $type eq "all" );
 
     unless ( defined $type ) {
         print "requires <type> (e.g. $type_list)\n";

@@ -491,7 +491,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             ##
             my $args = "";
 
-            $args = "$actref->{raccess} ";
+            $args .= "$actref->{raccess} " if (defined $actref->{raccess});
 
 # we need to get hardware or at least bootargs in here somehow
 # to get around network level hangs with this:
