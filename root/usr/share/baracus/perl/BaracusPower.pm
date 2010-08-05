@@ -41,6 +41,7 @@ my %powermod = (
            'apc'         => 'fence_apc',
            'wti'         => 'fence_ati',
            'egenera'     => 'fence_egenera',
+           'mainframe'   => 'bazvmpower',
           );
 
 my %cmds = (
@@ -51,10 +52,11 @@ my %cmds = (
            'bladecenter' => \&bladecenter,
            'ilo'         => \&ilo,
            'drac'        => \&fence_drac,
-           'vmware'      => \&fence_vmware,
+           'vmware'      => \&vmware,
            'apc'         => \&fence_apc,
            'wti'         => \&fence_ati,
            'egenera'     => \&fence_egenera,
+           'bazvmpower'  => \&bazvmpower,
           );
 
 sub add() {
@@ -313,6 +315,50 @@ sub ilo() {
 
     return 0;
 
+}
+
+sub vmware() {
+
+    my $bmcref = shift;
+    my $operation = shift;
+
+    my %action = (
+                  'on'     => 'on',
+                  'off'    => 'off',
+                  'cycle'  => 'reboot',
+                  'status' => 'status',
+                  );
+
+
+    my $command = "$powermod{ $bmcref->{'ctype'} } -a $bmcref->{'bmcaddr'} -l $bmcref->{'login'} -p $bmcref->{'passwd'} -o $action{ $operation }";
+    unless ($operation eq "status") { $command .= " >& /dev/null"; }
+    my $result = `$command`;
+
+    if ($action{ $operation } eq "status") {
+        $result = (split / /, $result)[6];
+        $result = (split /\n/, $result)[0];
+        print "Power Status: $result\n";
+    }
+
+    return 0;
+
+}
+
+sub bazvmpower() {
+
+    my $bmcref = shift;
+    my $operation = shift;
+
+    my $command = "curl -sSH 'Accept: text/x-yaml' http://$bmcref->{'bmcaddr'}:5000/power/$operation?node=$bmcref->{'node'}";
+    unless ($operation eq "status") { $command .= " >& /dev/null"; }
+    my $result = `$command`;
+
+    if ($operation eq "status") {
+        $result =~  m/status: (.*)/g ;
+        print "Power Status: $1\n";
+    }
+
+    return 0;
 }
 
 ###########################################################################
