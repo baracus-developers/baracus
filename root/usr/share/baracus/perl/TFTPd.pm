@@ -1,40 +1,10 @@
-package SqlTFTPd;
-
-###########################################################################
-#
-# Baracus build and boot management framework
-#
-# Derived work based on perl package Net::TFTPd
-#
-#    by Luigino Masarati, <lmasarati at hotmail dot com>
-#    Modified by D. Bahi <dbahi at novell dot com>
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the Artistic License 2.0, as published
-# by the Perl Foundation, or the GNU General Public License 2.0
-# as published by the Free Software Foundation; your choice.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  Both the Artistic
-# Licesnse and the GPL License referenced have clauses with more details.
-#
-# You should have received a copy of the licenses mentioned
-# along with this program; if not, write to:
-#
-# FSF, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110, USA.
-# The Perl Foundation, 6832 Mulderstraat, Grand Ledge, MI 48837, USA.
-#
-###########################################################################
+package Net::TFTPd;
 
 use 5.006;
 use Carp;
 use strict;
 use warnings;
 use IO::Socket;
-
-use lib "/usr/share/baracus/perl";
-use SqlFS;
 
 require Exporter;
 
@@ -105,7 +75,7 @@ our @ISA = qw(Exporter);
 # names by default without a very good reason. Use EXPORT_OK instead.
 # Do not simply export all your public functions/methods/constants.
 
-# This allows declaration	use SqlTFTPd ':all';
+# This allows declaration	use Net::TFTPd ':all';
 # If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
 # will save memory.
 our %EXPORT_TAGS = (
@@ -116,80 +86,76 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 
 our @EXPORT = qw( );
 
-our $VERSION = '0.01';
+our $VERSION = '0.04';
 
 our $LASTERROR;
 
-my $debug=0;
+my $debug;
 
 #
-# Usage: $tftpdOBJ = SqlTFTPd->new( ['SqlFSHandle' => 'SqlFS object'] );
+# Usage: $tftpdOBJ = Net::TFTPd->new( ['RootDir' => 'path/to/files' | 'FileName' => 'path/to/file'] );
 # return the tftpdOBJ object if success or undef if error
 #
 sub new
 {
-	# create the future SqlTFTPd object
+	# create the future TFTPd object
 	my $self = shift;
 	my $class = ref($self) || $self;
 
 	# read parameters
 	my %cfg = @_;
 
-	return bless {
-	    'LocalPort'   => TFTP_DEFAULT_PORT,
-	    'Timeout'     => 10,
-	    'ACKtimeout'  => 4,
-	    'ACKretries'  => 4,
-	    'Readable'    => 1,
-	    'Writable'    => 1,
-	    'CallBack'    => undef,
-	    'BlkSize'     => TFTP_DEFAULT_BLKSIZE,
-	    'Debug'       => 0,
-	    %cfg,         # merge user parameters
-	    '_UDPSERVER_' => {},
-	    'SqlFSHandle' => {},
-	}, $class;
-}
+	# setting defaults
+	$cfg{'FileName'} or $cfg{'RootDir'} or croak "Usage: \$tftpdOBJ = Net::TFTPd->new(['RootDir' => 'path/to/files' | 'FileName' => 'path/to/file'] [, [ LocalPort => portnum ] [, ...]] );";
 
-# return 1 if success, undef if error
-#
-sub open
-{
-    my $self  = shift;
+	if($cfg{'RootDir'} and not -d($cfg{'RootDir'}) )
+	{
+		$LASTERROR = sprintf 'RootDir \'%s\' not found or is not a valid directory name\n', $cfg{'RootDir'};
+		return(undef);
+	}
 
-    my %params = (
-	'Proto' => 'udp',
-	'LocalPort' => $self->{'LocalPort'}
+	if($cfg{'FileName'} and not -e($cfg{'FileName'}) )
+	{
+		$LASTERROR = sprintf 'FileName \'%s\' not found or is not a valid filename\n', $cfg{'FileName'};
+		return(undef);
+	}
+
+	my %params = (
+		'Proto' => 'udp',
+		'LocalPort' => $cfg{'LocalPort'} || TFTP_DEFAULT_PORT,
 	);
 
-    # bind only to specified address
-    if($self->{'LocalAddr'})
-    {
-	$params{'LocalAddr'} = $self->{'LocalAddr'};
-    }
+	# bind only to specified address
+	if($cfg{'LocalAddr'})
+	{
+		$params{'LocalAddr'} = $cfg{'LocalAddr'};
+	}
 
-    if(my $udpserver = IO::Socket::INET->new(%params))
-    {
+	if(my $udpserver = IO::Socket::INET->new(%params))
+	{
 #removed for using this module with IO v. 1.2301 under SUSE 10.1, O.Z. 15.08.2007
-#	$udpserver->setsockopt(SOL_SOCKET, SO_RCVBUF, 0);
-#	$udpserver->setsockopt(SOL_SOCKET, SO_SNDBUF, 0);
+#		$udpserver->setsockopt(SOL_SOCKET, SO_RCVBUF, 0);
+#		$udpserver->setsockopt(SOL_SOCKET, SO_SNDBUF, 0);
 
-	$self->{'_UDPSERVER_'} = $udpserver;
-    }
-    else
-    {
-	$LASTERROR = "Error opening socket for listener: $@\n";
-	return(undef);
-    }
-    return 1;
-}
-
-sub setSqlFSHandle
-{
-    my $self = shift;
-    my $sqlfsObj = shift;
-
-    $self->{'SqlFSHandle'} = $sqlfsObj;
+		return bless {
+			'LocalPort'   => TFTP_DEFAULT_PORT,
+			'Timeout'     => 10,
+			'ACKtimeout'  => 4,
+			'ACKretries'  => 4,
+			'Readable'    => 1,
+			'Writable'    => 0,
+			'CallBack'    => undef,
+			'BlkSize'     => TFTP_DEFAULT_BLKSIZE,
+			'Debug'       => 0,
+			%cfg,         # merge user parameters
+			'_UDPSERVER_' => $udpserver
+		}, $class;
+	}
+	else
+	{
+		$LASTERROR = "Error opening socket for listener: $@\n";
+		return(undef);
+	}
 }
 
 #
@@ -199,13 +165,11 @@ sub setSqlFSHandle
 sub waitRQ
 {
 	# the tftpd object
-    # my $tftpd = shift;
+#	my $tftpd = shift;
 
 	my $self  = shift;
 	my $class = ref($self) || $self;
-    # return bless {}, $class;
-
-	$LASTERROR = '';
+# return bless {}, $class;
 
 	# clone the object
 	my $request;
@@ -251,6 +215,8 @@ sub waitRQ
 			$request->{'_REQUEST_'}{'BlkSize'} = TFTP_DEFAULT_BLKSIZE;
 			$request->{'_REQUEST_'}{'LASTACK'} = 0;
 			$request->{'_REQUEST_'}{'PREVACK'} = -1;
+			# counter for transferred bytes
+			$request->{'_REQUEST_'}{'TotalBytes'} = 0;
 
 			if(scalar(@datain) >= 2)
 			{
@@ -268,6 +234,7 @@ sub waitRQ
 	}
 	else
 	{
+		$LASTERROR = "Timed out waiting for RRQ/WRQ";
 		return(0);
 	}
 }
@@ -280,14 +247,11 @@ sub processRQ
 {
 	# the request object
 	my $self = shift;
-    my $pxedisabledips  = shift;
-    my $pxedeliveredips = shift;
-
-	$LASTERROR = '';
 
 	if(defined($self->newSOCK()))
 	{
-		if($self->{'_REQUEST_'}{'Mode'} ne 'OCTET')
+		# modified for supporting NETASCII transfers on 25/05/2009
+		if(($self->{'_REQUEST_'}{'Mode'} ne 'OCTET') && ($self->{'_REQUEST_'}{'Mode'} ne 'NETASCII'))
 		{
 			#request is not OCTET
 			$LASTERROR = sprintf "%s transfer mode is not supported\n", $self->{'_REQUEST_'}{'Mode'};
@@ -307,13 +271,12 @@ sub processRQ
 				if($self->{'_REQUEST_'}{'FileName'} =~ /\.\.[\\\/]/)
 				{
 					# requested file contains '..\' or '../'
-					$LASTERROR = sprintf "Access to '%s' is not permitted to %s\n", $self->{'_REQUEST_'}{'FileName'}, $self->{'_REQUEST_'}{'PeerAddr'};
+					$LASTERROR = sprintf 'Access to \'%s\' is not permitted to %s', $self->{'_REQUEST_'}{'FileName'}, $self->{'_REQUEST_'}{'PeerAddr'};
 					$self->sendERR(2);
 					return(undef);
 				}
 
-				if(defined($self->checkFILE( $pxedisabledips,
-                                             $pxedeliveredips )))
+				if(defined($self->checkFILE()))
 				{
 					# file is present
 					if(defined($self->negotiateOPTS()))
@@ -342,15 +305,15 @@ sub processRQ
 					else
 					{
 						# error negotiating options
-#						$LASTERROR = "TFTP error 8: Option negotiation\n";
-#						$self->sendERR(8);
+						$LASTERROR = "TFTP error 8: Option negotiation\n";
+						$self->sendERR(8);
 						return(undef);
 					}
 				}
 				else
 				{
 					# file not found
-					$LASTERROR .= sprintf "File '%s' not found\n", $self->{'_REQUEST_'}{'FileName'};
+					$LASTERROR = sprintf 'File \'%s\' not found', $self->{'_REQUEST_'}{'FileName'};
 					$self->sendERR(1);
 					return(undef);
 				}
@@ -358,7 +321,7 @@ sub processRQ
 			else
 			{
 				# if server is not readable
-				$LASTERROR = "TFTP Error: Access violation\n";
+				$LASTERROR = "TFTP Error: Access violation";
 				$self->sendERR(2);
 				return(undef);
 			}
@@ -370,18 +333,16 @@ sub processRQ
 			#################
 			if($self->{'Writable'})
 			{
-                use File::Basename;
 				# write is permitted
 				if($self->{'_REQUEST_'}{'FileName'} =~ /\.\.[\\\/]/)
 				{
 					# requested file contains '..\' or '../'
-					$LASTERROR = sprintf "Access to '%s' is not permitted to %s\n", $self->{'_REQUEST_'}{'FileName'}, $self->{'_REQUEST_'}{'PeerAddr'};
+					$LASTERROR = sprintf 'Access to \'%s\' is not permitted to %s', $self->{'_REQUEST_'}{'FileName'}, $self->{'_REQUEST_'}{'PeerAddr'};
 					$self->sendERR(2);
 					return(undef);
 				}
-                $self->{'_REQUEST_'}{'WRQFileName'} = basename ($self->{'_REQUEST_'}{'FileName'});
-				if(!defined($self->checkFILE( $pxedisabledips,
-                                              $pxedeliveredips )))
+
+				if(!defined($self->checkFILE()))
 				{
 					# RFC 2347 options negotiated
 					if(defined($self->openFILE()))
@@ -404,8 +365,8 @@ sub processRQ
 						else
 						{
 							# error negotiating options
-#							$LASTERROR = "TFTP error 8: Option negotiation\n";
-#							$self->sendERR(8);
+							$LASTERROR = "TFTP error 8: Option negotiation\n";
+							$self->sendERR(8);
 							return(undef);
 						}
 					}
@@ -419,7 +380,7 @@ sub processRQ
 				else
 				{
 					# file not found
-					$LASTERROR = sprintf "File '%s' already exists\n", $self->{'_REQUEST_'}{'FileName'};
+					$LASTERROR = sprintf 'File \'%s\' already exists', $self->{'_REQUEST_'}{'FileName'};
 					$self->sendERR(6);
 					return(undef);
 				}
@@ -427,7 +388,7 @@ sub processRQ
 			else
 			{
 				# if server is not writable
-				$LASTERROR = "TFTP Error: Access violation\n";
+				$LASTERROR = "TFTP Error: Access violation";
 				$self->sendERR(2);
 				return(undef);
 			}
@@ -437,7 +398,7 @@ sub processRQ
 			#################
 			# other opcodes #
 			#################
-			$LASTERROR = sprintf "Opcode %d not supported as request\n", $self->{'_REQUEST_'}{'OPCODE'};
+			$LASTERROR = sprintf "Opcode %d not supported as request", $self->{'_REQUEST_'}{'OPCODE'};
 			$self->sendERR(4);
 			return(undef);
 		}
@@ -448,6 +409,77 @@ sub processRQ
 	}
 }
 
+#
+# Usage: $requestOBJ->getTotalBytes();
+# returns the number of bytes transferred by the request
+#
+sub getTotalBytes
+{
+	# the request object
+	my $self = shift;
+	
+	return $self->{'_REQUEST_'}{'TotalBytes'};
+}
+
+#
+# Usage: $requestOBJ->getFileName();
+# returns the requested file name
+#
+sub getFileName
+{
+	# the request object
+	my $self = shift;
+	
+	return $self->{'_REQUEST_'}{'FileName'};
+}
+
+#
+# Usage: $requestOBJ->getMode();
+# returns the transfer mode for the request
+#
+sub getMode
+{
+	# the request object
+	my $self = shift;
+	
+	return $self->{'_REQUEST_'}{'Mode'};
+}
+
+#
+# Usage: $requestOBJ->getPeerAddr();
+# returns the address of the requesting client
+#
+sub getPeerAddr
+{
+	# the request object
+	my $self = shift;
+	
+	return $self->{'_REQUEST_'}{'PeerAddr'};
+}
+
+#
+# Usage: $requestOBJ->getPeerPort();
+# returns the port of the requesting client
+#
+sub getPeerPort
+{
+	# the request object
+	my $self = shift;
+	
+	return $self->{'_REQUEST_'}{'PeerPort'};
+}
+
+#
+# Usage: $requestOBJ->getBlkSize();
+# returns the block size used for the transfer
+#
+sub getBlkSize
+{
+	# the request object
+	my $self = shift;
+	
+	return $self->{'_REQUEST_'}{'BlkSize'};
+}
 
 #
 # Usage: $requestOBJ->newSOCK();
@@ -457,8 +489,6 @@ sub newSOCK
 {
 	# the request object
 	my $self = shift;
-
-	$LASTERROR = '';
 
 	# set parameters for the new socket
 	my %params = (
@@ -499,8 +529,6 @@ sub negotiateOPTS
 {
 	# the request object
 	my $self = shift;
-
-	$LASTERROR = '';
 
 	if($self->{'_REQUEST_'}{'RFC2347'})
 	{
@@ -596,20 +624,20 @@ sub readFILE
 	my $self = shift;
 	my $datablk = shift;
 
-	$LASTERROR = '';
-
 	if($self->{'_REQUEST_'}{'PREVACK'} < $self->{'_REQUEST_'}{'LASTACK'})
 	{
 		# if requested block is next block, read next block and return bytes read
 		my $fh = $self->{'_REQUEST_'}{'_FH_'};
-		my $bytes = read($fh, $$datablk, $self->{'BlkSize'});
+		# modified for supporting NETASCII transfers on 25/05/2009
+		# my $bytes = read($fh, $$datablk, $self->{'BlkSize'});
+		my $bytes = sysread($fh, $$datablk, $self->{'BlkSize'});
 		if(defined($bytes))
 		{
 			return($bytes);
 		}
 		else
 		{
-			$LASTERROR = sprintf "Error $! reading file '%s'\n", $self->{'_REQUEST_'}{'FileName'};
+			$LASTERROR = sprintf "Error $! reading file '%s'", $self->{'_REQUEST_'}{'FileName'};
 			return(undef);
 		}
 	}
@@ -630,9 +658,7 @@ sub writeFILE
 	my $self = shift;
 	my $datablk = shift;
 
-	$LASTERROR = '';
-
-	if ($self->{'_REQUEST_'}{'PREVBLK'} > $self->{'_REQUEST_'}{'LASTBLK'})
+	if($self->{'_REQUEST_'}{'PREVBLK'} > $self->{'_REQUEST_'}{'LASTBLK'})
 	{
 		# if last block is < than previous block, return length of last block
 		return(length($$datablk));
@@ -646,7 +672,7 @@ sub writeFILE
 	}
 	else
 	{
-		$LASTERROR = sprintf "TFTP Error DATA block %d is out of sequence, expected block was %d\n", $self->{'_REQUEST_'}{'LASTBLK'}, $self->{'_REQUEST_'}{'PREVBLK'} + 1;
+		$LASTERROR = sprintf "TFTP Error DATA block %d is out of sequence, expected block was %d", $self->{'_REQUEST_'}{'LASTBLK'}, $self->{'_REQUEST_'}{'PREVBLK'} + 1;
 		$self->sendERR(5);
 		return(undef);
 	}
@@ -669,6 +695,8 @@ sub sendFILE
 			if(defined($self->readFILE(\$datablk)))
 			{
 				# read from file successful
+				# increment the transferred bytes counter
+				$self->{'_REQUEST_'}{'TotalBytes'} += length($datablk);
 				if($self->sendDATA(\$datablk))
 				{
 					# send to socket successful
@@ -706,8 +734,6 @@ sub recvFILE
 {
 	my $self = shift;
 
-	$LASTERROR = '';
-
 	$self->{'_REQUEST_'}{'LASTBLK'} = 0;
 	$self->{'_REQUEST_'}{'PREVBLK'} = 0;
 
@@ -725,13 +751,10 @@ sub recvFILE
 				if(defined($udpserver->send(pack("nn", TFTP_OPCODE_ACK, $self->{'_REQUEST_'}{'LASTBLK'}))))
 				{
 					# sent ACK
+					# increment the transferred bytes counter
+					$self->{'_REQUEST_'}{'TotalBytes'} += length($datablk);
 					if(length($datablk) < $self->{'BlkSize'})
 					{
-                        # done with last block close file and cp to sqlfs
-                        $self->closeFILE();
-                        $self->{'SqlFSHandle'}->store( $self->{'_REQUEST_'}{'WRQFileName'});
-                        unlink $self->{'_REQUEST_'}{'WRQFileName'};
-                        rmdir $self->{'_REQUEST_'}{'WRQDirName'};
 						return(1);
 					}
 					else
@@ -769,8 +792,6 @@ sub recvDATA
 	my $self = shift;
 	my $datablk = shift;
 
-	$LASTERROR = '';
-
 	my ($datagram, $opcode, $datain);
 
 	my $udpserver = $self->{'_UDPSERVER_'};
@@ -803,7 +824,7 @@ sub recvDATA
 			elsif($opcode eq TFTP_OPCODE_ERROR)
 			{
 				# message is ERR
-				$LASTERROR = sprintf "TFTP error message: %s\n", $datain;
+				$LASTERROR = sprintf "TFTP error message: %s", $datain;
 				return(undef);
 			}
 			else
@@ -836,8 +857,6 @@ sub sendDATA
 {
 	my $self = shift;
 	my $datablk = shift;
-
-	$LASTERROR = '';
 
 	my $udpserver = $self->{'_UDPSERVER_'};
 	my $retry = 0;
@@ -873,7 +892,7 @@ sub sendDATA
 					elsif($opcode eq TFTP_OPCODE_ERROR)
 					{
 						# message is ERR
-						$LASTERROR = sprintf "TFTP error message: %s\n", $datain;
+						$LASTERROR = sprintf "TFTP error message: %s", $datain;
 						return(undef);
 					}
 					else
@@ -915,26 +934,30 @@ sub openFILE
 	# the request object
 	my $self = shift;
 
-	$LASTERROR = '';
-
 	if($self->{'_REQUEST_'}{'OPCODE'} eq TFTP_OPCODE_RRQ)
 	{
 		########################################
 		# opcode is RRQ, open file for reading #
 		########################################
-
-		if(my $rfh = $self->{'SqlFSHandle'}->readFH( $self->{'_REQUEST_'}{'FileName'}))
+		if(open(RFH, "<".$self->{'_REQUEST_'}{'FileName'}))
 		{
-			$self->{'_REQUEST_'}{'LASTBLK'} = 1 + int($self->{'FileSize'} / $self->{'BlkSize'});
+			# if OCTET mode, set FileHandle to binary mode...
+			if($self->{'_REQUEST_'}{'Mode'} eq 'OCTET')
+			{
+				binmode(RFH);
+			}
+
+			my $size = -s($self->{'_REQUEST_'}{'FileName'});
+			$self->{'_REQUEST_'}{'LASTBLK'} = 1 + int($size / $self->{'BlkSize'});
 
 			# save the filehandle reference...
-			$self->{'_REQUEST_'}{'_FH_'} = $rfh;
+			$self->{'_REQUEST_'}{'_FH_'} = *RFH;
 
 			return(1);
 		}
 		else
 		{
-			$LASTERROR = sprintf "Error opening file '%s' for reading\n", $self->{'_REQUEST_'}{'FileName'};
+			$LASTERROR = sprintf "Error opening file \'%s\' for reading\n", $self->{'_REQUEST_'}{'FileName'};
 			return(undef);
 		}
 	}
@@ -943,25 +966,22 @@ sub openFILE
 		########################################
 		# opcode is WRQ, open file for writing #
 		########################################
-        use File::Temp qw/ tempdir /;
-        my $tdir = tempdir ("baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
-        mkdir $tdir, 0755 || die ("Cannot create directory\n");
-        $self->{'_REQUEST_'}{'WRQDirName'} = $tdir;
-        $self->{'_REQUEST_'}{'WRQFileName'} = "$tdir/$self->{'_REQUEST_'}{'WRQFileName'}";
-
-        my $wfh = $self->{'_REQUEST_'}{'_FH_'};
-		if(CORE::open ($wfh, ">", $self->{'_REQUEST_'}{'WRQFileName'}))
+		if(open(WFH, ">".$self->{'_REQUEST_'}{'FileName'}))
 		{
-			# only OCTET mode, supported set FileHandle to binary mode...
-            binmode($wfh);
+			# if OCTET mode, set FileHandle to binary mode...
+			if($self->{'_REQUEST_'}{'Mode'} eq 'OCTET')
+			{
+				binmode(WFH);
+			}
 
-            $self->{'_REQUEST_'}{'_FH_'} = $wfh;
+			# save the filehandle reference...
+			$self->{'_REQUEST_'}{'_FH_'} = *WFH;
 
 			return(1);
 		}
 		else
 		{
-			$LASTERROR = sprintf "Error opening file '%s' for writing\n", $self->{'_REQUEST_'}{'FileName'};
+			$LASTERROR = sprintf "Error opening file \'%s\' for writing\n", $self->{'_REQUEST_'}{'FileName'};
 			return(undef);
 		}
 	}
@@ -983,13 +1003,10 @@ sub closeFILE
 {
 	my $self = shift;
 
-	$LASTERROR = '';
-
 	if($self->{'_REQUEST_'}{'_FH_'})
 	{
-		if($self->{'SqlFSHandle'}->closeFH( $self->{'_REQUEST_'}{'_FH_'} ) )
+		if(close($self->{'_REQUEST_'}{'_FH_'}))
 		{
-            undef $self->{'_REQUEST_'}{'_FH_'};
 			return(1);
 		}
 		else
@@ -1006,75 +1023,48 @@ sub closeFILE
 
 #
 # Usage: $requestOBJ->checkFILE()
-# returns FileSize if file is found, undef if file is not found
+# returns 1 if file is found, undef if file is not found
 #
 sub checkFILE
 {
 	# the request object
 	my $self = shift;
-    my $pxeips_not = shift;  # track IPs for 01-<mac> pxe disabled entries
-    my $pxeips_yes = shift;  # track IPs for 01-<mac> pxe enabled  entries
 
 	# requested file
 	my $reqfile = $self->{'_REQUEST_'}{'FileName'};
 
-	my $hash = $self->{'SqlFSHandle'}->detail( $reqfile );
+	if($self->{'FileName'})
+	{
+		# filename is fixed
+		$self->{'_REQUEST_'}{'FileName'} = $self->{'FileName'};
 
-    return undef unless (defined $hash);        # no entry
+		if(($self->{'FileName'} =~ /$reqfile/) and -e($self->{'FileName'}))
+		{
+			# fixed name contains requested file and file exists
+			$self->{'FileSize'} = -s($self->{'FileName'});
+			return(1);
+		}
+	}
+	elsif($self->{'RootDir'})
+	{
+		# rootdir is fixed
+		$reqfile = $self->{'RootDir'}.'/'.$reqfile;
+		$self->{'_REQUEST_'}{'FileName'} = $reqfile;
 
-#    if ( $self->{'_REQUEST_'}{'FileName'} =~ m|01-((([0-9a-fA-F]){2}-?){6})| ) {
-#        # special logic for PXE boot files served up via TFTP for baracus
-#
-#        my $mac = $1;
-#        $mac =~ s|-|:|g;
-#
-#        if ( $hash->{'enabled'} ) {
-#            # found 01- entry and it is enabled
-#            # make sure to remove any _not entry for this ip
-#            if ( defined $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} } ) {
-#                undef $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} } ;
-#            }
-#            # we will deilver - store the mac for verify build hook
-#            $pxeips_yes->{ $self->{'_REQUEST_'}{'PeerAddr'} } = $mac;
-#        }
-#        else {
-#            # found 01- entry and it is disabled
-#            # make sure to remove any _yes entry for this ip
-#            if ( defined $pxeips_yes->{ $self->{'_REQUEST_'}{'PeerAddr'} } ) {
-#                undef $pxeips_yes->{ $self->{'_REQUEST_'}{'PeerAddr'} } ;
-#            }
-#            # will not deilver - store the mac for 'miss' on request for 'default'
-#            $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} } = $mac;
-#
-#            $LASTERROR = "Disabled PXE peer " .
-#                $self->{'_REQUEST_'}{'PeerAddr'} . " file '" .
-#                    $self->{'_REQUEST_'}{'FileName'} . "'\n";
-#            return undef;   # entry disabled
-#        }
-#    }
-#    elsif ( $self->{'_REQUEST_'}{'FileName'} =~ m|/default| ) {
-#        # special logic for PXE boot files served up via TFTP for baracus
-#
-#        # if we are serving up the default we need to make sure
-#        # that the IP of the requestor is not the same as that
-#        # of the 01-<mac> that was 'missing' because it was disabled
-#
-#        if ( defined $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} } ) {
-#            my $pxename = "01-";
-#            $pxename .= $pxeips_not->{ $self->{'_REQUEST_'}{'PeerAddr'} };
-#            $pxename =~ s|:|-|g;
-#            $LASTERROR = "Refused  PXE peer " .
-#                $self->{'_REQUEST_'}{'PeerAddr'} . " file 'default' as $pxename is disabled\n";
-#            return undef;
-#        }
-#    }
-#
-	return ( $self->{'FileSize'} = $hash->{'binsize'} );
+		if(-e($reqfile))
+		{
+			# file exists in rootdir
+			$self->{'FileSize'} = -s($reqfile);
+			return(1);
+		}
+	}
+
+	return(undef);
 }
 
 #
 # Usage: $requestOBJ->sendOACK();
-# return 1 for success and undef for error (see $SqlTFTPd::LASTERROR for cause)
+# return 1 for success and undef for error (see $Net::TFTPd::LASTERROR for cause)
 #
 sub sendOACK
 {
@@ -1082,8 +1072,6 @@ sub sendOACK
 	my $self = shift;
 	my $udpserver = $self->{'_UDPSERVER_'};
 	my $retry = 0;
-
-	$LASTERROR = '';
 
 	my ($datagram, $opcode, $datain);
 
@@ -1115,7 +1103,7 @@ sub sendOACK
 							if($lastack)
 							{
 								# ack is not for block 0... ERROR
-								$LASTERROR = sprintf "Received ACK for block %d instead of 0\n", $lastack;
+								$LASTERROR = sprintf "Received ACK for block %d instead of 0", $lastack;
 								return(undef);
 							}
 							return 1;
@@ -1123,15 +1111,13 @@ sub sendOACK
 						elsif($opcode == TFTP_OPCODE_ERROR)
 						{
 							# message is ERR
-							$LASTERROR = sprintf "TFTP error message: %s\n", $datain;
+							$LASTERROR = sprintf "TFTP error message: %s", $datain;
 							return(undef);
 						}
 						else
 						{
 							# other messages...
 							$LASTERROR = sprintf "Opcode %d not supported as a reply to OACK\n", $opcode;
-#							$LASTERROR = "TFTP error 8: Option negotiation\n";
-							$self->sendERR(8);
 							return(undef);
 						}
 					}
@@ -1172,7 +1158,9 @@ sub sendERR
 {
 	my $self = shift;
 	my($errcode, $errmsg) = @_;
-	$errmsg or $errmsg = '';
+	# modified for supporting NETASCII transfers on 25/05/2009
+	#$errmsg or $errmsg = '';
+	$errmsg or $errmsg = $ERRORS{$errcode};
 
 	my $udpserver = $self->{'_UDPSERVER_'};
 
@@ -1202,36 +1190,32 @@ __END__
 
 =head1 NAME
 
-SqlTFTPd - Perl extension for Trivial File Transfer Protocol Server
+Net::TFTPd - Perl extension for Trivial File Transfer Protocol Server
 
 =head1 SYNOPSIS
 
   use strict;
-  use SqlTFTPd;
-  use SqlFS;
+  use Net::TFTPd;
 
-  my $sqlfsOBJ = SqlFS->new('DataSource' => 'dbi:DriverName:etc', 'User' => 'username', 'Password' => 'password')
-    or die "Error creating SqlFS filesystem: %s", SqlFS->error;
-
-  my $tftpdOBJ = SqlTFTPd->new('SqlFSHandle' => $sqlfsOBJ)
-    or die "Error creating TFTPd listener: %s", SqlTFTPd->error;
+  my $tftpdOBJ = Net::TFTPd->new('RootDir' => 'path/to/files')
+    or die "Error creating TFTPd listener: %s", Net::TFTPd->error;
 
   my $tftpRQ = $tftpdOBJ->waitRQ(10)
-    or die "Error waiting for TFTP request: %s", SqlTFTPd->error;
+    or die "Error waiting for TFTP request: %s", Net::TFTPd->error;
 
   $tftpRQ->processRQ()
-    or die "Error processing TFTP request: %s", SqlTFTPd->error;
+    or die "Error processing TFTP request: %s", Net::TFTPd->error;
+
+  printf "%u bytes has been transferred", $tftpRQ->getTotalBytes() || 0;
 
 =head1 DESCRIPTION
 
-C<SqlTFTPd> is a class implementing a simple I<Trivial File Transfer Protocol> server in Perl as described in RFC1350.
+C<Net::TFTPd> is a class implementing a simple I<Trivial File Transfer Protocol> server in Perl as described in RFC1350.
 
-C<SqlTFTPd> also supports the TFTP Option Extension (as described in RFC2347), with the following options:
+C<Net::TFTPd> also supports the TFTP Option Extension (as described in RFC2347), with the following options:
 
   RFC2348 TFTP Blocksize Option
   RFC2349 TFTP Timeout Interval and Transfer Size Options
-
-C<SqlTFTPd> uses L<SqlFS> to serve it files instead of a traditional filesystem.
 
 =head1 EXPORT
 
@@ -1260,14 +1244,15 @@ The %OPCODES tag exports the I<%OPCODES> hash:
 
 =head2 new()
 
-  $listener = new SqlTFTPd( ['SqlFSHandle' => 'reference to SqlFS object'] [, OPTIONS ] );
+  $listener = new Net::TFTPd( ['RootDir' => 'path/to/files' | 'FileName' => 'path/to/file'] [, OPTIONS ] );
 
 or
 
-  $listener = SqlTFTPd->new( ['SqlFSHandle' => 'reference to SqlFS object'] [, OPTIONS ] );
+  $listener = Net::TFTPd->new( ['RootDir' => 'path/to/files' | 'FileName' => 'path/to/file'] [, OPTIONS ] );
 
-Create a new SqlTFTPd object where 'reference to SqlFS' is the handle for the 'new' SqlFS object to server as the file repository
-and OPTIONS are the default server options.
+Create a new Net::TFTPd object where 'path/to/files' is the default path to file repository
+or 'path/to/file' is the single file allowed for download, and OPTIONS are the default server
+options.
 
 Valid options are:
 
@@ -1298,7 +1283,7 @@ Example:
     printf "block: %u\/%u\n", $req->{'_REQUEST_'}{'LASTACK'}, $req->{'_REQUEST_'}{'LASTBLK'};
   }
 
-  my $tftpdOBJ = SqlTFTPd->new('SqlFSHandle' => sqlfsOBJ, 'Timeout' => 60, 'CallBack' => \&callback) or die SqlTFTPd->error;
+  my $tftpdOBJ = Net::TFTPd->new('RootDir' => 'c:/temp', 'Timeout' => 60, 'CallBack' => \&callback) or die Net::TFTPd->error;
 
 =head1 Listener methods
 
@@ -1320,13 +1305,53 @@ When the method returns, the program should fork() and process the request invok
 
 Processes a request and returns 1 if success, undef if error.
 
+=head2 getFileName()
+
+  $ret = $request->getFileName();
+
+Returns the requested file name.
+
+=head2 getMode()
+
+  $ret = $request->getMode();
+
+Returns the transfer mode for the request.
+
+=head2 getBlkSize()
+
+  $ret = $request->getBlkSize();
+
+Returns the block size used for the transfer.
+
+=head2 getPeerAddr()
+
+  $ret = $request->getPeerAddr();
+
+Returns the address of the requesting client.
+
+=head2 getPeerPort()
+
+  $ret = $request->getPeerMode();
+
+Returns the port of the requesting client.
+
+=head2 getTotalBytes()
+
+  $ret = $request->getTotalBytes();
+
+Returns the number of bytes transferred for the request.
+
+=head1 CREDITS
+
+Thanks to E<lt>VinceE<gt> for the NETASCII support and transferred bytes patch.
+
 =head1 AUTHOR
 
 Luigino Masarati, E<lt>lmasarati@hotmail.comE<gt>
-David Bahi, E<lt>dbahi@novellE<gt>
 
 =head1 SEE ALSO
 
-L<Net::TFTPd>, L<Net::TFTP> and L<DBI>.
+L<Net::TFTP>.
 
 =cut
+
