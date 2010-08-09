@@ -2,7 +2,7 @@
 
 Summary:   Tool to create network install build source and manage host builds
 Name:      baracus
-Version:   1.4.6
+Version:   1.4.7
 Release:   0
 Group:     System/Services
 License:   GPLv2 or Artistic V2
@@ -14,7 +14,7 @@ Source3:   sysconfig.%{name}db
 Source4:   initd.%{name}db
 Source5:   apache.baracus.conf
 Source6:   apache.baracus-webserver.conf
-Requires:  apache2, apache2-mod_perl, perl-Apache-DBI, pidentd
+Requires:  apache2, apache2-mod_perl, perl-Apache-DBI, pidentd, sudo
 Requires:  perl, perl-XML-Simple, perl-libwww-perl, perl-Data-UUID
 Requires:  perl-Config-General, perl-Config-Simple, perl-AppConfig
 Requires:  perl-TermReadKey, perl-DBI, perl-DBD-Pg, perl-Tie-IxHash
@@ -133,6 +133,10 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 
 
 %changelog
+* Fri Aug 9 2010 dbahi@novell - 1.4.7
+- share/baracus/doc LICENSE artistic and gpl added
+- file headers modified with license and copyright
+- module __VAR__ expansion added and misc bug fixes
 * Wed Jun 30 2010 dbahi@novell - 1.4.6
 - more web updates and proxied s390 support
 - repo create and add
