@@ -520,7 +520,7 @@ sub add_module
         (
          'name=s'         => \$entry{'moduleid'},
          'description=s'  => \$entry{'description'},
-         #              'interpreter=s'  => \$entry{'interpreter'},
+#         'interpreter=s'  => \$entry{'interpreter'},
          'file=s'         => \$file,
          'enable!'        => \$entry{'status'},
          'disable'        => sub { $entry{'status'} = 0 },
@@ -1506,7 +1506,7 @@ sub update_module
              $entry{'status'} eq "t" ) {
 
             # disable enabled version - in preperation to enable specified version
-            return 1 if &change_status( $type, "f", $enabled_href );
+            return 1 if &change_status( $type, "f", $enabled_href, 1 );
         }
         if ( $entry{'status'} ne "" ) {
             return 1 if &change_status( $type, $entry{'status'}, $version_href );
@@ -3280,6 +3280,12 @@ sub change_status
     my $stat = shift;
     my $href = shift;
 
+    # used to knowingly bypass disable mandatory check
+    # because we're about to set another version enabled
+    my $special = shift;
+
+    $special = 0 unless (defined $special);
+
     unless (defined $href && defined $href->{'status'} ) {
         $opts->{LASTERROR} = "Unable to modify status without valid entry\n";
         return 1;
@@ -3296,14 +3302,14 @@ sub change_status
         $id = 'moduleid';
         if ( $stat eq "f") {
             ## Verify that the module is not mandatory
-            my $mandatory_array = &check_mandatory( $opts, $dbh, $href->{ '$id' } );
+            my $mandatory_array = &check_mandatory( $opts, $dbh, $href->{ $id } );
             unless ( defined $mandatory_array ) {
                 # call failed
                 $opts->{LASTERROR} = "Failed in change_status.\n" . $opts->{LASTERROR};
                 return 1;
             }
-            unless ( $mandatory_array == 0 ) {
-                $opts->{LASTERROR} = "Unable to disable module set as mandatory:" .
+            unless ( ($mandatory_array == 0) || ($special == 1) ) {
+                $opts->{LASTERROR} = "Unable to disable module set as mandatory: " .
                     join(' ', @{$mandatory_array}) . "\n";
                 return 1;
             }
