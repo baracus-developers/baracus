@@ -108,6 +108,7 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %dir %{_datadir}/%{name}
 %dir %{_datadir}/%{name}/data
 %doc %{_datadir}/%{name}/*.xml
+%doc %{_datadir}/%{name}/doc
 %{_datadir}/%{name}/data/*
 %{_datadir}/%{name}/driverupdate
 %{_datadir}/%{name}/profile_default
