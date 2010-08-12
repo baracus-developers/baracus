@@ -2152,20 +2152,25 @@ sub update_tftp
     # store off first entry
     while ( $href = $sth->fetchrow_hashref( ) ) {
         while ( my ($key, $val) = each %{$href} ) {
-            print "update $rowcount - $href->{'id'} entry:  $key => $val\n" if $opts->{debug};
+            if ( $opts->{debug} ) {
+                if ( defined $val ) {
+                    print "update $rowcount - $href->{'id'} entry:  $key => $val\n";
+                } else {
+                    print "update $rowcount - $href->{'id'} entry:  $key => 'undef'\n";
+                }
+            }
         }
         unless ( $rowcount ) {
             while ( my ($key, $val) = each %{$href} ) {
-                if ( $key ne "bin" ) {
+                next if ( $key eq "bin" );
                     $save{ $key } = $val;
-                    if ( $opts->{debug} and $val ) {
+                if ( $opts->{debug} and defined $val ) {
                         print "1 entry $href->{'id'}:  $key => $val\n";
                     } elsif ( $opts->{debug} ) {
                         print "2 entry $href->{'id'}:  $key =>\n";
                     }
                 }
             }
-        }
         $rowcount += 1;
         $id{ $href->{'id'} } = $href->{'id '};
         $entry_data .= &bytea_decode( $href->{'bin'} );
@@ -2175,14 +2180,16 @@ sub update_tftp
     my $stat_needed = 0;
 
     if ( defined $entry{'enabled'} && $entry{'enabled'} ne "" ) {
-        if ( $save{'enabled'} ne $entry{'enabled'} ) {
+        if ( ! defined $save{'enabled'} or
+             ( $save{'enabled'} ne $entry{'enabled'} ) ) {
             $save{'enabled'} = $entry{'enabled'};
             $stat_needed = 1;
         }
     }
 
     if ( defined $entry{'description'} && $entry{'description'} ne "" ) {
-        if ( "$save{'description'}" ne "$entry{'description'}" ) {
+        if ( ! defined $save{'description'} or
+             ( "$save{'description'}" ne "$entry{'description'}" ) ) {
             $save{'description'} = $entry{'description'};
             $desc_needed = 1;
         }
@@ -2240,7 +2247,7 @@ sub update_tftp
                 $sql_vals .= "?,";
                 next;
             }
-            if ( $save{ $col } ne "" ) {
+            if ( defined $save{ $col } and $save{ $col } ne "" ) {
                 $sql_cols .= "$col,";
                 if ( $col eq "change" ) {
                     # do not quote CURRENT_TIMESTAMP or other sql expressions
