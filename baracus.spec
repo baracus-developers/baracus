@@ -44,7 +44,7 @@ rapid PXE boot installs of a collection of build clients.
 %package   webserver
 Summary:   Separate package for the baracus server web interface
 Group:     System/Services
-Requires:  baracus
+Requires:  baracus >= ${version}
 %description webserver
 Baracus is composed of many services and a command line interface.
 This package provides a web interface to these services.
@@ -73,6 +73,8 @@ chmod -R 700 %{buildroot}%{_datadir}/%{name}/gpghome
 mkdir %{buildroot}/var/spool/%{name}/isos
 mkdir %{buildroot}/var/spool/%{name}/logs
 mkdir %{buildroot}/var/spool/%{name}/pgsql
+mkdir %{buildroot}/var/spool/%{name}/www/tmp
+mkdir %{buildroot}/var/spool/%{name}/www/htdocs/pool
 rm -rf %{buildroot}/var/spool/baracus/www/pfork
 
 %clean
