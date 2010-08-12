@@ -259,7 +259,7 @@ sub add_cifs_perl
     my $mods = 1;
     my $restart = 0;
 
-    if ( defined %baVar and $baVar{serverip} ) {
+    if ( %baVar and $baVar{serverip} ) {
         if ( -f $startnet_out ) {
             print STDERR "(re)generating $startnet_out\n";
         }
@@ -345,7 +345,7 @@ sub apache2_listen_conf
 
     use BaracusConfig qw( %baVar );
 
-    if ( defined %baVar and $baVar{serverip} ) {
+    if ( %baVar and $baVar{serverip} ) {
 	my $mods = $baVar{serverip};
 
 	print STDERR "(re)generating $listenconf_out\n";
