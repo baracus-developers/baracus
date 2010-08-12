@@ -30,7 +30,7 @@ baconfig add hardware --name default \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=/dev/sda \
 --rootpart=/dev/sda \
---cert "sles-11.1-x86_64 sles-11.1-i586 sles-10.3-x86_64 sles-10.3-i386"
+--cert "sles-11.1-x86_64 sles-11.1-x86 sles-10.3-x86_64 sles-10.3-x86"
 
 baconfig detail hardware default-iscsi --all &> /dev/null || \
 baconfig add hardware --name default-iscsi \
@@ -52,7 +52,7 @@ baconfig add hardware --name default-hp \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=/dev/cciss/c0d0 \
 --rootpart=/dev/cciss/c0d0p \
---cert "sles-11.1-x86_64 sles-11.1-i586 sles-10.3-x86_64 sles-10.3-i386"
+--cert "sles-11.1-x86_64 sles-11.1-x86 sles-10.3-x86_64 sles-10.3-x86"
 
 baconfig detail hardware default-rhel --all &> /dev/null || \
 baconfig add hardware --name default-rhel \
@@ -60,7 +60,7 @@ baconfig add hardware --name default-rhel \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=hda \
 --rootpart=hda \
---cert "rhel-5.5-x86_64 rhel-5.5-i386 rhel-5.4-x86_64 rhel-5.4-i386"
+--cert "rhel-5.5-x86_64 rhel-5.5-x86 rhel-5.4-x86_64 rhel-5.4-x86"
 
 baconfig detail hardware default-rhel-hp --all &> /dev/null || \
 baconfig add hardware --name default-rhel-hp \
@@ -68,18 +68,18 @@ baconfig add hardware --name default-rhel-hp \
 --bootargs="acpi=on selinux=0 apm=off" \
 --rootdisk=cciss/c0d0 \
 --rootpart=cciss/c0d0p \
---cert "rhel-5.5-x86_64 rhel-5.5-i386 rhel-5.4-x86_64 rhel-5.4-i386"
+--cert "rhel-5.5-x86_64 rhel-5.5-x86 rhel-5.4-x86_64 rhel-5.4-x86"
 
 baconfig detail hardware default-ubuntu --all &> /dev/null || \
 baconfig add hardware --name default-ubuntu \
 --description="ubuntu bootargs" \
 --rootdisk=/dev/hda \
 --rootpart=/dev/hda \
---cert "ubuntu-10.4-x86_64 ubuntu-10.4-i386 ubuntu_desktop-10.4-x86_64 ubuntu_desktop-10.4-i386 ubuntu-9.10-x86_64 ubuntu-9.10-i386"
+--cert "ubuntu-10.4-x86_64 ubuntu-10.4-x86 ubuntu_desktop-10.4-x86_64 ubuntu_desktop-10.4-x86 ubuntu-9.10-x86_64 ubuntu-9.10-x86"
 
 baconfig detail hardware ubuntu-virtio --all &> /dev/null || \
 baconfig add hardware --name ubuntu-virtio \
 --description="/dev/vda +ubuntu bootargs" \
 --rootdisk=/dev/vda \
 --rootpart=/dev/vda \
---cert "ubuntu-10.4-x86_64 ubuntu-10.4-i386 ubuntu_desktop-10.4-x86_64 ubuntu_desktop-10.4-i386 ubuntu-9.10-x86_64 ubuntu-9.10-i386"
+--cert "ubuntu-10.4-x86_64 ubuntu-10.4-x86 ubuntu_desktop-10.4-x86_64 ubuntu_desktop-10.4-x86 ubuntu-9.10-x86_64 ubuntu-9.10-x86"

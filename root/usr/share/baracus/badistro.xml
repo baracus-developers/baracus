@@ -177,10 +177,10 @@
   </distro>
 
 
-  <distro name="sles-11.1-i586">
+  <distro name="sles-11.1-x86">
     <os>sles</os>
     <release>11.1</release>
-    <arch>i586</arch>
+    <arch>x86</arch>
     <description>SUSE Linux Enterprise Server 11.1 32bit</description>
 
     <autodownload>auth</autodownload>
@@ -200,13 +200,13 @@
   </distro>
 
 
-  <distro name="sles-11.1-sdk-i586">
+  <distro name="sles-11.1-sdk-x86">
     <os>sles</os>
     <release>11.1</release>
     <addos>sdk</addos>
     <addrel/>
-    <arch>i586</arch>
-    <requires>sles-11.1-i586</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>sles-11.1-x86</requires> <!-- flag! content ignored -->
     <description>SLES 11.1 Software Development Kit 32bit</description>
 
     <autodownload>auth</autodownload>
@@ -245,10 +245,10 @@
     </product>
   </distro>
 
-  <distro name="sled-11.1-i586">
+  <distro name="sled-11.1-x86">
     <os>sled</os>
     <release>11.1</release>
-    <arch>i586</arch>
+    <arch>x86</arch>
     <description>SUSE Linux Enterprise Desktop 11.1 32bit</description>
     <autodownload>auth</autodownload>
 
@@ -309,10 +309,10 @@
     </product>
   </distro>
 
-  <distro name="sles-11-i586">
+  <distro name="sles-11-x86">
     <os>sles</os>
     <release>11</release>
-    <arch>i586</arch>
+    <arch>x86</arch>
     <description>SUSE Linux Enterprise Server 11 32bit</description>
     <autodownload>auth</autodownload>
 
@@ -330,13 +330,13 @@
     </product>
   </distro>
 
-  <distro name="sles-11-sdk-i586">
+  <distro name="sles-11-sdk-x86">
     <os>sles</os>
     <release>11</release>
     <addos>sdk</addos>
     <addrel/>
-    <arch>i586</arch>
-    <requires>sles-11-i586</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>sles-11-x86</requires> <!-- flag! content ignored -->
     <description>SLES 11 Software Development Kit 32bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
@@ -373,10 +373,10 @@
     </product>
   </distro>
 
-  <distro name="sled-11-i586">
+  <distro name="sled-11-x86">
     <os>sled</os>
     <release>11</release>
-    <arch>i586</arch>
+    <arch>x86</arch>
     <description>SUSE Linux Enterprise Desktop 11 32bit</description>
     <autodownload>auth</autodownload>
 
@@ -478,10 +478,10 @@
     </product>
   </distro>
 
-  <distro name="sles-10.3-i386">
+  <distro name="sles-10.3-x86">
     <os>sles</os>
     <release>10.3</release>
-    <arch>i386</arch>
+    <arch>x86</arch>
     <description>SUSE Linux Enterprise Server 10.3 32bit</description>
     <autodownload>auth</autodownload>
 
@@ -499,13 +499,13 @@
     </product>
   </distro>
 
-  <distro name="sles-10.3-sdk-i386">
+  <distro name="sles-10.3-sdk-x86">
     <os>sles</os>
     <release>10.3</release>
     <addos>sdk</addos>
     <addrel/>
-    <arch>i386</arch>
-    <requires>sles-10.3-i386</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>sles-10.3-x86</requires> <!-- flag! content ignored -->
     <description>SLES 10.3 Software Development Kit 32bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
@@ -541,10 +541,10 @@
     </product>
   </distro>
 
-  <distro name="sled-10.3-i386">
+  <distro name="sled-10.3-x86">
     <os>sled</os>
     <release>10.3</release>
-    <arch>i386</arch>
+    <arch>x86</arch>
     <description>SUSE Linux Enterprise Desktop 10.3 32bit</description>
     <autodownload>auth</autodownload>
 
@@ -604,10 +604,10 @@
     </product>
   </distro>
 
-  <distro name="sles-10.2-i386">
+  <distro name="sles-10.2-x86">
     <os>sles</os>
     <release>10.2</release>
-    <arch>i386</arch>
+    <arch>x86</arch>
     <description>SUSE Linux Enterprise Server 10.2 32bit</description>
     <autodownload>auth</autodownload>
 
@@ -625,13 +625,13 @@
     </product>
   </distro>
 
-  <distro name="sles-10.2-sdk-i386">
+  <distro name="sles-10.2-sdk-x86">
     <os>sles</os>
     <release>10.2</release>
     <addos>sdk</addos>
     <addrel/>
-    <arch>i386</arch>
-    <requires>sles-10.2-i386</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>sles-10.2-x86</requires> <!-- flag! content ignored -->
     <description>SLES 10.2 Software Development Kit 32bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
@@ -667,10 +667,10 @@
     </product>
   </distro>
 
-  <distro name="sled-10.2-i386">
+  <distro name="sled-10.2-x86">
     <os>sled</os>
     <release>10.2</release>
-    <arch>i386</arch>
+    <arch>x86</arch>
     <description>SUSE Linux Enterprise Desktop 10.2 32bit</description>
     <autodownload>auth</autodownload>
 
@@ -782,10 +782,10 @@
     </product>
   </distro>
 
-  <distro name="sles-9.4-i386">
+  <distro name="sles-9.4-x86">
     <os>sles</os>
     <release>9.4</release>
-    <arch>i386</arch>
+    <arch>x86</arch>
     <description>SUSE Linux Enterprise Server 9.4 32bit</description>
     <autodownload>auth</autodownload>
 
@@ -976,13 +976,13 @@
     </product>
   </distro>
 
-  <distro name="sles-11.1-ha-i586">
+  <distro name="sles-11.1-ha-x86">
     <os>sles</os>
     <release>11.1</release>
     <addos>ha</addos>
     <addrel/>
-    <arch>i586</arch>
-    <requires>sles-11.1-i586</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>sles-11.1-x86</requires> <!-- flag! content ignored -->
     <description>SLES 11.1 High Availability Extension 32bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
@@ -1059,13 +1059,13 @@
     </product>
   </distro>
 
-  <distro name="sles-10.2-rt-i386">
+  <distro name="sles-10.2-rt-x86">
     <os>sles</os>
     <release>10.2</release>
     <addos>rt</addos>
     <addrel/>
-    <arch>i386</arch>
-    <requires>sles-10.2-i386</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>sles-10.2-x86</requires> <!-- flag! content ignored -->
     <description>SLES 10.2 Real-Time Add-On 32bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
@@ -1100,13 +1100,13 @@
     </product>
   </distro>
 
-  <distro name="sles-10.2-mono-i386">
+  <distro name="sles-10.2-mono-x86">
     <os>sles</os>
     <release>10.2</release>
     <addos>mono</addos>
     <addrel/>
-    <arch>i386</arch>
-    <requires>sles-10.2-i386</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>sles-10.2-x86</requires> <!-- flag! content ignored -->
     <description>SLES 10.2 Mono Add-On 32bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
@@ -1140,13 +1140,13 @@
     </product>
   </distro>
 
-  <distro name="sles-10.3-rt-i386">
+  <distro name="sles-10.3-rt-x86">
     <os>sles</os>
     <release>10.3</release>
     <addos>rt</addos>
     <addrel/>
-    <arch>i386</arch>
-    <requires>sles-10.3-i386</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>sles-10.3-x86</requires> <!-- flag! content ignored -->
     <description>SLES 10.3 Real-Time Add-On 32bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
@@ -1181,13 +1181,13 @@
     </product>
   </distro>
 
-  <distro name="sles-10.3-smt-i386">
+  <distro name="sles-10.3-smt-x86">
     <os>sles</os>
     <release>10.3</release>
     <addos>smt</addos>
     <addrel/>
-    <arch>i386</arch>
-    <requires>sles-10.3-i386</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>sles-10.3-x86</requires> <!-- flag! content ignored -->
     <description>SLES 10.3 Subscription Mgmt Tool Add-On 32bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
@@ -1222,13 +1222,13 @@
     </product>
   </distro>
 
-  <distro name="sles-11-mono-i586">
+  <distro name="sles-11-mono-x86">
     <os>sles</os>
     <release>11</release>
     <addos>mono</addos>
     <addrel/>
-    <arch>i586</arch>
-    <requires>sles-11-i586</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>sles-11-x86</requires> <!-- flag! content ignored -->
     <description>SLES 11 Mono Add-On 32bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
@@ -1263,13 +1263,13 @@
     </product>
   </distro>
 
-  <distro name="sles-11-hae-i586">
+  <distro name="sles-11-ha-x86">
     <os>sles</os>
     <release>11</release>
-    <addos>hae</addos>
+    <addos>ha</addos>
     <addrel/>
-    <arch>i586</arch>
-    <requires>sles-11-i586</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>sles-11-x86</requires> <!-- flag! content ignored -->
     <description>SLES 11 High Availability Extension 32bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
@@ -1344,10 +1344,10 @@
   </distro>
 
 
-  <distro name="opensuse-11.1-i586">
+  <distro name="opensuse-11.1-x86">
     <os>opensuse</os>
     <release>11.1</release>
-    <arch>i586</arch>
+    <arch>x86</arch>
     <description>openSUSE 11.1 32bit</description>
     <autodownload>open</autodownload>
     <product name="dvd">
@@ -1364,13 +1364,13 @@
     </product>
   </distro>
 
-  <distro name="opensuse-11.1-nonoss-i586">
+  <distro name="opensuse-11.1-nonoss-x86">
     <os>opensuse</os>
     <release>11.1</release>
     <addos>nonoss</addos>
     <addrel/>
-    <arch>i586</arch>
-    <requires>opensuse-11.1-i586</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>opensuse-11.1-x86</requires> <!-- flag! content ignored -->
     <description>openSUSE 11.1 non-OSS 32bit</description>
     <autodownload>open</autodownload>
     <product name="dvd">
@@ -1383,13 +1383,13 @@
     </product>
   </distro>
 
-  <distro name="opensuse-11.1-lang-i586">
+  <distro name="opensuse-11.1-lang-x86">
     <os>opensuse</os>
     <release>11.1</release>
     <addos>lang</addos>
     <addrel/>
-    <arch>i586</arch>
-    <requires>opensuse-11.1-i586</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>opensuse-11.1-x86</requires> <!-- flag! content ignored -->
     <description>openSUSE 11.1 Languages 32bit</description>
     <autodownload>open</autodownload>
     <product name="dvd">
@@ -1462,10 +1462,10 @@
     </product>
   </distro>
 
-  <distro name="opensuse-11.2-i586">
+  <distro name="opensuse-11.2-x86">
     <os>opensuse</os>
     <release>11.2</release>
-    <arch>i586</arch>
+    <arch>x86</arch>
     <description>openSUSE 11.2 32bit</description>
     <autodownload>open</autodownload>
     <product name="dvd">
@@ -1482,13 +1482,13 @@
     </product>
   </distro>
 
-  <distro name="opensuse-11.2-nonoss-i586">
+  <distro name="opensuse-11.2-nonoss-x86">
     <os>opensuse</os>
     <release>11.2</release>
     <addos>nonoss</addos>
     <addrel/>
-    <arch>i586</arch>
-    <requires>opensuse-11.2-i586</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>opensuse-11.2-x86</requires> <!-- flag! content ignored -->
     <description>openSUSE 11.2 non-OSS 32bit</description>
     <autodownload>open</autodownload>
     <product name="dvd">
@@ -1501,13 +1501,13 @@
     </product>
   </distro>
 
-  <distro name="opensuse-11.2-lang-i586">
+  <distro name="opensuse-11.2-lang-x86">
     <os>opensuse</os>
     <release>11.2</release>
     <addos>lang</addos>
     <addrel/>
-    <arch>i586</arch>
-    <requires>opensuse-11.2-i586</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>opensuse-11.2-x86</requires> <!-- flag! content ignored -->
     <description>openSUSE 11.2 Languages 32bit</description>
     <autodownload>open</autodownload>
     <product name="dvd">
@@ -1581,10 +1581,10 @@
     </product>
   </distro>
 
-  <distro name="opensuse-11.3-i586">
+  <distro name="opensuse-11.3-x86">
     <os>opensuse</os>
     <release>11.3</release>
-    <arch>i586</arch>
+    <arch>x86</arch>
     <description>openSUSE 11.3 32bit</description>
     <autodownload>open</autodownload>
     <product name="dvd">
@@ -1601,13 +1601,13 @@
     </product>
   </distro>
 
-  <distro name="opensuse-11.3-nonoss-i586">
+  <distro name="opensuse-11.3-nonoss-x86">
     <os>opensuse</os>
     <release>11.3</release>
     <addos>nonoss</addos>
     <addrel/>
-    <arch>i586</arch>
-    <requires>opensuse-11.3-i586</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>opensuse-11.3-x86</requires> <!-- flag! content ignored -->
     <description>openSUSE 11.3 non-OSS 32bit</description>
     <autodownload>open</autodownload>
     <product name="dvd">
@@ -1620,13 +1620,13 @@
     </product>
   </distro>
 
-  <distro name="opensuse-11.3-lang-i586">
+  <distro name="opensuse-11.3-lang-x86">
     <os>opensuse</os>
     <release>11.3</release>
     <addos>lang</addos>
     <addrel/>
-    <arch>i586</arch>
-    <requires>opensuse-11.3-i586</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>opensuse-11.3-x86</requires> <!-- flag! content ignored -->
     <description>openSUSE 11.3 Languages 32bit</description>
     <autodownload>open</autodownload>
     <product name="dvd">
@@ -1678,10 +1678,10 @@
     </product>
   </distro>
 
-  <distro name="rhel-3.9-i386">
+  <distro name="rhel-3.9-x86">
     <os>rhel</os>
     <release>3.9</release>
-    <arch>i386</arch>
+    <arch>x86</arch>
     <description>RedHat Enterprise Linux 3.9 32bit</description>
     <autodownload>no</autodownload>
     <product name="cds">
@@ -1735,10 +1735,10 @@
     </product>
   </distro>
 
-  <distro name="rhel-4.6-i386">
+  <distro name="rhel-4.6-x86">
     <os>rhel</os>
     <release>4.6</release>
-    <arch>i386</arch>
+    <arch>x86</arch>
     <description>RedHat Enterprise Linux 4.6 32bit</description>
     <autodownload>no</autodownload>
     <product name="dvd">
@@ -1778,10 +1778,10 @@
     </product>
   </distro>
 
-  <distro name="rhel-4.8-i386">
+  <distro name="rhel-4.8-x86">
     <os>rhel</os>
     <release>4.8</release>
-    <arch>i386</arch>
+    <arch>x86</arch>
     <description>RedHat Enterprise Linux 4.8 32bit</description>
     <autodownload>no</autodownload>
     <product name="dvd">
@@ -1821,10 +1821,10 @@
     </product>
   </distro>
 
-  <distro name="rhel-5.3-i386">
+  <distro name="rhel-5.3-x86">
     <os>rhel</os>
     <release>5.3</release>
-    <arch>i386</arch>
+    <arch>x86</arch>
     <description>RedHat Enterprise Linux 5.3 32bit</description>
     <autodownload>no</autodownload>
     <product name="dvd">
@@ -1864,10 +1864,10 @@
     </product>
   </distro>
 
-  <distro name="rhel-5.4-i386">
+  <distro name="rhel-5.4-x86">
     <os>rhel</os>
     <release>5.4</release>
-    <arch>i386</arch>
+    <arch>x86</arch>
     <description>RedHat Enterprise Linux 5.4 32bit</description>
     <autodownload>no</autodownload>
     <product name="dvd">
@@ -1907,10 +1907,10 @@
     </product>
   </distro>
 
-  <distro name="rhel-5.5-i386">
+  <distro name="rhel-5.5-x86">
     <os>rhel</os>
     <release>5.5</release>
-    <arch>i386</arch>
+    <arch>x86</arch>
     <description>RedHat Enterprise Linux 5.5 32bit</description>
     <autodownload>no</autodownload>
     <product name="dvd">
@@ -1949,13 +1949,13 @@
     </product>
   </distro>
 
-  <distro name="rhel-5.3-mrg-1.1-i386">
+  <distro name="rhel-5.3-mrg-1.1-x86">
     <os>rhel</os>
     <release>5.3</release>
     <addos>mrg</addos>
     <addrel>1.1</addrel>
-    <arch>i386</arch>
-    <requires>rhel-5.3-i386</requires> <!-- flag! content ignored -->
+    <arch>x86</arch>
+    <requires>rhel-5.3-x86</requires> <!-- flag! content ignored -->
     <description>RHEL 5 Messaging Real-Time Grid 1.1 32bit</description>
     <autodownload>no</autodownload>
     <product name="dvd">
@@ -1991,10 +1991,10 @@
     </product>
   </distro>
 
-  <distro name="fedora-11-i386">
+  <distro name="fedora-11-x86">
     <os>fedora</os>
     <release>11</release>
-    <arch>i386</arch>
+    <arch>x86</arch>
     <description>Fedora 11 32bit</description>
     <autodownload>open</autodownload>
     <product name="dvd">
@@ -2034,10 +2034,10 @@
     </product>
   </distro>
 
-  <distro name="fedora-12-i386">
+  <distro name="fedora-12-x86">
     <os>fedora</os>
     <release>12</release>
-    <arch>i386</arch>
+    <arch>x86</arch>
     <description>Fedora 12 32bit</description>
     <autodownload>open</autodownload>
     <product name="dvd">
@@ -2076,10 +2076,10 @@
     </product>
   </distro>
 
-  <distro name="fedora-13-i386">
+  <distro name="fedora-13-x86">
     <os>fedora</os>
     <release>13</release>
-    <arch>i386</arch>
+    <arch>x86</arch>
     <description>Fedora 13 32bit</description>
     <autodownload>open</autodownload>
     <product name="dvd">
@@ -2098,10 +2098,10 @@
 
 <!-- Ubuntu Server 9.10 -->
 
-  <distro name="ubuntu-9.10-i386">
+  <distro name="ubuntu-9.10-x86">
     <os>ubuntu</os>
     <release>9.10</release>
-    <arch>i386</arch>
+    <arch>x86</arch>
     <description>Ubuntu Server Edition 9.10 32bit</description>
     <autodownload>open</autodownload>
     <sharetype>http</sharetype>
@@ -2142,10 +2142,10 @@
 
   <!-- Ubuntu Server 10.4 -->
 
-  <distro name="ubuntu-10.4-i386">
+  <distro name="ubuntu-10.4-x86">
     <os>ubuntu</os>
     <release>10.4</release>
-    <arch>i386</arch>
+    <arch>x86</arch>
     <description>Ubuntu Server Edition 10.4 32bit</description>
     <autodownload>open</autodownload>
     <sharetype>http</sharetype>
@@ -2186,10 +2186,10 @@
 
   <!-- Ubuntu Desktop 10.4 -->
 
-  <distro name="ubuntu_desktop-10.4-i386">
+  <distro name="ubuntu_desktop-10.4-x86">
     <os>ubuntu_desktop</os>
     <release>10.4</release>
-    <arch>i386</arch>
+    <arch>x86</arch>
     <description>Ubuntu desktop Edition 10.4 32bit</description>
     <autodownload>open</autodownload>
     <sharetype>http</sharetype>
@@ -2308,10 +2308,10 @@
     </product>
   </distro>
 
-  <distro name="windows_ent-7-i586">
+  <distro name="windows_ent-7-x86">
     <os>windows_ent</os>
     <release>7</release>
-    <arch>i586</arch>
+    <arch>x86</arch>
     <description>Windows Enterprise 7 32bit</description>
     <autodownload>no</autodownload>
     <sharetype>cifs</sharetype>

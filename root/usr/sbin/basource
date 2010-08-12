@@ -205,10 +205,10 @@ Where
 
   --distro <name>  specifies the full name of the base distribution
                    to use, e.g., sles-11-x86_64, sles-10.2-x86_64,
-                   opensuse-11.1-i586
+                   opensuse-11.1-x86
 
   --addon <name>   specifies any addon(s) to layer over the base
-                   distribution sles-10.2-rt-x86_64, sles-11-hae-i586
+                   distribution sles-10.2-rt-x86_64, sles-11-ha-x86
 
   --no-loopback    Force source trees to be synced to local directory
   --check          Force check of the ISOs already present
@@ -299,10 +299,10 @@ Where
 
   --distro <name>  specifies the full name of the base distribution
                    to update, e.g., sles-11-x86_64, sles-10.2-x86_64,
-                   opensuse-11.1-i586
+                   opensuse-11.1-x86
 
   --addon <name>   specifies the addon(s) to be updated. like these
-                   distributions sles-10.2-rt-x86_64, sles-11-hae-i586
+                   distributions sles-10.2-rt-x86_64, sles-11-ha-x86
 
   --all            update all the addons and the base distro.
 
@@ -450,10 +450,10 @@ Where
 
   --distro <name>  specifies the full name of the base distribution
                    to remove, e.g., sles-11-x86_64, sles-10.2-x86_64,
-                   opensuse-11.1-i586
+                   opensuse-11.1-x86
 
   --addon <name>   specifies the addon(s) to be removed. like these
-                   distributions sles-10.2-rt-x86_64, sles-11-hae-i586
+                   distributions sles-10.2-rt-x86_64, sles-11-ha-x86
 
   --all            remove all the addons and the base distro.
 
@@ -650,7 +650,7 @@ Where
 
   --distro <name>  specifies the full name of the distribution to
                    use, e.g., sles-11-x86_64, sles-10.2-rt-x86_64,
-                   opensuse-11.1-i586, sles-11-hae-i586
+                   opensuse-11.1-x86, sles-11-ha-x86
 
 =cut
 

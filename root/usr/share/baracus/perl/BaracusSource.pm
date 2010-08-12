@@ -125,17 +125,17 @@ use vars qw ( %sdks );
 %sdks =
     (
      'sles-10.2-x86_64'     => 'sles-10.2-sdk-x86_64',
-     'sles-10.2-i386'       => 'sles-10.2-sdk-i386',
+     'sles-10.2-x86'        => 'sles-10.2-sdk-x86',
      'sles-10.3-x86_64'     => 'sles-10.3-sdk-x86_64',
-     'sles-10.3-i386'       => 'sles-10.3-sdk-i386',
+     'sles-10.3-x86'        => 'sles-10.3-sdk-x86',
      'sles-11-x86_64'       => 'sles-11-sdk-x86_64',
-     'sles-11-i586'         => 'sles-11-sdk-i586',
+     'sles-11-x86'          => 'sles-11-sdk-x86',
      'sles-11.1-x86_64'     => 'sles-11.1-sdk-x86_64',
-     'sles-11.1-i586'       => 'sles-11.1-sdk-i586',
+     'sles-11.1-x86'        => 'sles-11.1-sdk-x86',
      'opensuse-11.1-x86_64' => 'opensuse-11.1-nonoss-x86_64',
-     'opensuse-11.1-i586'   => 'opensuse-11.1-nonoss-i586',
+     'opensuse-11.1-x86'    => 'opensuse-11.1-nonoss-x86',
      'opensuse-11.2-x86_64' => 'opensuse-11.2-nonoss-x86_64',
-     'opensuse-11.2-i586'   => 'opensuse-11.2-nonoss-i586',
+     'opensuse-11.2-x86'    => 'opensuse-11.2-nonoss-x86',
      );
 
 my %stypes =
@@ -1303,7 +1303,7 @@ sub create_build
     return unless ( $distro eq $dh->{basedist} );
 
     # driverupdate fix for the aytoyast tftp last ACK
-    # for i586/x86_64 sles10.2-11 - bnc 507086
+    # for x86/x86_64 sles10.2-11 - bnc 507086
 
 #    if ($distro =~ /sles-10\.2/ or $distro =~ /sles-11/) {
 #        my $driverupdate_in = "$baDir{'data'}/driverupdate";
