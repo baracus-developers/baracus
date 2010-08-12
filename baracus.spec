@@ -26,6 +26,9 @@ Requires:  nfs-utils
 %else
 Requires:  nfs-kernel-server
 %endif
+%if 0%{?suse_version} >= 1110
+Requires:  libvirt
+%endif
 
 PreReq:    %insserv_prereq %fillup_prereq pwdutils
 PreReq:    /usr/sbin/groupadd /usr/sbin/useradd /sbin/chkconfig
@@ -79,10 +82,8 @@ groupadd -g 162 -o -r baracus >&/dev/null || :
 useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" -u 162 baracus >&/dev/null || :  
 
 %post
-%{fillup_only -n baracusdb}
-%{fillup_only}
-%{fillup_and_insserv -f -y baracusdb}
-%{fillup_and_insserv -f -y baracusd}
+%{fillup_and_insserv -n baracus baracusd}
+%{fillup_and_insserv -n baracusdb baracusdb}
 
 %preun
 %stop_on_removal baracusd baracusdb
