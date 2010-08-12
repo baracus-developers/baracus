@@ -343,30 +343,36 @@ sub apache2_listen_conf
     my $listenconf_out = "/etc/apache2/listen.conf";
     my $restart = 0;
 
-    use AppConfig;
-    my $sysconfigfile = '/etc/sysconfig/baracus';
-    my $sysconfig = AppConfig->new( {CREATE => 1} );
-    $sysconfig->define( 'server_ip=s' );
-    $sysconfig->file( $sysconfigfile );
-    my $mods = $sysconfig->get( 'server_ip' );
+    use BaracusConfig qw( %baVar );
 
-    # listen.conf support systems with more than one IP and use BUILDIP
+    if ( defined %baVar and $baVar{serverip} ) {
+	my $mods = $baVar{serverip};
 
-    copy ($listenconf_out, $listenconf_in);
-    open (LISTENCONF_IN, "<$listenconf_in")
-        or die "Unable to open $listenconf_in: $!\n";
-    open (LISTENCONF_OUT, ">$listenconf_out")
-        or die "Unable to open $listenconf_out: $!\n";
-    while (<LISTENCONF_IN>) {
-        if (m|^(\s*[Ll]isten\s+)([0-9]+)$|) {
-            $_ = $1 . $mods . ':' . $2 . "\n";
-            $restart = 1;
-        }
-        print LISTENCONF_OUT $_;
+	print STDERR "(re)generating $listenconf_out\n";
+
+	# listen.conf support systems with more than one IP and use BUILDIP
+
+	copy ($listenconf_out, $listenconf_in);
+	open (LISTENCONF_IN, "<$listenconf_in")
+	    or die "Unable to open $listenconf_in: $!\n";
+	open (LISTENCONF_OUT, ">$listenconf_out")
+	    or die "Unable to open $listenconf_out: $!\n";
+	while (<LISTENCONF_IN>) {
+	    if (m|^(\s*[Ll]isten\s+)([0-9.]+:)?([0-9]+)$|) {
+		$_ = $1 . $mods . ':' . $3 . "\n";
+		if (!defined($2) || "$mods:" ne $2) {
+		    $restart = 1;
+		}
+	    }
+	    print LISTENCONF_OUT $_;
+	}
+	close LISTENCONF_IN;
+	close LISTENCONF_OUT;
+	unlink $listenconf_in;
+    } else {
+	print STDERR "/etc/sysconfig/baracus needs setting for SERVER_IP\n";
     }
-    close LISTENCONF_IN;
-    close LISTENCONF_OUT;
-    unlink $listenconf_in;
+
     return $restart;
 }
 
