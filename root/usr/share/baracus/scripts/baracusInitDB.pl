@@ -62,9 +62,10 @@ if ( defined $reverse_flag ) {
     system ( "/usr/share/baracus/scripts/baconfig_load_profile" );
     my $cifs_reload = &add_cifs_perl();
     my $perl_reload = &add_apache2_perl();
-    my $listen_reload = &apache2_listen_conf();
+#    my $listen_reload = &apache2_listen_conf();
     system ( "service smb restart" ) if ( $cifs_reload );
-    system ( "service apache2 reload" ) if ( $perl_reload or $listen_reload );
+#    system ( "service apache2 reload" ) if ( $perl_reload or $listen_reload );
+    system ( "service apache2 reload" ) if ( $perl_reload );
     &add_www_sudoers();
 }
 
