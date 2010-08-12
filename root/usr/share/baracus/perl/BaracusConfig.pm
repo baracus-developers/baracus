@@ -108,6 +108,26 @@ my $bdoptions         =  $sysconfig->get( 'baracusd_options' );
 my $autodisablepxe    =  $sysconfig->get( 'auto_disable_pxe' );
 my $rlogging          =  $sysconfig->get( 'remote_logging'   );
 
+if (!defined($serverip) ||length($serverip) == 0) {
+    use IO::Interface::Simple;
+    my @interfaces = IO::Interface::Simple->interfaces;
+
+    for my $if (@interfaces) {
+	if ($if->is_loopback) {
+	    next;
+	}
+	if (!defined($if->address) || !$if->is_running) {
+	    next;
+	}
+
+	$serverip = $if->address;
+	last;
+    }
+}
+if (!defined($shareip) || length($shareip) == 0) {
+    $shareip = $serverip;
+}
+
 %baVar =
     (
      baracusdir       => $baracusdir       ,
