@@ -526,17 +526,17 @@ sub add_powerdb_entry() {
     } else {
         $sth->bind_param( 2, 'NULL');
     }
-    if ( defined $bmcref->{mac} ) {
+    if ( defined $bmcref->{login} ) {
         $sth->bind_param( 3, $bmcref->{login} );
     } else {
         $sth->bind_param( 3, 'NULL');
     }
-    if ( defined $bmcref->{login} ) {
+    if ( defined $bmcref->{passwd} ) {
         $sth->bind_param( 4, $bmcref->{passwd} );
     } else {
         $sth->bind_param( 4, 'NULL' );
     }
-    if ( defined $bmcref->{passwd} ) {
+    if ( defined $bmcref->{bmcaddr} ) {
         $sth->bind_param( 5, $bmcref->{bmcaddr} );
     } else {
         $sth->bind_param( 5, 'NULL' );
