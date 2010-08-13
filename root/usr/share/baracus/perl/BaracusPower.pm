@@ -65,7 +65,7 @@ my %powermod = (
            'apc'         => 'fence_apc',
            'wti'         => 'fence_ati',
            'egenera'     => 'fence_egenera',
-           'mainframe'   => 'bazvmpower',
+           'mainframe'   => 'mainframe',
           );
 
 my %cmds = (
@@ -80,7 +80,7 @@ my %cmds = (
            'apc'         => \&fence_apc,
            'wti'         => \&fence_ati,
            'egenera'     => \&fence_egenera,
-           'bazvmpower'  => \&bazvmpower,
+           'mainframe'   => \&bazvmpower,
           );
 
 sub add() {
@@ -382,8 +382,15 @@ sub bazvmpower() {
     my $result = `$command`;
 
     if ($operation eq "status") {
-        $result =~  m/status: (.*)/g ;
-        print "Power Status: $1\n";
+	if ($result =~  m/status: (.*)/g) {
+	    print "Power Status: $1\n";
+	} elsif ($result =~  m/Error (4\d+)/g) {
+	    print "Error $1\n";
+	    return 1;
+	} else {
+	    print "Unknown error:\n$result\n";
+	    return 1;
+	}
     }
 
     return 0;
@@ -631,6 +638,8 @@ sub get_bmcref_req_args
 
     if ($bmcref->{'ctype'} eq "virsh") {
 	@args = qw(ctype mac);
+    } elsif ($bmcref->{'ctype'} eq "mainframe") {
+	@args = qw(ctype hostname bmcaddr node);
     }
 
     return @args;
