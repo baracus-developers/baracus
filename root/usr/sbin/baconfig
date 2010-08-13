@@ -2360,7 +2360,7 @@ sub export
     my %entry =
         (
          'name'         => "",
-         'version'      => "",  # not used for tftp
+         'version'      => "0",  # not used for tftp
          'description'  => "",
          );
 
@@ -2383,23 +2383,56 @@ sub export
         &help( $opts, $cmds, $command );
     }
 
-    if ( -e $file ) {
-        $opts->{LASTERROR} = "Unwilling to overwrite existing <path/file>: $file\n";
-        return 1;
-    }
-
-    if ( $entry{'version'} eq "" ) {
-        unless ( $type eq "tftp" ) {
-            $opts->{LASTERROR} = "Required --version <ver> not provided.\n";
-            return 1;
-        }
-    } elsif ( $type eq "tftp" ) {
-        print "Ignoring unsupported --version specifier for type $type\n";
-    }
-
     if ( $entry{'name'} eq "" ) {
         $entry{'name'} = $file;
         $entry{'name'} =~ s|.*/||; # only the short name for the lookup
+    }
+
+    if ( $type eq "tftp" ) {
+        if ( $entry{'version'} ne "0" ) {
+            print "Ignoring unsupported --version specifier for type $type\n";
+        }
+        my $tmpref = &find_tftpfile( $opts, $tftph, $entry{name} );
+        unless ( defined $tmpref ) {
+            unless ( $opts->{LASTERROR} ) {
+                $opts->{LASTERROR} =
+                    "Unable to find $type entry for $entry{name}\n";
+            }
+            return 1;
+        }
+    } else {
+        # fetch needed entries from db
+        my ( $version_href, $highest_href, $enabled_href ) =
+            &get_versions( $opts, $dbh, $type, $entry{name}, $entry{version});
+
+        unless (defined $highest_href) {
+            unless ( $opts->{LASTERROR} ) {
+                $opts->{LASTERROR} =
+                    "Unable to find $type entry for $entry{name}\n";
+            }
+            return 1;
+        }
+
+        if ( $entry{'version'} ne "0" && ! defined $version_href ) {
+            $opts->{LASTERROR} =
+                "Specified version was not found.\n";
+            return 1;
+        }
+
+        if ( $entry{'version'} eq "0" ) {
+            if ( defined $enabled_href && $enabled_href->{version} != 0) {
+                print "working with enabled by default, version $enabled_href->{version}\n" if $opts->{debug};
+                $entry{'version'} = $enabled_href->{version};
+            } else {
+                $opts->{LASTERROR} = "Neither --version <ver> provided, nor 'enabled' entry found.\n";
+                return 1;
+            }
+        }
+    }
+
+    if ( -e $file ) {
+        $opts->{LASTERROR} = "Unwilling to overwrite existing <path/file>: $file\n";
+        return 1;
     }
 
     my $sql;
