@@ -48,6 +48,7 @@ BEGIN {
         status
         get_bmc
         get_mac
+        get_bmcref_req_args
          ) ]
        );
   Exporter::export_ok_tags('subs');
@@ -605,6 +606,13 @@ sub remove_powerdb_entry() {
 
 }
 
+sub get_bmcref_req_args
+{
+    my $bmcref = shift;
+    my @args = qw(ctype mac login passwd bmcaddr);
+
+    return @args;
+}
 
 1;
 __END__
