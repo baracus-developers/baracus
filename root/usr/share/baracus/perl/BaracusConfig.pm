@@ -29,7 +29,7 @@ use Carp;
 use strict;
 use warnings;
 
-use AppConfig;
+use Config::General;
 
 =head1 NAME
 
@@ -83,75 +83,102 @@ use vars qw( %baVar %baDir );
 
 # get the sysconfig option settings
 
-my $sysconfig = AppConfig->new( {CREATE => 1} );
-
-$sysconfig->define
-    (
-     'base_dir=s',
-     'server_ip=s',
-     'share_type=s',
-     'share_ip=s',
-     'baracusd_options=s',
-     'auto_disable_pxe=s',
-     'remote_logging=s',
-     );
-
 my $sysconfigfile = '/etc/sysconfig/baracus';
 
-$sysconfig->file( $sysconfigfile );
+my $conf = new Config::General
+    (
+     -ConfigFile => $sysconfigfile,
+     -AllowMultiOptions => "no",
+     -LowerCaseNames => 1,
+     );
 
-my $baracusdir        =  $sysconfig->get( 'base_dir'         );
-my $serverip          =  $sysconfig->get( 'server_ip'        );
-my $sharetype         =  $sysconfig->get( 'share_type'       );
-my $shareip           =  $sysconfig->get( 'share_ip'         );
-my $bdoptions         =  $sysconfig->get( 'baracusd_options' );
-my $autodisablepxe    =  $sysconfig->get( 'auto_disable_pxe' );
-my $rlogging          =  $sysconfig->get( 'remote_logging'   );
+my %keymap =
+    (
+#    FOUND IN FILE          USED IN BARACUS
 
-if (!defined($serverip) ||length($serverip) == 0) {
-    use IO::Interface::Simple;
-    my @interfaces = IO::Interface::Simple->interfaces;
-
-    for my $if (@interfaces) {
-	if ($if->is_loopback) {
-	    next;
-	}
-	if (!defined($if->address) || !$if->is_running) {
-	    next;
-	}
-
-	$serverip = $if->address;
-	last;
-    }
-}
-if (!defined($shareip) || length($shareip) == 0) {
-    $shareip = $serverip;
-}
+     'base_dir'         =>  'baracusdir',
+     'server_ip'        =>  'serverip',
+     'share_type'       =>  'sharetype',
+     'share_ip'         =>  'shareip',
+     'baracusd_options' =>  'bdoptions',
+     'remote_logging'   =>  'rlogging',
+     );
 
 %baVar =
     (
-     baracusdir       => $baracusdir       ,
-     serverip         => $serverip         ,
-     sharetype        => $sharetype        ,
-     shareip          => $shareip          ,
-     bdoptions        => $bdoptions        ,
-     autodisablepxe   => $autodisablepxe   ,
-     rlogging         => $rlogging         ,
+     baracusdir       => "" ,
+     serverip         => "" ,
+     sharetype        => "" ,
+     shareip          => "" ,
+     bdoptions        => "" ,
+     rlogging         => "" ,
 
-     base_dir         => $baracusdir       ,
-     server_ip        => $serverip         ,
-     share_type       => $sharetype        ,
-     share_ip         => $shareip          ,
-     baracusd_options => $bdoptions        ,
-     auto_disable_pxe => $autodisablepxe   ,
-     remote_logging   => $rlogging         ,
+     base_dir         => "" ,
+     server_ip        => "" ,
+     share_type       => "" ,
+     share_ip         => "" ,
+     baracusd_options => "" ,
+     remote_logging   => "" ,
      );
-#
-#if ($bdoptions =~ m|debug|) {
-#    while( my ($key, $val) = each %baVar ) {
-#        print "baConfig $key => $val\n";
-#    }
-#}
+
+my %tmpHash = $conf->getall;
+
+# load from file and assign to baVar by both keys
+
+while ( my ($key, $value) = each %tmpHash ) {
+    if (ref($value) eq "ARRAY") {
+        print "$key has more than one entry or value specified\n";
+        print "Such ARRAYs are not supported.\n";
+        exit(1);
+        #           foreach my $avalue (@{$aref->{$key}}){
+        #               print "$avalue\n";
+        #           }
+    }
+    if (defined $value) {
+        $baVar{ $key }           = $value;
+        $baVar{ $keymap {$key} } = $value;
+    }
+}
+
+if ( length($baVar{serverip}) == 0) {
+
+    use IO::Interface::Simple;
+    my @interfaces = IO::Interface::Simple->interfaces;
+    my $serverip = "";
+
+    for my $if (@interfaces) {
+        if ($if->is_loopback) {
+            next;
+        }
+        if (!defined($if->address) || !$if->is_running) {
+            next;
+        }
+
+        $serverip = $if->address;
+        last;
+    }
+
+    if ( $serverip ne "" ) {
+        $baVar{serverip}  = $serverip;
+        $baVar{server_ip} = $serverip;
+     }
+}
+if ( length($baVar{shareip}) == 0 ) {
+
+    if ( $baVar{serverip} ne "" ) {
+        $baVar{shareip}  = $baVar{serverip};
+        $baVar{share_ip} = $baVar{serverip};
+    }
+}
+
+
+if ($baVar{ bdoptions } =~ m|debug|i) {
+    while( my ($key, $val) = each %baVar ) {
+        printf "sysconfig $key => %s\n", defined $val ? $val : "";
+    }
+}
+
+my $baracusdir =  $baVar{ 'base_dir' };
 
 # ~baracus is default base_dir
 if ( $baracusdir =~ m|^~([^/]*)| ) {
