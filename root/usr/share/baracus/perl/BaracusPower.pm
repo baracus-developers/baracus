@@ -47,7 +47,6 @@ BEGIN {
         cycle
         status
         get_bmc
-        get_mac
         get_bmcref_req_args
          ) ]
        );
@@ -425,16 +424,15 @@ sub get_bmc() {
 
     my $deviceid = shift;
     my $dbh = shift;
-    
-    my $mac;
+    my $type;
 
     ## Is deviceid a mac address, if not get mac
     if ($deviceid  =~ m|([0-9A-F]{1,2}:?){6}|) {
-        $mac = $deviceid;
+	$type = "mac";
     } elsif ($deviceid  =~ m|(\d{1,3}\.){3}\d{1,3}|) {
-        $mac = &get_mac($deviceid, "ip");
+	$type = "ip";
     } else {
-        $mac = &get_mac($deviceid, "hostname");
+	$type = "hostname";
     }
 
     ## lookup bmc info for device
@@ -449,11 +447,11 @@ sub get_bmc() {
                          node,
                          other
                   FROM power
-                  WHERE mac = ?
+                  WHERE $type = ?
                 |;
 
    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-   die "$!$sth->err\n" unless ( $sth->execute( $mac ) );
+   die "$!$sth->err\n" unless ( $sth->execute( $deviceid ) );
 
     $href = $sth->fetchrow_hashref();
     $sth->finish;

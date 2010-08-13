@@ -223,7 +223,7 @@ sub arg_handler() {
     if ($entry{'mac'}) {
         $deviceid = &check_mac( $entry{'mac'} );
     } elsif ($entry{'hostname'}) {
-        $deviceid = &get_mac( $entry{'hostname'}, $dbh );
+	$deviceid = $entry{'hostname'};
     } else {
         $LASTERROR = sprintf "\n--mac or --hostname required\n";
         return 1;
