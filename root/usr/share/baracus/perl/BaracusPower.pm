@@ -463,14 +463,24 @@ sub check_powerdb_entry() {
 
     my $deviceid = shift;
     my $dbh = shift;
+    my $type;
+
+    ## Is deviceid a mac address, if not get mac
+    if ($deviceid  =~ m|([0-9A-F]{1,2}:?){6}|) {
+	$type = "mac";
+    } elsif ($deviceid  =~ m|(\d{1,3}\.){3}\d{1,3}|) {
+	$type = "ip";
+    } else {
+	$type = "hostname";
+    }
 
     ## lookup to make sure entry does not already exist
     my $sth;
     my $href;
 
-    my $sql = qq| SELECT mac
+    my $sql = qq| SELECT $type
                   FROM power
-                  WHERE mac = ?
+                  WHERE $type = ?
                 |;
 
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
@@ -480,10 +490,10 @@ sub check_powerdb_entry() {
 
     $sth->finish;
 
-    if ($href->{'mac'}) {
-        return 0;
+    if ($href->{$type}) {
+	return 0;
     } else {
-        return 1;
+	return 1;
     }
 
 }
@@ -492,9 +502,12 @@ sub add_powerdb_entry() {
 
     my $bmcref = shift;
     my $dbh = $bmcref->{ 'dbh' };
+    my $deviceid;
 
-    unless ( &check_powerdb_entry( $bmcref->{'mac'}, $dbh ) ) {
-        die "deviceid: $bmcref->{'mac'} already exists\n";
+    $deviceid = $bmcref->{'mac'} ? $bmcref->{'mac'} : $bmcref->{'hostname'};
+
+    unless ( &check_powerdb_entry( $deviceid, $dbh ) ) {
+	die "deviceid: '$deviceid' already exists\n";
     }
 
     my $sth;
@@ -581,10 +594,13 @@ sub remove_powerdb_entry() {
     }
 
     my $deviceid;
+    my $type;
     if ( defined $bmcref->{'mac'} ) {
 	$deviceid = $bmcref->{'mac'};
+	$type = 'mac';
     } else {
-        $deviceid = &get_mac( $bmcref->{'hostname'}, $dbh );
+	$deviceid = $bmcref->{'hostname'};
+	$type = 'hostname';
     }
 
     if ( &check_powerdb_entry( $deviceid, $dbh ) ) {
@@ -595,7 +611,7 @@ sub remove_powerdb_entry() {
     my $sth;
 
     my $sql = qq|DELETE FROM power
-                 WHERE mac = ?
+                 WHERE $type = ?
                 |;
 
     $sth = $dbh->prepare( $sql )
