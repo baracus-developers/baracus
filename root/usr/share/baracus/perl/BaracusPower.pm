@@ -47,7 +47,7 @@ BEGIN {
         cycle
         status
         get_bmc
-        get_mac
+        get_bmcref_req_args
          ) ]
        );
   Exporter::export_ok_tags('subs');
@@ -65,7 +65,7 @@ my %powermod = (
            'apc'         => 'fence_apc',
            'wti'         => 'fence_ati',
            'egenera'     => 'fence_egenera',
-           'mainframe'   => 'bazvmpower',
+           'mainframe'   => 'mainframe',
           );
 
 my %cmds = (
@@ -80,12 +80,16 @@ my %cmds = (
            'apc'         => \&fence_apc,
            'wti'         => \&fence_ati,
            'egenera'     => \&fence_egenera,
-           'bazvmpower'  => \&bazvmpower,
+           'mainframe'   => \&bazvmpower,
           );
 
 sub add() {
 
     my $bmc = shift;
+
+    if ($bmc->{'ctype'} eq "virsh" && ! defined($bmc->{'bmcaddr'})) {
+	$bmc->{'bmcaddr'} = "qemu:///system";
+    }
 
     my $result = $cmds{ add }($bmc);
 
@@ -240,7 +244,7 @@ sub virsh() {
                   );
 
 
-    $command = "$powermod{ $bmcref->{'ctype'} } $action{ $operation } $bmcref->{'hostname'}";
+    $command = "$powermod{ $bmcref->{'ctype'} } --connect $bmcref->{'bmcaddr'} $action{ $operation } $bmcref->{'hostname'}";
     unless ($operation eq "status") { $command .= " >& /dev/null"; }
 
 
@@ -378,8 +382,15 @@ sub bazvmpower() {
     my $result = `$command`;
 
     if ($operation eq "status") {
-        $result =~  m/status: (.*)/g ;
-        print "Power Status: $1\n";
+	if ($result =~  m/status: (.*)/g) {
+	    print "Power Status: $1\n";
+	} elsif ($result =~  m/Error (4\d+)/g) {
+	    print "Error $1\n";
+	    return 1;
+	} else {
+	    print "Unknown error:\n$result\n";
+	    return 1;
+	}
     }
 
     return 0;
@@ -420,16 +431,15 @@ sub get_bmc() {
 
     my $deviceid = shift;
     my $dbh = shift;
-    
-    my $mac;
+    my $type;
 
     ## Is deviceid a mac address, if not get mac
     if ($deviceid  =~ m|([0-9A-F]{1,2}:?){6}|) {
-        $mac = $deviceid;
+	$type = "mac";
     } elsif ($deviceid  =~ m|(\d{1,3}\.){3}\d{1,3}|) {
-        $mac = &get_mac($deviceid, "ip");
+	$type = "ip";
     } else {
-        $mac = &get_mac($deviceid, "hostname");
+	$type = "hostname";
     }
 
     ## lookup bmc info for device
@@ -444,11 +454,11 @@ sub get_bmc() {
                          node,
                          other
                   FROM power
-                  WHERE mac = ?
+                  WHERE $type = ?
                 |;
 
    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-   die "$!$sth->err\n" unless ( $sth->execute( $mac ) );
+   die "$!$sth->err\n" unless ( $sth->execute( $deviceid ) );
 
     $href = $sth->fetchrow_hashref();
     $sth->finish;
@@ -460,14 +470,24 @@ sub check_powerdb_entry() {
 
     my $deviceid = shift;
     my $dbh = shift;
+    my $type;
+
+    ## Is deviceid a mac address, if not get mac
+    if ($deviceid  =~ m|([0-9A-F]{1,2}:?){6}|) {
+	$type = "mac";
+    } elsif ($deviceid  =~ m|(\d{1,3}\.){3}\d{1,3}|) {
+	$type = "ip";
+    } else {
+	$type = "hostname";
+    }
 
     ## lookup to make sure entry does not already exist
     my $sth;
     my $href;
 
-    my $sql = qq| SELECT mac
+    my $sql = qq| SELECT $type
                   FROM power
-                  WHERE mac = ?
+                  WHERE $type = ?
                 |;
 
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
@@ -477,10 +497,10 @@ sub check_powerdb_entry() {
 
     $sth->finish;
 
-    if ($href->{'mac'}) {
-        return 0;
+    if ($href->{$type}) {
+	return 0;
     } else {
-        return 1;
+	return 1;
     }
 
 }
@@ -489,9 +509,12 @@ sub add_powerdb_entry() {
 
     my $bmcref = shift;
     my $dbh = $bmcref->{ 'dbh' };
+    my $deviceid;
 
-    unless ( &check_powerdb_entry( $bmcref->{'mac'}, $dbh ) ) {
-        die "deviceid: $bmcref->{'mac'} already exists\n";
+    $deviceid = $bmcref->{'mac'} ? $bmcref->{'mac'} : $bmcref->{'hostname'};
+
+    unless ( &check_powerdb_entry( $deviceid, $dbh ) ) {
+	die "deviceid: '$deviceid' already exists\n";
     }
 
     my $sth;
@@ -525,17 +548,17 @@ sub add_powerdb_entry() {
     } else {
         $sth->bind_param( 2, 'NULL');
     }
-    if ( defined $bmcref->{mac} ) {
+    if ( defined $bmcref->{login} ) {
         $sth->bind_param( 3, $bmcref->{login} );
     } else {
         $sth->bind_param( 3, 'NULL');
     }
-    if ( defined $bmcref->{login} ) {
+    if ( defined $bmcref->{passwd} ) {
         $sth->bind_param( 4, $bmcref->{passwd} );
     } else {
         $sth->bind_param( 4, 'NULL' );
     }
-    if ( defined $bmcref->{passwd} ) {
+    if ( defined $bmcref->{bmcaddr} ) {
         $sth->bind_param( 5, $bmcref->{bmcaddr} );
     } else {
         $sth->bind_param( 5, 'NULL' );
@@ -578,10 +601,13 @@ sub remove_powerdb_entry() {
     }
 
     my $deviceid;
+    my $type;
     if ( defined $bmcref->{'mac'} ) {
 	$deviceid = $bmcref->{'mac'};
+	$type = 'mac';
     } else {
-        $deviceid = &get_mac( $bmcref->{'hostname'}, $dbh );
+	$deviceid = $bmcref->{'hostname'};
+	$type = 'hostname';
     }
 
     if ( &check_powerdb_entry( $deviceid, $dbh ) ) {
@@ -592,7 +618,7 @@ sub remove_powerdb_entry() {
     my $sth;
 
     my $sql = qq|DELETE FROM power
-                 WHERE mac = ?
+                 WHERE $type = ?
                 |;
 
     $sth = $dbh->prepare( $sql )
@@ -605,6 +631,19 @@ sub remove_powerdb_entry() {
 
 }
 
+sub get_bmcref_req_args
+{
+    my $bmcref = shift;
+    my @args = qw(ctype mac login passwd bmcaddr);
+
+    if ($bmcref->{'ctype'} eq "virsh") {
+	@args = qw(ctype mac);
+    } elsif ($bmcref->{'ctype'} eq "mainframe") {
+	@args = qw(ctype hostname bmcaddr node);
+    }
+
+    return @args;
+}
 
 1;
 __END__
