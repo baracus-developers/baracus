@@ -88,6 +88,10 @@ sub add() {
 
     my $bmc = shift;
 
+    if ($bmc->{'ctype'} eq "virsh" && ! defined($bmc->{'bmcaddr'})) {
+	$bmc->{'bmcaddr'} = "qemu:///system";
+    }
+
     my $result = $cmds{ add }($bmc);
 
     return $result;
@@ -241,7 +245,7 @@ sub virsh() {
                   );
 
 
-    $command = "$powermod{ $bmcref->{'ctype'} } $action{ $operation } $bmcref->{'hostname'}";
+    $command = "$powermod{ $bmcref->{'ctype'} } --connect $bmcref->{'bmcaddr'} $action{ $operation } $bmcref->{'hostname'}";
     unless ($operation eq "status") { $command .= " >& /dev/null"; }
 
 
@@ -610,6 +614,10 @@ sub get_bmcref_req_args
 {
     my $bmcref = shift;
     my @args = qw(ctype mac login passwd bmcaddr);
+
+    if ($bmcref->{'ctype'} eq "virsh") {
+	@args = qw(ctype mac);
+    }
 
     return @args;
 }
