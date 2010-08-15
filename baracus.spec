@@ -16,7 +16,7 @@ Source5:   apache.baracus.conf
 Source6:   apache.baracus-webserver.conf
 Requires:  apache2, apache2-mod_perl, perl-Apache-DBI, pidentd, sudo
 Requires:  perl, perl-XML-Simple, perl-libwww-perl, perl-Data-UUID
-Requires:  perl-Config-General, perl-Config-Simple, perl-AppConfig
+Requires:  perl-Config-General
 Requires:  perl-TermReadKey, perl-DBI, perl-DBD-Pg, perl-Tie-IxHash
 Requires:  perl-IO-Interface
 Requires:  rsync, dhcp-server, postgresql-server, createrepo, fence
@@ -44,7 +44,7 @@ rapid PXE boot installs of a collection of build clients.
 %package   webserver
 Summary:   Separate package for the baracus server web interface
 Group:     System/Services
-Requires:  baracus >= ${version}
+Requires:  baracus = ${version}
 %description webserver
 Baracus is composed of many services and a command line interface.
 This package provides a web interface to these services.
@@ -93,6 +93,11 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 
 %postun
 %restart_on_update baracusdb baracusd apache2
+%insserv_cleanup
+
+
+%postun webserver
+%restart_on_update apache2
 %insserv_cleanup
 
 %files webserver
