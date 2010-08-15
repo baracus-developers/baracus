@@ -109,6 +109,8 @@ my $cmds =
  'man'     => \&man,
  };
 
+my @types = qw ( hardware module profile autobuild tftp );
+
 my $opts =
 {
  verbose    => 0,
@@ -210,7 +212,7 @@ sub list
     }
 
     $type = lc $type if defined $type;
-    my $tlist = &check_type( $opts, $type );
+    my $tlist = &check_type( $opts, $command, $type );
 
     # recursive call to list for all types - one shot whammy
     if ( $type eq "all" ) {
@@ -320,11 +322,12 @@ sub list
 
 sub add
 {
+    my $command = "add";
     my $type = shift;
     my $status;
 
     $type = lc $type;
-    &check_type( $opts, $type );
+    &check_type( $opts, $command, $type );
 
     if    ( $type eq "hardware"  ) { $status = &add_hardware( @_ );  }
     elsif ( $type eq "module"    ) { $status = &add_module( @_ );    }
@@ -1056,11 +1059,12 @@ sub add_tftp
 
 sub update
 {
+    my $command = "update";
     my $type = shift;
     my $status;
 
     $type = lc $type;
-    &check_type( $opts, $type );
+    &check_type( $opts, $command, $type );
 
     if    ( $type eq "hardware"  ) { $status = &update_hardware( @_ );  }
     elsif ( $type eq "module"    ) { $status = &update_module( @_ );    }
@@ -2543,7 +2547,7 @@ sub detail
     }
 
     $type = lc $type;
-    &check_type( $opts, $type );
+    &check_type( $opts, $command, $type );
 
     unless ( defined $name) {
         &help( $opts, $cmds, $command );
@@ -2811,7 +2815,7 @@ sub remove
     my $rmcert = "";
 
     $type = lc $type;
-    &check_type( $opts, $type );
+    &check_type( $opts, $command, $type );
 
     unless ( defined $name) {
         &help( $opts, $cmds, $command );
@@ -2975,11 +2979,18 @@ sub check_type_help
 sub check_type
 {
     my $opts = shift;
+    my $command = shift;
     my $type = shift;
-    my $type_list = "hardware, module, profile, autobuild, tftp";
+
+    my $cmd_list  = join(", ", keys %{$cmds} );
+    my $type_list = join(", ", @types );
 
     return $type_list if ( defined $type and $type eq "all" );
 
+    unless ( defined $command ) {
+        print "requires <command> (e.g. $cmd_list )\n";
+        exit 1;
+    }
     unless ( defined $type ) {
         print "requires <type> (e.g. $type_list)\n";
         exit 1;

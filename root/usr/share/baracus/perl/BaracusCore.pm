@@ -109,7 +109,7 @@ sub help
     if ( defined $type and &main::check_type_help( $opts, $command, $type ) ) {
         $type = lc $type;
         # and another callback to make sure type is valid - should exit if not
-        &main::check_type( $opts, $type );
+        &main::check_type( $opts, $command, $type );
 
         pod2usage( -msg        => "$opts->{execname} $command $type ...\n",
                    -verbose    => 99,

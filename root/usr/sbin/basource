@@ -85,6 +85,10 @@ This tool assists with the downloading of distribution iso files, the creation o
 
 =item -v --verbose Be verbose with output
 
+=item -q --quiet  Be as quiet as possible
+
+=item -n --nolabels  Do not print headers/footers
+
 =back
 
 =cut

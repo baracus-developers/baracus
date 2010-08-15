@@ -79,6 +79,10 @@ This tool allows for specifying actions for hosts.  For example, virtual machine
 
 =item -v --verbose  Be verbose with output
 
+=item -q --quiet  Be as quiet as possible
+
+=item -n --nolabels  Do not print headers/footers
+
 =back
 
 =cut
@@ -109,7 +113,7 @@ my $opts = {
             verbose    => 0,
             quiet      => 0,
 #            all        => 0,
-#            nolabels   => 0,
+            nolabels   => 0,
             debug      => 0,
             execname   => "",
             LASTERROR  => "",
@@ -124,7 +128,7 @@ GetOptions(
            'verbose'   => \$opts->{verbose},
            'quiet'     => \$opts->{quiet},
 #           'all'       => \$opts->{all},
-#           'nolabels'  => \$opts->{nolabels},
+           'nolabels'  => \$opts->{nolabels},
            'debug+'    => \$opts->{debug},
            'man'       => \$man,
            'help|?'    => \$help,
@@ -1933,7 +1937,7 @@ sub list()
         return 1;
     }
 
-    unless ($opts->{quiet}) {
+    unless ( $opts->{quiet} || $opts->{nolabels} ) {
     print "--------------------------------------------------------------------------------------\n";
     printf "%-18s %-9s %-16s %-9s %-9s %-9s %-9s\n", "mac", "state", "hostname", "pxecurr", "pxenext", "oper", "admin";
     print "--------------------------------------------------------------------------------------\n";
@@ -1956,9 +1960,13 @@ sub list()
         $oper  = defined $actref->{oper}    ? $baState{$actref->{oper}}    : "";
         $admin = defined $actref->{admin}   ? $baState{$actref->{admin}}   : "";
 
-        printf "%-18s %-9s %-16s %-9s %-9s %-9s %-9s\n",
-            $actref->{'mac'}, $baState{$actref->{state}}, $hostname,
-                $curr, $next, $oper, $admin ;
+        printf "%-18s ", $actref->{'mac'};
+        unless ( $opts->{quiet} ) {
+            printf "%-9s %-16s %-9s %-9s %-9s %-9s",
+                $baState{$actref->{state}}, $hostname,
+                    $curr, $next, $oper, $admin ;
+        }
+        print "\n";
     }
 
     &list_finish( $sth );

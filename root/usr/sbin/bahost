@@ -52,17 +52,17 @@ B<bahost> E<lt>commandE<gt> [subcommand] [options and arguments]
 
 Where E<lt>commandE<gt> is one of
 
-  add     --mac <mac>           add a new physical device via mac entry
-  remove  --mac <mac>           delete a physical device via mac entry
-  enable  --mac <mac>           enable a physical device via mac entry
-  disable --mac <mac>           disable a physical device via mac entry
+  add     --mac <mac>    add a new physical device via mac entry
+  remove  --mac <mac>    delete a physical device via mac entry
+  enable  --mac <mac>    enable a physical device via mac entry
+  disable --mac <mac>    disable a physical device via mac entry
 
-  list nodes                    list registered node entires
-  list states                   list state data on registered node entries
-  list templates                list build templates assigned to node entries
+  list nodes             list registered node entires
+  list states            list state data on registered node entries
+  list templates         list build templates assigned to node entries
 
-  detail node      --mac <mac>  display detailed state data for a physical node entry 
-  detail inventory --mac <mac>  display hardware inventory for a physical node entry
+  detail node <...>      display detailed state data for a physical node entry 
+  detail inventory <...> display hardware inventory for a physical node entry
 
 And, where <...> indicates additional required arguments.
 
@@ -88,6 +88,21 @@ Active physical device entries must be assigned an 'action' via bado to boot acc
 
 =cut
 
+my $man      = 0;
+my $help     = 0;
+
+my $cmds =
+{
+ 'add'       => \&add,
+ 'remove'    => \&remove,
+ 'list'      => \&list,
+ 'detail'    => \&detail,
+ 'inventory' => \&inventory,
+ 'enable'    => \&enable,
+ 'disable'   => \&disable,
+ 'ignore'    => \&ignore,
+ };
+
 my $opts =
 {
  'verbose'   => 0,
@@ -99,40 +114,27 @@ my $opts =
  'LASTERROR' => "",
  };
 
-my $man      = 0;
-my $help     = 0;
-
 # Build command line for help, historical reference and point-in-time rebuilding
 $opts->{execname} = $0;
 $opts->{execname} = $1 if ( $0 =~ m|^.*/([^/].+)| );
 my $cmdline = join '::', $opts->{execname}, @ARGV;
 
-my $cmds = {
-            'add'       => \&add,
-            'remove'    => \&remove,
-            'list'      => \&list,
-            'detail'    => \&detail,
-            'inventory' => \&inventory,
-            'enable'    => \&enable,
-            'disable'   => \&disable,
-            'ignore'    => \&ignore,
-            };
-
-GetOptions(
-           'verbose'   => \$opts->{verbose},
-           'quiet'     => \$opts->{quiet},
-           'all'       => \$opts->{all},
-#           'nolabels'  => \$opts->{nolabels},
-           'debug+'    => \$opts->{debug},
-           'man'       => \$man,
-           'help|?'    => \$help,
-           );
+GetOptions
+    (
+     'verbose'   => \$opts->{verbose},
+     'quiet'     => \$opts->{quiet},
+     'all'       => \$opts->{all},
+     'nolabels'  => \$opts->{nolabels},
+     'debug+'    => \$opts->{debug},
+     'man'       => \$man,
+     'help|?'    => \$help,
+     );
 
 &man( )  if $man;
-&help( $opts ) if $help;
-&help( $opts ) unless ( scalar @ARGV );
+&help( $opts, $cmds ) if $help;
+&help( $opts, $cmds ) unless ( scalar @ARGV );
 if ($ARGV[0] eq "man"  ) { &man( ); }
-if ($ARGV[0] eq "help" ) { shift @ARGV; &help( $opts, @ARGV); }
+if ($ARGV[0] eq "help" ) { shift @ARGV; &help( $opts, $cmds, @ARGV); }
 
 # wait here to barf on this so help is available even with bad sysconfig
 unless ($baVar{serverip}) {
@@ -145,6 +147,8 @@ my $dbrole = $dbname;
 
 my $dbtftp = "sqltftp";
 
+print "setting uid to $dbrole\n" if ($opts->{debug} > 2);
+
 my $uid = BaracusDB::su_user( $dbrole );
 die BaracusDB::errstr unless ( defined $uid );
 
@@ -153,8 +157,6 @@ die BaracusDB::errstr unless( $dbh );
 
 my $tftph = BaracusDB::connect_db( $dbtftp, $dbrole );
 die BaracusDB::errstr unless( $tftph );
-
-my $hashoftbls = get_baracus_tables();
 
 print "bahost debug=$opts->{debug}\n" if $opts->{debug};
 my $deepdebug = $opts->{debug} > 2 ? 1 : 0;
@@ -177,18 +179,23 @@ exit $status;
 die "DOES NOT EXECUTE";
 
 ###########################################################################
+##
+## commands
+##
+
+=head1 COMMANDS
 
 =head2 add --mac <mac> [ --hostname <name> ]
 
 Add node (via mac) entry to Baracus.
 
-Arguments
+Argument
 
   --mac <addr>             MAC address to be added
 
-Options
+Option
 
-  --hostname <name>        Provide a DNS label to refer to this host
+  --hostname <name>        Provide the hostname as an alias to refer to this host
 
 =cut
 
@@ -264,15 +271,7 @@ sub add()
 
 =head2 remove { --mac <mac> | --hostname <name> }
 
-Remove host entry from Baracus.
-
-Specify the device by --mac or if a hostname has been associated with this mac you can instead specify --hostname to locate the entry to be removed.
-
-
-Arguments
-
-  --mac <addr>             MAC address of entry to remove
-  --hostname <name>        Hostname of entry to be removed
+Remove host entry from Baracus.  Specify the device by --mac or if a hostname has been associated with this mac you can instead specify --hostname to locate the entry to be removed.
 
 =cut
 
@@ -332,22 +331,22 @@ sub remove()
     return 0;
 }
 
-=head2 list { templates | states | nodes } [ --mac <addr> | --hostname <name> ]
+=head2 list { nodes | states | templates } [ --filter <spec> ]
 
-Sub-commands
+Types
 
-  templates                build client templates and their current status.
+  nodes               shows all nodes
+  states              state data releated to hosts
+  templates           build client templates
 
-  states                   state data releated to hosts
+Option
 
-  nodes                    shows all nodes
+  --filter <spec>     exact, or partial with wildcarded ('*')
 
-Options
+Where <spec> is of format:
 
-  --hostname <name>        exact, or partial with wildcarded ('*')
-  --mac <addr>             exact mac to lookup
-  --verbose                output more details related to tftp files
-                           for build template.
+  mac::<address>
+  hostname::<name>
 
 =cut
 
@@ -357,24 +356,22 @@ sub list
     my $subcommand = shift;
 
     my $filter = "";
-    my $status = 0;
     my $name;
 
-    @ARGV = @_;
+    $name = "t" if ( ! $opts->{quiet} );
 
+    $subcommand = lc $subcommand;
+    &check_type( $opts, $command, $subcommand);
+
+    @ARGV = @_;
     GetOptions(
                'filter=s'       => \$filter,
-               'name'           => \$name,
-               'status'         => \$status,
                );
 
     if ( scalar @ARGV ) {
         printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
         &help( $command );
     }
-
-    $subcommand = lc $subcommand;
-    &check_subcommand( $command, $subcommand);
 
     my $sth = db_list_start ( $subcommand, $filter );
 
@@ -415,15 +412,15 @@ sub list
                 $line .= "--------------------------";
             }
             if ( $name ) {
-                $line .= "----------------";
+                $line .= "-----------------";
             }
             print $line . "\n";
             if ( $opts->{verbose} ) {
                 printf "%-28s", "time ";
             }
-            printf "%-19s", "mac";
+            printf "%-17s ", "mac";
             if ( $name ) {
-                printf "%-16s", "hostname";
+                printf "%-17s ", "hostname";
             }
             printf "%-10s %-10s %-9s %-9s\n",
                 "pxecurr", "pxenext", "state", "active";
@@ -442,7 +439,7 @@ sub list
             $state_str   = $baState{ $dbref->{oper}    } if $dbref->{oper};
             $pxecurr_str = $baState{ $dbref->{pxecurr} } if $dbref->{pxecurr};
             $pxenext_str = $baState{ $dbref->{pxenext} } if $dbref->{pxenext};
-            
+
             if ( $dbref->{active} and
                  $dbref->{active} ne BA_ADMIN_ENABLED and
                  $dbref->{active} ne BA_ADMIN_DISABLED ) {
@@ -452,9 +449,9 @@ sub list
             if ( $opts->{verbose} ) {
                 printf "%-28s", $dbref->{ $state_str };
             }
-            printf "%-19s", $dbref->{'mac'};
+            printf "%-17s ", $dbref->{'mac'};
             if ( $name ) {
-                printf "%-16s", $hostname;
+                printf "%-17s ", $hostname;
             }
             printf "%-10s %-10s %-9s %-9s\n", $pxecurr_str, $pxenext_str, $state_str, $active_str;
         }
@@ -469,7 +466,7 @@ sub list
         my $inventory = "";
         my $inventory_st = "";
         my $sel;
-        
+
         while ( $dbref = &db_list_next( $sth ) ) {
             $inventory = $dbref->{'mac'} . ".inventory";
             $sel = $sqlfsOBJ->detail( $inventory );
@@ -492,9 +489,18 @@ sub list
     return 0;
 }
 
-=head2 detail --mac <name>
+=head2 detail { node | inventory } { --mac <mac> | --hostname <name> }
 
-gives full host entry details including any build, localboot and/or netboot details.
+Types
+
+  node               full details of client
+  inventory          hardware inventory for client
+
+Argument
+
+  --mac <mac>        provide the mac to identify client of interest
+  --hostname <name>  provide the hostname to identify client of interest
+                     note that not all clients have associated hostname info
 
 =cut
 
@@ -507,6 +513,9 @@ sub detail
     my $hostname = "";
     my $mac = "";
     my $name = $mac;
+
+    $subcommand = lc $subcommand;
+    &check_type( $opts, $command, $subcommand);
 
     @ARGV = @_;
     GetOptions(
@@ -527,9 +536,6 @@ sub detail
         # $opt->{LASTERROR} set in subroutine
         return 1;
     }
-
-    $subcommand = lc $subcommand;
-    &check_subcommand( $command, $subcommand);
 
     my $dbref;
 
@@ -712,19 +718,19 @@ sub _enable_disable_
     my $enabled = $command eq "enable" ? 1 : 0;  # tftp state is bool
 
     # autoyast tftp file name
-    my $automac = &automac( $macref->{'mac'} );
-
-    my $sel = $sqlfsOBJ->detail( $automac );
-    if ( defined $sel && $sel->{'enabled'} != $enabled ) {
-        if ( $sqlfsOBJ->update( { 'name' => $automac,
-                                  'enabled' => $enabled,
-                                  'description' =>
-                                  "autoinst bahost $baState{ $admin }",
-                                 } ) ) {
-            die "Unable to update status for tftp file $automac\n" .
-                $sqlfsOBJ->error();
-        }
-    }
+#    my $automac = &automac( $macref->{'mac'} );
+#
+#    my $sel = $sqlfsOBJ->detail( $automac );
+#    if ( defined $sel && $sel->{'enabled'} != $enabled ) {
+#        if ( $sqlfsOBJ->update( { 'name' => $automac,
+#                                  'enabled' => $enabled,
+#                                  'description' =>
+#                                  "autoinst bahost $baState{ $admin }",
+#                                 } ) ) {
+#            die "Unable to update status for tftp file $automac\n" .
+#                $sqlfsOBJ->error();
+#        }
+#    }
 
     &admin_state_change( $dbh, $admin, $macref, $actref );
     &update_db_mac_state( $dbh, $mac, $admin );
@@ -817,20 +823,20 @@ sub ignore
     $actref->{cmdline} = $cmdline;
 
     # autoyast tftp file name
-    my $automac = &automac( $macref->{'mac'} );
-
-    my $sel = $sqlfsOBJ->detail( $automac );
-    if ( defined $sel && $sel->{'enabled'} != 0 ) {
-        if ( $sqlfsOBJ->update( { 'name' => $automac,
-                                  'enabled' => 0,
-                                  'description' =>
-                                  "autoinst bahost disabled",
-                                 } ) ) {
-            die "Unable to update status for tftp file $automac\n" .
-                $sqlfsOBJ->error();
-        }
-    }
-
+#    my $automac = &automac( $macref->{'mac'} );
+#
+#    my $sel = $sqlfsOBJ->detail( $automac );
+#    if ( defined $sel && $sel->{'enabled'} != 0 ) {
+#        if ( $sqlfsOBJ->update( { 'name' => $automac,
+#                                  'enabled' => 0,
+#                                  'description' =>
+#                                  "autoinst bahost disabled",
+#                                 } ) ) {
+#            die "Unable to update status for tftp file $automac\n" .
+#                $sqlfsOBJ->error();
+#        }
+#    }
+#
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
             print "mac $key => " . $val eq "" ? "" : $val . "\n";
@@ -959,28 +965,55 @@ sub db_list_finish
     undef $sth;
 }
 
-sub check_subcommand
+###########################################################################
+#
+# baconfig specific aux commands
+#
+
+# return 1 if ok to proceed with help on sub-type (perl doc for $cmd $type avail)
+# return 0 if no sub-type help available so generic help presented
+
+sub check_type_help
 {
+    my $opts    = shift;
     my $command = shift;
-    my $subcommand = shift;
+    my $type    = shift;
 
-    unless ( defined $command && defined $subcommand ) {
-        print "requires <command> <subcommand> (e.g. list history)\n";
-        &help( $opts );
-    }
+#    if ( defined $type and ( $command eq "list" or $command eq "detail" ) ) {
+#        return 1;
+#    } else {
+        return 0;
+#    }
+}
+sub check_type
+{
+    my $opts = shift;
+    my $command = shift;
+    my $type = shift;
 
-    unless ( $command eq "list" or
-             $command eq "detail" ) {
-        print "Command $command not expecting any subcommand.\n";
+    my %type_list =
+        (
+         list   => "nodes, states, templates",
+         detail => "node, inventory",
+         );
+
+    unless ( defined $command and $command ne "" ) {
+        print "requires <command> (e.g. list or detail)\n";
         exit 1;
     }
-
-    unless ( $subcommand eq "nodes" or
-             $subcommand eq "templates" or
-             $subcommand eq "states" or
-             $subcommand eq "inventory" or
-             $subcommand eq "node" ) {
-        print "Invalid <subcommand> '$subcommand' for <command> '$command'\n";
+    print "check_type - have command '$command'\n" if $opts->{debug};
+    unless ( $command eq "list" or $command eq "detail" ) {
+        print "Command $command not expecting any type.\n";
+        exit 1;
+    }
+    print "check_type - list or detail: '$command'\n" if $opts->{debug};
+    unless ( defined $type and $type ne "" ) {
+        print "Command $command requires <type> (e.g. $type_list{$command})\n";
+        exit 1;
+    }
+    print "check_type - have type '$type'\n" if $opts->{debug};
+    unless ( $type_list{$command} =~ m/\b$type\b/ ) {
+        print "Invalid <type> '$type' for <command> '$command' (use $type_list{$command})\n";
         exit 1;
     }
 }
