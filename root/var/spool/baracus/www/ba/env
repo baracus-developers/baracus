@@ -815,6 +815,70 @@ linuxrcstderr=/dev/console
         $output .= $args;
 
     }
+    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(exec)\?.*\s*$} )
+    {
+	die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
+
+	$input->{mac} = &check_mac($input->{mac});
+	$macref = &get_db_mac( $dbh, $input->{mac} );
+	$actref = &get_db_action( $dbh, $input->{mac} );
+	$distref = &get_distro( $opts, $dbh, $actref );
+	if ( not defined $macref or
+	     not defined $actref or
+	     not defined $distref
+	    )
+	{
+	    ##
+	    ## WINST - missing 'mac' or 'action' entry (or entries)
+	    ##
+	    print STDERR "$input->{mac} - missing mac, action, distro in db\n";
+	    exit 1;
+	}
+
+	&load_distro( $opts, $dbh, $actref );
+
+	if ( $actref->{arch} !~ m/s390/ ) {
+	    print STDERR "$input->{mac} - non-s390 arch request for parm file\n";
+	    exit 1;
+	}
+
+	&load_profile( $opts, $dbh, $actref );
+	&load_vars( $opts, $actref );
+	&load_baracusconfig( $opts, $actref );
+
+	$admin = $actref->{admin};
+	if ( $admin eq BA_ADMIN_IGNORED or
+	     $admin eq BA_ADMIN_DISABLED ) {
+	    # Do not server anything in this case
+	    print $cgi->header( -status => "404 Not found");
+	    exit 0;
+	}
+	elsif ( $actref->{pxecurr} eq BA_ACTION_LOCALBOOT ) {
+## example REXX script
+#
+# /* REXX */
+# Say 'Hello'
+# Address 'CMS' 'CP CLOSE RDR'
+# Address 'CMS' 'PURGE RDR ALL'
+# Address 'CMS' 'IPL 0150'
+
+	    $output = qq|/* REXX */
+Address 'CMS' 'CP CLOSE RDR'
+Address 'CMS' 'PURGE RDR ALL'
+|;
+
+	    my $args = "";
+
+	    if ( $actref->{ipldasd} ) {
+		$args .= qq|Address 'CMS' 'IPL $actref->{ipldasd}'
+|;
+	    } else {
+		$args .= qq|Address 'CMS' 'IPL 0150'
+|;
+	    }
+	    $output .= $args;
+	}
+    }
     elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(startrom.0|pxelinux.0|sanboot.c32).*\s*$} )
     {
         my $file = $1;
