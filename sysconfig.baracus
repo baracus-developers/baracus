@@ -62,4 +62,7 @@ BARACUSD_OPTIONS="none"
 ## Default:        "no"
 ## ServiceRestart: baracusd
 #
+# If you say 'yes' here, make sure that you use syslog-ng as syslog service
+# daemon in /etc/sysconfig/syslog and restart the syslog service afterwards.
+#
 REMOTE_LOGGING="no"
