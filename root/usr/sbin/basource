@@ -1053,6 +1053,11 @@ sub init() {
                'mounts!'   => \$mounts,
                );
 
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $command );
+    }
+
     if (( $mounts )  || ( $opts->{all} )) {
         print "init mounts\n" if $opts->{debug};
         $ret = &init_mounter( $opts );
