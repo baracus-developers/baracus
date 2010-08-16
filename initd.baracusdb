@@ -29,8 +29,8 @@
 #
 ### BEGIN INIT INFO
 # Provides:       baracusdb
-# Required-Start: $network $remote_fs
-# Required-Stop:  $network $remote_fs
+# Required-Start: $network $remote_fs nfsserver
+# Required-Stop:  $network $remote_fs nfsserver
 # Default-Start:  3 5
 # Default-Stop:   
 # Description:    Start the Baracusdb master daemon
