@@ -30,45 +30,97 @@
 # --file=/usr/share/baracus/templates/autobuild/__file__ \
 # --cert=__distro__
 
+# DHCP enabled autobuild templates
+#
+baconfig detail autobuild sles-10-x86_64-dhcp  &> /dev/null || \
+baconfig add autobuild --name sles-10-x86_64-dhcp \
+--description="sles 10.x 64bit (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/sles-10-x86_64-dhcp.xml \
+--cert="sles-10.3-x86_64 sles-10.2-x86_64"
+
+baconfig detail autobuild sles-11-x86_64-dhcp  &> /dev/null || \
+baconfig add autobuild --name sles-11-x86_64-dhcp \
+--description="sles 11/11.1 64bit (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/sles-11-x86_64-dhcp.xml \
+--cert="sles-11-x86_64 sles-11.1-x86_64"
+
+baconfig detail autobuild opensuse-11-x86_64-dhcp  &> /dev/null || \
+baconfig add autobuild --name opensuse-11-x86_64-dhcp \
+--description="opensuse 11.x64bit (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/opensuse-11-x86_64-dhcp.xml \
+--cert="opensuse-11.1-x86_64 opensuse-11.2-x86_64 opensuse-11.3-x86_64"
+
+baconfig detail autobuild rhel-http-x86_64-dhcp  &> /dev/null || \
+baconfig add autobuild --name rhel-http-x86_64-dhcp \
+--description="rhel 5.x 64bit HTTP (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/rhel-http-x86_64-dhcp \
+--cert="rhel-5.3-x86_64 rhel-5.4-x86_64 rhel-5.5-x86_64"
+
+baconfig detail autobuild rhel-nfs-x86_64-dhcp  &> /dev/null || \
+baconfig add autobuild --name rhel-nfs-x86_64-dhcp \
+--description="rhel 5.x 64bit NFS (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/rhel-nfs-x86_64-dhcp \
+--cert="rhel-5.3-x86_64 rhel-5.4-x86_64 rhel-5.5-x86_64"
+
+baconfig detail autobuild fedora-http-x86_64-dhcp  &> /dev/null || \
+baconfig add autobuild --name fedora-http-x86_64-dhcp \
+--description="fedora 11/12/13 64bit HTTP (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/rhel-http-x86_64-dhcp \
+--cert="fedora-11-x86_64 fedora-12-x86_64 fedora-13-x86_64"
+
+baconfig detail autobuild fedora-nfs-x86_64-dhcp  &> /dev/null || \
+baconfig add autobuild --name fedora-nfs-x86_64-dhcp \
+--description="fedora 11/12/13 64bit NFS (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/rhel-nfs-x86_64-dhcp \
+--cert="fedora-11-x86_64 fedora-12-x86_64 fedora-13-x86_64"
+
+baconfig detail autobuild ubuntu-x86_64-dhcp &> /dev/null || \
+baconfig add autobuild --name ubuntu-x86_64-dhcp \
+--description="ubuntu 9.10/10.4 64bit (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/ubuntu-x86_64-dhcp \
+--cert="ubuntu-9.10-x86_64 ubuntu-10.4-x86_64 ubuntu_desktop-10.4-x86_64"
+
+
+## Static autobuild templates
+##
 baconfig detail autobuild rhel-http-x86_64 &> /dev/null || \
 baconfig add autobuild --name rhel-http-x86_64 \
---description="rhel http 64bit static ip" \
---file=/usr/share/baracus/templates/autobuild/rhel-http-x86_64.ks \
+--description="rhel http 64bit (static ip)" \
+--file=/usr/share/baracus/templates/autobuild/rhel-http-x86_64 \
 --cert="rhel-5.5-x86_64 rhel-5.4-x86_64"
 
 baconfig detail autobuild rhel-nfs-x86_64 &> /dev/null || \
 baconfig add autobuild --name rhel-nfs-x86_64 \
---description="rhel nfs 64bit static ip" \
---file=/usr/share/baracus/templates/autobuild/rhel-nfs-x86_64.ks \
+--description="rhel nfs 64bit (static ip)" \
+--file=/usr/share/baracus/templates/autobuild/rhel-nfs-x86_64 \
 --cert="rhel-5.5-x86_64 rhel-5.4-x86_64"
 
 baconfig detail autobuild slert-10.2-x86_64 &> /dev/null || \
 baconfig add autobuild --name slert-10.2-x86_64 \
---description="sles 10.2 real-time 64bit static ip" \
+--description="sles 10.2 real-time 64bit (static ip)" \
 --file=/usr/share/baracus/templates/autobuild/sles-10.2-rt-x86_64.xml \
 --cert="sles-10.3-x86_64 sles-10.2-x86_64"
 
 baconfig detail autobuild sles-10.2-x86_64-bnx2x &> /dev/null || \
 baconfig add autobuild --name sles-10.2-x86_64-bnx2x \
---description="sles 10 sp2 64bit bnx2x chroot update" \
+--description="sles 10.2 64bit bnx2x update (static ip)" \
 --file=/usr/share/baracus/templates/autobuild/sles-10.2-x86_64_bnx2x-chroot.xml \
 --cert="sles-10.3-x86_64 sles-10.2-x86_64"
 
 baconfig detail autobuild sles-11.1-x86_64 &> /dev/null || \
 baconfig add autobuild --name sles-11.1-x86_64 \
---description="sles 11.1 64bit" \
+--description="sles 11.1 64bit (static ip)" \
 --file=/usr/share/baracus/templates/autobuild/sles-11.1-x86_64.xml \
 --cert="sles-11.1-x86_64 sles-11-x86_64"
 
 baconfig detail autobuild ubuntu-10.4-x86_64 &> /dev/null || \
 baconfig add autobuild --name ubuntu-10.4-x86_64 \
---description="ubuntu 10.4 64bit" \
---file=/usr/share/baracus/templates/autobuild/ubuntu-10.4-x86_64 \
+--description="ubuntu 10.4 64bit (static ip)" \
+--file=/usr/share/baracus/templates/autobuild/ubuntu-x86_64 \
 --cert="ubuntu-10.4-x86_64 ubuntu_desktop-10.4-x86_64 ubuntu-9.10-x86_64"
 
 baconfig detail autobuild win_ent-x86_64 &> /dev/null || \
 baconfig add autobuild --name win_ent-x86_64 \
---description="win enterprise 64bit" \
+--description="win enterprise 64bit (static ip)" \
 --file=/usr/share/baracus/templates/autobuild/win_ent-7-x86_64.xml \
 --cert="windows_ent-7-x86_64 windows_ent-2008-x86_64"
-
