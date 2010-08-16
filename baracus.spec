@@ -30,6 +30,8 @@ Requires:  nfs-kernel-server
 %if 0%{?suse_version} >= 1110
 Requires:  libvirt
 %endif
+# Remote logging requires syslog-ng installed
+Requires:  syslog-ng
 
 PreReq:    %insserv_prereq %fillup_prereq pwdutils
 PreReq:    /usr/sbin/groupadd /usr/sbin/useradd /sbin/chkconfig
