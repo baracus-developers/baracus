@@ -776,6 +776,28 @@ n:\\setup.exe
         &load_vars( $opts, $actref );
         &load_baracusconfig( $opts, $actref );
 
+	# parm file should only be served during installation
+	$admin = $actref->{admin};
+	if ( $admin eq BA_ADMIN_IGNORED or
+	     $admin eq BA_ADMIN_DISABLED ) {
+	    # Do not server anything in this case
+	    print $cgi->header( -status => "404 Not found");
+	    exit 0;
+	}
+	elsif (  $actref->{pxenext} eq BA_ACTION_BUILD ) {
+	    ##
+	    ## BUILD
+	    ##
+
+	    print STDERR "$input->{mac} - building\n";
+
+	    $state = BA_EVENT_BUILDING;
+
+	    &event_state_change( $dbh, $state, $macref, $actref );
+	    &update_db_mac_state( $dbh, $macref->{mac}, $state );
+	    $actref->{cmdline} = "# pxeboot directing to network install";
+	    &update_db_action( $dbh, $actref );
+
 ## example parm
 #
 # ramdisk_size=65536 root=/dev/ram1 ro init=/linuxrc TERM=dumb
@@ -789,7 +811,7 @@ n:\\setup.exe
 # Install=nfs://10.10.0.100/dist/install/SLP/SLES-11-GM/s390x/DVD1/
 # UseSSH=1 SSHPassword=testing linuxrcstderr=/dev/console
 
-        $output = qq|ramdisk_size=65536 root=/dev/ram1 ro init=/linuxrc TERM=dumb
+	    $output = qq|ramdisk_size=65536 root=/dev/ram1 ro init=/linuxrc TERM=dumb
 ReadChannel=0.0.0700 WriteChannel=0.0.0701 DataChannel=0.0.0702
 OsaInterface=qdio OsaMedium=eth
 InstNetDev=osa layer2=0 PortNo=0
@@ -799,21 +821,21 @@ Install=$actref->{sharetype}://$actref->{shareip}$actref->{basepath}
 linuxrcstderr=/dev/console
 |;
 
-        my $args = "";
+	    my $args = "";
 
-        if ( $actref->{ip} ne "dhcp" ) {
-            $args .= "HostIP=$actref->{ip} Netmask=$actref->{netmask} Broadcast=$actref->{broadcast} Gateway=$actref->{gateway} Nameserver=$actref->{dns1}\n";
-        }
-        if ( $actref->{raccess} =~ m|(usessh=1)| ) {
-            $args .= $1 . " " ;
-            $args .= $1 . " " if ( $actref->{raccess} =~ m|(sshpassword=[^ \t\s]+)| );
-        }
-#       if ( $actref->{autobuild} ne "none" )
-#       {
-#           $args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
-#       }
-        $output .= $args;
-
+	    if ( $actref->{ip} ne "dhcp" ) {
+		$args .= "HostIP=$actref->{ip} Netmask=$actref->{netmask} Broadcast=$actref->{broadcast} Gateway=$actref->{gateway} Nameserver=$actref->{dns1}\n";
+	    }
+	    if ( $actref->{raccess} =~ m|(usessh=1)| ) {
+		$args .= $1 . " " ;
+		$args .= $1 . " " if ( $actref->{raccess} =~ m|(sshpassword=[^ \t\s]+)| );
+	    }
+#	    if ( $actref->{autobuild} ne "none" )
+#	    {
+#		$args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
+#	    }
+	    $output .= $args;
+	}
     }
     elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(exec)\?.*\s*$} )
     {
