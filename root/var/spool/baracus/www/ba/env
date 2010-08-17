@@ -835,14 +835,16 @@ linuxrcstderr=/dev/console
 	    exit 1;
 	}
 
+	&load_profile( $opts, $dbh, $actref );
+	&load_hardware( $opts, $dbh, $actref );
 	&load_distro( $opts, $dbh, $actref );
 
 	if ( $actref->{arch} !~ m/s390/ ) {
-	    print STDERR "$input->{mac} - non-s390 arch request for parm file\n";
+	    print STDERR "$input->{mac} - non-s390 arch request for exec file\n";
 	    exit 1;
 	}
 
-	&load_profile( $opts, $dbh, $actref );
+	&load_modules ( $opts, $dbh, $actref );
 	&load_vars( $opts, $actref );
 	&load_baracusconfig( $opts, $actref );
 
@@ -869,8 +871,8 @@ Address 'CMS' 'PURGE RDR ALL'
 
 	    my $args = "";
 
-	    if ( $actref->{ipldasd} ) {
-		$args .= qq|Address 'CMS' 'IPL $actref->{ipldasd}'
+	    if ( $actref->{IplDevice} ) {
+		$args .= qq|Address 'CMS' 'IPL $actref->{IplDevice}'
 |;
 	    } else {
 		$args .= qq|Address 'CMS' 'IPL 0150'
