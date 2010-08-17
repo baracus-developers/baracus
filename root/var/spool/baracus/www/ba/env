@@ -917,7 +917,6 @@ Nameserver=$actref->{dns1}
 	    exit 1;
 	}
 
-	&load_modules ( $opts, $dbh, $actref );
 	&load_vars( $opts, $actref );
 	&load_baracusconfig( $opts, $actref );
 
@@ -928,7 +927,7 @@ Nameserver=$actref->{dns1}
 	    print $cgi->header( -status => "404 Not found");
 	    exit 0;
 	}
-	elsif ( $actref->{pxecurr} eq BA_ACTION_LOCALBOOT ) {
+	elsif ( $actref->{pxenext} eq BA_ACTION_LOCALBOOT ) {
 ## example REXX script
 #
 # /* REXX */
