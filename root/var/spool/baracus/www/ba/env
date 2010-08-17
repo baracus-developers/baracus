@@ -765,14 +765,15 @@ n:\\setup.exe
             exit 1;
         }
 
-        &load_distro( $opts, $dbh, $actref );
+	&load_profile( $opts, $dbh, $actref );
+	&load_hardware( $opts, $dbh, $actref );
+	&load_distro( $opts, $dbh, $actref );
 
         if ( $actref->{arch} !~ m/s390/ ) {
             print STDERR "$input->{mac} - non-s390 arch request for parm file\n";
             exit 1;
         }
 
-        &load_profile( $opts, $dbh, $actref );
         &load_vars( $opts, $actref );
         &load_baracusconfig( $opts, $actref );
 
@@ -811,20 +812,48 @@ n:\\setup.exe
 # Install=nfs://10.10.0.100/dist/install/SLP/SLES-11-GM/s390x/DVD1/
 # UseSSH=1 SSHPassword=testing linuxrcstderr=/dev/console
 
-	    $output = qq|ramdisk_size=65536 root=/dev/ram1 ro init=/linuxrc TERM=dumb
-ReadChannel=0.0.0700 WriteChannel=0.0.0701 DataChannel=0.0.0702
-OsaInterface=qdio OsaMedium=eth
-InstNetDev=osa layer2=0 PortNo=0
-Portname=VSW1
+	    $output = qq|ramdisk_size=65536 root=/dev/ram1 ro init=/linuxrc
+$actref->{bootargs}
 Hostname=$actref->{hostname}.$actref->{dnsdomain}
 Install=$actref->{sharetype}://$actref->{shareip}$actref->{basepath}
 linuxrcstderr=/dev/console
 |;
 
+	    if ( $actref->{InstNetDev} eq "osa" ) {
+		$output .= qq|InstNetDev=osa
+OsaInterface=$actref->{OsaInterface}
+OsaMedium=$actref->{OsaMedium}
+layer2=$actref->{OsaLayer2}
+PortNo=$actref->{OsaPortNo}
+Portname=$actref->{OsaPortname}
+ReadChannel=$actref->{ReadChannel}
+WriteChannel=$actref->{WriteChannel}
+DataChannel=$actref->{DataChannel}
+|;
+	    } elsif ($actref->{InstNetDev} eq "hsi" ) {
+		$output .= qq|InstNetDev=hsi
+ReadChannel=$actref->{ReadChannel}
+WriteChannel=$actref->{WriteChannel}
+DataChannel=$actref->{DataChannel}
+|;
+	    } else {
+		print STDERR "Unsupported InstNetDev: $actref->{InstNetDev}\n";
+		exit 1;
+	    }
+
 	    my $args = "";
 
-	    if ( $actref->{ip} ne "dhcp" ) {
-		$args .= "HostIP=$actref->{ip} Netmask=$actref->{netmask} Broadcast=$actref->{broadcast} Gateway=$actref->{gateway} Nameserver=$actref->{dns1}\n";
+	    # Only OSA Layer2 can do dhcp
+	    if ( $actref->{ip} ne "dhcp" or $actref->{OsaLayer2} ne "1" ) {
+		$args .= qq|HostIP=$actref->{ip}
+Netmask=$actref->{netmask}
+Broadcast=$actref->{broadcast}
+Gateway=$actref->{gateway}
+Nameserver=$actref->{dns1}
+|;
+	    } else {
+		print STDERR "No IP configuration specified\n";
+		exit 1;
 	    }
 	    if ( $actref->{raccess} =~ m|(usessh=1)| ) {
 		$args .= $1 . " " ;
@@ -835,6 +864,28 @@ linuxrcstderr=/dev/console
 #		$args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
 #	    }
 	    $output .= $args;
+
+	    my @tokens = split(' ', $output);
+	    my ($line, $outline);
+	    foreach my $token (@tokens) {
+		if (length($line) == 0) {
+		    $line = $token;
+		} elsif ( length($line) + length($token) < 78 ) {
+		    $line = join(' ', $line, $token);
+		} else {
+		    $outline .= $line . "\n";
+		    $line = $token;
+		}
+	    }
+
+	    $output = $outline . $line . "\n";
+
+	    # PARM file should not be longer than 10 lines
+	    my $count = $output =~ tr/\n//;
+	    unless ($count < 10) {
+		print STDERR "PARM file too long: $count lines\n";
+		exit 1;
+	    }
 	}
     }
     elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(exec)\?.*\s*$} )
