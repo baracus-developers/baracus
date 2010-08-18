@@ -46,7 +46,7 @@ rapid PXE boot installs of a collection of build clients.
 %package   webserver
 Summary:   Separate package for the baracus server web interface
 Group:     System/Services
-Requires:  baracus = ${version}
+Requires:  baracus = %{version}
 %description webserver
 Baracus is composed of many services and a command line interface.
 This package provides a web interface to these services.
