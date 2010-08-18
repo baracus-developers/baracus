@@ -860,10 +860,10 @@ Nameserver=$actref->{dns1}
 		$args .= $1 . " " ;
 		$args .= $1 . " " if ( $actref->{raccess} =~ m|(sshpassword=[^ \t\s]+)| );
 	    }
-#	    if ( $actref->{autobuild} ne "none" )
-#	    {
-#		$args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
-#	    }
+	    if ( $actref->{autobuild} ne "none" )
+	    {
+		$args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
+	    }
 	    $output .= $args;
 
 	    my @tokens = split(' ', $output);
