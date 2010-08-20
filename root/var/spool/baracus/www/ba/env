@@ -338,6 +338,7 @@ chain tftp://$baVar{serverip}/pxegrub
                 $output = qq|#!gpxe
 chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 |;
+
 #dhcp net0
 #set keep-san-nb 1
 #sanboot iscsi:151.155.230.116::::$iqn
@@ -657,8 +658,9 @@ chain pxegrub
 # the mac isn't required here for operation but it identifies the requesting device 
 
                 $output = qq|#!gpxe
-chain http://$baVar{serverip}/ba/startrom.0
+chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
 |;
+#chain http://$baVar{serverip}/ba/startrom.0
 
 #                $output = qq|DEFAULT label_$actref->{hostname}
 #PROMPT 0

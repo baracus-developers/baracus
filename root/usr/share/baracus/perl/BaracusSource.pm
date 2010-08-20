@@ -1501,7 +1501,7 @@ sub add_bootloader_files
 
     my $dh = &baxml_distro_gethash( $opts, $distro );
     my $bh = $dh->{basedisthash};
-
+    my $arch = $dh->{arch};
     my $basedist = $dh->{basedist};
 
     if ( $distro =~ m/win/i )  {
@@ -1534,16 +1534,17 @@ samba for other shares, and then try this basource command again.
 		print $winstall_msg;
                 exit;
 	    }
-	    if ( &sqlfs_getstate( $opts, $fname ) ) {
-		print "found $fname in tftp database\n" if $opts->{verbose};
+        my $stname = "${fname}-${arch}";
+	    if ( &sqlfs_getstate( $opts, $stname  ) ) {
+		print "found $stname in tftp database\n" if $opts->{verbose};
 	    } else {
-		print "cp from $fh->{file} to $tdir/$fname\n"
+		print "cp from $fh->{file} to $tdir/$stname\n"
 		    if ( $opts->{debug} > 1 );
 		# we don't go from $fh->{file} to sqlfs_store directly
 		# there may be a name change / difference from $fname
-		copy($fh->{file},"$tdir/$fname") or die "Copy failed: $!";
-		&sqlfs_store( $opts, "$tdir/$fname" );
-		unlink( "$tdir/$fname" );
+		copy($fh->{file},"$tdir/$stname") or die "Copy failed: $!";
+		&sqlfs_store( $opts, "$tdir/$stname" );
+		unlink( "$tdir/$stname" );
 	    }
 	}
     } elsif ( $distro =~ m/solaris/i )  {

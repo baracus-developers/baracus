@@ -129,8 +129,9 @@ foreach my $requiredfile ( @requiredfiles ) {
 # perpetually serve up files from SqlFS database via TFTP
 
 # hash ref of ips that have been denied pxe 01-<mac> disabled entries
-my $pxedisabledips = {};
-my $pxedeliveredips = {};
+# freaking winpe arch and windows install arch must match
+my $winpefiles = "BCD  bootmgr.exe  boot.sdi  boot.wim";
+my $iparchmap = {};
 
 while (1) {
     # wait for any request (RRQ or WRQ)
@@ -138,8 +139,9 @@ while (1) {
         # process request and be done if validateURL
 #        unless ( $dovalidate && &validateURL( $request ) ) {
 
-            # upcase MAC portion of pxeboot 01-<mac> file
-            &upcasepxefilename( $request );
+        # upcase MAC portion of pxeboot 01-<mac> file
+        # and extract ip/arch and mangle filename with arch for win
+        &upcasepxefilename( $request );
 
 
         $SIG{CHLD} = 'IGNORE';  # so we don't create zombies
@@ -159,19 +161,19 @@ while (1) {
                         $request->{'_REQUEST_'}{'FileName'};
 
             # process the request - track 01-<mac> denies and deliveries
-            my $status = $request->processRQ( $pxedisabledips,
-                                              $pxedeliveredips );
+            my $status = $request->processRQ( );
             if ( $status ) {
-                printf STDOUT "Succeess %s peer %s file '%s' done\n",
+                printf STDOUT "Success  %s peer %s file '%s' done\n",
                     $OPCODES{$request->{'_REQUEST_'}{'OPCODE'}},
                         $request->{'_REQUEST_'}{'PeerAddr'},
                             $request->{'_REQUEST_'}{'FileName'};
+
+                if ( $request->{'_REQUEST_'}{'FileName'} =~ m|boot.wim| ) {
+                    # on successful deliver of winpe env nuke ip/arch mapping
+                    delete $iparchmap->{ $request->{'_REQUEST_'}{'PeerAddr'}};
+                }
             } else {
                 print STDOUT SqlTFTPd->error;
-                if ( $debug and
-                     ( defined $pxedisabledips->{ $request->{'_REQUEST_'}{'PeerAddr'} } ) ) {
-                    print STDOUT "Disabled PXE peer $request->{'_REQUEST_'}{'PeerAddr'} check tftp entry no|enable flag\n";
-                }
             }
             # exit the forked proc
             exit 0;
@@ -179,8 +181,6 @@ while (1) {
         else {
             print "Trouble forking\n";
         }
-#            &deliverPXE( $request, $status );
-#        }
     }
 }
 
@@ -318,9 +318,23 @@ sub upcasepxefilename {
         $request->{'_REQUEST_'}{'FileName'} =~ tr|a-z|A-Z|;   # upcase
         $request->{'_REQUEST_'}{'FileName'} =
             "$1/" . $request->{'_REQUEST_'}{'FileName'}; # put prefix back
+    } elsif ($request->{'_REQUEST_'}{'FileName'} =~ m|(.*)/startrom.0|) {
+        my $arch = $1;
+        $iparchmap->{$request->{'_REQUEST_'}{'PeerAddr'}} = $arch;
+        print STDOUT "remaping $request->{'_REQUEST_'}{'FileName'} to startrom.0-${arch}\n";
+        $request->{'_REQUEST_'}{'FileName'} = "startrom.0-${arch}";
     } else {
         $request->{'_REQUEST_'}{'FileName'} =~ s|.*\\||;
         $request->{'_REQUEST_'}{'FileName'} =~ s|^\\||;
+
+        if ( $winpefiles =~ m|\b$request->{'_REQUEST_'}{'FileName'}\b|) {
+            if ( defined $iparchmap->{ $request->{'_REQUEST_'}{'PeerAddr'} } )
+            {
+                my $arch = $iparchmap->{ $request->{'_REQUEST_'}{'PeerAddr'} };
+                print STDOUT "remaping $request->{'_REQUEST_'}{'FileName'} to $request->{'_REQUEST_'}{'FileName'}-${arch}\n";
+                $request->{'_REQUEST_'}{'FileName'} .= "-${arch}";
+            }
+        }
     }
 }
 
