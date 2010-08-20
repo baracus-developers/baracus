@@ -83,3 +83,11 @@ baconfig add hardware --name ubuntu-virtio \
 --rootdisk=/dev/vda \
 --rootpart=/dev/vda \
 --cert "ubuntu-10.4-x86_64 ubuntu-10.4-x86 ubuntu_desktop-10.4-x86_64 ubuntu_desktop-10.4-x86 ubuntu-9.10-x86_64 ubuntu-9.10-x86"
+
+baconfig detail hardware default-dasda --all &> /dev/null || \
+baconfig add hardware --name default-dasda \
+--description="/dev/dasda drive (s390/s390x)" \
+--bootargs="selinux=0 TERM=dumb" \
+--rootdisk=/dev/dasda \
+--rootpart=/dev/dasda \
+--cert "sles-11.1-s390x sles-11.1-s390 sles-10.3-s390x sles-10.3-s390"
