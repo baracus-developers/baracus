@@ -865,22 +865,28 @@ Nameserver=$actref->{dns1}
 		$args .= $1 . " " ;
 		$args .= $1 . " " if ( $actref->{raccess} =~ m|(sshpassword=[^ \t\s]+)| );
 	    }
-	    if ( $actref->{autobuild} ne "none" )
-	    {
+
+	    my $actauto = &get_action_autobuild_hash( $dbh, $input->{mac} );
+	    if ( defined $actauto->{autobuild} ) {
+		$actref->{autobuild} = $actauto->{autobuild};
+		$actref->{autobuild_ver} = $actauto->{autobuild_ver};
 		$args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
+	    } else {
+		$actref->{autobuild} = "none";
 	    }
 	    $output .= $args;
 
 	    my @tokens = split(' ', $output);
-	    my ($line, $outline);
+	    my $line = "";
+	    my $outline;
 	    foreach my $token (@tokens) {
-		if (length($line) == 0) {
+		if ( length($line) == 0 ) {
 		    $line = $token;
 		} elsif ( length($line) + length($token) < 78 ) {
 		    $line = join(' ', $line, $token);
 		} else {
 		    $outline .= $line . "\n";
-		    $line = $token;
+		    $line = " " . $token;
 		}
 	    }
 
