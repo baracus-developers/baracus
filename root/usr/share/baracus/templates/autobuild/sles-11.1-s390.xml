@@ -22,61 +22,10 @@ __ADDON__
   <dasd>
     <devices config:type="list">
       <listentry>
-        <bus>CCW</bus>
-        <bus_hwcfg>ccw</bus_hwcfg>
-	<!--<channel>0.0.0150</channel>-->
-	<class_id config:type="integer">262</class_id>
-        <!--<dev_name>/dev/dasda</dev_name>
-        <dev_names config:type="list">
-          <listentry>/dev/dasda</listentry>
-          <listentry>/dev/disk/by-id/ccw-0X0150</listentry>
-          <listentry>/dev/disk/by-path/ccw-0.0.0150</listentry>
-        </dev_names>-->
-        <!--<dev_num>
-          <major config:type="integer">94</major>
-          <minor config:type="integer">0</minor>
-          <range config:type="integer">4</range>
-          <type>b</type>
-        </dev_num>-->
-        <device>DASD</device>
-        <driver>io_subchannel</driver>
-        <drivers config:type="list">
-          <listentry>
-            <active config:type="boolean">true</active>
-            <modprobe config:type="boolean">true</modprobe>
-            <modules config:type="list">
-              <module_entry config:type="list">
-                <listentry>dasd_eckd_mod</listentry>
-		<listentry/>
-              </module_entry>
-            </modules>
-          </listentry>
-        </drivers>
-	<format config:type="boolean">true</format>
-        <formatted config:type="boolean">false</formatted>
-        <hotpluggable config:type="boolean">true</hotpluggable>
-        <model>IBM DASD</model>
-        <!--<partition_info>/dev/dasda1 (Linux native), /dev/dasda2 (Linux swap), /dev/dasda3 (Linux native)</partition_info>-->
-        <prog_if config:type="integer">1</prog_if>
-        <resource>
-          <!--<disk_log_geo config:type="list">
-            <listentry>
-              <heads config:type="integer">15</heads>
-              <sectors config:type="integer">12</sectors>
-            </listentry>
-          </disk_log_geo>-->
-          <io config:type="list">
-            <listentry>
-              <active config:type="boolean">true</active>
-              <length config:type="integer">1</length>
-              <mode>rw</mode>
-            </listentry>
-          </io>
-        </resource>
-        <sub_class_id config:type="integer">0</sub_class_id>
-        <!--<sysfs_bus_id>0.0.0150</sysfs_bus_id>-->
-        <vendor>IBM</vendor>
-        <vendor_id config:type="integer">286721</vendor_id>
+        <channel>0.0.__IPLDEVICE__</channel>
+        <dev_name>__ROOTDISK__</dev_name>
+        <format config:type="boolean">false</format>
+        <diag config:type="boolean">false</diag>
       </listentry>
     </devices>
   </dasd>
@@ -483,12 +432,12 @@ wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></sourc
       <partitions config:type="list">
         <partition>
 	  <mount>/</mount>
-          <mountby config:type="symbol">device</mountby>
+          <!--<mountby config:type="symbol">device</mountby>-->
           <size>max</size>
         </partition>
         <partition>
           <mount>swap</mount>
-          <mountby config:type="symbol">device</mountby>
+          <!--<mountby config:type="symbol">device</mountby>-->
           <size>auto</size>
         </partition>
       </partitions>
