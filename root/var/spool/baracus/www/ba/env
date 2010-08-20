@@ -780,6 +780,9 @@ n:\\setup.exe
         &load_vars( $opts, $actref );
         &load_baracusconfig( $opts, $actref );
 
+	# Check if broadcast address is set
+	&check_broadcast( $opts, $actref );
+
 	# parm file should only be served during installation
 	$admin = $actref->{admin};
 	if ( $admin eq BA_ADMIN_IGNORED or
@@ -1043,6 +1046,9 @@ Address 'CMS' 'PURGE RDR ALL'
 
         &load_vars         ( $opts, $actref );
         &load_baracusconfig( $opts, $actref );
+
+	# Check if broadcast address is set
+	&check_broadcast( $opts, $actref );
 
         print STDERR "$input->{mac} - serving autobuild $file\n";
 

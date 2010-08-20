@@ -650,6 +650,9 @@ sub build
         $actref->{'loghost'} = ""
     }
 
+    # Check if broadcast address is set
+    &check_broadcast( $opts, $actref );
+
     if ($opts->{debug}) {
         print "settings to use:\n";
         foreach my $key ( sort keys %{$actref} ) {

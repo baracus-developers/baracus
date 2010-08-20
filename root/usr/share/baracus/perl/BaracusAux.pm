@@ -93,6 +93,8 @@ BEGIN {
                 get_versions
                 redundant_data
                 find_helper
+
+		check_broadcast
             )],
          );
     Exporter::export_ok_tags('subs');
@@ -1193,6 +1195,22 @@ sub find_helper
     undef $sth;
 
     return $rowcount;
+}
+
+sub check_broadcast
+{
+    my $opts = shift;
+    my $aref = shift;
+
+    # if not specified compute 'broadcast' from ip & netmask
+    if (defined $aref->{ip} && defined $aref->{netmask} &&
+	not defined $aref->{broadcast}) {
+	use Net::Netmask;
+
+	my $block = new Net::Netmask ( $aref->{ip}, $aref->{netmask} );
+	print STDERR "Use broadcast address: " . $block->broadcast() . "\n" if ( $opts->{debug} > 1);
+	$aref->{broadcast} = $block->broadcast();
+    }
 }
 
 1;
