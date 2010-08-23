@@ -287,8 +287,6 @@ sub add() {
 
     unless ( $loopback ) { &streamline_install( $opts, $distro, $loopback ); }
 
-    print "Calling routine to configure $baVar{sharetype}\n";
-
     &add_build_service( $opts, $distro, $addons );
 
     print "Calling routine to configure bootloader\n";
@@ -508,7 +506,7 @@ sub remove() {
     if ( $opts->{all} ) {
         my $dh =  &baxml_distro_gethash( $opts, $distro );
         @addons = @{$dh->{basedisthash}->{addons}};
-        $addons = join " ", @addons;
+        $addons = join ( " ", @addons ) if ( scalar @addons );
         print "working with 'all': $addons\n" if $opts->{debug};
     } else {
         @addons = split( /\s+/, $addons );

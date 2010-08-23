@@ -1652,6 +1652,8 @@ sub add_build_service
         }
     }
 
+    print "Calling routine to configure $sharetype\n";
+
     print "+++++ add_build_service\n" if ( $opts->{debug} > 1 );
 
     my $ret = 0;

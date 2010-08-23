@@ -372,7 +372,7 @@ sub get_baracus_tables
          'version'      => 'INTEGER',
          'description'  => 'VARCHAR(64)',
          'status'       => 'BOOLEAN',
-         'bootArgs'     => 'VARCHAR(256)',
+         'bootArgs'     => 'VARCHAR(4096)',
          'rootDisk'     => 'VARCHAR(32)',
          'rootPart'     => 'VARCHAR(32)',
          'hwdriver'     => 'VARCHAR(32)',
@@ -513,7 +513,7 @@ sub get_baracus_tables
          'ctype'   => 'VARCHAR(16)',
          'login'   => 'VARCHAR(16)',
          'passwd'  => 'VARCHAR(32)',
-         'bmcaddr' => 'VARCHAR(32)',
+         'bmcaddr' => 'VARCHAR(1024)', # virsh URI
          'node'    => 'VARCHAR(32)',
          'other'   => 'VARCHAR(32)',
          );
