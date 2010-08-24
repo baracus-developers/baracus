@@ -2,7 +2,7 @@
 
 Summary:   Tool to create network install build source and manage host builds
 Name:      baracus
-Version:   1.4.7
+Version:   1.5.0
 Release:   0
 Group:     System/Services
 License:   GPLv2 or Artistic V2
@@ -145,6 +145,13 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 
 
 %changelog
+* Mon Aug 23 2010 dbahi@novell - 1.5.0
+- win 32/64 distinction supported
+- x86 or x86_64 for arch type
+- jblunck s390x work
+- westervelt dhcp templates added
+- bapower virsh bmcaddr now uses qemu+ssh://<addr>/system
+- misc bug fixes
 * Fri Aug 9 2010 dbahi@novell - 1.4.7
 - share/baracus/doc LICENSE artistic and gpl added
 - file headers modified with license and copyright
