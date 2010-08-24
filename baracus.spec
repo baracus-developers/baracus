@@ -3,7 +3,7 @@
 Summary:   Tool to create network install build source and manage host builds
 Name:      baracus
 Version:   1.4.7
-Release:   1.1.dbahi.12
+Release:   0
 Group:     System/Services
 License:   GPLv2 or Artistic V2
 BuildRoot: %{_tmppath}/%{name}-%{version}-buildroot
