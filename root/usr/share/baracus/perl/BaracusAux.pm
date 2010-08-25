@@ -1203,8 +1203,8 @@ sub check_broadcast
     my $aref = shift;
 
     # if not specified compute 'broadcast' from ip & netmask
-    if (defined $aref->{ip} && defined $aref->{netmask} &&
-	not defined $aref->{broadcast}) {
+    if (defined $aref->{ip} and $aref->{ip} ne "dhcp" and
+        defined $aref->{netmask} and not defined $aref->{broadcast}) {
 	use Net::Netmask;
 
 	my $block = new Net::Netmask ( $aref->{ip}, $aref->{netmask} );
