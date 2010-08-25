@@ -359,7 +359,8 @@ sub load_addons
 
     foreach my $name ( @addonlist ) {
         print "load_addons: working with $name\n" if ($opts->{debug} > 1);
-        my $found = &get_distro( $opts, $dbh, $aref );
+        my $tref = { distro => "$name" };
+        my $found = &get_distro( $opts, $dbh, $tref );
         if ( not defined $found ) {
             $status = 1 if ( $status == 0 );
             $opts->{LASTERROR} = "Unable to find addon entry for $name\n";
