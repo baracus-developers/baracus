@@ -110,6 +110,7 @@ $listener->setSqlFSHandle( $sqlfsOBJ );
 # load any missing required files
 my @requiredfiles = ( "$baDir{'data'}/data/pxelinux.0",
                       "$baDir{'data'}/data/sanboot.c32",
+                      "$baDir{'data'}/data/chain.c32",
                       "$baDir{'data'}/data/gpxe_baracus.0",
                       "$baDir{'data'}/data/linux.baracus",
                       "$baDir{'data'}/data/initrd.baracus",

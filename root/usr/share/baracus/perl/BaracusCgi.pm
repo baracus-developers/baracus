@@ -82,12 +82,15 @@ LABEL register
 
 sub do_localboot() {
     my $cgi = shift;
+    my $actref = shift;
+    my $serverip = shift;
     my $output = qq|DEFAULT localboot
 PROMPT 0
 TIMEOUT 0
 
 LABEL localboot
-        localboot 0
+    kernel http://$serverip/ba/chain.c32
+    append hd$actref->{disk} $actref->{partition}
 |;
 
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;

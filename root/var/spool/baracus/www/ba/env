@@ -292,7 +292,7 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
             $output .= "$env => $ENV{ $env }\n";
         }
     }
-    elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/chain.*\s*$| ) {
+    elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/chain\?.*\s*$| ) {
 
         die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
 
@@ -557,7 +557,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 &update_db_action( $dbh, $actref );
             }
 
-            &do_localboot( $cgi );
+            &do_localboot( $cgi, $actref, $baVar{serverip} );
             # do_localboot exits
         }
 
@@ -965,7 +965,7 @@ Address 'CMS' 'PURGE RDR ALL'
 	    $output .= $args;
 	}
     }
-    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(startrom.0|pxelinux.0|sanboot.c32).*\s*$} )
+    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(startrom.0|pxelinux.0|sanboot.c32|chain.c32).*\s*$} )
     {
         my $file = $1;
 

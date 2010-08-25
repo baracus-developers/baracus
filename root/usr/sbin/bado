@@ -233,6 +233,9 @@ Other required parameters, which may be specified on the command-line or in a pr
 
 And further <...> optional parameters include
 
+  --disk <num>             Disk number (zero-based) to boot [ default 0 (first)]
+  --partition <num>        Partition number to boot [ default 0 (first)]
+
   --usevnc                 allow vnc build access
   --vncpass                defines vnc password for remote access
 
@@ -269,6 +272,8 @@ sub build
     my $sshpass="";
     my $serialtty="";
     my $serialbaud="";
+    my $disk      = "0";
+    my $partition = "0";
 
     my %entry;
     my $cols = lc get_cols( $baTbls{ action });
@@ -296,6 +301,8 @@ sub build
          'sshpass=s'     => \$sshpass,
          'serialtty=s'   => \$serialtty,
          'serialbaud=s'  => \$serialbaud,
+         'disk=s'        => \$disk,
+         'partition=s'   => \$partition,
          );
 
     if ( scalar @ARGV ) {
@@ -660,6 +667,18 @@ sub build
                 defined $actref->{$key} ? $actref->{$key} : "";
         }
     }
+    unless ( $disk =~ /^\d+$/ ) {
+        $opts->{LASTERROR} = "--disk needs to be an integer\n";
+        return 1;
+    }
+
+    unless ( $partition =~ /\d+$/ ) {
+        $opts->{LASTERROR} = "--partition needs to be an integer\n";
+        return 1;
+    }
+
+    $actref->{disk} = $disk;
+    $actref->{partition} = $partition;
 
     $macref = get_db_mac( $dbh, $actref->{mac} );
     unless ( defined $macref ) {
@@ -1117,7 +1136,7 @@ sub wipe
 }
 
 
-=head2 localboot { --mac <macaddr> | --hostname <name> }
+=head2 localboot { --mac <macaddr> | --hostname <name> } [ --disk <num> --partition <num> ]
 
 Boot from localdisk on the next pxeboot of the specified device.
 
@@ -1125,6 +1144,8 @@ Options
 
   --mac <macaddr>          Specify device by mac address
   --hostname <name>        Specify device by hostname ( if available )
+  --disk <num>             Disk number (zero-based) to boot [ default 0 (first)]
+  --partition <num>        Partition number to boot [ default 0 (first)]
 
 =cut
 
@@ -1139,6 +1160,8 @@ sub localboot
     my $mac       = "";
     my $hostname  = "";
 
+    my $disk      = "0";
+    my $partition = "0";
 
     my $macref;
     my $actref;
@@ -1150,6 +1173,8 @@ sub localboot
     GetOptions(
                'mac=s'          => \$mac,
                'hostname=s'     => \$hostname,
+               'disk=s'         => \$disk,
+               'partition=s'    => \$partition,
               );
 
     if ( scalar @ARGV ) {
@@ -1166,6 +1191,15 @@ sub localboot
         return 1;
     }
 
+    unless ( $disk =~ /^\d+$/ ) {
+        $opts->{LASTERROR} = "--disk needs to be an integer\n";
+        return 1;
+    }
+
+    unless ( $partition =~ /\d+$/ ) {
+        $opts->{LASTERROR} = "--partition needs to be an integer\n";
+        return 1;
+    }
     $macref = &get_db_mac( $dbh, $mac );
     unless ( defined $macref ) {
         &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
@@ -1188,8 +1222,10 @@ sub localboot
     }
 
     if ( defined $chkref and
-         $chkref->{pxenext} eq BA_ACTION_LOCALBOOT ) {
-        $opts->{LASTERROR} = "device already in localboot state\n";
+        $chkref->{pxenext} eq BA_ACTION_LOCALBOOT and
+        $chkref->{disk} eq $disk and
+        $chkref->{partition} eq $partition ) {
+        $opts->{LASTERROR} = "device already in matching localboot state\n";
         return 1;
     }
 
@@ -1198,6 +1234,8 @@ sub localboot
 
     $actref->{cmdline} = $cmdline;
     $actref->{mac} = $mac;
+    $actref->{disk} = $disk;
+    $actref->{partition} = $partition;
 
     # if passed both mac and hostname create a host table entry
     if ( $hostname ne "" ) {
