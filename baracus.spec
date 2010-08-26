@@ -2,7 +2,7 @@
 
 Summary:   Tool to create network install build source and manage host builds
 Name:      baracus
-Version:   1.5.0
+Version:   1.5.1
 Release:   0
 Group:     System/Services
 License:   GPLv2 or Artistic V2
@@ -145,6 +145,10 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 
 
 %changelog
+* Wed Aug 25 2010 dbahi@novell - 1.5.1
+- localboot now takes params for disk/partition
+- broadcast calc ignores ip equal to dhcp
+- addon expansion fixed for autobuild 
 * Mon Aug 23 2010 dbahi@novell - 1.5.0
 - win 32/64 distinction supported
 - x86 or x86_64 for arch type
