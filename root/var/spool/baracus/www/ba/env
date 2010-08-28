@@ -580,10 +580,10 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 
             $distref = &get_distro( $opts, $dbh, $actref );
             $hardref = &get_hardware( $opts, $dbh, $actref, $actref->{hardware_ver} );
+            &load_baracusconfig( $opts, $actref );
             &load_distro( $opts, $dbh, $actref );
             &load_profile( $opts, $dbh, $actref );
             &load_vars( $opts, $actref );
-            &load_baracusconfig( $opts, $actref );
 
             my $actauto = &get_action_autobuild_hash( $dbh, $input->{mac} );
             if ( defined $actauto->{autobuild} ) {
@@ -768,6 +768,7 @@ n:\\setup.exe
 	    exit 0;
 	}
 
+        &load_baracusconfig( $opts, $actref );
 	&load_profile( $opts, $dbh, $actref );
 	&load_hardware( $opts, $dbh, $actref );
 	&load_distro( $opts, $dbh, $actref );
@@ -778,7 +779,6 @@ n:\\setup.exe
         }
 
         &load_vars( $opts, $actref );
-        &load_baracusconfig( $opts, $actref );
 
 	# Check if broadcast address is set
 	&check_broadcast( $opts, $actref );
@@ -920,6 +920,7 @@ Nameserver=$actref->{dns1}
 	    exit 1;
 	}
 
+	&load_baracusconfig( $opts, $actref );
 	&load_profile( $opts, $dbh, $actref );
 	&load_hardware( $opts, $dbh, $actref );
 	&load_distro( $opts, $dbh, $actref );
@@ -930,7 +931,6 @@ Nameserver=$actref->{dns1}
 	}
 
 	&load_vars( $opts, $actref );
-	&load_baracusconfig( $opts, $actref );
 
 	$admin = $actref->{admin};
 	if ( $admin eq BA_ADMIN_IGNORED or
@@ -1044,6 +1044,7 @@ Address 'CMS' 'PURGE RDR ALL'
             $actref->{modules} = '';
         }
 
+        &load_baracusconfig( $opts, $actref );
         &load_profile ( $opts, $dbh, $actref );
         &load_hardware( $opts, $dbh, $actref );
         &load_distro  ( $opts, $dbh, $actref );
@@ -1051,7 +1052,6 @@ Address 'CMS' 'PURGE RDR ALL'
         &load_modules ( $opts, $dbh, $actref );
 
         &load_vars         ( $opts, $actref );
-        &load_baracusconfig( $opts, $actref );
 
 	# Check if broadcast address is set
 	&check_broadcast( $opts, $actref );

@@ -379,6 +379,10 @@ sub build
     # begin loading of hash used for remainder of processing command
     undef $actref;
 
+    $actref = {};
+    # baDir and baVar into actref
+    &load_baracusconfig( $opts, $actref );
+
     unless ( defined $entry{profile} and $entry{profile} ne "" ) {
         print "--profile <prof> unspecified. Using 'default'\n";
         $entry{profile} = "default";
@@ -613,9 +617,6 @@ sub build
     ##   - harware, distro override profile values
     ##   - cmdline values override any file values
 
-    # baDir and baVar into actref
-    &load_baracusconfig( $opts, $actref );
-
     ## If passed on command line via vars, then honor those
     ##
     if ($entry{vars}) {
@@ -667,6 +668,7 @@ sub build
                 defined $actref->{$key} ? $actref->{$key} : "";
         }
     }
+
     unless ( $disk =~ /^\d+$/ ) {
         $opts->{LASTERROR} = "--disk needs to be an integer\n";
         return 1;
@@ -1144,6 +1146,7 @@ Options
 
   --mac <macaddr>          Specify device by mac address
   --hostname <name>        Specify device by hostname ( if available )
+
   --disk <num>             Disk number (zero-based) to boot [ default 0 (first)]
   --partition <num>        Partition number to boot [ default 0 (first)]
 
@@ -1200,6 +1203,7 @@ sub localboot
         $opts->{LASTERROR} = "--partition needs to be an integer\n";
         return 1;
     }
+
     $macref = &get_db_mac( $dbh, $mac );
     unless ( defined $macref ) {
         &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
@@ -1681,6 +1685,10 @@ sub rescue
     # begin loading of hash used for remainder of processing command
     undef $actref;
 
+    $actref = {};
+    # baDir and baVar into actref
+    &load_baracusconfig( $opts, $actref );
+
     unless ( defined $entry{profile} and $entry{profile} ne "" ) {
         print "--profile <prof> unspecified. Using 'default'\n";
         $entry{profile} = "default";
@@ -1823,9 +1831,6 @@ sub rescue
     ##   - comes after reading profile
     ##   - harware, distro override profile values
     ##   - cmdline values override any file values
-
-    # baDir and baVar into actref
-    &load_baracusconfig( $opts, $actref );
 
     ## If passed on command line via vars, then honor those
     ##
@@ -2005,7 +2010,7 @@ sub list()
         unless ( $opts->{quiet} ) {
             printf "%-9s %-16s %-9s %-9s %-9s %-9s",
                 $baState{$actref->{state}}, $hostname,
-                    $curr, $next, $oper, $admin ;
+                $curr, $next, $oper, $admin ;
         }
         print "\n";
     }

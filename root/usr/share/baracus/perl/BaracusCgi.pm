@@ -87,7 +87,6 @@ sub do_localboot() {
     my $output = qq|DEFAULT localboot
 PROMPT 0
 TIMEOUT 0
-
 LABEL localboot
     kernel http://$serverip/ba/chain.c32
     append hd$actref->{disk} $actref->{partition}

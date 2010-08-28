@@ -46,6 +46,13 @@ baconfig add hardware --name default-hda \
 --rootdisk=/dev/hda \
 --rootpart=/dev/hda
 
+baconfig detail hardware default-vda --all &> /dev/null || \
+baconfig add hardware --name default-vda \
+--description="/dev/vda drive" \
+--bootargs="acpi=on selinux=0 apm=off" \
+--rootdisk=/dev/vda \
+--rootpart=/dev/vda
+
 baconfig detail hardware default-hp --all &> /dev/null || \
 baconfig add hardware --name default-hp \
 --description="/dev/cciss smart array" \
