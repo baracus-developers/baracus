@@ -433,7 +433,7 @@ sub list
             my $state_str   = "" ;
             my $pxecurr_str = "" ;
             my $pxenext_str = "" ;
-            my $hostname    = "" ;
+            my $hostname    = "<null>" ;
             $hostname    = $dbref->{hostname} if $dbref->{hostname};
             $active_str  = $baState{ $dbref->{admin}   } if $dbref->{admin};
             $state_str   = $baState{ $dbref->{oper}    } if $dbref->{oper};
@@ -459,7 +459,7 @@ sub list
     elsif ( $subcommand eq "nodes" ) {
         if (not ( $opts->{quiet} or $opts->{nolabels} ) ) {
             print "---------------------------------------------------------------\n";
-            printf "%-17s %-16s %-10s %-8s\n", "mac", "hostname", "inventory", "active";
+            printf "%-17s %-17s %-10s %-9s\n", "mac", "hostname", "inventory", "active";
             print "---------------------------------------------------------------\n";
         }
 
@@ -476,8 +476,8 @@ sub list
                 $inventory_st = "no";
             }
 
-            printf "%-18s", $dbref->{'mac'};
-            if (defined $dbref->{'hostname'} ) { printf "%-18s", $dbref->{'hostname'}; } else { printf "%-18s", " "; }
+            printf "%-17s ", $dbref->{'mac'};
+            if (defined $dbref->{'hostname'} ) { printf "%-17s ", $dbref->{'hostname'}; } else { printf "%-17s ", "<null>"; }
             printf "%-10s ", $inventory_st;
             if (defined $dbref->{'admin'} ) { printf "%-9s", $baState{ $dbref->{'admin'} }; } else { printf "%-9s", " "; }
             printf "\n";
