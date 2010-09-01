@@ -1282,6 +1282,47 @@
     </product>
   </distro>
 
+<!-- SLES 11 NCM -->
+
+  <distro name="sles-11-ncm-x86_64">
+    <os>sles</os>
+    <release>11</release>
+    <addos>ncm</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 11 Novell Cloud Manger 64bit</description>
+    <autodownload>auth</autodownload>
+    <product name="dvd">
+      <addon>signed</addon>
+      <iso name="Novell_Cloud_Manager-1.0.0-SLE11.x86_64.iso">
+        <path/>
+        <md5>2801DB77983900D17A6D249D85D07DAD</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+<!-- SLES 11.1 NCM -->
+
+  <distro name="sles-11.1-ncm-x86_64">
+    <os>sles</os>
+    <release>11.1</release>
+    <addos>ncm</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-11.1-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 11.1 Novell Cloud Manger 64bit</description>
+    <autodownload>auth</autodownload>
+    <product name="dvd">
+      <addon>signed</addon>
+      <iso name="Novell_Cloud_Manager-1.0.0-SLE11.x86_64.iso">
+        <path/>
+        <md5>2801DB77983900D17A6D249D85D07DAD</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
 
   <!-- openSuSE 11.1 -->
 

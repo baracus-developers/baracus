@@ -2,7 +2,7 @@
 
 Summary:   Tool to create network install build source and manage host builds
 Name:      baracus
-Version:   1.5.2
+Version:   1.5.3
 Release:   0
 Group:     System/Services
 License:   GPLv2 or Artistic V2
@@ -18,9 +18,9 @@ Requires:  apache2, apache2-mod_perl, perl-Apache-DBI, pidentd, sudo
 Requires:  perl, perl-XML-Simple, perl-libwww-perl, perl-Data-UUID
 Requires:  perl-Config-General
 Requires:  perl-TermReadKey, perl-DBI, perl-DBD-Pg, perl-Tie-IxHash
-Requires:  perl-IO-Interface, perl-Net-Netmask
+Requires:  perl-IO-Interface, perl-Net-Netmask, perl-XML-LibXSLT
 Requires:  rsync, dhcp-server, postgresql-server, createrepo, fence
-Requires:  samba, samba-client
+Requires:  samba, samba-client, ipmitool
 Requires:  baracus-kernel
 %if 0%{?suse_version} < 1030
 Requires:  nfs-utils
@@ -145,6 +145,16 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 
 
 %changelog
+* Tue Aug 31 2010 dbahi@novell - 1.5.3
+- requires ipmitool and perl-XML-LibXSLT
+- esx html dhcp template added
+- remove 'verifying iso checksums' msg (bnc#635557)
+- basource add win restart smb (not reload as may not be running)
+- added NCM as supported add-on
+* Sat Aug 28 2010 dbahi@novell - 1.5.2
+- load_baracusconfig must come first and allow override of globals
+- null placeholders for some values in lists
+- win32 autobuild and default-vda configs added
 * Wed Aug 25 2010 dbahi@novell - 1.5.1
 - localboot now takes params for disk/partition
 - broadcast calc ignores ip equal to dhcp

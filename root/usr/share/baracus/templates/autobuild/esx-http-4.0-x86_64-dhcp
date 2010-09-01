@@ -1,0 +1,61 @@
+accepteula
+
+keyboard __KEYMAP__
+
+auth  --enablemd5 --enableshadow
+
+# Canonical drive names:
+# Uncomment to use first detected disk:
+clearpart --firstdisk --overwritevmfs
+
+# Uncomment the esxlocation line and comment out the clearpart
+# and physical partitions to do a non-destructive reinstall.
+#esxlocation --uuid=6dec609c-3f2d-423d-88e0-d981d027ac52
+
+# NFS Install
+#install __SHARETYPE__ --server=__SHAREIP__ --dir=__BUILDROOT__/__OS__/__RELEASE__/__ARCH__/dvd
+
+# HTTP install
+install url  __SHARETYPE__://__SHAREIP__/__BUILDROOT__/__OS__/__RELEASE__/__ARCH__/dvd
+
+rootpw --iscrypted $1$aQ5qblIH$aHZx8K9APSvHWmBDjnR6P/
+
+timezone --utc '__TIMEZONE__'
+
+network --addvmportgroup=true --device=vmnic0 --bootproto=dhcp
+
+# Uncomment to use first detected disk:
+part '/boot'  --fstype=ext3 --size=1100  --onfirstdisk
+# Uncomment to use first detected disk:
+part 'none'  --fstype=vmkcore --size=110  --onfirstdisk
+# Uncomment to use first detected disk:
+part 'Storage1'  --fstype=vmfs3 --size=8604 --grow  --onfirstdisk
+
+virtualdisk 'esxconsole' --size=7604 --onvmfs='Storage1'
+
+part 'swap'  --fstype=swap --size=600 --onvirtualdisk='esxconsole'
+part '/var/log'  --fstype=ext3 --size=2000 --onvirtualdisk='esxconsole'
+part '/'  --fstype=ext3 --size=5000 --grow --onvirtualdisk='esxconsole'
+
+%post --interpreter=bash
+
+
+# ntp settings
+esxcfg-firewall --enableService ntpClient
+chkconfig ntpd on
+cat > /etc/ntp.conf <<EOF
+# ---- ntp.conf ----
+# Created by Weasel (ESX Installer)
+
+# # NTP Configuration
+# Permit time synchronization with our time source, but do not
+# permit the source to query or modify the service on this system.
+restrict default kod nomodify notrap nopeer noquery
+restrict -6 default kod nomodify notrap nopeer noquery
+server __NTPSERVER__
+
+EOF
+
+curl http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__
+
+__MODULE__

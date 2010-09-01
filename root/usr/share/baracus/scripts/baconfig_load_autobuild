@@ -56,6 +56,12 @@ baconfig add autobuild --name rhel-http-x86_64-dhcp \
 --file=/usr/share/baracus/templates/autobuild/rhel-http-x86_64-dhcp \
 --cert="rhel-5.3-x86_64 rhel-5.4-x86_64 rhel-5.5-x86_64"
 
+baconfig detail autobuild esx-http-x86_64-dhcp  &> /dev/null || \
+baconfig add autobuild --name esx-http-x86_64-dhcp \
+--description="ESX 4 64bit HTTP (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/esx-http-x86_64-dhcp \
+--cert="esx-4.0-x86_64"
+
 baconfig detail autobuild rhel-nfs-x86_64-dhcp  &> /dev/null || \
 baconfig add autobuild --name rhel-nfs-x86_64-dhcp \
 --description="rhel 5.x 64bit NFS (dhcp)" \
@@ -79,6 +85,18 @@ baconfig add autobuild --name ubuntu-x86_64-dhcp \
 --description="ubuntu 9.10/10.4 64bit (dhcp)" \
 --file=/usr/share/baracus/templates/autobuild/ubuntu-x86_64-dhcp \
 --cert="ubuntu-9.10-x86_64 ubuntu-10.4-x86_64 ubuntu_desktop-10.4-x86_64"
+
+baconfig detail autobuild win_ent-x86_64-dhcp &> /dev/null || \
+baconfig add autobuild --name win_ent-x86_64-dhcp \
+--description="win enterprise 64bit (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/win_ent-7-x86_64.xml \
+--cert="windows_ent-7-x86_64 windows_ent-2008-x86_64"
+
+baconfig detail autobuild win_ent-x86-dhcp &> /dev/null || \
+baconfig add autobuild --name win_ent-x86-dhcp \
+--description="win enterprise 32bit (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/win_ent-7-x86.xml \
+--cert="windows_ent-7-x86"
 
 
 ## Static autobuild templates
@@ -119,14 +137,3 @@ baconfig add autobuild --name ubuntu-10.4-x86_64 \
 --file=/usr/share/baracus/templates/autobuild/ubuntu-x86_64 \
 --cert="ubuntu-10.4-x86_64 ubuntu_desktop-10.4-x86_64 ubuntu-9.10-x86_64"
 
-baconfig detail autobuild win_ent-x86_64-dhcp &> /dev/null || \
-baconfig add autobuild --name win_ent-x86_64-dhcp \
---description="win enterprise 64bit (dhcp)" \
---file=/usr/share/baracus/templates/autobuild/win_ent-7-x86_64.xml \
---cert="windows_ent-7-x86_64 windows_ent-2008-x86_64"
-
-baconfig detail autobuild win_ent-x86-dhcp &> /dev/null || \
-baconfig add autobuild --name win_ent-x86-dhcp \
---description="win enterprise 32bit (dhcp)" \
---file=/usr/share/baracus/templates/autobuild/win_ent-7-x86.xml \
---cert="windows_ent-7-x86"

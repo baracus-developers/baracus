@@ -1169,7 +1169,7 @@ sub verify_iso
 
     $halt = 0;
     foreach my $da ( @dalist ) {
-        print "Verifing iso checksums for $da ...\n";            # print LONG
+#        print "Verifing iso checksums for $da ...\n";            # print LONG
 
         my $check_list;
         if ( $isos ) {
@@ -1735,7 +1735,7 @@ sub add_build_service
             system("/etc/init.d/apache2 reload");
         }
         if ($sharetype eq "cifs") {
-            system("/etc/init.d/smb reload");
+            system("/etc/init.d/smb restart");
         }
     }
 }
