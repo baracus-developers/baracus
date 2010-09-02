@@ -917,7 +917,8 @@ Nameserver=$actref->{dns1}
 	    ## WINST - missing 'mac' or 'action' entry (or entries)
 	    ##
 	    print STDERR "$input->{mac} - missing mac, action, distro in db\n";
-	    exit 1;
+	    print $cgi->header( -status => "404 Not found");
+	    exit 0;
 	}
 
 	&load_baracusconfig( $opts, $actref );
