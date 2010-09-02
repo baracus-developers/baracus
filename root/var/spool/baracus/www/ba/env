@@ -864,6 +864,9 @@ Nameserver=$actref->{dns1}
 	    if ( $actref->{raccess} =~ m|(usessh=1)| ) {
 		$args .= $1 . " " ;
 		$args .= $1 . " " if ( $actref->{raccess} =~ m|(sshpassword=[^ \t\s]+)| );
+	    } elsif ( $actref->{raccess} =~ m|(vnc=1)| ) {
+		$args .= "usevnc=1 " ;
+		$args .= $1 . " " if ( $actref->{raccess} =~ m|(vncpassword=[^ \t\s]+)| );
 	    }
 
 	    my $actauto = &get_action_autobuild_hash( $dbh, $input->{mac} );
