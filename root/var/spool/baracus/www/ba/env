@@ -901,6 +901,10 @@ Nameserver=$actref->{dns1}
 		print STDERR "PARM file too long: $count lines\n";
 		exit 1;
 	    }
+	} else {
+	    # Do not server anything in this case
+	    print $cgi->header( -status => "404 Not found");
+	    exit 0;
 	}
     }
     elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(exec)\?.*\s*$} )
