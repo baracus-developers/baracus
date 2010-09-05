@@ -59,7 +59,7 @@ baconfig add autobuild --name rhel-http-x86_64-dhcp \
 baconfig detail autobuild esx-http-x86_64-dhcp  &> /dev/null || \
 baconfig add autobuild --name esx-http-x86_64-dhcp \
 --description="ESX 4 64bit HTTP (dhcp)" \
---file=/usr/share/baracus/templates/autobuild/esx-http-x86_64-dhcp \
+--file=/usr/share/baracus/templates/autobuild/esx-http-4.0-x86_64-dhcp \
 --cert="esx-4.0-x86_64"
 
 baconfig detail autobuild rhel-nfs-x86_64-dhcp  &> /dev/null || \
