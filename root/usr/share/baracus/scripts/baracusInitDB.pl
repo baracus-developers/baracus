@@ -253,8 +253,8 @@ sub add_cifs_perl
 
     my $startnet_in = "/usr/share/baracus/templates/startnet.cmd";
     my $startnet_out= "$baDir{builds}/winstall/install/startnet.cmd";
-    my $smbconf_in  = "/usr/share/baracus/templates/winstall.conf";
-    my $smbconf_out = "/etc/samba/winstall.conf";
+    my $smbconf_src = "/usr/share/baracus/templates/winstall.conf";
+    my $smbconf_dst = "/etc/samba/winstall.conf";
     my $sysconf_in  = "/etc/samba/smb.conf.bk";
     my $sysconf_out = "/etc/samba/smb.conf";
     my $mods = 1;
@@ -287,7 +287,11 @@ sub add_cifs_perl
     }
 
 
-    copy ($smbconf_out, $smbconf_in) if ( ! -f $smbconf_out );
+    if ( ! -f $smbconf_dst ) {
+        copy ($smbconf_src, $smbconf_dst);
+        $restart = 1;
+    }
+
     copy ($sysconf_out, $sysconf_in);
     open (SYSCONF_IN, "<$sysconf_in")
         or die "Unable to open $sysconf_in: $!\n";
