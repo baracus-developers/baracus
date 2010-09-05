@@ -76,6 +76,8 @@ mkdir %{buildroot}/var/spool/%{name}/isos
 mkdir %{buildroot}/var/spool/%{name}/logs
 mkdir %{buildroot}/var/spool/%{name}/pgsql
 mkdir %{buildroot}/var/spool/%{name}/www/tmp
+mkdir -p %{buildroot}/var/spool/%{name}/builds/winstall/import/amd64
+mkdir -p %{buildroot}/var/spool/%{name}/builds/winstall/import/x86
 mkdir %{buildroot}/var/spool/%{name}/www/htdocs/pool
 rm -rf %{buildroot}/var/spool/baracus/www/pfork
 
