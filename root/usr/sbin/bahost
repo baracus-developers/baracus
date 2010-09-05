@@ -56,6 +56,7 @@ Where E<lt>commandE<gt> is one of
   remove  --mac <mac>    delete a physical device via mac entry
   enable  --mac <mac>    enable a physical device via mac entry
   disable --mac <mac>    disable a physical device via mac entry
+  ignore  --mac <mac>    ignore the specified device. no pxe response sent.
 
   list nodes             list registered node entires
   list states            list state data on registered node entries
