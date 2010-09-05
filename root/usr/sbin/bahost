@@ -469,20 +469,31 @@ sub list
         my $sel;
 
         while ( $dbref = &db_list_next( $sth ) ) {
-            $inventory = $dbref->{'mac'} . ".inventory";
-            $sel = $sqlfsOBJ->detail( $inventory );
-            if ( defined $sel ) {
-                $inventory_st = "yes";
-            } else {
-                $inventory_st = "no";
-            }
 
             printf "%-17s ", $dbref->{'mac'};
-            if (defined $dbref->{'hostname'} ) { printf "%-17s ", $dbref->{'hostname'}; } else { printf "%-17s ", "<null>"; }
-            printf "%-10s ", $inventory_st;
-            if (defined $dbref->{'admin'} ) { printf "%-9s", $baState{ $dbref->{'admin'} }; } else { printf "%-9s", " "; }
-            printf "\n";
 
+            if ( not $opts->{quiet} ) {
+                $inventory = $dbref->{'mac'} . ".inventory";
+                $sel = $sqlfsOBJ->detail( $inventory );
+                if ( defined $sel ) {
+                    $inventory_st = "yes";
+                } else {
+                    $inventory_st = "no";
+                }
+
+                if (defined $dbref->{'hostname'} ) {
+                    printf "%-17s ", $dbref->{'hostname'};
+                } else {
+                    printf "%-17s ", "<null>";
+                }
+                printf "%-10s ", $inventory_st;
+                if (defined $dbref->{'admin'} ) {
+                    printf "%-9s", $baState{ $dbref->{'admin'} };
+                } else {
+                    printf "%-9s", " ";
+                }
+            }
+            printf "\n";
         }
     }
     &db_list_finish( $sth );
