@@ -135,7 +135,7 @@ baconfig detail autobuild sles-11.1-s390x &> /dev/null || \
 baconfig add autobuild --name sles-11.1-s390x \
 --description="sles 11.1 S390 64bit (static ip)" \
 --file=/usr/share/baracus/templates/autobuild/sles-11.1-s390x.xml \
---cert="sles-11.1-s390x sles-11-s390x"
+--cert="sles-11.1-s390x sles-10.3-s390x"
 
 baconfig detail autobuild ubuntu-10.4-x86_64 &> /dev/null || \
 baconfig add autobuild --name ubuntu-10.4-x86_64 \
