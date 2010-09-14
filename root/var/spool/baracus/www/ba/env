@@ -141,7 +141,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         # hum... always want the new inventory...
         # so we know we have to remove the old entry first
         if (defined $href and ($href->{name} eq $filename)) {
-            &delete_tftpfile( $tftph, $filename );
+            &delete_tftpfile( $opts, $tftph, $filename );
         }
 
         $fields = "name,bin,description,size,enabled,insertion";
@@ -204,7 +204,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         # hum... always want the new log...
         # so we know we have to remove the old entry first
         if (defined $href and ($href->{name} eq $filename)) {
-            &delete_tftpfile( $tftph, $filename );
+            &delete_tftpfile( $opts, $tftph, $filename );
         }
 
         $fields = "name,bin,description,size,enabled,insertion";
@@ -245,14 +245,83 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             &add_db_action( $dbh, $actref );
         }
 
-    } else {
+    } elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/image\s*$| ) {
 
+        ##
+        ## IMAGE - IMAGE COMPLETE HOOK - STORE LOG/TICKET
+        ##
+
+        die "Missing 'mac=' in COOKIE\n" unless ( defined $input->{mac} );
+        die "Missing 'status=' in COOKIE\n" unless ( defined $input->{status} );
+
+        print STDERR "$input->{mac} - image ticket received\n";
+
+        $input->{mac} = &check_mac($input->{mac});
+        $macref = &get_db_mac( $dbh, $input->{mac} );
+        unless ( $macref ) {
+            # user deleted entry while system was doing what baracus told it
+            $state = BA_EVENT_FOUND;
+            &add_db_mac( $dbh, $input->{mac}, $state );
+            $macref = &get_db_mac( $dbh, $input->{mac} );
+        }
+
+        $filename = $input->{mac} . ".image";
+        $href = &find_tftpfile( $opts, $tftph, $filename );
+
+        # hum... always want the new log...
+        # so we know we have to remove the old entry first
+        if (defined $href and ($href->{name} eq $filename)) {
+            &delete_tftpfile( $opts, $tftph, $filename );
+        }
+
+        $fields = "name,bin,description,size,enabled,insertion";
+        $values = qq|'$filename',?,'image complete log',$ENV{CONTENT_LENGTH},'1',CURRENT_TIMESTAMP(0)|;
+        $sql = qq|INSERT INTO sqlfstable ( $fields ) VALUES ( $values )|;
+        die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
+
+        my $bin;
+        my $bytes = 1;
+        while ( $bytes ) {
+            read( STDIN, $bytes, BA_DBMAXLEN ); # $ENV{CONTENT_LENGTH}
+            if ( $bytes ) {
+                $bin = pack( 'u', $bytes );
+                unless ( $sth->execute( $bin ) ) {
+                    print STDERR $sth->err;
+                    exit 0;
+                }
+            }
+        }
+        $sth->finish();
+        $output = "upload success\n";
+
+        if ($input->{status} eq "pass") {
+            $state = BA_EVENT_IMAGED;
+        } else {
+            $state = BA_EVENT_IMAGEFAIL;
+        }
+
+        my $chkref = &get_db_action( $dbh, $input->{mac} );
+        $actref = $chkref if ( defined $chkref );
+        $actref->{cmdline} = "# image complete log uploaded ($input->{status})";
+        &event_state_change( $dbh, $state, $macref, $actref );
+        &update_db_mac_state( $dbh, $input->{mac}, $state );
+        if ( defined $chkref ) {
+            &update_db_action( $dbh, $actref );
+        } else {
+            $actref->{mac} = $input->{mac};
+            &add_db_action( $dbh, $actref );
+        }
+
+
+    } else {
+        
         ##
         ## NO OTHER HTTP PUT ALLOWED
         ##
 
         $output = "permission denied\n";
         print $cgi->header( -type => "text/plain",
+                            -status => "401 unauthorized",
                             -content_length => length
                             ($output)
                            ), $output;
@@ -677,6 +746,36 @@ chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
             }
         }
 
+        if ( $pxenext eq BA_ACTION_IMAGE )
+        {
+            ##
+            ##  IMAGE - SERVE IMAGE WORKLOAD
+            ##
+
+            print STDERR "$input->{mac} - imaging\n";
+
+            $hardref = &get_hardware( $opts, $dbh, $actref, $actref->{hardware_ver} );
+            $state = BA_EVENT_IMAGING;
+
+            &event_state_change( $dbh, $state, $macref, $actref );
+            &update_db_mac_state( $dbh, $macref->{mac}, $state );
+            if ( $actref->{oper} ne $state ) {
+                $actref->{cmdline} = "# pxeboot directing to image disk";
+                &update_db_action( $dbh, $actref );
+            }
+
+            $output =
+                qq|DEFAULT image
+PROMPT 0
+TIMEOUT 0
+
+LABEL image
+        kernel http://$baVar{serverip}/ba/linux.baracus
+        append initrd=http://$baVar{serverip}/ba/initrd.baracus root=/dev/ram0 install=exec:/usr/bin/baracus.image baimagedst="$hardref->{rootdisk}" baimagesrc="$actref->{netboot}" baracus=$baVar{serverip} mac=$input->{mac} $hardref->{bootargs}
+|;
+
+
+        }
         if ( $pxenext eq BA_ACTION_DISKWIPE )
         {
             ##
