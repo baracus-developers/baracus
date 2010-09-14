@@ -2,7 +2,7 @@
 
 Summary:   Tool to create network install build source and manage host builds
 Name:      baracus
-Version:   1.5.3
+Version:   1.6.0
 Release:   0
 Group:     System/Services
 License:   GPLv2 or Artistic V2
@@ -73,6 +73,7 @@ install -D -m644 %{S:5} %{buildroot}/etc/apache2/conf.d/%{name}.conf
 install -D -m644 %{S:6} %{buildroot}/etc/apache2/conf.d/%{name}-webserver.conf
 chmod -R 700 %{buildroot}%{_datadir}/%{name}/gpghome
 mkdir %{buildroot}/var/spool/%{name}/isos
+mkdir %{buildroot}/var/spool/%{name}/images
 mkdir %{buildroot}/var/spool/%{name}/logs
 mkdir %{buildroot}/var/spool/%{name}/pgsql
 mkdir %{buildroot}/var/spool/%{name}/www/tmp
@@ -136,6 +137,7 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %attr(755,baracus,users) %dir /var/spool/%{name}/builds
 %attr(-,root,root) /var/spool/%{name}/builds/*
 %attr(-,root,root) /var/spool/%{name}/isos
+%attr(-,root,root) /var/spool/%{name}/isos
 %attr(-,root,root) /var/spool/%{name}/logs
 %attr(-,root,root) /var/spool/%{name}/hooks
 %attr(-,root,root) /var/spool/%{name}/pgsql
@@ -147,6 +149,9 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 
 
 %changelog
+* Tue Sep 14 2010 dbahi@novell - 1.6.0
+- baracus bado image depoloy support
+- various bug fixes
 * Tue Aug 31 2010 dbahi@novell - 1.5.3
 - requires ipmitool and perl-XML-LibXSLT
 - esx html dhcp template added
