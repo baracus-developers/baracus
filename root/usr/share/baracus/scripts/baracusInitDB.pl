@@ -298,13 +298,13 @@ sub add_cifs_perl
     open (SYSCONF_OUT, ">$sysconf_out")
         or die "Unable to open $sysconf_out: $!\n";
     while (<SYSCONF_IN>) {
-        $mods = 0 if (m|\s*${smbconf_out}\s*$|);
+        $mods = 0 if (m|\s*${smbconf_dst}\s*$|);
         print SYSCONF_OUT $_;
     }
     close SYSCONF_IN;
     if ( $mods ) {
         $restart = 1;
-        print SYSCONF_OUT "\ninclude=${smbconf_out}\n";
+        print SYSCONF_OUT "\ninclude=${smbconf_dst}\n";
     }
     close SYSCONF_OUT;
     unlink $sysconf_in;
