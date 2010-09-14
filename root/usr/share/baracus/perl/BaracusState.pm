@@ -91,6 +91,10 @@ BEGIN {
                 BA_WIPING
                 BA_WIPED
                 BA_WIPEFAIL
+                BA_IMAGE
+                BA_IMAGING
+                BA_IMAGED
+                BA_IMAGEFAIL
             )],
          admin =>
          [qw(
@@ -111,6 +115,7 @@ BEGIN {
                 BA_ACTION_LOCALBOOT
                 BA_ACTION_PXEWAIT
                 BA_ACTION_NETBOOT
+                BA_ACTION_IMAGE
             )],
          events =>
          [qw(
@@ -122,6 +127,9 @@ BEGIN {
                 BA_EVENT_WIPING
                 BA_EVENT_WIPED
                 BA_EVENT_WIPEFAIL
+                BA_EVENT_IMAGING
+                BA_EVENT_IMAGED
+                BA_EVENT_IMAGEFAIL
             )],
          );
     Exporter::export_ok_tags('vars');
@@ -157,6 +165,10 @@ use constant BA_SPOOFED           => 19 ;
 use constant BA_WIPING            => 20 ;
 use constant BA_WIPED             => 21 ;
 use constant BA_WIPEFAIL          => 22 ;
+use constant BA_IMAGE             => 23 ;
+use constant BA_IMAGING           => 24 ;
+use constant BA_IMAGED            => 25 ;
+use constant BA_IMAGEFAIL         => 26 ;
 
 # map to host admin
 use constant BA_ADMIN_ADDED       => BA_ADDED     ;
@@ -175,6 +187,7 @@ use constant BA_ACTION_NORESCUE   => BA_NORESCUE  ;
 use constant BA_ACTION_LOCALBOOT  => BA_LOCALBOOT ;
 use constant BA_ACTION_PXEWAIT    => BA_PXEWAIT   ;
 use constant BA_ACTION_NETBOOT    => BA_NETBOOT   ;
+use constant BA_ACTION_IMAGE      => BA_IMAGE     ;
 
 # map to non-user triggered events
 use constant BA_EVENT_FOUND       => BA_FOUND     ;
@@ -185,6 +198,9 @@ use constant BA_EVENT_SPOOFED     => BA_SPOOFED   ;
 use constant BA_EVENT_WIPING      => BA_WIPING    ;
 use constant BA_EVENT_WIPED       => BA_WIPED     ;
 use constant BA_EVENT_WIPEFAIL    => BA_WIPEFAIL  ;
+use constant BA_EVENT_IMAGING     => BA_IMAGING   ;
+use constant BA_EVENT_IMAGED      => BA_IMAGED    ;
+use constant BA_EVENT_IMAGEFAIL   => BA_IMAGEFAIL ;
 
 =pod
 
@@ -222,6 +238,10 @@ to the value of that state constant.
      'wiping'     ,
      'wiped'      ,
      'wipefail'   ,
+     'image'      ,
+     'imaging'    ,
+     'imaged'     ,
+     'imagefail'  ,
      );
 
 =item hash baState
@@ -254,6 +274,10 @@ here we define a hash to make easy using the state constants easier
      20             => 'wiping'     ,
      21             => 'wiped'      ,
      22             => 'wipefail'   ,
+     23             => 'image'      ,
+     24             => 'imaging'    ,
+     25             => 'imaged'     ,
+     26             => 'imagefail'  ,
 
      'added'        => BA_ADDED     ,
      'removed'      => BA_REMOVED   ,
@@ -277,6 +301,10 @@ here we define a hash to make easy using the state constants easier
      'wiping'       => BA_WIPING    ,
      'wiped'        => BA_WIPED     ,
      'wipefail'     => BA_WIPEFAIL  ,
+     'image'        => BA_IMAGE     ,
+     'imaging'      => BA_IMAGING   ,
+     'imaged'       => BA_IMAGED    ,
+     'imagefail'    => BA_IMAGEFAIL ,
 
      BA_ADDED       => 'added'      ,
      BA_REMOVED     => 'removed'    ,
@@ -300,6 +328,10 @@ here we define a hash to make easy using the state constants easier
      BA_WIPING      => 'wiping'     ,
      BA_WIPED       => 'wiped'      ,
      BA_WIPEFAIL    => 'wipefail'   ,
+     BA_IMAGE       => 'image'      ,
+     BA_IMAGING     => 'imaging'    ,
+     BA_IMAGED      => 'imaged'     ,
+     BA_IMAGEFAIL   => 'imagefail'  ,
 
      BA_ADMIN_ADDED       => 'added'      ,
      BA_ADMIN_REMOVED     => 'removed'    ,
@@ -316,6 +348,7 @@ here we define a hash to make easy using the state constants easier
      BA_ACTION_LOCALBOOT  => 'localboot'  ,
      BA_ACTION_PXEWAIT    => 'pxewait'    ,
      BA_ACTION_NETBOOT    => 'netboot'    ,
+     BA_ACTION_IMAGE      => 'image'      ,
 
      BA_EVENT_FOUND       => 'found'      ,
      BA_EVENT_REGISTER    => 'register'   ,
@@ -325,6 +358,10 @@ here we define a hash to make easy using the state constants easier
      BA_EVENT_WIPING      => 'wiping'     ,
      BA_EVENT_WIPED       => 'wiped'      ,
      BA_EVENT_WIPEFAIL    => 'wipefail'   ,
+     BA_EVENT_IMAGE       => 'image'      ,
+     BA_EVENT_IMAGING     => 'imaging'    ,
+     BA_EVENT_IMAGED      => 'imaged'     ,
+     BA_EVENT_IMAGEFAIL   => 'imagefail'  ,
 
      );
 
@@ -384,7 +421,7 @@ sub admin_state_change
 
 The actions related bado user command including
 
-  inventory | build | diskwipe | rescue | localboot | pxewait | netboot
+  inventory | build | diskwipe | rescue | localboot | pxewait | netboot | image
 
 use bado action that triggered this call
 and the current state to decide on next state
@@ -450,6 +487,7 @@ sub event_state_change
              $macref->{state} eq BA_ACTION_DISKWIPE or
              $macref->{state} eq BA_ACTION_RESCUE or
              $macref->{state} eq BA_ACTION_LOCALBOOT or
+             $macref->{state} eq BA_ACTION_IMAGE or
              $macref->{state} eq BA_ACTION_NETBOOT
             ){
             $actref->{pxenext} = $macref->{state};
@@ -490,6 +528,17 @@ sub event_state_change
         $actref->{oper}    = $event;
         $actref->{pxecurr} = BA_ACTION_DISKWIPE;
         $actref->{pxenext} = BA_ACTION_PXEWAIT;
+    }
+    elsif ( $event eq BA_EVENT_IMAGING ) {
+        $actref->{oper}    = $event;
+        $actref->{pxecurr} = BA_ACTION_IMAGE;
+        $actref->{pxenext} = BA_ACTION_LOCALBOOT;
+    }
+    elsif ( $event eq BA_EVENT_IMAGED or
+            $event eq BA_EVENT_IMAGEFAIL
+           ) {
+        $actref->{oper}    = $event;
+        $actref->{pxenext} = BA_ACTION_LOCALBOOT;
     }
     else {
         print "Unknown event value $event in attempt to change state.\n";
