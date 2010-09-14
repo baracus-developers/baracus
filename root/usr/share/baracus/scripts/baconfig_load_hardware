@@ -49,7 +49,7 @@ baconfig add hardware --name default-hda \
 baconfig detail hardware default-vda --all &> /dev/null || \
 baconfig add hardware --name default-vda \
 --description="/dev/vda drive" \
---bootargs="acpi=on selinux=0 apm=off" \
+--bootargs="acpi=on selinux=0 apm=off insmod=virtio_pci insmod=virtio_blk" \
 --rootdisk=/dev/vda \
 --rootpart=/dev/vda
 
