@@ -137,7 +137,7 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %attr(755,baracus,users) %dir /var/spool/%{name}/builds
 %attr(-,root,root) /var/spool/%{name}/builds/*
 %attr(-,root,root) /var/spool/%{name}/isos
-%attr(-,root,root) /var/spool/%{name}/isos
+%attr(-,root,root) /var/spool/%{name}/images
 %attr(-,root,root) /var/spool/%{name}/logs
 %attr(-,root,root) /var/spool/%{name}/hooks
 %attr(-,root,root) /var/spool/%{name}/pgsql
