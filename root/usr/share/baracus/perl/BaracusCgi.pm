@@ -68,13 +68,16 @@ sub get_inventory() {
     my $input = shift;
     my $args  = shift;
     $args = "" unless ( defined $args );
+
+    my $lcmac = lc $input->{mac};
+
     my $output = qq|DEFAULT register
 PROMPT 0
 TIMEOUT 0
-
 LABEL register
         kernel http://$baVar->{serverip}/ba/linux.baracus
-        append initrd=http://$baVar->{serverip}/ba/initrd.baracus install=exec:/usr/bin/baracus.register textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args |;
+        append initrd=http://$baVar->{serverip}/ba/initrd.baracus install=exec:/usr/bin/baracus.register textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+|;
 
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
     exit 0;
@@ -105,12 +108,15 @@ sub do_pxewait() {
     my $input = shift;
     my $args  = shift;
     $args = "" unless ( defined $args );
+
+    my $lcmac = lc $input->{mac};
+
     my $output = qq|DEFAULT pxewait
 PROMPT 0
 TIMEOUT 0
 LABEL pxewait
         kernel http://$baVar->{serverip}/ba/linux.baracus
-        append initrd=http://$baVar->{serverip}/ba/initrd.baracus install=exec:/usr/bin/pxewait textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args
+        append initrd=http://$baVar->{serverip}/ba/initrd.baracus install=exec:/usr/bin/pxewait textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
 
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
@@ -122,7 +128,6 @@ sub do_netboot() {
     my $actref = shift;
     my $serverip = shift;
     my $output = qq|DEFAULT netboot
-
 PROMPT 0
 TIMEOUT 0
 LABEL netboot
@@ -140,7 +145,6 @@ sub do_rescue() {
     my $serverip = shift;
     my $args = shift;
     my $output = qq|DEFAULT rescue
-
 PROMPT 0
 TIMEOUT 0
 LABEL rescue

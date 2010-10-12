@@ -314,7 +314,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
 
 
     } else {
-        
+
         ##
         ## NO OTHER HTTP PUT ALLOWED
         ##
@@ -587,10 +587,10 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 
             $args .= "$actref->{raccess} " if (defined $actref->{raccess});
 
-# we need to get hardware or at least bootargs in here somehow
-# to get around network level hangs with this:
-
-#            $args .= " netsetup=1 ";
+            $hardref = &get_hardware( $opts, $dbh, $actref, $actref->{hardware_ver} );
+            if ( defined $hardref ) {
+                $args .= "$hardref->{bootargs} " if (defined $hardref->{bootargs});
+            }
 
             print STDERR "$input->{mac} - get inventory from host\n";
 
@@ -751,10 +751,17 @@ chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
             ##
             ##  IMAGE - SERVE IMAGE WORKLOAD
             ##
+            my $args = "";
+
+            $args .= "$actref->{raccess} " if (defined $actref->{raccess});
+
+            $hardref = &get_hardware( $opts, $dbh, $actref, $actref->{hardware_ver} );
+            if ( defined $hardref ) {
+                $args .= "$hardref->{bootargs} " if (defined $hardref->{bootargs});
+            }
 
             print STDERR "$input->{mac} - imaging\n";
 
-            $hardref = &get_hardware( $opts, $dbh, $actref, $actref->{hardware_ver} );
             $state = BA_EVENT_IMAGING;
 
             &event_state_change( $dbh, $state, $macref, $actref );
@@ -764,14 +771,15 @@ chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
                 &update_db_action( $dbh, $actref );
             }
 
+            my $lcmac = lc $input->{mac};
+
             $output =
                 qq|DEFAULT image
 PROMPT 0
 TIMEOUT 0
-
 LABEL image
         kernel http://$baVar{serverip}/ba/linux.baracus
-        append initrd=http://$baVar{serverip}/ba/initrd.baracus root=/dev/ram0 install=exec:/usr/bin/baracus.image baimagedst="$hardref->{rootdisk}" baimagesrc="$actref->{netboot}" baracus=$baVar{serverip} mac=$input->{mac} $hardref->{bootargs}
+        append initrd=http://$baVar{serverip}/ba/initrd.baracus root=/dev/ram0 install=exec:/usr/bin/baracus.image baimagedst="$hardref->{rootdisk}" baimagesrc="$actref->{netboot}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
 
 
@@ -781,6 +789,14 @@ LABEL image
             ##
             ## WIPE
             ##
+            my $args = "";
+
+            $args .= "$actref->{raccess} " if (defined $actref->{raccess});
+
+            $hardref = &get_hardware( $opts, $dbh, $actref, $actref->{hardware_ver} );
+            if ( defined $hardref ) {
+                $args .= "$hardref->{bootargs} " if (defined $hardref->{bootargs});
+            }
 
             print STDERR "$input->{mac} - wiping\n";
 
@@ -793,16 +809,17 @@ LABEL image
                 &update_db_action( $dbh, $actref );
             }
 
+            my $lcmac = lc $input->{mac};
+
             my $autonuke = "";
             $autonuke = " --autonuke" if ( $actref->{autonuke} );
             $output =
                 qq|DEFAULT wipe
 PROMPT 0
 TIMEOUT 0
-
 LABEL wipe
         kernel http://$baVar{serverip}/ba/linux.baracus
-        append initrd=http://$baVar{serverip}/ba/initrd.baracus root=/dev/ram0 install=exec:/usr/bin/baracus.dban nuke="dwipe${autonuke}" baracus=$baVar{serverip} mac=$input->{mac}
+        append initrd=http://$baVar{serverip}/ba/initrd.baracus root=/dev/ram0 install=exec:/usr/bin/baracus.dban nuke="dwipe${autonuke}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
 
         }
