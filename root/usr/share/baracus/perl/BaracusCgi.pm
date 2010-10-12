@@ -96,13 +96,21 @@ LABEL localboot
     exit 0;
 }
 
-# without the timeout it should wait indefinitely
+# without a timeout it would wait indefinitely
+# now we invoke a pxewait shell script
+# for Baracus/node interaction
 sub do_pxewait() {
     my $cgi = shift;
+    my $baVar = shift;
+    my $input = shift;
+    my $args  = shift;
+    $args = "" unless ( defined $args );
     my $output = qq|DEFAULT pxewait
-PROMPT 1
+PROMPT 0
+TIMEOUT 0
 LABEL pxewait
-        localboot 0
+        kernel http://$baVar->{serverip}/ba/linux.baracus
+        append initrd=http://$baVar->{serverip}/ba/initrd.baracus install=exec:/usr/bin/pxewait textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args
 |;
 
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;

@@ -500,7 +500,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             )
         {
             print STDERR "$input->{mac} - serving pxewait\n";
-            &do_pxewait( $cgi );
+            &do_pxewait( $cgi, \%baVar, $input );
             # do_pxewait call exits
         }
 
