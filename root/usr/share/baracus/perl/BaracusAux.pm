@@ -198,6 +198,8 @@ sub get_version_or_enabled
     my $name = shift;
     my $vers = shift;
 
+    return undef unless ( defined $name );
+
     $vers = 0 unless ( defined $vers );
 
     my ($vref, $href, $eref) = &get_versions( $opts, $dbh, $type, $name, $vers);
