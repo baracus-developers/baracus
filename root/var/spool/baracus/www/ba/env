@@ -54,7 +54,7 @@ my $newinv    = "$baDir{hooks}/new_inventory_available";
 my $wipedone  = "$baDir{hooks}/wipe_disk_complete";
 my $wipefail  = "$baDir{hooks}/wipe_disk_failed";
 my $imagedone = "$baDir{hooks}/image_deploy_complete";
-my $imagefail = "$baDir{hooks}/image_deploy_fail";
+my $imagefail = "$baDir{hooks}/image_deploy_failed";
 my $built     = "$baDir{hooks}/verify_client_build_passed";
 my $spoofed   = "$baDir{hooks}/verify_client_build_failed";
 
@@ -174,8 +174,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         if ( -f $newinv ) {
             print STDERR "$input->{mac} - hook $newinv\n";
             my $cmd = "$newinv $input->{mac}";
-            my $rfile = BATools::generate_random_string();
-            $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd." $rfile";
+            $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
             $output .= `$cmd`;
         }
 
@@ -245,8 +244,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             if ( -f $wipedone ) {
                 print STDERR "$input->{mac} - hook $wipedone\n";
                 my $cmd = "$wipedone $input->{mac}";
-                my $rfile = BATools::generate_random_string();
-                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd." $rfile";
+                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
                 $output .= `$cmd`;
             }
         } else {
@@ -254,8 +252,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             if ( -f $wipefail ) {
                 print STDERR "$input->{mac} - hook $wipefail\n";
                 my $cmd = "$wipefail $input->{mac}";
-                my $rfile = BATools::generate_random_string();
-                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd." $rfile";
+                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
                 $output .= `$cmd`;
             }
         }
@@ -326,8 +323,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             if ( -f $imagedone ) {
                 print STDERR "$input->{mac} - hook $imagedone\n";
                 my $cmd = "$imagedone $input->{mac}";
-                my $rfile = BATools::generate_random_string();
-                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd." $rfile";
+                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
                 $output .= `$cmd`;
             }
         } else {
@@ -335,8 +331,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             if ( -f $imagefail ) {
                 print STDERR "$input->{mac} - hook $imagefail\n";
                 my $cmd = "$imagefail $input->{mac}";
-                my $rfile = BATools::generate_random_string();
-                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd." $rfile";
+                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
                 $output .= `$cmd`;
             }
         }
@@ -1304,16 +1299,12 @@ Address 'CMS' 'PURGE RDR ALL'
 
             $state = BA_EVENT_SPOOFED;
             $actref->{cmdline} = "# build complete callback spoofed";
-
             print STDERR "$input->{mac} - $hostname $actref->{cmdline}\n";
             $output = "build spoofed - spoof hook called\n";
 
             if ( -f $spoofed ) {
                 my $cmd = "$spoofed $hostname $ip $uuid $input->{mac}";
-#                print STDERR $cmd;
-#                system($cmd);
-                my $rfile = BATools::generate_random_string();
-                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd." $rfile";
+                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
                 my $output = `$cmd`;
             }
         }
@@ -1325,10 +1316,7 @@ Address 'CMS' 'PURGE RDR ALL'
 
             if ( -f $built ) {
                 my $cmd = "$built $hostname $ip $uuid $input->{mac}";
-#                print STDERR $cmd;
-#                system($cmd);
-                my $rfile = BATools::generate_random_string();
-                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd." $rfile";
+                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
                 my $output = `$cmd`;
             }
         }

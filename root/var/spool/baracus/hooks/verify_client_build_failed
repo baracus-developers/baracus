@@ -1,0 +1,4 @@
+#!/bin/bash -x
+
+echo "`date` $0 $*" >> /var/spool/baracus/logs/hook.log 2>&1
+
