@@ -50,8 +50,13 @@ my $cgi = new CGI;
 
 my $input = {};  # for CGI args or PUT cookie
 
-my $built   = "$baDir{hooks}/verify_client_build_passed";
-my $spoofed = "$baDir{hooks}/verify_client_build_failed";
+my $newinv    = "$baDir{hooks}/new_inventory_available";
+my $wipedone  = "$baDir{hooks}/wipe_disk_complete";
+my $wipefail  = "$baDir{hooks}/wipe_disk_failed";
+my $imagedone = "$baDir{hooks}/image_deploy_complete";
+my $imagefail = "$baDir{hooks}/image_deploy_fail";
+my $built     = "$baDir{hooks}/verify_client_build_passed";
+my $spoofed   = "$baDir{hooks}/verify_client_build_failed";
 
 my $dbh = DBI->connect
     ("DBI:Pg:dbname=baracus;port=5162",
@@ -166,6 +171,14 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
 
         $state = BA_EVENT_REGISTER;
 
+        if ( -f $newinv ) {
+            print STDERR "$input->{mac} - hook $newinv\n";
+            my $cmd = "$newinv $input->{mac}";
+            my $rfile = BATools::generate_random_string();
+            $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd." $rfile";
+            $output .= `$cmd`;
+        }
+
         my $chkref = &get_db_action( $dbh, $input->{mac} );
         $actref = $chkref if ( defined $chkref );
         $actref->{cmdline} = "# inventory uploaded";
@@ -229,8 +242,22 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
 
         if ($input->{status} eq "pass") {
             $state = BA_EVENT_WIPED;
+            if ( -f $wipedone ) {
+                print STDERR "$input->{mac} - hook $wipedone\n";
+                my $cmd = "$wipedone $input->{mac}";
+                my $rfile = BATools::generate_random_string();
+                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd." $rfile";
+                $output .= `$cmd`;
+            }
         } else {
             $state = BA_EVENT_WIPEFAIL;
+            if ( -f $wipefail ) {
+                print STDERR "$input->{mac} - hook $wipefail\n";
+                my $cmd = "$wipefail $input->{mac}";
+                my $rfile = BATools::generate_random_string();
+                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd." $rfile";
+                $output .= `$cmd`;
+            }
         }
 
         my $chkref = &get_db_action( $dbh, $input->{mac} );
@@ -296,8 +323,22 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
 
         if ($input->{status} eq "pass") {
             $state = BA_EVENT_IMAGED;
+            if ( -f $imagedone ) {
+                print STDERR "$input->{mac} - hook $imagedone\n";
+                my $cmd = "$imagedone $input->{mac}";
+                my $rfile = BATools::generate_random_string();
+                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd." $rfile";
+                $output .= `$cmd`;
+            }
         } else {
             $state = BA_EVENT_IMAGEFAIL;
+            if ( -f $imagefail ) {
+                print STDERR "$input->{mac} - hook $imagefail\n";
+                my $cmd = "$imagefail $input->{mac}";
+                my $rfile = BATools::generate_random_string();
+                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd." $rfile";
+                $output .= `$cmd`;
+            }
         }
 
         my $chkref = &get_db_action( $dbh, $input->{mac} );
