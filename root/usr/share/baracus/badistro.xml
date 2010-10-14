@@ -93,7 +93,7 @@
     <os>sles</os>
     <release>11.1</release>
     <arch>s390x</arch>
-    <description>SUSE Linux Enterprise Server 11.1 s390x</description>
+    <description>SUSE Linux Enterprise Server 11 SP1 s390x</description>
 
     <autodownload>auth</autodownload>
 
@@ -118,7 +118,7 @@
     <addrel/>
     <arch>s390x</arch>
     <requires>sles-11.1-s390x</requires> <!-- flag! content ignored -->
-    <description>SLES 11.1 Software Development Kit s390x</description>
+    <description>SLES 11 SP1 Software Development Kit s390x</description>
 
     <autodownload>auth</autodownload>
 
@@ -137,7 +137,7 @@
     <os>sles</os>
     <release>11.1</release>
     <arch>x86_64</arch>
-    <description>SUSE Linux Enterprise Server 11.1 64bit</description>
+    <description>SUSE Linux Enterprise Server 11 SP1 64bit</description>
 
     <autodownload>auth</autodownload>
 
@@ -162,7 +162,7 @@
     <addrel/>
     <arch>x86_64</arch>
     <requires>sles-11.1-x86_64</requires> <!-- flag! content ignored -->
-    <description>SLES 11.1 Software Development Kit 64bit</description>
+    <description>SLES 11 SP1 Software Development Kit 64bit</description>
 
     <autodownload>auth</autodownload>
 
@@ -181,7 +181,7 @@
     <os>sles</os>
     <release>11.1</release>
     <arch>x86</arch>
-    <description>SUSE Linux Enterprise Server 11.1 32bit</description>
+    <description>SUSE Linux Enterprise Server 11 SP1 32bit</description>
 
     <autodownload>auth</autodownload>
 
@@ -207,7 +207,7 @@
     <addrel/>
     <arch>x86</arch>
     <requires>sles-11.1-x86</requires> <!-- flag! content ignored -->
-    <description>SLES 11.1 Software Development Kit 32bit</description>
+    <description>SLES 11 SP1 Software Development Kit 32bit</description>
 
     <autodownload>auth</autodownload>
 
@@ -222,13 +222,14 @@
   </distro>
 
 
+
   <!-- SLED 11 SP 1 -->
 
   <distro name="sled-11.1-x86_64">
     <os>sled</os>
     <release>11.1</release>
     <arch>x86_64</arch>
-    <description>SUSE Linux Enterprise Desktop 11.1 64bit</description>
+    <description>SUSE Linux Enterprise Desktop 11 SP1 64bit</description>
     <autodownload>auth</autodownload>
 
     <product name="dvd">
@@ -249,7 +250,7 @@
     <os>sled</os>
     <release>11.1</release>
     <arch>x86</arch>
-    <description>SUSE Linux Enterprise Desktop 11.1 32bit</description>
+    <description>SUSE Linux Enterprise Desktop 11 SP1 32bit</description>
     <autodownload>auth</autodownload>
 
     <product name="dvd">
@@ -400,7 +401,7 @@
     <os>sles</os>
     <release>10.3</release>
     <arch>s390x</arch>
-    <description>SUSE Linux Enterprise Server 10.3 s390x</description>
+    <description>SUSE Linux Enterprise Server 10 SP3 s390x</description>
     <autodownload>auth</autodownload>
 
     <product name="dvd">
@@ -425,7 +426,7 @@
     <addrel/>
     <arch>s390x</arch>
     <requires>sles-10.3-s390x</requires> <!-- flag! content ignored -->
-    <description>SLES 10.3 Software Development Kit s390x</description>
+    <description>SLES 10 SP3 Software Development Kit s390x</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>flat</addon>
@@ -442,7 +443,7 @@
     <os>sles</os>
     <release>10.3</release>
     <arch>x86_64</arch>
-    <description>SUSE Linux Enterprise Server 10.3 64bit</description>
+    <description>SUSE Linux Enterprise Server 10 SP3 64bit</description>
     <autodownload>auth</autodownload>
 
     <product name="dvd">
@@ -466,7 +467,7 @@
     <addrel/>
     <arch>x86_64</arch>
     <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
-    <description>SLES 10.3 Software Development Kit 64bit</description>
+    <description>SLES 10 SP3 Software Development Kit 64bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>flat</addon>
@@ -482,7 +483,7 @@
     <os>sles</os>
     <release>10.3</release>
     <arch>x86</arch>
-    <description>SUSE Linux Enterprise Server 10.3 32bit</description>
+    <description>SUSE Linux Enterprise Server 10 SP3 32bit</description>
     <autodownload>auth</autodownload>
 
     <product name="dvd">
@@ -506,7 +507,7 @@
     <addrel/>
     <arch>x86</arch>
     <requires>sles-10.3-x86</requires> <!-- flag! content ignored -->
-    <description>SLES 10.3 Software Development Kit 32bit</description>
+    <description>SLES 10 SP3 Software Development Kit 32bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>flat</addon>
@@ -524,7 +525,7 @@
     <os>sled</os>
     <release>10.3</release>
     <arch>x86_64</arch>
-    <description>SUSE Linux Enterprise Desktop 10.3 64bit</description>
+    <description>SUSE Linux Enterprise Desktop 10 SP3 64bit</description>
     <autodownload>auth</autodownload>
 
     <product name="dvd">
@@ -545,7 +546,7 @@
     <os>sled</os>
     <release>10.3</release>
     <arch>x86</arch>
-    <description>SUSE Linux Enterprise Desktop 10.3 32bit</description>
+    <description>SUSE Linux Enterprise Desktop 10 SP3 32bit</description>
     <autodownload>auth</autodownload>
 
     <product name="dvd">
@@ -568,7 +569,7 @@
     <os>sles</os>
     <release>10.2</release>
     <arch>x86_64</arch>
-    <description>SUSE Linux Enterprise Server 10.2 64bit</description>
+    <description>SUSE Linux Enterprise Server 10 SP2 64bit</description>
     <autodownload>auth</autodownload>
 
     <product name="dvd">
@@ -592,7 +593,7 @@
     <addrel/>
     <arch>x86_64</arch>
     <requires>sles-10.2-x86_64</requires> <!-- flag! content ignored -->
-    <description>SLES 10.2 Software Development Kit 64bit</description>
+    <description>SLES 10 SP2 Software Development Kit 64bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>flat</addon>
@@ -608,7 +609,7 @@
     <os>sles</os>
     <release>10.2</release>
     <arch>x86</arch>
-    <description>SUSE Linux Enterprise Server 10.2 32bit</description>
+    <description>SUSE Linux Enterprise Server 10 SP2 32bit</description>
     <autodownload>auth</autodownload>
 
     <product name="dvd">
@@ -632,7 +633,7 @@
     <addrel/>
     <arch>x86</arch>
     <requires>sles-10.2-x86</requires> <!-- flag! content ignored -->
-    <description>SLES 10.2 Software Development Kit 32bit</description>
+    <description>SLES 10 SP2 Software Development Kit 32bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>flat</addon>
@@ -650,7 +651,7 @@
     <os>sled</os>
     <release>10.2</release>
     <arch>x86_64</arch>
-    <description>SUSE Linux Enterprise Desktop 10.2 64bit</description>
+    <description>SUSE Linux Enterprise Desktop 10 SP2 64bit</description>
     <autodownload>auth</autodownload>
 
     <product name="dvd">
@@ -671,7 +672,7 @@
     <os>sled</os>
     <release>10.2</release>
     <arch>x86</arch>
-    <description>SUSE Linux Enterprise Desktop 10.2 32bit</description>
+    <description>SUSE Linux Enterprise Desktop 10 SP2 32bit</description>
     <autodownload>auth</autodownload>
 
     <product name="dvd">
@@ -694,7 +695,7 @@
     <os>sles</os>
     <release>9.4</release>
     <arch>x86_64</arch>
-    <description>SUSE Linux Enterprise Server 9.4 64bit</description>
+    <description>SUSE Linux Enterprise Server 9 SP4 64bit</description>
     <autodownload>auth</autodownload>
 
     <product name="SUSE-SLES-Version-9">
@@ -786,7 +787,7 @@
     <os>sles</os>
     <release>9.4</release>
     <arch>x86</arch>
-    <description>SUSE Linux Enterprise Server 9.4 32bit</description>
+    <description>SUSE Linux Enterprise Server 9 SP4 32bit</description>
     <autodownload>auth</autodownload>
 
     <product name="SUSE-SLES-Version-9">
@@ -874,7 +875,7 @@
     <os>sles</os>
     <release>9.3</release>
     <arch>x86_64</arch>
-    <description>SUSE Linux Enterprise Server 9.3 64bit</description>
+    <description>SUSE Linux Enterprise Server 9 SP3 64bit</description>
     <autodownload>auth</autodownload>
 
     <product name="SUSE-SLES-Version-9">
@@ -964,7 +965,7 @@
     <addrel/>
     <arch>x86_64</arch>
     <requires>sles-11.1-x86_64</requires> <!-- flag! content ignored -->
-    <description>SLES 11.1 High Availability Extension 64bit</description>
+    <description>SLES 11 SP1 High Availability Extension 64bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>signed</addon>
@@ -983,7 +984,7 @@
     <addrel/>
     <arch>x86</arch>
     <requires>sles-11.1-x86</requires> <!-- flag! content ignored -->
-    <description>SLES 11.1 High Availability Extension 32bit</description>
+    <description>SLES 11 SP1 High Availability Extension 32bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>signed</addon>
@@ -1005,7 +1006,7 @@
     <addrel>1.1</addrel>
     <arch>x86_64</arch>
     <requires>sles-11.1-x86_64</requires> <!-- flag! content ignored -->
-    <description>SLES 11.1 Studio Onsite 1.1 Add-On</description>
+    <description>SLES 11 SP1 Studio Onsite 1.1 Add-On</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>flat</addon>
@@ -1026,7 +1027,7 @@
     <addrel/>
     <arch>x86_64</arch>
     <requires>sles-11.1-x86_64</requires> <!-- flag! content ignored -->
-    <description>SLES 11.1 Web YaST Add-On</description>
+    <description>SLES 11 SP1 Web YaST Add-On</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>flat</addon>
@@ -1047,7 +1048,7 @@
     <addrel/>
     <arch>x86_64</arch>
     <requires>sles-10.2-x86_64</requires> <!-- flag! content ignored -->
-    <description>SLES 10.2 Real-Time Add-On 64bit</description>
+    <description>SLES 10 SP2 Real-Time Add-On 64bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>flat</addon>
@@ -1066,7 +1067,7 @@
     <addrel/>
     <arch>x86</arch>
     <requires>sles-10.2-x86</requires> <!-- flag! content ignored -->
-    <description>SLES 10.2 Real-Time Add-On 32bit</description>
+    <description>SLES 10 SP2 Real-Time Add-On 32bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>flat</addon>
@@ -1088,7 +1089,7 @@
     <addrel/>
     <arch>x86_64</arch>
     <requires>sles-10.2-x86_64</requires> <!-- flag! content ignored -->
-    <description>SLES 10.2 Mono Add-On 64bit</description>
+    <description>SLES 10 SP2 Mono Add-On 64bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>flat</addon>
@@ -1107,7 +1108,7 @@
     <addrel/>
     <arch>x86</arch>
     <requires>sles-10.2-x86</requires> <!-- flag! content ignored -->
-    <description>SLES 10.2 Mono Add-On 32bit</description>
+    <description>SLES 10 SP2 Mono Add-On 32bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>flat</addon>
@@ -1128,7 +1129,7 @@
     <addrel/>
     <arch>x86_64</arch>
     <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
-    <description>SLES 10.3 Real-Time Add-On 64bit</description>
+    <description>SLES 10 SP3 Real-Time Add-On 64bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>flat</addon>
@@ -1147,7 +1148,7 @@
     <addrel/>
     <arch>x86</arch>
     <requires>sles-10.3-x86</requires> <!-- flag! content ignored -->
-    <description>SLES 10.3 Real-Time Add-On 32bit</description>
+    <description>SLES 10 SP3 Real-Time Add-On 32bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>flat</addon>
@@ -1169,7 +1170,7 @@
     <addrel/>
     <arch>x86_64</arch>
     <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
-    <description>SLES 10.3 Subscription Mgmt Tool Add-On 64bit</description>
+    <description>SLES 10 SP3 Subscription Mgmt Tool Add-On 64bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>flat</addon>
@@ -1188,7 +1189,7 @@
     <addrel/>
     <arch>x86</arch>
     <requires>sles-10.3-x86</requires> <!-- flag! content ignored -->
-    <description>SLES 10.3 Subscription Mgmt Tool Add-On 32bit</description>
+    <description>SLES 10 SP3 Subscription Mgmt Tool Add-On 32bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>flat</addon>
@@ -1312,7 +1313,7 @@
     <addrel/>
     <arch>x86_64</arch>
     <requires>sles-11.1-x86_64</requires> <!-- flag! content ignored -->
-    <description>SLES 11.1 Novell Cloud Manger 64bit</description>
+    <description>SLES 11 SP1 Novell Cloud Manger 64bit</description>
     <autodownload>auth</autodownload>
     <product name="dvd">
       <addon>signed</addon>
@@ -2231,7 +2232,7 @@
     <os>ubuntu_desktop</os>
     <release>10.4</release>
     <arch>x86</arch>
-    <description>Ubuntu desktop Edition 10.4 32bit</description>
+    <description>Ubuntu Desktop Edition 10.4 32bit</description>
     <autodownload>open</autodownload>
     <sharetype>http</sharetype>
     <product name="dvd">
@@ -2252,7 +2253,7 @@
     <os>ubuntu_desktop</os>
     <release>10.4</release>
     <arch>x86_64</arch>
-    <description>Ubuntu Server desktop 10.4 64bit</description>
+    <description>Ubuntu Desktop Edition 10.4 64bit</description>
     <autodownload>open</autodownload>
     <sharetype>http</sharetype>
     <product name="dvd">
@@ -2319,7 +2320,7 @@
     <os>ubuntu_desktop</os>
     <release>10.10</release>
     <arch>x86</arch>
-    <description>Ubuntu desktop Edition 10.10 32bit</description>
+    <description>Ubuntu Desktop Edition 10.10 32bit</description>
     <autodownload>open</autodownload>
     <sharetype>http</sharetype>
     <product name="dvd">
@@ -2340,7 +2341,7 @@
     <os>ubuntu_desktop</os>
     <release>10.10</release>
     <arch>x86_64</arch>
-    <description>Ubuntu Server desktop 10.10 64bit</description>
+    <description>Ubuntu Desktop Edition 10.10 64bit</description>
     <autodownload>open</autodownload>
     <sharetype>http</sharetype>
     <product name="dvd">
