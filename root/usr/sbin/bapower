@@ -142,35 +142,39 @@ sub mymain
     my $command = shift;
 
     my $deviceid = "";
-    my $bmc;
+    my $bmc = {};
+
+    $bmc->{'dbh'} = $dbh;
 
     printf "Executing $command with \"@_\".\n" if $debug;
 
     $command = lc $command;
-    &mycheck_command( $command );
+    return 1 unless &mycheck_command( $command );
 
-    if ( ( $command eq "add"    ) ||
-         ( $command eq "remove" ) ||
-         ( $command eq "update" ) ||
-         ( $command eq "list"   ) ) {
-        $bmc->{'dbh'} = $dbh;
-        $cmds{ $command }( $bmc, @_ );
-    } else {
-        $deviceid = &arg_handler( @_ );
-        unless (defined $deviceid) {
-            $LASTERROR = "invalid or non-existant deviceid\n";
-            return 1;
-        }
-        # other error conditions return 1
-        return 1 if ( $deviceid == 1 );
-
-        $bmc = &get_bmc($deviceid, $dbh);
-        unless ( $bmc ) {
-            $LASTERROR= "invalid or non-existant controler type for $deviceid\n";
-            return 1;
-        }
-        $cmds{ $command }( $bmc );
+    if ( $command eq "list" ) {
+        # bypass real mac hostname checks to support filtering
+        return $cmds{list}( $bmc, @_ );
     }
+
+    ($deviceid, @_) = &arg_handler( $bmc, $command, @_ );
+    unless (defined $deviceid) {
+        $LASTERROR = "invalid --mac or --hostname usage\n";
+        return 1;
+    }
+    # other arg_handler error conditions return 1
+    return 1 if ( $deviceid eq "1" );
+
+    if ( $command =~ m/^(on|off|cycle|status)$/ ) {
+        my $href = &get_bmc($bmc, $deviceid);
+        unless ( $href ) {
+            $LASTERROR= "Unable to find entry for device with id: $deviceid\n";
+            return 1;
+        }
+        $cmds{ $command }( $href );
+    } else {
+        $cmds{ $command }( $bmc, @_ );
+    }
+
 }
 
 sub myhelp() {
@@ -202,41 +206,49 @@ sub myman
 }
 
 sub arg_handler() {
-
-    my %entry = (
-                 'mac'      => "",
-                 'hostname' => "",
-                );
-    @ARGV = @_;
-    GetOptions(
-               'mac=s'      => \$entry{'mac'},
-               'hostname=s' => \$entry{'hostname'},
-              );
-
-    if ( scalar @ARGV ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &myhelp();
-    }
-
-    if ( ($entry{'mac'}) && ($entry{'hostname'}) ) {
-        $LASTERROR = "Please use either --mac  _or_ --hostname\n";
-        return 1;
-    }
+    my $bmc = shift;
+    my $command = shift;
 
     my $deviceid = 0;
 
-    if ($entry{'mac'}) {
-        # check_mac exits on invalid mac string
-        $deviceid = &check_mac( $entry{'mac'} );
-    } elsif ($entry{'hostname'} and $entry{'hostname'} ne "") {
-        $deviceid = $entry{'hostname'};
-    } else {
+    @ARGV = @_;
+
+    GetOptions(
+               'mac=s'      => \$bmc->{'mac'},
+               'hostname=s' => \$bmc->{'hostname'},
+              );
+
+    #                              =~ m/^(on|off|cycle|status|remove|list)/
+    if ( scalar @ARGV and $command !~ m/^(add)$/ ) {
+        printf "\nUnknown arg(s): %s\n\n", join(" ", @ARGV);
+        &myhelp();
+    }
+    unless ( $command eq "add" ) {
+        if ( ($bmc->{'mac'}) and ($bmc->{'hostname'}) ) {
+            $LASTERROR = "Please use either --mac or --hostname\n";
+            return 1;
+        }
+    }
+    unless ( $bmc->{'mac'} or $bmc->{'hostname'} ) {
         $LASTERROR = "Require an id. Use --mac or --hostname\n";
         return 1;
     }
 
-    return( $deviceid );
+    if ($bmc->{'mac'}) {
+        # check_mac exits on invalid mac string
+        $bmc->{'mac'} = &check_mac( $bmc->{'mac'} );
+        $deviceid = $bmc->{'mac'};
+    }
+    if ($bmc->{'hostname'}) {
+        if ( &check_hostname( $bmc->{'hostname'} ) == 0  ) {
+            $deviceid = $bmc->{'hostname'};
+        } else {
+            $LASTERROR = "Hostname provided is not valid: $bmc->{hostname}\n";
+            return 1;
+        }
+    }
 
+    return ( $deviceid, @ARGV );
 }
 
 sub mycheck_command
@@ -251,23 +263,13 @@ sub mycheck_command
 
     unless ( defined $cmds{ $command } ) {
         $LASTERROR = sprintf "\nInvalid <command> '$command' please use:  $cmd_list\n";
-        return 1;
+        return 0;
     }
 }
 
 sub remove_stub() {
 
     my $bmcref = shift;
-    @ARGV = @_;
-    GetOptions(
-               'mac=s'         => \$bmcref->{'mac'},
-               'hostname=s'    => \$bmcref->{'hostname'},
-               );
-
-    if ( scalar @ARGV ) {
-        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
-    }
 
     my $status = &remove( $bmcref );
 
@@ -278,10 +280,9 @@ sub remove_stub() {
 sub add_stub() {
 
     my $bmcref = shift;
+
     @ARGV = @_;
     GetOptions(
-               'mac=s'         => \$bmcref->{'mac'},
-               'hostname=s'    => \$bmcref->{'hostname'},
                'ctype=s'       => \$bmcref->{'ctype'},
                'login=s'       => \$bmcref->{'login'},
                'passwd=s'      => \$bmcref->{'passwd'},
@@ -294,25 +295,13 @@ sub add_stub() {
         $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
         return 1;
     }
-
-    ## Check minimal required args
-    foreach my $arg ( my @req_args = get_bmcref_req_args($bmcref) ) {
-        unless ( $bmcref->{$arg} ) {
-            $LASTERROR = "Required BMC args not provided (" .
-                join(",", @req_args) . ").\n";
-            return 1;
-        }
-    }
-
     &add( $bmcref );
-
-    return 0;
-
 }
 
 sub list_stub() {
 
     my $bmcref = shift;
+
     @ARGV = @_;
     GetOptions(
                'mac=s'         => \$bmcref->{'mac'},

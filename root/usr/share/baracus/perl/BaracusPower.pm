@@ -143,15 +143,12 @@ sub list_start() {
     my $dbh = $bmcref->{ 'dbh' };
     my $deviceid;
 
-
-    if ( ($bmcref->{'mac'}) && ($bmcref->{'hostname'}) ) {
-        print "--mac and --hostname not allowed together\n";
-    }
-
+    my $type = "mac";
     if ( $bmcref->{'mac'} ) {
         $deviceid = $bmcref->{ 'mac' };
     } elsif ( $bmcref->{'hostname'} ) {
         $deviceid = $bmcref->{ 'hostname' };
+        $type = "hostname";
     } else {
         $deviceid = "%";
     }
@@ -169,13 +166,11 @@ sub list_start() {
                          node,
                          other
                   FROM power
+                  WHERE $type LIKE '$deviceid'
                 |;
-    $sql .= qq|WHERE mac LIKE ?| if $bmcref->{ 'mac' };
-    $sql .= qq|WHERE hostname LIKE ?| if $bmcref->{ 'hostname' };
-    $sql .= qq|WHERE mac LIKE ?| unless ( ($bmcref->{ 'hostname' }) || ($bmcref->{ 'mac' }) );
 
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( $deviceid ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
 
     return $sth;
 
@@ -434,15 +429,18 @@ sub get_mac() {
 
 sub get_bmc() {
 
+    my $bmc = shift;
     my $deviceid = shift;
-    my $dbh = shift;
+    my $dbh = $bmc->{dbh};
     my $type;
 
     ## Is deviceid a mac address, if not get mac
-    if ($deviceid  =~ m|([0-9A-F]{1,2}:?){6}|) {
+    if ($bmc->{mac}) {
         $type = "mac";
-    } else {
+    } elsif ($bmc->{hostname}) {
         $type = "hostname";
+    } else {
+        return undef;
     }
 
     ## lookup bmc info for device
@@ -457,11 +455,11 @@ sub get_bmc() {
                          node,
                          other
                   FROM power
-                  WHERE $type = ?
+                  WHERE $type = '$deviceid'
                 |;
 
-   die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-   die "$!$sth->err\n" unless ( $sth->execute( $deviceid ) );
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
 
     $href = $sth->fetchrow_hashref();
     $sth->finish;
@@ -514,14 +512,31 @@ sub add_powerdb_entry() {
     my $dbh = $bmcref->{ 'dbh' };
     my $deviceid;
 
-    $deviceid = $bmcref->{'mac'} ? $bmcref->{'mac'} : $bmcref->{'hostname'};
+    my $type;
+    if ( $bmcref->{'mac'} ) {
+        $deviceid = $bmcref->{'mac'};
+        $type = 'mac';
+    } else {
+        $deviceid = $bmcref->{'hostname'};
+        $type = 'hostname';
+    }
+
+    unless ( defined $bmcref->{'ctype'} and
+             exists  $powermod{ $bmcref->{'ctype'} } ) {
+        die "Please use one of these ctypes:\n  ".join("\n  ", keys %powermod)."\n" ;
+    }
+
+    ## Check minimal required args
+    foreach my $arg ( my @req_args = get_bmcref_req_args($bmcref) ) {
+        unless ( $bmcref->{$arg} ) {
+            my $LASTERROR = "Required BMC args not provided (" .
+                join(", ", @req_args) . ").\n";
+            die $LASTERROR;
+        }
+    }
 
     unless ( &check_powerdb_entry( $deviceid, $dbh ) ) {
         die "deviceid: '$deviceid' already exists\n";
-    }
-
-    unless exists $powermod{ $bmcref->{ 'ctype'} } {
-        die "ctype: $bmcref->{ 'ctype'} is not supported. Please use one of these".join("\n    ", keys %powermod)."\n" ;
     }
 
     my $sth;
@@ -606,12 +621,12 @@ sub remove_powerdb_entry() {
 
     my $deviceid;
     my $type;
-    if ( defined $bmcref->{'mac'} ) {
-	$deviceid = $bmcref->{'mac'};
-	$type = 'mac';
+    if ( $bmcref->{'mac'} ) {
+        $deviceid = $bmcref->{'mac'};
+        $type = 'mac';
     } else {
-	$deviceid = $bmcref->{'hostname'};
-	$type = 'hostname';
+        $deviceid = $bmcref->{'hostname'};
+        $type = 'hostname';
     }
 
     if ( &check_powerdb_entry( $deviceid, $dbh ) ) {
@@ -640,12 +655,13 @@ sub get_bmcref_req_args
     my $bmcref = shift;
     my @args = qw(ctype mac login passwd bmcaddr);
 
-    if ($bmcref->{'ctype'} eq "virsh") {
-        @args = qw(ctype mac);
-    } elsif ($bmcref->{'ctype'} eq "mainframe") {
-        @args = qw(ctype hostname bmcaddr node);
+    if ( defined $bmcref->{'ctype'} ) {
+        if ($bmcref->{'ctype'} eq "virsh") {
+            @args = qw(ctype mac bmcaddr);
+        } elsif ($bmcref->{'ctype'} eq "mainframe") {
+            @args = qw(ctype hostname bmcaddr node);
+        }
     }
-
     return @args;
 }
 
