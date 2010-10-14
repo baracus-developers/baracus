@@ -1075,10 +1075,6 @@ sub init() {
 
     my $command = 'init';
 
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
     my $exports = 0;
     my $mounts = 0;
     my $ret = 0;
@@ -1091,8 +1087,13 @@ sub init() {
                );
 
     if ( scalar @ARGV ) {
-            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-            &help( $opts, $cmds, $command );
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help( $opts, $cmds, $command );
+    }
+
+    unless ( $mounts or $exports or $opts->{all} ) {
+        print "\nRequire init type or --all\n";
+        &help( $opts, $cmds, $command );
     }
 
     if (( $mounts )  || ( $opts->{all} )) {
