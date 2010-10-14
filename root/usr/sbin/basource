@@ -224,6 +224,11 @@ Where
 sub add() {
 
     my $command = 'add';
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
     my $distro = "";
     my $addons = "";
     my $proxy;
@@ -295,7 +300,7 @@ sub add() {
     &source_register( $opts, $command, $distro, $addons );
 }
 
-=head2 update --distro <name> [--addon <addos> [--addon ...]] [ --all ]
+=head2 update --distro <name> [--addon <addos> ...] { [ --sharetype <type> ] [--shareip <ip> ] }
 
 Where
 
@@ -306,6 +311,11 @@ Where
   --addon <name>   specifies the addon(s) to be updated. like these
                    distributions sles-10.2-rt-x86_64, sles-11-ha-x86
 
+  --sharetype <type> where type is nfs or http
+
+  --shareip <ip>   where the ip is that of the sharetype server for
+                   the distro (and addons) specified.
+
   --all            update all the addons and the base distro.
 
 Without specifying --all, update will not update the base distro if it has any addons present so that a two step update process must be used to first update all the addons listed for the base distro and then another invocation with the base --distro alone.
@@ -315,6 +325,11 @@ Without specifying --all, update will not update the base distro if it has any a
 sub update() {
 
     my $command = 'update';
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
     my $distro;
     my $addons = "";
     my @addons;
@@ -466,6 +481,11 @@ Without specifying --all, remove will not remove the base distro if it has any a
 sub remove() {
 
     my $command = 'remove';
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
     my $distro;
     my $addons = "";
     my @addons;
@@ -607,6 +627,10 @@ sub enable() {
     my $command = 'enable';
     my $distro;
 
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
     @ARGV = @_;
 
     GetOptions(
@@ -661,6 +685,10 @@ sub disable() {
     my $command = 'disable';
     my $distro;
 
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
     @ARGV = @_;
 
     GetOptions(
@@ -710,6 +738,10 @@ sub verify() {
 
     my $command = 'verify';
     my $distro;
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
 
     @ARGV = @_;
 
@@ -819,6 +851,10 @@ sub detail() {
 
     my $command = 'detail';
     my $distro;
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
 
     @ARGV = @_;
 
@@ -1017,7 +1053,7 @@ sub list() {
     return 0;
 }
 
-=head2 init [ --exports | --mounts] [ --all ]
+=head2 init { --exports | --mounts | --all }
 
   Initialize or sync distro share media mount/exports to internal table.
 
@@ -1027,7 +1063,7 @@ sub list() {
   of the system boot initialization of Baracus but can be called explictly
   if media seems to be missing.
 
-Options
+Arguments
 
     --exports        Export any media marked for export that is not already
     --mounts         Mount and media marked for mount that is not already
@@ -1039,9 +1075,12 @@ sub init() {
 
     my $command = 'init';
 
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
     my $exports = 0;
     my $mounts = 0;
-    my $all;
     my $ret = 0;
 
     @ARGV = @_;
