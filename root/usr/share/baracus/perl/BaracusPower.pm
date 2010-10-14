@@ -336,8 +336,7 @@ sub ilo() {
                   'cycle'  => 'reboot',
                   'status' => 'status',
                   );
-    
-    
+
     my $command = "$powermod{ $bmcref->{'ctype'} } -a $bmcref->{'bmcaddr'} -l $bmcref->{'login'} -p $bmcref->{'passwd'} -o $action{ $operation }";
     unless ($operation eq "status") { $command .= " >& /dev/null"; }
     my $result = `$command`;
@@ -364,7 +363,6 @@ sub vmware() {
                   'status' => 'status',
                   );
 
-
     my $command = "$powermod{ $bmcref->{'ctype'} } -a $bmcref->{'bmcaddr'} -l $bmcref->{'login'} -p $bmcref->{'passwd'} -o $action{ $operation }";
     unless ($operation eq "status") { $command .= " >& /dev/null"; }
     my $result = `$command`;
@@ -389,15 +387,15 @@ sub bazvmpower() {
     my $result = `$command`;
 
     if ($operation eq "status") {
-	if ($result =~  m/status: (.*)/g) {
-	    print "Power Status: $1\n";
-	} elsif ($result =~  m/Error (4\d+)/g) {
-	    print "Error $1\n";
-	    return 1;
-	} else {
-	    print "Unknown error:\n$result\n";
-	    return 1;
-	}
+        if ($result =~  m/status: (.*)/g) {
+            print "Power Status: $1\n";
+        } elsif ($result =~  m/Error (4\d+)/g) {
+            print "Error $1\n";
+            return 1;
+        } else {
+            print "Unknown error:\n$result\n";
+            return 1;
+        }
     }
 
     return 0;
@@ -442,11 +440,9 @@ sub get_bmc() {
 
     ## Is deviceid a mac address, if not get mac
     if ($deviceid  =~ m|([0-9A-F]{1,2}:?){6}|) {
-	$type = "mac";
-    } elsif ($deviceid  =~ m|(\d{1,3}\.){3}\d{1,3}|) {
-	$type = "ip";
+        $type = "mac";
     } else {
-	$type = "hostname";
+        $type = "hostname";
     }
 
     ## lookup bmc info for device
@@ -521,7 +517,11 @@ sub add_powerdb_entry() {
     $deviceid = $bmcref->{'mac'} ? $bmcref->{'mac'} : $bmcref->{'hostname'};
 
     unless ( &check_powerdb_entry( $deviceid, $dbh ) ) {
-	die "deviceid: '$deviceid' already exists\n";
+        die "deviceid: '$deviceid' already exists\n";
+    }
+
+    unless exists $powermod{ $bmcref->{ 'ctype'} } {
+        die "ctype: $bmcref->{ 'ctype'} is not supported. Please use one of these".join("\n    ", keys %powermod)."\n" ;
     }
 
     my $sth;
@@ -538,9 +538,6 @@ sub add_powerdb_entry() {
                   )
                  VALUES ( ?, ?, ?, ?, ?, ?, ?, ? )
                 |;
-
-    die "ctype: $bmcref->{ 'ctype'} is note supported\n" unless exists $powermod{ $bmcref->{ 'ctype'} };
-
 
     $sth = $dbh->prepare( $sql )
             or die "Cannot prepare sth: ",$dbh->errstr;
@@ -644,9 +641,9 @@ sub get_bmcref_req_args
     my @args = qw(ctype mac login passwd bmcaddr);
 
     if ($bmcref->{'ctype'} eq "virsh") {
-	@args = qw(ctype mac);
+        @args = qw(ctype mac);
     } elsif ($bmcref->{'ctype'} eq "mainframe") {
-	@args = qw(ctype hostname bmcaddr node);
+        @args = qw(ctype hostname bmcaddr node);
     }
 
     return @args;
