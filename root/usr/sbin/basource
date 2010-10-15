@@ -292,7 +292,10 @@ sub add() {
 
     unless ( $loopback ) { &streamline_install( $opts, $distro, $loopback ); }
 
-    &add_build_service( $opts, $distro, $addons );
+    if ( &add_build_service( $opts, $distro, $addons ) ) {
+        print "$opts->{LASTERROR}\n";
+        $opts->{LASTERROR} = "";
+    }
 
     print "Calling routine to configure bootloader\n";
     &add_bootloader_files( $opts, $distro );
@@ -397,11 +400,19 @@ sub update() {
             print "Updating addon $addon\n";
             if ( $sharetype ne "" ) {
                 $dbref = &get_db_source_entry( $opts, $addon );
-                &remove_build_service( $opts, $addon );
+#                &remove_build_service( $opts, $addon );
+                if ( &remove_build_service( $opts, $addon ) ) {
+                    print "$opts->{LASTERROR}\n";
+                    $opts->{LASTERROR} = "";
+                }
                 &update_db_source_entry( $opts, $sharetype, "", $addon);
                 &update_db_iso_entry( $opts, $addon, $sharetype );
           #      &remove_build_service( $opts, $addon );
-                &add_build_service( $opts, $addon );
+#                &add_build_service( $opts, $addon );
+                if ( &add_build_service( $opts, $addon ) ) {
+                    print "$opts->{LASTERROR}\n";
+                    $opts->{LASTERROR} = "";
+                }
                 print "$sharetype ... Updated\n" if $opts->{verbose};
             }
             if ( $shareip ne "" ) {
@@ -430,11 +441,19 @@ sub update() {
         if ( scalar @addons and defined $sdk and $addons[0] eq $sdk ) {
             if ( $sharetype ne "" ) {
                 $dbref = &get_db_source_entry( $opts, $sdk );
-                &remove_build_service( $opts, $sdk );
+#                &remove_build_service( $opts, $sdk );
+                if ( &remove_build_service( $opts, $sdk ) ) {
+                    print "$opts->{LASTERROR}\n";
+                    $opts->{LASTERROR} = "";
+                }
                 &update_db_source_entry( $opts, $sharetype, "", $sdk);
                 &update_db_iso_entry( $opts, $sdk, $sharetype );
                # &remove_build_service( $opts, $sdk );
-                &add_build_service( $opts, $sdk );
+#                &add_build_service( $opts, $sdk );
+                if ( &add_build_service( $opts, $sdk ) ) {
+                    print "$opts->{LASTERROR}\n";
+                    $opts->{LASTERROR} = "";
+                }
                 print "$sharetype ... updated\n" if $opts->{verbose};
             }
             if ( $shareip ne "" ) {
@@ -444,11 +463,19 @@ sub update() {
         }
         if ( $sharetype ne "" ) {
             $dbref = &get_db_source_entry( $opts, $distro );
-            &remove_build_service( $opts, $distro );
+#            &remove_build_service( $opts, $distro );
+            if ( &remove_build_service( $opts, $distro ) ) {
+                print "$opts->{LASTERROR}\n";
+                $opts->{LASTERROR} = "";
+            }
             &update_db_source_entry( $opts, $sharetype, "", $distro );
             &update_db_iso_entry( $opts, $distro, $sharetype );
    #         &remove_build_service( $opts, $distro );
-            &add_build_service( $opts, $distro );
+#            &add_build_service( $opts, $distro );
+            if ( &add_build_service( $opts, $distro ) ) {
+                print "$opts->{LASTERROR}\n";
+                $opts->{LASTERROR} = "";
+            }
             print "$sharetype ... updated\n" if $opts->{verbose};
         }
         if ( $shareip ne "" ) {
@@ -544,7 +571,11 @@ sub remove() {
             print "Removing addon $addon\n";
             ($share, undef) = &get_distro_share( $opts, $addon );
             $is_loopback = &get_loopback( $opts, $share );
-            &remove_build_service( $opts, "", $addons);
+#            &remove_build_service( $opts, "", $addons);
+            if ( &remove_build_service( $opts, "", $addons ) ) {
+                print "$opts->{LASTERROR}\n";
+                $opts->{LASTERROR} = "";
+            }
             print "$share ... removing\n" if $opts->{verbose};
             if ( $is_loopback ) {
                 $ret = system("umount $share");
@@ -579,7 +610,11 @@ sub remove() {
         if ( scalar @addons and defined $sdk and $addons[0] eq $sdk ) {
             ($share,undef) = &get_distro_share( $opts, $sdk );
             $is_loopback = &get_loopback( $opts, $share );
-            &remove_build_service( $opts, "", $sdk);
+#            &remove_build_service( $opts, "", $sdk);
+            if ( &remove_build_service( $opts, "", $sdk ) ) {
+                print "$opts->{LASTERROR}\n";
+                $opts->{LASTERROR} = "";
+            }
             print "$share ... removing\n" if $opts->{verbose};
             if ( $is_loopback ) {
                 $ret =  system("umount $share");
@@ -595,7 +630,11 @@ sub remove() {
         }
         ($share,undef) = &get_distro_share( $opts, $distro );
         $is_loopback = &get_loopback( $opts,  $share );
-        &remove_build_service( $opts, $distro, $addons);
+#        &remove_build_service( $opts, $distro, $addons);
+        if ( &remove_build_service( $opts, $distro, $addons ) ) {
+            print "$opts->{LASTERROR}\n";
+            $opts->{LASTERROR} = "";
+        }
         print "$share ... removing\n" if $opts->{verbose};
         if ( $is_loopback ) {
             $ret = system("umount $share");
@@ -665,7 +704,11 @@ sub enable() {
     print "Enabling $distro\n";
 
     # do the add_build_service - less code
-    &add_build_service( $opts, $distro );
+#    &add_build_service( $opts, $distro );
+    if ( &add_build_service( $opts, $distro ) ) {
+        print "$opts->{LASTERROR}\n";
+        $opts->{LASTERROR} = "";
+    }
 
     &source_register( $opts, $command, $distro );
 }
@@ -723,8 +766,11 @@ sub disable() {
     print "Disabling $distro\n";
 
     # do the remove_build_service - less code
-    &remove_build_service( $opts, $distro );
-
+#    &remove_build_service( $opts, $distro );
+    if ( &remove_build_service( $opts, $distro ) ) {
+        print "$opts->{LASTERROR}\n";
+        $opts->{LASTERROR} = "";
+    }
     &source_register( $opts, $command, $distro);
 }
 
@@ -787,6 +833,10 @@ sub verify() {
     print "Share IP:\t$dbref->{shareip}\n";
 
     my $oldshare = "";
+
+    if ($dbref->{sharetype} eq "nfs") {
+        &start_iff_needed_service( $opts, $dbref->{sharetype} );
+    }
     foreach my $prod ( &baxml_products_getlist( $opts, $distro ) ) {
         my ($netcfg, $share, $state) = &check_service_product( $opts, $distro, $prod, $dbref->{sharetype} );
 

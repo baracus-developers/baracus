@@ -98,6 +98,7 @@ BEGIN {
                 enable_service
                 disable_service
                 check_service
+                start_iff_needed_service
                 source_register
                 get_loopback
                 get_mntcheck
@@ -1643,7 +1644,15 @@ sub add_build_service
     my $sql;
     my $sth;
 
-    my $dbref = &get_db_source_entry( $opts, $distro );
+    print "+++++ add_build_service\n" if ( $opts->{debug} > 1 );
+
+    my $ret = 0;
+    my @dalist;
+
+    push @dalist, $distro if $distro;
+    push @dalist, split( /\s+/, $addons) if ( $addons );
+
+    my $dbref = &get_db_source_entry( $opts, $dalist[0] );
     if ( defined $dbref ) {
         $sharetype = $dbref->{sharetype};
     } else {
@@ -1654,13 +1663,10 @@ sub add_build_service
 
     print "Calling routine to configure $sharetype\n";
 
-    print "+++++ add_build_service\n" if ( $opts->{debug} > 1 );
-
-    my $ret = 0;
-    my @dalist;
-
-    push @dalist, $distro if $distro;
-    push @dalist, split( /\s+/, $addons) if ( $addons );
+    # unlike http or cifs we pre-load nfs so we can manipulate
+    if ($sharetype eq "nfs") {
+        &start_iff_needed_service( $opts, $sharetype );
+    }
 
     my $restartservice = 0;
     foreach my $da ( @dalist ) {
@@ -1680,8 +1686,8 @@ sub add_build_service
                     $ret = system("exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$share");
                     print "exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$share\n" if ( $opts->{debug} > 1 );
                     if ( $ret > 0 ) {
-                        $opts->{LASTERROR} = "umount failed\n$!";
-                        return 1;
+                        $opts->{LASTERROR} .= "export failed: $share $!";
+                        next;
                     }
                 }
 
@@ -1731,13 +1737,11 @@ sub add_build_service
         }
     }
     if ( $restartservice ) {
-        if ($sharetype eq "http") {
-            system("/etc/init.d/apache2 reload");
-        }
-        if ($sharetype eq "cifs") {
-            system("/etc/init.d/smb restart");
-        }
+        # clever enough to reload if possible
+        enable_service( $opts, $sharetype );
     }
+    return 1 if ($opts->{LASTERROR} ne "");
+    return 0;
 }
 
 # add line or config file for build and restart service (only if neeeded)
@@ -1762,17 +1766,22 @@ sub remove_build_service
     push @dalist, $distro if $distro;
     push @dalist, split( /\s+/, $addons) if ( $addons );
 
+    my $dbref = &get_db_source_entry( $opts, $dalist[0] );
+    if ( defined $dbref ) {
+        $sharetype = $dbref->{sharetype};
+    } else {
+        if ( $dh->{'sharetype'} ) {
+            $sharetype = $dh->{'sharetype'};
+        }
+    }
+
+    # unlike http or cifs we pre-load nfs so we can manipulate
+    if ($sharetype eq "nfs") {
+        &start_iff_needed_service( $opts, $sharetype );
+    }
+
     my $restartservice = 0;
     foreach my $da ( @dalist ) {
-
-        my $dbref = &get_db_source_entry( $opts, $da );
-        if ( defined $dbref ) {
-            $sharetype = $dbref->{sharetype};
-        } else {
-            if ( $dh->{'sharetype'} ) {
-                $sharetype = $dh->{'sharetype'};
-            }
-        }
 
         foreach my $prod ( &baxml_products_getlist( $opts, $da ) ) {
 
@@ -1784,11 +1793,11 @@ sub remove_build_service
             } else {
                 print "modifying $file removing $share\n" if ( $opts->{debug} );
                 if ($sharetype eq "nfs") {
-                  $ret = system("exportfs -u *:$share");
-                  if ( $ret > 0 ) {
-                      $opts->{LASTERROR} = "umount failed\n$!";
-                      return 1;
-                  }
+                    $ret = system("exportfs -u *:$share");
+                    if ( $ret > 0 ) {
+                        $opts->{LASTERROR} .= "unexport failed: $share $!";
+                        next;
+                    }
                 }
 
                 if ($sharetype eq "http") {
@@ -1815,13 +1824,11 @@ sub remove_build_service
         }
     }
     if ( $restartservice ) {
-        if ($sharetype eq "http") {
-            system("/etc/init.d/apache2 reload");
-        }
-        if ($sharetype eq "cifs") {
-            system("/etc/init.d/smb reload");
-        }
+        # clever enought to reload if possible
+        enable_service( $opts, $sharetype );
     }
+    return 1 if ($opts->{LASTERROR} ne "");
+    return 0;
 }
 
 sub init_mounter
@@ -1843,29 +1850,32 @@ sub init_mounter
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
     die "$!$sth->err\n" unless ( $sth->execute() );
 
+    @mount = qx|mount| or die ("Can't get mount status: ".$!);
     while ( $href = $sth->fetchrow_hashref() ) {
         if ( ! -d $href->{'mntpoint'} ) {
             unless ( mkpath $href->{'mntpoint'} ) {
-                $opts->{LASTERROR} = "Unable to create directory\n$!";
-                return 1;
+                $opts->{LASTERROR} .= "Unable to create directory: $href->{'mntpoint'} $!";
+                next;
             }
         }
         my $is_mounted = 0;
-        my @mount = qx|mount| or die ("Can't get mount status: ".$!);
-        foreach( @mount ) {
-            if(/$href->{'mntpoint'}/){
-                print "$iso_location_hashref->{$href->{'iso'}} already mounted\n" if ( $opts->{verbose} );
+        foreach ( @mount ) {
+            if (/$href->{'mntpoint'}/) {
+                print "Already mounted: $iso_location_hashref->{$href->{'iso'}}\n" if ( $opts->{verbose} );
                 $is_mounted = 1;
-             }
+            }
         }
-        if ( $is_mounted ) { next; }
-        print "mounting $iso_location_hashref->{ $href->{'iso'} } at $href->{'mntpoint'} \n" if ( $opts->{verbose} );
+        if ( $is_mounted ) {
+            next;
+        }
+        print "Mounting $iso_location_hashref->{ $href->{'iso'} } at $href->{'mntpoint'} \n" if ( $opts->{verbose} );
         $ret = system("mount -o loop $iso_location_hashref->{ $href->{'iso'} } $href->{'mntpoint'}");
         if ( $ret > 0 ) {
-            $opts->{LASTERROR} = "Mount failed\n$!";
-            return 1;
+            $opts->{LASTERROR} .= "Mount failed for $href->{'mntpoint'}: $!";
+            next;
         }
     }
+    return 1 if ( $opts->{LASTERROR} ne "" );
     return 0;
 }
 
@@ -1887,27 +1897,42 @@ sub init_exporter
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
     die "$!$sth->err\n" unless ( $sth->execute() );
 
-    while ( $href = $sth->fetchrow_hashref() ) {
+    $href = $sth->fetchrow_hashref();
+
+    unless ( defined $href ) {
+        # no NFS shares to share
+        return 0;
+    }
+    # if here then have need nfs shares so make sure have nfsserver
+    start_iff_needed_service( $opts, "nfs" );
+    my @share = qx|showmount -e localhost|;
+    unless ( scalar @share ) {
+        $opts->{LASTERROR} = "Can't get share status: $!";
+        return 1;
+    }
+
+    do {
         if ( ! -d $href->{'mntpoint'} ) {
-            $opts->{LASTERROR} = "directory does not exist\n$!";
-            return 1;
+            $opts->{LASTERROR} .= "Distro share point does not exist: $href->{'mntpoint'}: $!";
+            next;
         }
         my $is_shared = 0;
-        my @share = qx|showmount -e localhost| or die ("Can't get share status: ".$!);
         foreach( @share ) {
             if(/$href->{'mntpoint'}/){
-                print "$href->{'mntpoint'} already exported\n" if ( $opts->{verbose} );
+                print "Already exported: $href->{'mntpoint'}\n" if ( $opts->{verbose} );
                 $is_shared = 1;
             }
         }
-        if ( $is_shared ) { next; }
-        print "exporting $href->{'mntpoint'} \n" if ( $opts->{verbose} );
-        $ret = system("exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$href->{'mntpoint'}");
-        if ( $ret > 0 ) {
-            $opts->{LASTERROR} = "Mount failed\n$!";
-            return 1;
+        unless ( $is_shared ) {
+            print "exporting $href->{'mntpoint'} \n" if ( $opts->{verbose} );
+            $ret = system("exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$href->{'mntpoint'}");
+            if ( $ret > 0 ) {
+                $opts->{LASTERROR} .= "Export failed for $href->{'mntpoint'}: $!";
+                next;
+            }
         }
-    }
+    } while ( $href = $sth->fetchrow_hashref() );
+    return 1 if ( $opts->{LASTERROR} ne "" );
     return 0;
 }
 
@@ -1959,9 +1984,17 @@ sub enable_service
     }
     $sharetype =~ s/cifs/smb/;
     $sharetype =~ s/http/apache2/;
-    $sharetype =~ s/nfs/nfsserver/;
-    system("chkconfig $sharetype on");
-    system("/etc/init.d/$sharetype start")
+    $sharetype =~ s/^nfs$/nfsserver/;
+    system("chkconfig $sharetype on >& /dev/null");
+    if ( check_service( $opts, $sharetype ) == 0 ) {
+        # could have also done this to avoid nfs reload
+        # need avoidance check here anyway... else bad
+        if ( $sharetype !~ m/(nfs|nfsserver)/ ) {
+            system("/etc/init.d/$sharetype reload");
+        }
+    } else {
+        system("/etc/init.d/$sharetype start");
+    }
 }
 
 sub disable_service
@@ -1978,9 +2011,11 @@ sub disable_service
     }
     $sharetype =~ s/cifs/smb/;
     $sharetype =~ s/http/apache2/;
-    $sharetype =~ s/nfs/nfsserver/;
-    system("chkconfig $sharetype off");
-    system("/etc/init.d/$sharetype stop");
+    $sharetype =~ s/^nfs$/nfsserver/;
+    system("chkconfig $sharetype off >& /dev/null");
+    if ( check_service( $opts, $sharetype) == 0 ) {
+        system("/etc/init.d/$sharetype stop");
+    }
 }
 
 # status returns 0 if enabled
@@ -1993,8 +2028,27 @@ sub check_service
 
     $sharetype =~ s/cifs/smb/;
     $sharetype =~ s/http/apache2/;
-    $sharetype =~ s/nfs/nfsserver/;
-    system("/etc/init.d/$sharetype status >& /dev/null");
+    $sharetype =~ s/^nfs$/nfsserver/;
+    qx(/etc/init.d/$sharetype status >& /dev/null);
+    return $?;
+}
+
+sub start_iff_needed_service
+{
+    my $opts      = shift;
+    my $sharetype = shift;
+
+    print "+++++ enable_service\n" if ( $opts->{debug} > 1 );
+
+    if ($opts->{verbose}) {
+        print "Enabling $sharetype ... \n";
+    }
+    $sharetype =~ s/cifs/smb/;
+    $sharetype =~ s/http/apache2/;
+    $sharetype =~ s/^nfs$/nfsserver/;
+    if ( check_service( $opts, $sharetype ) != 0 ) {
+        system("/etc/init.d/$sharetype start");
+    }
 }
 
 ###########################################################################
