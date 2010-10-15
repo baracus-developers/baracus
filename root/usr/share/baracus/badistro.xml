@@ -751,8 +751,8 @@
       <iso name="SLES-9-SP4-CD-x86_64-GM-CD1.iso">
         <path>CD1</path>
         <sharefiles>
-          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
-          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+          <sharefile sharetype='tftp' name='kernel' file='boot/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/loader/initrd'/>
         </sharefiles>
         <md5>45afad1ce28037736d104adfd99a2fd6</md5>
         <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FMDhnIu6tHOk%7E%2FSLES-9-SP4-CD-x86_64-GM-CD1.iso&buildid=MDhnIu6tHOk~&fileid=mqbybi7N0SQ~&mirror=AkamaiHost&nohost=false]]></url>
@@ -836,8 +836,8 @@
       <iso name="SLES-9-SP4-CD-i386-GM-CD1.iso">
         <path>CD1</path>
         <sharefiles>
-          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
-          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+          <sharefile sharetype='tftp' name='kernel' file='boot/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/loader/initrd'/>
         </sharefiles>
         <md5>864c50512100f9bee15a7fdb2c63bf1c</md5>
         <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FH9EGDY9GAn8%7E%2FSLES-9-SP4-CD-i386-GM-CD1.iso&buildid=H9EGDY9GAn8~&fileid=fuS7imDVfzY~&mirror=AkamaiHost&nohost=false]]></url>
@@ -930,8 +930,8 @@
       <iso name="SLES-9-SP-3-x86-64-GM-CD1.iso">
         <path>CD1</path>
         <sharefiles>
-          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
-          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+          <sharefile sharetype='tftp' name='kernel' file='boot/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/loader/initrd'/>
         </sharefiles>
         <md5>3ab71f468d07af85b01f79c1b9a31faa</md5>
         <url><![CDATA[http://download.novell.com/sendredirect?target=%2Frest%2FZKWL10AUzpU%7E%2FSLES-9-SP-3-x86-64-GM-CD1.iso&buildid=ZKWL10AUzpU~&fileid=3kvy000S2gU~&mirror=AkamaiHost&nohost=false]]></url>

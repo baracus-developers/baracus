@@ -55,7 +55,7 @@ if ( defined $reverse_flag ) {
     &niam();
 } else {
     &main();
-    system ( "/usr/sbin/basource init --all" );
+    system ( "/usr/sbin/basource init --all -d -d -v" );
     system ( "/usr/sbin/basource prepdbwithxml" );
     system ( "/usr/share/baracus/scripts/baconfig_load_autobuild" );
     system ( "/usr/share/baracus/scripts/baconfig_load_hardware" );

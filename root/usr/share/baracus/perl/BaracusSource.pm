@@ -314,7 +314,7 @@ sub update_db_source_entry
     my $sth;
 
     my $dbref = &get_db_source_entry( $opts, $distro );
-  
+
     if ( defined $dbref ) {
         if ( $sharetype ne "" ) {
             $sql = qq|UPDATE $baTbls{ 'distro' }
@@ -361,9 +361,7 @@ sub add_db_iso_entry
 
     my $is_local = 1;  ## force local for now
 
-    if ($opts->{verbose}) {
-        print "Registering iso: $iso for $distro\n";
-    }
+    print "Registering iso: $iso for $distro\n" if $opts->{verbose};
 
     my $dbh = $opts->{dbh};
     my $sql;
@@ -612,8 +610,10 @@ sub prepdbwithxml
 
         my $dbref = &get_db_source_entry( $opts, $distro );
         if ( defined $dbref and defined $dbref->{distroid} ) {
-            print "Entry already exists:  distro $entry{'distroid'}.\n";
+            print "Entry already exists:  distro $entry{'distroid'}.\n" if ( $opts->{debug} > 2 );
             next;
+        } else {
+            print "Adding entry for:  distro $entry{'distroid'}.\n" if ( $opts->{debug} > 2 );
         }
 
         my $paramidx = 0;
@@ -1093,7 +1093,7 @@ sub get_iso_locations
     find ({ wanted =>
             sub {
                 if ($_ =~ /.*\.iso$/) {
-                    print "found $File::Find::name\n" if ( $opts->{debug} > 1 );
+                    print "found $File::Find::name\n" if ( $opts->{debug} > 2 );
                     $isohash{ $_ } = $File::Find::name ;
                 }
             },
@@ -1217,6 +1217,8 @@ sub make_paths
     my $daisohr = shift;
     my $loopback = shift;
 
+    $loopback = 0 if (( $distro =~ /rhel-3/ ) || ( $distro =~ /sles-9/ ));
+
     print "+++++ make_paths\n" if ( $opts->{debug} > 1 );
 
     use File::Basename;
@@ -1236,6 +1238,8 @@ sub make_paths
     #           -> { 'initrd' } = initrd
     #
 
+    $opts->{LASTERROR} = "";
+
     my @dalist;
 
     push @dalist, $distro if $distro;
@@ -1247,6 +1251,7 @@ sub make_paths
     print "using tempdir $tdir\n" if ($opts->{debug} > 1);
     mkdir $tdir, 0755 || die ("Cannot create directory\n");
     chmod 0777, $tdir || die "$!\n";
+    my @mount = qx|mount| or die ("Can't get mount status: ".$!);
 
     print "dalist: " . join( ' ', @dalist ) . "\n" if ( $opts->{debug} > 1 );
     foreach my $da ( @dalist ) {
@@ -1254,29 +1259,37 @@ sub make_paths
             my $iname = basename( $isofile );
             print "$isofile and $iname\n" if ( $opts->{debug} > 1 );
             my $idir  = $daisohr->{ $da }->{info}->{$iname}->{path};
-            if ( -d $idir ) {
-                print "$idir directory exists \n" if $opts->{debug};
-            } else {
-                if ($opts->{verbose}) {
-                    print "Creating Build Path $idir\n";
+            if ( $loopback ) {
+                unless ( -d $idir ) {
+                    unless ( mkpath $idir ) {
+                        $opts->{LASTERROR} .= "Unable to create directory $idir $!";
+                        next;
+                    }
                 }
+                my $is_mounted = 0;
+                foreach ( @mount ) {
+                    $is_mounted = 1 if (/$idir/);
+                }
+                unless ( $is_mounted ) {
+                    system( "mount -o loop $isofile $idir" );
+                    &add_db_iso_entry($opts, $da, $iname, $idir, 1);
+                }
+            } else {
+                #if (( $distro =~ /rhel-3/ ) || ( $distro =~ /sles-9/ ))
+                next if ( -d $idir );
+                print "Creating Build Path $idir\n" if $opts->{verbose};
                 unless ( mkpath $idir ) {
-                    $opts->{LASTERROR} = "Unable to create directory\n$!";
-                    return 1;
+                    $opts->{LASTERROR} .= "Unable to create directory $idir $!";
+                    next;
                 }
                 my ($isoshort, $idirshort) = ($isofile, $idir);
                 $isoshort  =~ s|$baDir{isos}||;
                 $idirshort =~ s|$baDir{isos}||;
-                if (( $distro =~ /rhel-3/ ) || ( $distro =~ /sles-9/ ) || (! $loopback )) {
-                  print "Extraction $isoshort to $idirshort\n";    # print LONG
-                  system( "mount -o loop $isofile $tdir" );
-                  system( "/usr/bin/rsync -azHl $tdir/* $idir" );
-                  system( "umount $tdir" );
-                  &add_db_iso_entry($opts, $da, $iname, $idir, 0);
-                } else {
-                    system( "mount -o loop $isofile $idir" );
-                    &add_db_iso_entry($opts, $da, $iname, $idir, 1);
-                }
+                print "Extraction $isoshort to $idirshort\n"; # print LONG
+                system( "mount -o loop $isofile $tdir" );
+                system( "/usr/bin/rsync -azHl $tdir/* $idir" );
+                system( "umount $tdir" );
+                &add_db_iso_entry($opts, $da, $iname, $idir, 0);
             }
         }
     }
@@ -1284,6 +1297,7 @@ sub make_paths
     print "removing tempdir $tdir\n" if ($opts->{debug} > 1);
     rmdir $tdir;
 
+    return 1 if ($opts->{LASTERROR} ne "");
     return 0;
 }
 
@@ -1646,6 +1660,8 @@ sub add_build_service
 
     print "+++++ add_build_service\n" if ( $opts->{debug} > 1 );
 
+    $opts->{LASTERROR} = "";
+
     my $ret = 0;
     my @dalist;
 
@@ -1761,6 +1777,8 @@ sub remove_build_service
 
     print "+++++ remove_build_service\n" if ( $opts->{debug} > 1 );
 
+    $opts->{LASTERROR} = "";
+
     my $ret = 0;
     my @dalist;
     push @dalist, $distro if $distro;
@@ -1838,6 +1856,8 @@ sub init_mounter
     my $ret = 0;
     my $iso_location_hashref = &get_iso_locations( $opts );
 
+    $opts->{LASTERROR} = "";
+
     my $sql = qq| SELECT mntpoint, iso
                   FROM $baTbls{'iso'}
                   WHERE is_loopback = 't'
@@ -1851,6 +1871,7 @@ sub init_mounter
     die "$!$sth->err\n" unless ( $sth->execute() );
 
     @mount = qx|mount| or die ("Can't get mount status: ".$!);
+
     while ( $href = $sth->fetchrow_hashref() ) {
         if ( ! -d $href->{'mntpoint'} ) {
             unless ( mkpath $href->{'mntpoint'} ) {
@@ -1865,14 +1886,13 @@ sub init_mounter
                 $is_mounted = 1;
             }
         }
-        if ( $is_mounted ) {
-            next;
-        }
-        print "Mounting $iso_location_hashref->{ $href->{'iso'} } at $href->{'mntpoint'} \n" if ( $opts->{verbose} );
-        $ret = system("mount -o loop $iso_location_hashref->{ $href->{'iso'} } $href->{'mntpoint'}");
-        if ( $ret > 0 ) {
-            $opts->{LASTERROR} .= "Mount failed for $href->{'mntpoint'}: $!";
-            next;
+        unless ( $is_mounted ) {
+            print "Mounting $iso_location_hashref->{ $href->{'iso'} } at $href->{'mntpoint'} \n" if ( $opts->{verbose} );
+            $ret = system("mount -o loop $iso_location_hashref->{ $href->{'iso'} } $href->{'mntpoint'}");
+            if ( $ret > 0 ) {
+                $opts->{LASTERROR} .= "Mount failed for $href->{'mntpoint'}: $!";
+                next;
+            }
         }
     }
     return 1 if ( $opts->{LASTERROR} ne "" );
@@ -1884,6 +1904,8 @@ sub init_exporter
     my $opts = shift;
     my @mount;
     my $ret = 0;
+
+    $opts->{LASTERROR} = "";
 
     my $sql = qq| SELECT mntpoint
                   FROM $baTbls{'iso'}
@@ -1944,7 +1966,7 @@ sub check_service_product
     my $product   = shift;
     my $sharetype = shift;
 
-    print "+++++ check_serviceconfig\n" if ( $opts->{debug} > 1 );
+    print "+++++ check_service_product\n" if ( $opts->{debug} > 1 );
 
     my ($share, $name) = &get_distro_share( $opts, $distro );
 
@@ -1953,11 +1975,10 @@ sub check_service_product
 
     if ($sharetype eq "nfs") {
         $file = "nfs export";
-        my @return = qx|showmount -e localhost| or die("Can't get mounts from showmount : ".$!);
+        my @return = qx|showmount -e localhost| ;
+        die("Can't get shares from showmount : $!") if ( $? != 0 );
         foreach(@return){
-            if(/$share/){
-              $state = 1;
-            }
+            $state = 1 if(/$share/);
         }
     }
     if ($sharetype eq "http") {
@@ -1979,9 +2000,6 @@ sub enable_service
 
     print "+++++ enable_service\n" if ( $opts->{debug} > 1 );
 
-    if ($opts->{verbose}) {
-        print "Enabling $sharetype ... \n";
-    }
     $sharetype =~ s/cifs/smb/;
     $sharetype =~ s/http/apache2/;
     $sharetype =~ s/^nfs$/nfsserver/;
@@ -1990,9 +2008,11 @@ sub enable_service
         # could have also done this to avoid nfs reload
         # need avoidance check here anyway... else bad
         if ( $sharetype !~ m/(nfs|nfsserver)/ ) {
+            print "Reloading $sharetype ... \n" if $opts->{verbose};
             system("/etc/init.d/$sharetype reload");
         }
     } else {
+        print "Starting $sharetype ... \n" if $opts->{verbose};
         system("/etc/init.d/$sharetype start");
     }
 }
@@ -2038,15 +2058,14 @@ sub start_iff_needed_service
     my $opts      = shift;
     my $sharetype = shift;
 
-    print "+++++ enable_service\n" if ( $opts->{debug} > 1 );
+    print "+++++ start_iff_needed_service\n" if ( $opts->{debug} > 1 );
 
-    if ($opts->{verbose}) {
-        print "Enabling $sharetype ... \n";
-    }
+
     $sharetype =~ s/cifs/smb/;
     $sharetype =~ s/http/apache2/;
     $sharetype =~ s/^nfs$/nfsserver/;
     if ( check_service( $opts, $sharetype ) != 0 ) {
+        print "Starting $sharetype ... \n" if $opts->{verbose};
         system("/etc/init.d/$sharetype start");
     }
 }
@@ -2118,7 +2137,7 @@ sub source_register
             if ( $dh->{'sharetype'} ) {
                 $sharetype = $dh->{'sharetype'};
             }
- 
+
             $sth->execute( $sharetype, $baVar{shareip}, BA_REMOVED, $da )
                 or die "Cannot execute sth: ", $sth->errstr;
 

@@ -286,7 +286,10 @@ sub add() {
     my $daisohr = &verify_iso( $opts, $distro, $addons, $isos, $check, $checkhr );
 
     print "Calling routines to generate build tree\n";
-    &make_paths( $opts, $distro, $addons, $daisohr, $loopback);
+    if ( &make_paths( $opts, $distro, $addons, $daisohr, $loopback ) ) {
+        print "$opts->{LASTERROR}\n";
+        $opts->{LASTERROR} = "";
+    }
 
     &create_build( $opts, $distro );
 
