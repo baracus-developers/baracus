@@ -1216,7 +1216,7 @@ sub inventory
 
     if ( $opts->{verbose} )
     {
-        printf "IOnventory set\nNext pxeboot of %s will collect inventory.\n",
+        printf "Inventory set\nNext pxeboot of %s will collect inventory.\n",
             $hostname ne "" ? $hostname : $mac;
     }
 
