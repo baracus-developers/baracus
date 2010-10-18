@@ -2767,7 +2767,10 @@ sub detail
                     foreach my $chunk ( @{$chunks} ) {
                         $tftpdata .= &bytea_decode( @{$chunk}[0] );
                     }
-                    if ( $href->{'size'} < 512 ) {
+                    if ( $href->{'size'} < 512    or
+                         $name =~ m/\.inventory$/ or
+                         $name =~ m/\.wipelog$/   or
+                         $name =~ m/\.image$/        ) {
                         print $tftpdata;
                     } else {
                         print "\n# File content will not be displayed.\n";
