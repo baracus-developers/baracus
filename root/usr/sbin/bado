@@ -888,6 +888,9 @@ sub image
             )
         {
             $entry{hostname} = $chkref->{hostname};
+        } else {
+            $opts->{LASTERROR} = "Missing  --hostname\n";
+            return 1;
         }
     }
 
