@@ -196,7 +196,7 @@ if ( $baracusdir =~ m|^~([^/]*)| ) {
 $baracusdir =~ s|/*\s*$||;
 
 # store baracus well know directories in global hash 'bdir'
-my @bdirs = qw( builds byum hooks isos logs pgsql templates www );
+my @bdirs = qw( builds byum hooks images isos logs pgsql templates www );
 foreach my $bd (@bdirs) {
     $baDir{ $bd } = "$baracusdir/$bd";
 }

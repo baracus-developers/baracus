@@ -785,7 +785,7 @@ sub build
     return 0;
 }
 
-=head2 image --mac <macaddr> --hostname <name> --image <file> --hardware <hw>
+=head2 image --mac <macaddr> --hostname <name> --hardware <hw> { --image <file> | --mcast <chan> }
 
 Deploy an image file to a remote system disk
 
@@ -797,11 +797,21 @@ Arguments
                            to identify the box containing the network
                            interface card with the specified <macaddr>.
 
-  --image <file>           Image file (raw installable) to be deployed.
-
   --hardware <hw>          Hardware template that describes build client
                            as SuSE family would for bootargs and rootdisk.
                              > baconfig list hardware
+
+  --image <file>           Image file (raw installable) to be deployed.
+                           This file should be present in ~baracus/images,
+                           but specified here without that pathing.
+
+  --mcast <chan>           Image via multicast. Provide the <chan> here,
+                           the rendez-vous mcast ip address used for peering
+                           sender and recievers.
+
+                           There should be a corresponding server, with
+                           the same rendez-vous channel, in the "bamcast"
+                           table or this node will wait till there is one.
 
 =cut
 
@@ -819,8 +829,7 @@ sub image
     my $hostref;
     my $actref;
 
-    my $image = "";
-    my $hardware = "default";
+    my $mcast = "";
     my $disk = "0";
     my $partition = "0";
 
@@ -840,6 +849,7 @@ sub image
          'mac=s'        => \$entry{mac},
          'hostname=s'   => \$entry{hostname},
          'image=s'      => \$entry{netboot},
+         'mcast=s'      => \$mcast,
          'hardware=s'   => \$entry{hardware},
          'disk=s'       => \$entry{disk},
          'partition=s'  => \$entry{partition},
@@ -847,6 +857,17 @@ sub image
 
     if ( scalar @ARGV ) {
         $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    if ( $mcast ne "" and $entry{netboot} ne "" ) {
+        $opts->{LASTERROR} = "\nEither --image or --mcast, not both.\n";
+        return 1;
+    } elsif ( $mcast ne "" ) {
+        &check_ip( $mcast );
+        $entry{netboot} = $mcast; # continued gross overload of netboot value
+    } elsif ( not -f "$baDir{images}/$entry{netboot}" ) {
+        $opts->{LASTERROR} = "\nUnable to find specified image:  $baDir{images}/$entry{netboot}\n";
         return 1;
     }
 

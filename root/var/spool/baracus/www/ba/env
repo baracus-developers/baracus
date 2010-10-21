@@ -269,7 +269,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             &add_db_action( $dbh, $actref );
         }
 
-    } elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/image\s*$| ) {
+    } elsif ( $ENV{REQUEST_URI} =~ m%^\s*/ba/(image|mcast)\s*$% ) {
 
         ##
         ## IMAGE - IMAGE COMPLETE HOOK - STORE LOG/TICKET
@@ -809,15 +809,30 @@ chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
 
             my $lcmac = lc $input->{mac};
 
-            $output =
-                qq|DEFAULT image
+            # gross extended overload of netboot to image and mcast
+            if ( $actref->{netboot} =~ m/(\d{1,3}\.?){4}/ ) {
+                # here netboot is in IP format (validated in bado image)
+                # so we're handling a multicast rendez-vous address
+                $output =
+                    qq|DEFAULT mcast
+PROMPT 0
+TIMEOUT 0
+LABEL mcast
+        kernel http://$baVar{serverip}/ba/linux.baracus
+        append initrd=http://$baVar{serverip}/ba/initrd.baracus root=/dev/ram0 install=exec:/usr/bin/baracus.mcast baimagedst="$hardref->{rootdisk}" bardvaddr="$actref->{netboot}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+|;
+
+            } else {
+                # netboot is not an IP so it's a filename
+                $output =
+                    qq|DEFAULT image
 PROMPT 0
 TIMEOUT 0
 LABEL image
         kernel http://$baVar{serverip}/ba/linux.baracus
         append initrd=http://$baVar{serverip}/ba/initrd.baracus root=/dev/ram0 install=exec:/usr/bin/baracus.image baimagedst="$hardref->{rootdisk}" baimagesrc="$actref->{netboot}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
-
+            }
 
         }
         if ( $pxenext eq BA_ACTION_DISKWIPE )
