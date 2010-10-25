@@ -57,7 +57,7 @@ SHARE_IP=
 #
 BARACUSD_OPTIONS="none"
 
-## Description:    Have remote hosts log thier builds over the network
+## Description:    Have remote hosts log their builds over the network
 ## Type:           yesno
 ## Default:        "no"
 ## ServiceRestart: baracusd
