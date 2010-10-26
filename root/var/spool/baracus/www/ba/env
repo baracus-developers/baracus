@@ -708,13 +708,15 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                     $args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
                 }
 
+                my $lcmac = lc $input->{mac};
+
                 $output = qq|DEFAULT label_$actref->{hostname}
 PROMPT 0
 TIMEOUT 0
 
 LABEL label_$actref->{hostname}
     kernel http://$baVar{serverip}/ba/linux?mac=$input->{mac}
-    append initrd=http://$baVar{serverip}/ba/initrd?mac=$input->{mac} $hardref->{bootargs} $actref->{raccess} $args $actref->{loghost}
+    append initrd=http://$baVar{serverip}/ba/initrd?mac=$input->{mac} $hardref->{bootargs} $actref->{raccess} $args $actref->{loghost} netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
 
             } elsif ( $distref->{os} eq "fedora" or
