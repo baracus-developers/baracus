@@ -51,6 +51,7 @@ my $cgi = new CGI;
 my $input = {};  # for CGI args or PUT cookie
 
 my $newinv    = "$baDir{hooks}/new_inventory_available";
+my $inpxewait = "$baDir{hooks}/node_in_pxewait";
 my $wipedone  = "$baDir{hooks}/wipe_disk_complete";
 my $wipefail  = "$baDir{hooks}/wipe_disk_failed";
 my $imagedone = "$baDir{hooks}/image_deploy_complete";
@@ -1285,6 +1286,33 @@ Address 'CMS' 'PURGE RDR ALL'
             $output .= unpack( 'u', $href->{'bin'} );
         }
         $sth->finish();
+    }
+
+    elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/pxewaitr\?.*\s*$| ) {
+        my $mac = $input->{ mac };
+        my $ip = $ENV{ REMOTE_ADDR };
+
+        die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
+
+        $actref = &get_db_action( $dbh, $input->{mac} );
+        if (not defined $actref ) {
+            $output = "$input->{mac} - user vs cgi... missing db action entry\n";
+            print STDERR $output;
+            print $cgi->header( -type => "text/plain",
+                                -content_length => length
+                                ($output)
+                               ), $output;
+            exit 0;
+        }
+        $actref->{cmdline} = "# node now in pxewait - invoking hook";
+        print STDERR "$input->{mac} - $actref->{cmdline}\n";
+        $output = "pxewait hook called\n";
+
+        if ( -f $inpxewait ) {
+            my $cmd = "$inpxewait $mac $ip";
+            $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
+            my $output = `$cmd`;
+        }
     }
 
     elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/built\?.*\s*$| ) {
