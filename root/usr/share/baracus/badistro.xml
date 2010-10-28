@@ -2488,11 +2488,11 @@
 
 <!-- VMware ESX -->
 
-  <distro name="xenserver-5.6-x86_64">
+  <distro name="xenserver-5.6-x86">
     <os>xenserver</os>
     <release>5.6</release>
-    <arch>x86_64</arch>
-    <description>Xen Server 5.6 64bit</description>
+    <arch>x86</arch>
+    <description>Xen Server 5.6 32bit</description>
     <autodownload>no</autodownload>
     <product name="dvd">
       <addon>base</addon>
