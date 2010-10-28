@@ -98,3 +98,11 @@ baconfig add hardware --name default-dasda \
 --rootdisk=/dev/dasda \
 --rootpart=/dev/dasda \
 --cert "sles-11.1-s390x sles-11.1-s390 sles-10.3-s390x sles-10.3-s390"
+
+baconfig detail hardware default-xenserver --all &> /dev/null || \
+baconfig add hardware --name default-xenserver \
+--description="XenServer install bootargs" \
+--bootargs="dom0_mem=752M console=vga --- /boot/vmlinuz console=tty0 --- /install.img" \
+--rootdisk=/dev/hda \
+--rootpart=/dev/hda \
+--cert "xenserver-5.6-x86_64"

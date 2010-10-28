@@ -2486,4 +2486,26 @@
     </product>
   </distro>
 
+<!-- VMware ESX -->
+
+  <distro name="xenserver-5.6-x86_64">
+    <os>xenserver</os>
+    <release>5.6</release>
+    <arch>x86_64</arch>
+    <description>Xen Server 5.6 64bit</description>
+    <autodownload>no</autodownload>
+    <product name="dvd">
+      <addon>base</addon>
+      <iso name="XenServer-5.6.0-install-cd.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/isolinux/mboot.c32'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/xen.gz'/>
+        </sharefiles>
+        <md5>fad62ddda35ae897bc1e6e273aaf1121</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
 </config>
