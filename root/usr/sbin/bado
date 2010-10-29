@@ -97,6 +97,7 @@ my $help     = 0;
 my $cmds = {
             'build'         => \&build,
             'image'         => \&image,
+            'clone'         => \&clone,
             'empty'         => \&empty,
             'inventory'     => \&inventory,
             'localboot'     => \&localboot,
@@ -995,9 +996,11 @@ sub image
     # now that modules have been checked and loaded
     # create the action_module entries and store ver
 
-    action_state_change( $dbh, BA_ACTION_IMAGE, $macref, $actref );
+    my $action = $mcast ? BA_ACTION_MCAST : BA_ACTION_IMAGE ;
 
-    &update_db_mac_state ( $dbh, $actref->{mac}, BA_ACTION_IMAGE);
+    action_state_change( $dbh, $action, $macref, $actref );
+
+    &update_db_mac_state ( $dbh, $actref->{mac}, $action );
 
     # find existing action relation and update it or create if not found
     # avoid overwrite of the carefully constructed $actref hash
@@ -1037,6 +1040,220 @@ sub image
 
     if ( $opts->{verbose} ) {
         printf "Image assigned.\nNext pxeboot of $entry{mac} will start image install cycle.\n";
+    }
+
+}
+
+=head2 clone --mac <macaddr> --hostname <name> --hardware <hw> --image <file>
+
+Deploy an image file to a remote system disk
+
+Arguments
+
+  --mac <macaddr>          Network interface card physical address
+                           (in hexidecimal xx:xx:xx:xx:xx:xx format).
+  --hostname <name>        Hostname (conforming to DNS without domainname)
+                           to identify the box containing the network
+                           interface card with the specified <macaddr>.
+
+  --hardware <hw>          Hardware template that describes build client
+                           as SuSE family would for bootargs and rootdisk.
+                             > baconfig list hardware
+                           The rootdisk will be cloned.
+
+  --image <file>           Image file (raw dd) to be created by this clone.
+                           Creates the file in ~baracus/images/,
+                           but is specified here without that pathing.
+
+=cut
+
+sub clone
+{
+
+    my $command = "clone";
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $chkref;
+    my $macref;
+    my $hostref;
+    my $actref;
+
+    my %entry;
+    my $cols = lc get_cols( $baTbls{ action });
+    foreach my $key (split(/[,\s*]/, $cols )) {
+        $entry{$key} = '';
+    }
+
+    @ARGV = @_;
+
+    # overloading netboot here should be
+    # bastorage (rename baimage) URI for iscsi and image store
+
+    GetOptions
+        (
+         'mac=s'        => \$entry{mac},
+         'hostname=s'   => \$entry{hostname},
+         'image=s'      => \$entry{netboot},
+         'hardware=s'   => \$entry{hardware},
+         );
+
+    if ( scalar @ARGV ) {
+        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    if ( -f "$baDir{images}/$entry{netboot}" ) {
+        $opts->{LASTERROR} = "\nSpecified image already present - refusing to overwrite:  $baDir{images}/$entry{netboot}\n";
+        return 1;
+    }
+
+    # this routine checks for mac and hostname args
+    # and if hostname passed finds related mac entry
+    # returns undef on error (e.g., unable to find hostname)
+    $entry{mac} = &get_mac_by_hostname( $opts, $dbh, $entry{mac}, $entry{hostname} );
+    unless ( defined $entry{mac} ) {
+        # $opts->{LASTERROR} set in subroutine
+        return 1;
+    }
+
+    # hosts <=> mac relations checked in get_mac_by_hostname above
+    # now get any existing action db entry
+
+    # lookup by MAC
+    $chkref = &get_db_action( $dbh, $entry{mac} );
+    if ( defined $chkref
+         and $chkref->{hostname}
+         and $entry{hostname} ne ''
+         and $entry{hostname} ne $chkref->{hostname} ) {
+        print "Attempt to create entry for $entry{hostname} with mac identical to existing 'action' entry $chkref->{hostname}\n";
+        exit 1;
+    }
+    if ( $entry{hostname} ne '' ) {
+        # lookup by hostname
+        $actref = get_db_action_by_hostname( $dbh, $entry{hostname} );
+        if ( defined $actref
+             and defined $actref->{mac}
+             and $entry{mac} ne $actref->{mac} ) {
+            print "Attempt to create entry for $entry{mac} with hostname identical to existing 'action' entry $actref->{mac}\n";
+            exit 1;
+        }
+    } else {
+        # require hostname here or from entry
+        if ( $entry{hostname} eq "" and
+             defined $chkref and
+             $chkref->{hostname} ne ""
+            )
+        {
+            $entry{hostname} = $chkref->{hostname};
+        } else {
+            $opts->{LASTERROR} = "Missing  --hostname\n";
+            return 1;
+        }
+    }
+
+    # hardware file may be in profile *and* on command line
+    # command line wins over profile entry
+    $actref->{'hardware'}= $entry{hardware} if ($entry{hardware});
+
+    die "Need --hardware via commandline\n"
+        unless ($actref->{'hardware'});
+
+    # breakout possible compound ver:name with call get back ( name, ver/undef )
+    ( $actref->{hardware}, $actref->{hardware_ver} ) =
+        &get_name_version( $actref->{hardware} );
+    print "hardware $actref->{hardware}\n" if ($opts->{debug});
+    print "hardware version $actref->{hardware_ver}\n" if (defined $actref->{hardware_ver} and $opts->{debug});
+
+
+    return 1 if ( &load_hardware( $opts, $dbh, $actref ) );
+#    return 1 if ( &check_cert( $opts, $dbh, $actref->{'distro'}, "hardware", $actref->{'hardware'}) );
+    if ($opts->{debug} > 1) {
+        foreach my $key ( sort ( keys %{$actref} )) {
+            print "add post-hardware:  $key => $actref->{$key}\n";
+        }
+    }
+
+    $actref->{disk} = 0;
+    $actref->{partition} = 0;
+
+    # do not want any setting to override these values
+
+    $actref->{'cmdline'} = $cmdline;
+    $actref->{'hostname'} = $entry{hostname} if (defined $entry{hostname} and $entry{hostname}  ne "");
+    $actref->{'ip'} = $entry{ip};
+    $actref->{'mac'} = $entry{mac};
+    $actref->{'uuid'} = &get_uuid;
+    $actref->{'netboot'} = $entry{netboot};
+
+    if ($opts->{debug}) {
+        print "settings to use:\n";
+        foreach my $key ( sort keys %{$actref} ) {
+            printf "actref:  $key => %s\n",
+                defined $actref->{$key} ? $actref->{$key} : "";
+        }
+    }
+    $macref = get_db_mac( $dbh, $actref->{mac} );
+    unless ( defined $macref ) {
+        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED);
+        $macref = get_db_mac( $dbh, $actref->{mac} );
+    }
+
+    $hostref = &get_db_host_by_mac( $dbh, $actref->{mac} );
+    unless ( defined $hostref ) {
+        &add_db_host( $dbh, $actref );
+#        $hostref = get_db_host( $dbh, $entry{hostname} );
+    }
+#    &update_db_host( $opts, $dbh, $actref );
+
+    # reset action_module join table list
+    # now that modules have been checked and loaded
+    # create the action_module entries and store ver
+
+    action_state_change( $dbh, BA_ACTION_CLONE, $macref, $actref );
+
+    &update_db_mac_state ( $dbh, $actref->{mac}, BA_ACTION_CLONE);
+
+    # find existing action relation and update it or create if not found
+    # avoid overwrite of the carefully constructed $actref hash
+    my $tmpref = get_db_action( $dbh, $actref->{mac} );
+    if ( defined $tmpref ) {
+        # here's a rather involved check
+        # to make sure we're not updating a dup
+        my $gotdiff = 0;
+        while ( my ($key, $val) = each %{$tmpref} ) {
+            next if $key eq "uuid"; # changes every invocation
+            next if $key eq "creation";
+            next if $key eq "change";
+            next if $key eq "cmdline"; # order diff and -d -v -q don't matter
+            unless ( defined $val ) {
+                if ( defined $actref->{$key} ) {
+                    # relation doesn't have a value we've got on cmd line
+                    $gotdiff = 1;
+                    last;
+                } else {
+                    next;
+                }
+            }
+            print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val '$val'\n"
+                if $opts->{debug};
+            if ( "$actref->{$key}" ne "$val" ) {
+                # relation value not the same as what we got on cmd line
+                $gotdiff = 1;
+                last;
+            }
+        }
+        if ( $gotdiff != 0 ) {
+            &update_db_action( $dbh, $actref);
+        }
+    } else {
+        &add_db_action( $dbh, $actref);
+    }
+
+    if ( $opts->{verbose} ) {
+        printf "Clone command processed.\nNext pxeboot of $entry{mac} will start image clone of node.\n";
     }
 
 }

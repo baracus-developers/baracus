@@ -56,6 +56,11 @@ my $wipedone  = "$baDir{hooks}/wipe_disk_complete";
 my $wipefail  = "$baDir{hooks}/wipe_disk_failed";
 my $imagedone = "$baDir{hooks}/image_deploy_complete";
 my $imagefail = "$baDir{hooks}/image_deploy_failed";
+my $inmcast   = "$baDir{hooks}/node_in_mcastwait";
+my $mcastdone = "$baDir{hooks}/mcast_deploy_complete";
+my $mcastfail = "$baDir{hooks}/mcast_deploy_failed";
+my $clonedone = "$baDir{hooks}/clone_deploy_complete";
+my $clonefail = "$baDir{hooks}/clone_deploy_failed";
 my $built     = "$baDir{hooks}/verify_client_build_passed";
 my $spoofed   = "$baDir{hooks}/verify_client_build_failed";
 
@@ -121,18 +126,28 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $input->{$key} = $cgi->cookie($key);
     }
 
-    if ( $ENV{REQUEST_URI} =~ m|^\s*/ba/inventory\s*$| ) {
+    if ( $ENV{REQUEST_URI} =~ m%^\s*/ba/(inventory|clone)\s*$% ) {
 
         ##
-        ## REGISTER - STORE INVENTORY
+        ## REGISTER|CLONE - STORE FILE
         ##
+
+        my $action = $1;
 
         die "Missing 'mac=' in HTTP_COOKIE\n" unless ( defined $input->{mac} );
-
-        print STDERR "$input->{mac} - host inventory received\n";
-
         $input->{mac} = &check_mac($input->{mac});
-        $filename = $input->{mac} . ".inventory";
+
+        if ( $action eq "clone" ) {
+            die "Missing 'filename=' in HTTP_COOKIE\n"
+                unless ( defined $input->{filename} );
+            $filename = $input->{filename};
+            print STDERR "$input->{mac} - storing clone as $filename\n";
+
+        } else {
+            print STDERR "$input->{mac} - host inventory received\n";
+            $filename = $input->{mac} . ".inventory";
+        }
+
 
         $macref = &get_db_mac( $dbh, $input->{mac} );
         unless ( $macref ) {
@@ -142,23 +157,181 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             $macref = &get_db_mac( $dbh, $input->{mac} );
         }
 
+        if ( $action eq "clone" ) {
+            unless ( open ( CLONE, ">", "$baDir{images}/$filename" ) ) {
+                print STDERR "$input->{mac} - $filename cannot be written\n";
+                $output = "unable to open for writing $filename: $!\n";
+                print $cgi->header( -type => "text/plain",
+                                    -status => "401 unauthorized",
+                                    -content_length => length
+                                    ($output)
+                                   ), $output;
+                exit 0;
+            }
+            binmode( CLONE, ":unix" );
+
+#            {
+#                my $previous_default = select(STDOUT); # save previous default
+#                $|++;           # autoflush STDOUT
+#                select(STDERR);
+#                $|++;           # autoflush STDERR, to be sure
+#                select($previous_default); # restore previous default
+#            }
+
+            print CLONE while (<>); # segfaults with flush on STD IN and ERR
+
+#            my ($cnt, $bytes);
+#            while (( $cnt = read( STDIN, $bytes, 102400 )) != 0) {
+#                print CLONE $bytes;
+#            }
+
+            close CLONE;
+
+#            {
+#                my $previous_default = select(STDOUT); # save previous default
+#                $| = 0;           # autoflush STDOUT
+#                select(STDERR);
+#                $| = 0;           # autoflush STDERR, to be sure
+#                select($previous_default); # restore previous default
+#            }
+
+        } else {
+            $href = &find_tftpfile( $opts, $tftph, $filename );
+
+            # hum... always want the new inventory...
+            # so we know we have to remove the old entry first
+            if (defined $href and ($href->{name} eq $filename)) {
+                &delete_tftpfile( $opts, $tftph, $filename );
+            }
+
+            $fields = "name,bin,description,size,enabled,insertion";
+            $values = qq|'$filename',?,'inventory',$ENV{CONTENT_LENGTH},'1',CURRENT_TIMESTAMP(0)|;
+            $sql = qq|INSERT INTO sqlfstable ( $fields ) VALUES ( $values )|;
+            die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
+
+            my $bin;
+            my $bytes = 1;
+            while ( $bytes ) {
+                read( STDIN, $bytes, BA_DBMAXLEN );
+                if ( $bytes ) {
+                    $bin = pack( 'u', $bytes );
+                    unless ( $sth->execute( $bin ) ) {
+                        print STDERR $sth->err;
+                        exit 0;
+                    }
+                }
+            }
+            $sth->finish();
+            $state = BA_EVENT_REGISTER;
+
+            if ( -f $newinv ) {
+                print STDERR "$input->{mac} - hook $newinv\n";
+                my $cmd = "$newinv $input->{mac}";
+                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
+                $output .= `$cmd`;
+            }
+
+            my $chkref = &get_db_action( $dbh, $input->{mac} );
+            $actref = $chkref if ( defined $chkref );
+            $actref->{cmdline} = "# inventory uploaded";
+            &event_state_change( $dbh, $state, $macref, $actref );
+            &update_db_mac_state( $dbh, $input->{mac}, $state );
+            if ( defined $chkref ) {
+                &update_db_action( $dbh, $actref );
+            } else {
+                $actref->{mac} = $input->{mac};
+                &add_db_action( $dbh, $actref );
+            }
+        }
+
+        $output = "upload success\n";
+
+    } elsif ( $ENV{REQUEST_URI} =~ m%^\s*/ba/(wipe|image|mcast|clonelog)\s*$% ) {
+
+        ##
+        ## WIPE|IMAGE|MCAST|CLONE - COMPLETE HOOK AND STORE LOG/TICKET
+        ##
+
+        my $action = $1; $action =~ s/log$//; $action =~ s/^wipe$/diskwipe/;
+
+        die "Missing 'mac=' in COOKIE\n" unless ( defined $input->{mac} );
+        die "Missing 'status=' in COOKIE\n" unless ( defined $input->{status} );
+
+        $input->{mac} = &check_mac($input->{mac});
+        $macref = &get_db_mac( $dbh, $input->{mac} );
+        unless ( $macref ) {
+            # user deleted entry while system was doing what baracus told it
+            $state = BA_EVENT_FOUND;
+            &add_db_mac( $dbh, $input->{mac}, $state );
+            $macref = &get_db_mac( $dbh, $input->{mac} );
+        }
+
+        my $hook = "";
+
+        if ( $baState{$action} eq BA_ACTION_DISKWIPE ) {
+            if ($input->{status} eq "pass") {
+                $state = BA_EVENT_WIPED;
+                $hook = $wipedone;
+            } else {
+                $state = BA_EVENT_WIPEFAIL;
+                $hook = $wipefail;
+            }
+        } elsif ( $baState{$action} eq BA_ACTION_IMAGE ) {
+            if ($input->{status} eq "pass") {
+                $state = BA_EVENT_IMAGED;
+                $hook = $imagedone;
+            } else {
+                $state = BA_EVENT_IMAGEFAIL;
+                $hook = $imagefail;
+            }
+        } elsif ( $baState{$action} eq BA_ACTION_MCAST ) {
+            if ($input->{status} eq "pass") {
+                $state = BA_EVENT_MCASTED;
+                $hook = $mcastdone;
+            } else {
+                $state = BA_EVENT_MCASTFAIL;
+                $hook = $mcastfail;
+            }
+        } elsif ( $baState{$action} eq BA_ACTION_CLONE ) {
+            if ($input->{status} eq "pass") {
+                $state = BA_EVENT_CLONED;
+                $hook = $clonedone;
+            } else {
+                $state = BA_EVENT_CLONEFAIL;
+                $hook = $clonefail;
+            }
+        } else {
+            # really bad don't know this upload/put log type - or how we get here
+            print STDERR "$input->{mac} - unknow action type $action log received\n";
+            $output = "permission denied\n";
+            print $cgi->header( -type => "text/plain",
+                                -status => "401 unauthorized",
+                                -content_length => length
+                                ($output)
+                               ), $output;
+            exit 0;
+        }
+
+        print STDERR "$input->{mac} - $action completion log received\n";
+
+        $filename = "$input->{mac}.${action}";
         $href = &find_tftpfile( $opts, $tftph, $filename );
 
-        # hum... always want the new inventory...
+        # hum... always want the new log...
         # so we know we have to remove the old entry first
         if (defined $href and ($href->{name} eq $filename)) {
             &delete_tftpfile( $opts, $tftph, $filename );
         }
 
         $fields = "name,bin,description,size,enabled,insertion";
-        $values = qq|'$filename',?,'lshw xml',$ENV{CONTENT_LENGTH},'1',CURRENT_TIMESTAMP(0)|;
+        $values = qq|'$filename',?,'$action complete log',$ENV{CONTENT_LENGTH},'1',CURRENT_TIMESTAMP(0)|;
         $sql = qq|INSERT INTO sqlfstable ( $fields ) VALUES ( $values )|;
         die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
 
         my $bin;
         my $bytes = 1;
         while ( $bytes ) {
-            read( STDIN, $bytes, BA_DBMAXLEN );
+            read( STDIN, $bytes, BA_DBMAXLEN ); # $ENV{CONTENT_LENGTH}
             if ( $bytes ) {
                 $bin = pack( 'u', $bytes );
                 unless ( $sth->execute( $bin ) ) {
@@ -170,171 +343,11 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $sth->finish();
         $output = "upload success\n";
 
-        $state = BA_EVENT_REGISTER;
-
-        if ( -f $newinv ) {
-            print STDERR "$input->{mac} - hook $newinv\n";
-            my $cmd = "$newinv $input->{mac}";
+        if ( -f $hook ) {
+            print STDERR "$input->{mac} - hook $hook\n";
+            my $cmd = "$hook $input->{mac}";
             $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
             $output .= `$cmd`;
-        }
-
-        my $chkref = &get_db_action( $dbh, $input->{mac} );
-        $actref = $chkref if ( defined $chkref );
-        $actref->{cmdline} = "# inventory uploaded";
-        &event_state_change( $dbh, $state, $macref, $actref );
-        &update_db_mac_state( $dbh, $input->{mac}, $state );
-        if ( defined $chkref ) {
-            &update_db_action( $dbh, $actref );
-        } else {
-            $actref->{mac} = $input->{mac};
-            &add_db_action( $dbh, $actref );
-        }
-
-    } elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/wipe\s*$| ) {
-
-        ##
-        ## WIPE - ERASE DISK COMPLETION HOOK - STORE LOG
-        ##
-
-        die "Missing 'mac=' in COOKIE\n" unless ( defined $input->{mac} );
-        die "Missing 'status=' in COOKIE\n" unless ( defined $input->{status} );
-
-        print STDERR "$input->{mac} - wipe log received\n";
-
-        $input->{mac} = &check_mac($input->{mac});
-        $macref = &get_db_mac( $dbh, $input->{mac} );
-        unless ( $macref ) {
-            # user deleted entry while system was doing what baracus told it
-            $state = BA_EVENT_FOUND;
-            &add_db_mac( $dbh, $input->{mac}, $state );
-            $macref = &get_db_mac( $dbh, $input->{mac} );
-        }
-
-        $filename = $input->{mac} . ".wipelog";
-        $href = &find_tftpfile( $opts, $tftph, $filename );
-
-        # hum... always want the new log...
-        # so we know we have to remove the old entry first
-        if (defined $href and ($href->{name} eq $filename)) {
-            &delete_tftpfile( $opts, $tftph, $filename );
-        }
-
-        $fields = "name,bin,description,size,enabled,insertion";
-        $values = qq|'$filename',?,'dban wipe log',$ENV{CONTENT_LENGTH},'1',CURRENT_TIMESTAMP(0)|;
-        $sql = qq|INSERT INTO sqlfstable ( $fields ) VALUES ( $values )|;
-        die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
-
-        my $bin;
-        my $bytes = 1;
-        while ( $bytes ) {
-            read( STDIN, $bytes, BA_DBMAXLEN ); # $ENV{CONTENT_LENGTH}
-            if ( $bytes ) {
-                $bin = pack( 'u', $bytes );
-                unless ( $sth->execute( $bin ) ) {
-                    print STDERR $sth->err;
-                    exit 0;
-                }
-            }
-        }
-        $sth->finish();
-        $output = "upload success\n";
-
-        if ($input->{status} eq "pass") {
-            $state = BA_EVENT_WIPED;
-            if ( -f $wipedone ) {
-                print STDERR "$input->{mac} - hook $wipedone\n";
-                my $cmd = "$wipedone $input->{mac}";
-                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
-                $output .= `$cmd`;
-            }
-        } else {
-            $state = BA_EVENT_WIPEFAIL;
-            if ( -f $wipefail ) {
-                print STDERR "$input->{mac} - hook $wipefail\n";
-                my $cmd = "$wipefail $input->{mac}";
-                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
-                $output .= `$cmd`;
-            }
-        }
-
-        my $chkref = &get_db_action( $dbh, $input->{mac} );
-        $actref = $chkref if ( defined $chkref );
-        $actref->{cmdline} = "# wipe log uploaded ($input->{status})";
-        &event_state_change( $dbh, $state, $macref, $actref );
-        &update_db_mac_state( $dbh, $input->{mac}, $state );
-        if ( defined $chkref ) {
-            &update_db_action( $dbh, $actref );
-        } else {
-            $actref->{mac} = $input->{mac};
-            &add_db_action( $dbh, $actref );
-        }
-
-    } elsif ( $ENV{REQUEST_URI} =~ m%^\s*/ba/(image|mcast)\s*$% ) {
-
-        ##
-        ## IMAGE - IMAGE COMPLETE HOOK - STORE LOG/TICKET
-        ##
-
-        die "Missing 'mac=' in COOKIE\n" unless ( defined $input->{mac} );
-        die "Missing 'status=' in COOKIE\n" unless ( defined $input->{status} );
-
-        print STDERR "$input->{mac} - image ticket received\n";
-
-        $input->{mac} = &check_mac($input->{mac});
-        $macref = &get_db_mac( $dbh, $input->{mac} );
-        unless ( $macref ) {
-            # user deleted entry while system was doing what baracus told it
-            $state = BA_EVENT_FOUND;
-            &add_db_mac( $dbh, $input->{mac}, $state );
-            $macref = &get_db_mac( $dbh, $input->{mac} );
-        }
-
-        $filename = $input->{mac} . ".image";
-        $href = &find_tftpfile( $opts, $tftph, $filename );
-
-        # hum... always want the new log...
-        # so we know we have to remove the old entry first
-        if (defined $href and ($href->{name} eq $filename)) {
-            &delete_tftpfile( $opts, $tftph, $filename );
-        }
-
-        $fields = "name,bin,description,size,enabled,insertion";
-        $values = qq|'$filename',?,'image complete log',$ENV{CONTENT_LENGTH},'1',CURRENT_TIMESTAMP(0)|;
-        $sql = qq|INSERT INTO sqlfstable ( $fields ) VALUES ( $values )|;
-        die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
-
-        my $bin;
-        my $bytes = 1;
-        while ( $bytes ) {
-            read( STDIN, $bytes, BA_DBMAXLEN ); # $ENV{CONTENT_LENGTH}
-            if ( $bytes ) {
-                $bin = pack( 'u', $bytes );
-                unless ( $sth->execute( $bin ) ) {
-                    print STDERR $sth->err;
-                    exit 0;
-                }
-            }
-        }
-        $sth->finish();
-        $output = "upload success\n";
-
-        if ($input->{status} eq "pass") {
-            $state = BA_EVENT_IMAGED;
-            if ( -f $imagedone ) {
-                print STDERR "$input->{mac} - hook $imagedone\n";
-                my $cmd = "$imagedone $input->{mac}";
-                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
-                $output .= `$cmd`;
-            }
-        } else {
-            $state = BA_EVENT_IMAGEFAIL;
-            if ( -f $imagefail ) {
-                print STDERR "$input->{mac} - hook $imagefail\n";
-                my $cmd = "$imagefail $input->{mac}";
-                $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
-                $output .= `$cmd`;
-            }
         }
 
         my $chkref = &get_db_action( $dbh, $input->{mac} );
@@ -348,7 +361,6 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             $actref->{mac} = $input->{mac};
             &add_db_action( $dbh, $actref );
         }
-
 
     } else {
 
@@ -785,10 +797,13 @@ chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
             }
         }
 
-        if ( $pxenext eq BA_ACTION_IMAGE )
+        if ( $pxenext eq BA_ACTION_IMAGE or
+             $pxenext eq BA_ACTION_MCAST or
+             $pxenext eq BA_ACTION_CLONE
+            )
         {
             ##
-            ##  IMAGE - SERVE IMAGE WORKLOAD
+            ##  IMAGE|MCAST|CLONE - SERVE IMAGE WORKLOAD
             ##
             my $args = "";
 
@@ -799,21 +814,24 @@ chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
                 $args .= "$hardref->{bootargs} " if (defined $hardref->{bootargs});
             }
 
-            print STDERR "$input->{mac} - imaging\n";
-
-            $state = BA_EVENT_IMAGING;
-
-            &event_state_change( $dbh, $state, $macref, $actref );
-            &update_db_mac_state( $dbh, $macref->{mac}, $state );
-            if ( $actref->{oper} ne $state ) {
-                $actref->{cmdline} = "# pxeboot directing to image disk";
-                &update_db_action( $dbh, $actref );
-            }
-
             my $lcmac = lc $input->{mac};
 
-            # gross extended overload of netboot to image and mcast
-            if ( $actref->{netboot} =~ m/(\d{1,3}\.?){4}/ ) {
+            if ($pxenext eq BA_ACTION_IMAGE) {
+                print STDERR "$input->{mac} - serving imaging workload\n";
+                $state = BA_EVENT_IMAGING;
+                $actref->{cmdline} = "# pxeboot directing to image disk";
+                $output =
+                    qq|DEFAULT image
+PROMPT 0
+TIMEOUT 0
+LABEL image
+        kernel http://$baVar{serverip}/ba/linux.baracus
+        append initrd=http://$baVar{serverip}/ba/initrd.baracus root=/dev/ram0 install=exec:/usr/bin/baracus.image baimagedst="$hardref->{rootdisk}" baimagesrc="$actref->{netboot}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+|;
+            } elsif ( $pxenext eq BA_ACTION_MCAST ) {
+                print STDERR "$input->{mac} - serving mcasting workload\n";
+                $state = BA_EVENT_MCASTING;
+                $actref->{cmdline} = "# pxeboot directing to multicast image disk";
                 # here netboot is in IP format (validated in bado image)
                 # so we're handling a multicast rendez-vous address
                 $output =
@@ -824,17 +842,24 @@ LABEL mcast
         kernel http://$baVar{serverip}/ba/linux.baracus
         append initrd=http://$baVar{serverip}/ba/initrd.baracus root=/dev/ram0 install=exec:/usr/bin/baracus.mcast baimagedst="$hardref->{rootdisk}" bardvaddr="$actref->{netboot}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
-
             } else {
-                # netboot is not an IP so it's a filename
+                print STDERR "$input->{mac} - serving cloning workload\n";
+                $state = BA_EVENT_CLONING;
+                $actref->{cmdline} = "# pxeboot directing clone disk image";
                 $output =
-                    qq|DEFAULT image
+                    qq|DEFAULT clone
 PROMPT 0
 TIMEOUT 0
-LABEL image
+LABEL clone
         kernel http://$baVar{serverip}/ba/linux.baracus
-        append initrd=http://$baVar{serverip}/ba/initrd.baracus root=/dev/ram0 install=exec:/usr/bin/baracus.image baimagedst="$hardref->{rootdisk}" baimagesrc="$actref->{netboot}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        append initrd=http://$baVar{serverip}/ba/initrd.baracus root=/dev/ram0 install=exec:/usr/bin/baracus.clone baimagedst="$actref->{netboot}" baimagesrc="$hardref->{rootdisk}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
+            }
+
+            &event_state_change( $dbh, $state, $macref, $actref );
+            &update_db_mac_state( $dbh, $macref->{mac}, $state );
+            if ( $actref->{oper} ne $state ) {
+                &update_db_action( $dbh, $actref );
             }
 
         }

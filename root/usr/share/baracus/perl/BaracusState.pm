@@ -95,6 +95,14 @@ BEGIN {
                 BA_IMAGING
                 BA_IMAGED
                 BA_IMAGEFAIL
+                BA_MCAST
+                BA_MCASTING
+                BA_MCASTED
+                BA_MCASTFAIL
+                BA_CLONE
+                BA_CLONING
+                BA_CLONED
+                BA_CLONEFAIL
             )],
          admin =>
          [qw(
@@ -116,6 +124,8 @@ BEGIN {
                 BA_ACTION_PXEWAIT
                 BA_ACTION_NETBOOT
                 BA_ACTION_IMAGE
+                BA_ACTION_MCAST
+                BA_ACTION_CLONE
             )],
          events =>
          [qw(
@@ -130,6 +140,12 @@ BEGIN {
                 BA_EVENT_IMAGING
                 BA_EVENT_IMAGED
                 BA_EVENT_IMAGEFAIL
+                BA_EVENT_MCASTING
+                BA_EVENT_MCASTED
+                BA_EVENT_MCASTFAIL
+                BA_EVENT_CLONING
+                BA_EVENT_CLONED
+                BA_EVENT_CLONEFAIL
             )],
          );
     Exporter::export_ok_tags('vars');
@@ -169,6 +185,14 @@ use constant BA_IMAGE             => 23 ;
 use constant BA_IMAGING           => 24 ;
 use constant BA_IMAGED            => 25 ;
 use constant BA_IMAGEFAIL         => 26 ;
+use constant BA_MCAST             => 27 ;
+use constant BA_MCASTING          => 28 ;
+use constant BA_MCASTED           => 29 ;
+use constant BA_MCASTFAIL         => 30 ;
+use constant BA_CLONE             => 31 ;
+use constant BA_CLONING           => 32 ;
+use constant BA_CLONED            => 33 ;
+use constant BA_CLONEFAIL         => 34 ;
 
 # map to host admin
 use constant BA_ADMIN_ADDED       => BA_ADDED     ;
@@ -188,6 +212,8 @@ use constant BA_ACTION_LOCALBOOT  => BA_LOCALBOOT ;
 use constant BA_ACTION_PXEWAIT    => BA_PXEWAIT   ;
 use constant BA_ACTION_NETBOOT    => BA_NETBOOT   ;
 use constant BA_ACTION_IMAGE      => BA_IMAGE     ;
+use constant BA_ACTION_MCAST      => BA_MCAST     ;
+use constant BA_ACTION_CLONE      => BA_CLONE     ;
 
 # map to non-user triggered events
 use constant BA_EVENT_FOUND       => BA_FOUND     ;
@@ -201,6 +227,12 @@ use constant BA_EVENT_WIPEFAIL    => BA_WIPEFAIL  ;
 use constant BA_EVENT_IMAGING     => BA_IMAGING   ;
 use constant BA_EVENT_IMAGED      => BA_IMAGED    ;
 use constant BA_EVENT_IMAGEFAIL   => BA_IMAGEFAIL ;
+use constant BA_EVENT_MCASTING    => BA_MCASTING  ;
+use constant BA_EVENT_MCASTED     => BA_MCASTED   ;
+use constant BA_EVENT_MCASTFAIL   => BA_MCASTFAIL ;
+use constant BA_EVENT_CLONING     => BA_CLONING   ;
+use constant BA_EVENT_CLONED      => BA_CLONED    ;
+use constant BA_EVENT_CLONEFAIL   => BA_CLONEFAIL ;
 
 =pod
 
@@ -242,6 +274,14 @@ to the value of that state constant.
      'imaging'    ,
      'imaged'     ,
      'imagefail'  ,
+     'mcast'      ,
+     'mcasting'   ,
+     'mcasted'    ,
+     'mcastfail'  ,
+     'clone'      ,
+     'cloning'    ,
+     'cloned'     ,
+     'clonefail'  ,
      );
 
 =item hash baState
@@ -278,6 +318,14 @@ here we define a hash to make easy using the state constants easier
      24             => 'imaging'    ,
      25             => 'imaged'     ,
      26             => 'imagefail'  ,
+     27             => 'mcast'      ,
+     28             => 'mcasting'   ,
+     29             => 'mcasted'    ,
+     30             => 'mcastfail'  ,
+     31             => 'clone'      ,
+     32             => 'cloning'    ,
+     33             => 'cloned'     ,
+     34             => 'clonefail'  ,
 
      'added'        => BA_ADDED     ,
      'removed'      => BA_REMOVED   ,
@@ -305,6 +353,14 @@ here we define a hash to make easy using the state constants easier
      'imaging'      => BA_IMAGING   ,
      'imaged'       => BA_IMAGED    ,
      'imagefail'    => BA_IMAGEFAIL ,
+     'mcast'        => BA_MCAST     ,
+     'mcasting'     => BA_MCASTING  ,
+     'mcasted'      => BA_MCASTED   ,
+     'mcastfail'    => BA_MCASTFAIL ,
+     'clone'        => BA_CLONE     ,
+     'cloning'      => BA_CLONING   ,
+     'cloned'       => BA_CLONED    ,
+     'clonefail'    => BA_CLONEFAIL ,
 
      BA_ADDED       => 'added'      ,
      BA_REMOVED     => 'removed'    ,
@@ -332,6 +388,14 @@ here we define a hash to make easy using the state constants easier
      BA_IMAGING     => 'imaging'    ,
      BA_IMAGED      => 'imaged'     ,
      BA_IMAGEFAIL   => 'imagefail'  ,
+     BA_MCAST       => 'mcast'      ,
+     BA_MCASTING    => 'mcasting'   ,
+     BA_MCASTED     => 'mcasted'    ,
+     BA_MCASTFAIL   => 'mcastfail'  ,
+     BA_CLONE       => 'clone'      ,
+     BA_CLONING     => 'cloning'    ,
+     BA_CLONED      => 'cloned'     ,
+     BA_CLONEFAIL   => 'clonefail'  ,
 
      BA_ADMIN_ADDED       => 'added'      ,
      BA_ADMIN_REMOVED     => 'removed'    ,
@@ -349,6 +413,8 @@ here we define a hash to make easy using the state constants easier
      BA_ACTION_PXEWAIT    => 'pxewait'    ,
      BA_ACTION_NETBOOT    => 'netboot'    ,
      BA_ACTION_IMAGE      => 'image'      ,
+     BA_ACTION_MCAST      => 'mcast'      ,
+     BA_ACTION_CLONE      => 'clone'      ,
 
      BA_EVENT_FOUND       => 'found'      ,
      BA_EVENT_REGISTER    => 'register'   ,
@@ -362,6 +428,12 @@ here we define a hash to make easy using the state constants easier
      BA_EVENT_IMAGING     => 'imaging'    ,
      BA_EVENT_IMAGED      => 'imaged'     ,
      BA_EVENT_IMAGEFAIL   => 'imagefail'  ,
+     BA_EVENT_MCASTING    => 'mcasting'   ,
+     BA_EVENT_MCASTED     => 'mcasted'    ,
+     BA_EVENT_MCASTFAIL   => 'mcastfail'  ,
+     BA_EVENT_CLONING     => 'cloning'    ,
+     BA_EVENT_CLONED      => 'cloned'     ,
+     BA_EVENT_CLONEFAIL   => 'clonefail'  ,
 
      );
 
@@ -488,6 +560,8 @@ sub event_state_change
              $macref->{state} eq BA_ACTION_RESCUE or
              $macref->{state} eq BA_ACTION_LOCALBOOT or
              $macref->{state} eq BA_ACTION_IMAGE or
+             $macref->{state} eq BA_ACTION_MCAST or
+             $macref->{state} eq BA_ACTION_CLONE or
              $macref->{state} eq BA_ACTION_NETBOOT
             ){
             $actref->{pxenext} = $macref->{state};
@@ -536,6 +610,28 @@ sub event_state_change
     }
     elsif ( $event eq BA_EVENT_IMAGED or
             $event eq BA_EVENT_IMAGEFAIL
+           ) {
+        $actref->{oper}    = $event;
+        $actref->{pxenext} = BA_ACTION_LOCALBOOT;
+    }
+    elsif ( $event eq BA_EVENT_MCASTING ) {
+        $actref->{oper}    = $event;
+        $actref->{pxecurr} = BA_ACTION_MCAST;
+        $actref->{pxenext} = BA_ACTION_LOCALBOOT;
+    }
+    elsif ( $event eq BA_EVENT_MCASTED or
+            $event eq BA_EVENT_MCASTFAIL
+           ) {
+        $actref->{oper}    = $event;
+        $actref->{pxenext} = BA_ACTION_LOCALBOOT;
+    }
+    elsif ( $event eq BA_EVENT_CLONING ) {
+        $actref->{oper}    = $event;
+        $actref->{pxecurr} = BA_ACTION_CLONE;
+        $actref->{pxenext} = BA_ACTION_LOCALBOOT;
+    }
+    elsif ( $event eq BA_EVENT_CLONED or
+            $event eq BA_EVENT_CLONEFAIL
            ) {
         $actref->{oper}    = $event;
         $actref->{pxenext} = BA_ACTION_LOCALBOOT;
