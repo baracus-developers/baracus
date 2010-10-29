@@ -1856,7 +1856,7 @@ sub init_mounter
     my $ret = 0;
     my $iso_location_hashref = &get_iso_locations( $opts );
 
-    $opts->{LASTERROR} = "";
+#    $opts->{LASTERROR} = "";
 
     my $sql = qq| SELECT mntpoint, iso
                   FROM $baTbls{'iso'}
@@ -1887,14 +1887,19 @@ sub init_mounter
             }
         }
         unless ( $is_mounted ) {
-            print "Mounting $iso_location_hashref->{ $href->{'iso'} } at $href->{'mntpoint'} \n" if ( $opts->{verbose} );
-            $ret = system("mount -o loop $iso_location_hashref->{ $href->{'iso'} } $href->{'mntpoint'}");
-            if ( $ret > 0 ) {
-                $opts->{LASTERROR} .= "Mount failed for $href->{'mntpoint'}: $!";
-                next;
+            if ( not defined $iso_location_hashref->{ $href->{'iso'} } ) {
+                $opts->{LASTERROR} .= "Missing required iso: $href->{'iso'}\n";
+            } else {
+                print "Mounting $iso_location_hashref->{ $href->{'iso'} } at $href->{'mntpoint'} \n" if ( $opts->{verbose} );
+                $ret = system("mount -o loop $iso_location_hashref->{ $href->{'iso'} } $href->{'mntpoint'}");
+                if ( $ret > 0 ) {
+                    $opts->{LASTERROR} .= "Mount failed for $href->{'mntpoint'}: $!";
+                    next;
+                }
             }
         }
     }
+
     return 1 if ( $opts->{LASTERROR} ne "" );
     return 0;
 }
@@ -1905,7 +1910,7 @@ sub init_exporter
     my @mount;
     my $ret = 0;
 
-    $opts->{LASTERROR} = "";
+#    $opts->{LASTERROR} = "";
 
     my $sql = qq| SELECT mntpoint
                   FROM $baTbls{'iso'}
