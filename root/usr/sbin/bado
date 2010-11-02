@@ -1014,22 +1014,33 @@ sub image
             next if $key eq "creation";
             next if $key eq "change";
             next if $key eq "cmdline"; # order diff and -d -v -q don't matter
-            unless ( defined $val ) {
-                if ( defined $actref->{$key} ) {
-                    # relation doesn't have a value we've got on cmd line
-                    $gotdiff = 1;
-                    last;
-                } else {
+
+	    ## If a key was specified on the command line, we have to see if 
+	    ## that same key is already defined, if it is, and they don't match, we
+	    ## have to update the DB.  If one of the keys exists and the other one
+	    ## doesn't, we consider them not equal and have to update the DB.  If 
+	    ## both keys do not exist, we just skip to the next key.
+            if ( defined $actref->{$key} ) {
+		if ( !defined $val or
+		     (defined $val and $actref->{$key} ne $val) ) {
+		    if ($opts->{debug}) {
+			if ( defined $val) {
+			    print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val '$val'\n";
+			} else {
+			    print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val <undefined> '\n";
+			}
+		    }
+		    $gotdiff = 1;
+		    last;
+		}
+
+	    } elsif ( defined $val ) {
+		print "cmp $key \n\tin actref <undefined> \n\twith val '$val'\n" if ($opts->{debug});
+		$gotdiff = 1;
+		last;
+	    } else {
                     next;
-                }
-            }
-            print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val '$val'\n"
-                if $opts->{debug};
-            if ( "$actref->{$key}" ne "$val" ) {
-                # relation value not the same as what we got on cmd line
-                $gotdiff = 1;
-                last;
-            }
+	    }
         }
         if ( $gotdiff != 0 ) {
             &update_db_action( $dbh, $actref);
@@ -1228,22 +1239,33 @@ sub clone
             next if $key eq "creation";
             next if $key eq "change";
             next if $key eq "cmdline"; # order diff and -d -v -q don't matter
-            unless ( defined $val ) {
-                if ( defined $actref->{$key} ) {
-                    # relation doesn't have a value we've got on cmd line
-                    $gotdiff = 1;
-                    last;
-                } else {
+
+	    ## If a key was specified on the command line, we have to see if 
+	    ## that same key is already defined, if it is, and they don't match, we
+	    ## have to update the DB.  If one of the keys exists and the other one
+	    ## doesn't, we consider them not equal and have to update the DB.  If 
+	    ## both keys do not exist, we just skip to the next key.
+            if ( defined $actref->{$key} ) {
+		if ( !defined $val or
+		     (defined $val and $actref->{$key} ne $val) ) {
+		    if ($opts->{debug}) {
+			if ( defined $val) {
+			    print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val '$val'\n";
+			} else {
+			    print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val <undefined> '\n";
+			}
+		    }
+		    $gotdiff = 1;
+		    last;
+		}
+
+	    } elsif ( defined $val ) {
+		print "cmp $key \n\tin actref <undefined> \n\twith val '$val'\n" if ($opts->{debug});
+		$gotdiff = 1;
+		last;
+	    } else {
                     next;
-                }
-            }
-            print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val '$val'\n"
-                if $opts->{debug};
-            if ( "$actref->{$key}" ne "$val" ) {
-                # relation value not the same as what we got on cmd line
-                $gotdiff = 1;
-                last;
-            }
+	    }
         }
         if ( $gotdiff != 0 ) {
             &update_db_action( $dbh, $actref);
@@ -2370,26 +2392,37 @@ sub rescue
         # to make sure we're not updating a dup
         my $gotdiff = 0;
         while ( my ($key, $val) = each %{$tmpref} ) {
-            next if $key eq "uuid";     # changes every invocation
+            next if $key eq "uuid"; # changes every invocation
             next if $key eq "creation";
             next if $key eq "change";
-            next if $key eq "cmdline";  # order diff and -d -v -q don't matter
-            unless ( defined $val ) {
-                if ( defined $actref->{$key} ) {
-                    # relation doesn't have a value we've got on cmd line
-                    $gotdiff = 1;
-                    last;
-                } else {
+            next if $key eq "cmdline"; # order diff and -d -v -q don't matter
+
+	    ## If a key was specified on the command line, we have to see if 
+	    ## that same key is already defined, if it is, and they don't match, we
+	    ## have to update the DB.  If one of the keys exists and the other one
+	    ## doesn't, we consider them not equal and have to update the DB.  If 
+	    ## both keys do not exist, we just skip to the next key.
+            if ( defined $actref->{$key} ) {
+		if ( !defined $val or
+		     (defined $val and $actref->{$key} ne $val) ) {
+		    if ($opts->{debug}) {
+			if ( defined $val) {
+			    print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val '$val'\n";
+			} else {
+			    print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val <undefined> '\n";
+			}
+		    }
+		    $gotdiff = 1;
+		    last;
+		}
+
+	    } elsif ( defined $val ) {
+		print "cmp $key \n\tin actref <undefined> \n\twith val '$val'\n" if ($opts->{debug});
+		$gotdiff = 1;
+		last;
+	    } else {
                     next;
-                }
-            }
-            print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val '$val'\n"
-                if $opts->{debug};
-            if ( "$actref->{$key}" ne "$val" ) {
-                # relation value not the same as what we got on cmd line
-                $gotdiff = 1;
-                last;
-            }
+	    }
         }
         if ( $gotdiff != 0 ) {
             &update_db_action( $dbh, $actref);
