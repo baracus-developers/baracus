@@ -284,6 +284,9 @@ sub build
         $entry{$key} = '';
     }
 
+    #Make dhcp the default for ip
+    $entry{ip} = 'dhcp';
+
     @ARGV = @_;
 
     GetOptions
@@ -2095,7 +2098,7 @@ sub rescue
     (
          'mac'           => '',
          'hostname'      => '',
-         'ip'            => '',
+         'ip'            => 'dhcp',
          'distro'        => '',
          'hardware'      => '',
          'profile'       => '',
