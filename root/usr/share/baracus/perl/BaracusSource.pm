@@ -1899,7 +1899,6 @@ sub init_mounter
             }
         }
     }
-
     return 1 if ( $opts->{LASTERROR} ne "" );
     return 0;
 }

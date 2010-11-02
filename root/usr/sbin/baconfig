@@ -2769,7 +2769,9 @@ sub detail
                     }
                     if ( $href->{'size'} < 512    or
                          $name =~ m/\.inventory$/ or
-                         $name =~ m/\.wipelog$/   or
+                         $name =~ m/\.diskwipe$/   or
+                         $name =~ m/\.clone$/   or
+                         $name =~ m/\.mcast$/   or
                          $name =~ m/\.image$/        ) {
                         print $tftpdata;
                     } else {

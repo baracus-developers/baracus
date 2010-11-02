@@ -192,7 +192,7 @@ $sqlfsOBJ->discard();
 
 die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
 
-print "$opts->{LASTERROR}" if $status;
+print $opts->{LASTERROR} if $status;
 
 exit $status;
 
