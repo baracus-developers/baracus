@@ -1095,6 +1095,8 @@ sub clone
     my $hostref;
     my $actref;
 
+    my $entry{autoclone} = 0;
+
     my %entry;
     my $cols = lc get_cols( $baTbls{ action });
     foreach my $key (split(/[,\s*]/, $cols )) {
@@ -1112,6 +1114,7 @@ sub clone
          'hostname=s'   => \$entry{hostname},
          'image=s'      => \$entry{netboot},
          'hardware=s'   => \$entry{hardware},
+         'autoclone!'   => \$entry{autoclone},
          );
 
     if ( scalar @ARGV ) {
@@ -1189,6 +1192,8 @@ sub clone
             print "add post-hardware:  $key => $actref->{$key}\n";
         }
     }
+
+    $actref->{autoclone} = $entry{autoclone};
 
     $actref->{disk} = 0;
     $actref->{partition} = 0;

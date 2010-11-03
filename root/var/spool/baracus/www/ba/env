@@ -852,7 +852,7 @@ PROMPT 0
 TIMEOUT 0
 LABEL clone
         kernel http://$baVar{serverip}/ba/linux.baracus
-        append initrd=http://$baVar{serverip}/ba/initrd.baracus root=/dev/ram0 install=exec:/usr/bin/baracus.clone baimagedst="$actref->{netboot}" baimagesrc="$hardref->{rootdisk}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        append initrd=http://$baVar{serverip}/ba/initrd.baracus root=/dev/ram0 install=exec:/usr/bin/baracus.clone baimagedst="$actref->{netboot}" baimagesrc="$hardref->{rootdisk}" autoclone=$actref->{autoclone} baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
             }
 

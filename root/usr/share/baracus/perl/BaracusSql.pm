@@ -465,6 +465,7 @@ sub get_baracus_tables
          'raccess'     => 'VARCHAR(128)',
 
          'autonuke'    => 'BOOLEAN', # if asserted pass autowipe option
+         'autoclone'   => 'BOOLEAN', # if asserted pass autoclone option
          'disk'        => 'INTEGER', # localboot target disk
          'partition'   => 'INTEGER', # localboot target partition
          'netboot'     => 'VARCHAR', # netboot target (for iSCSI and ilk)
