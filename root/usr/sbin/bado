@@ -1095,13 +1095,12 @@ sub clone
     my $hostref;
     my $actref;
 
-    my $entry{autoclone} = 0;
-
     my %entry;
     my $cols = lc get_cols( $baTbls{ action });
     foreach my $key (split(/[,\s*]/, $cols )) {
         $entry{$key} = '';
     }
+    $entry{autoclone} = 0;
 
     @ARGV = @_;
 
