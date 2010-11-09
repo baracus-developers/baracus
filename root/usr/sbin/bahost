@@ -56,7 +56,6 @@ Where E<lt>commandE<gt> is one of
   remove  --mac <mac>    delete a physical device via mac entry
   enable  --mac <mac>    enable a physical device via mac entry
   disable --mac <mac>    disable a physical device via mac entry
-  ignore  --mac <mac>    ignore the specified device. no pxe response sent.
 
   list nodes             list registered node entires
   list states            list state data on registered node entries
@@ -71,7 +70,7 @@ Use 'man' or 'help <command> [<type>]' for more details.
 
 =head1 DESCRIPTION
 
-This tool allows administrators to add/delete and enable/disable or ignore physical devices.
+This tool allows administrators to add/delete and enable/disable physical devices.
 Additionally this tool allows for listing of registered nodes, their states and inventories.
 Active physical device entries must be assigned an 'action' via bado to boot accordingly.
 
@@ -101,7 +100,6 @@ my $cmds =
  'inventory' => \&inventory,
  'enable'    => \&enable,
  'disable'   => \&disable,
- 'ignore'    => \&ignore,
  };
 
 my $opts =
@@ -729,141 +727,12 @@ sub _enable_disable_
     my $state   = $command eq "enable" ? "ready" : "disabled";
     my $enabled = $command eq "enable" ? 1 : 0;  # tftp state is bool
 
-    # autoyast tftp file name
-#    my $automac = &automac( $macref->{'mac'} );
-#
-#    my $sel = $sqlfsOBJ->detail( $automac );
-#    if ( defined $sel && $sel->{'enabled'} != $enabled ) {
-#        if ( $sqlfsOBJ->update( { 'name' => $automac,
-#                                  'enabled' => $enabled,
-#                                  'description' =>
-#                                  "autoinst bahost $baState{ $admin }",
-#                                 } ) ) {
-#            die "Unable to update status for tftp file $automac\n" .
-#                $sqlfsOBJ->error();
-#        }
-#    }
-
     &admin_state_change( $dbh, $admin, $macref, $actref );
     &update_db_mac_state( $dbh, $mac, $admin );
     &update_db_action( $dbh, $actref );
 
     if ( $opts->{verbose} ) {
         printf "State of %s host entry and related files now %s.\n",
-            $hostname ne "" ? $hostname : $mac, $baState{ $admin };
-    }
-
-    return 0;
-}
-
-=head2 ignore { --mac <addr> | --hostname <name> }
-
-Ignore the specified host.  Baracus will not respond to PXE requests
-from this host.  This will update the admin state of the node to
-ignore.
-
-=cut
-
-sub ignore
-{
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, "ignore" );
-    }
-
-    my $macref;
-    my $actref;
-    my $chkref;
-
-    my $hostname="";
-    my $mac = "";
-
-    @ARGV = @_;
-
-    GetOptions(
-               'mac=s'          => \$mac,
-               'hostname=s'     => \$hostname,
-               );
-
-    if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
-    }
-
-    # this routine checks for mac and hostname args
-    # and if hostname passed finds related mac entry
-    # returns undef on error (e.g., unable to find hostname)
-    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
-    unless ( defined $mac ) {
-        # $opts->{LASTERROR} set in subroutine
-        return 1;
-    }
-
-    $macref = &get_db_mac( $dbh, $mac );
-    unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
-        $macref = &get_db_mac( $dbh, $mac );
-    }
-    if ( $opts->{debug} > 1 ) {
-        while ( my ($key, $val) = each %{$macref} ) {
-            print "mac $key => " . $val eq "" ? "" : $val . "\n";
-        }
-    }
-
-    $chkref = &get_db_action( $dbh, $mac );
-    if ( defined $chkref ) {
-        if ( $opts->{debug} > 1 ) {
-            while ( my ($key, $val) = each %{$chkref} ) {
-                print "check $key => " . $val eq "" ? "" : $val . "\n";
-            }
-        }
-        # store a copy of the ref found for modification
-        $actref = $chkref;
-    } else {
-    # for creation of entry with ignore cmd
-        $actref->{oper}    = BA_ADMIN_ADDED;
-        $actref->{pxecurr} = BA_ACTION_NONE;
-        $actref->{pxenext} = BA_ACTION_INVENTORY;
-    }
-
-    my $admin = BA_ADMIN_IGNORED;
-
-    if ( defined $chkref and $chkref->{admin} eq $admin ) {
-        $opts->{LASTERROR} = "device admin state already $baState{ $admin }\n";
-        return 1;
-    }
-
-    $actref->{cmdline} = $cmdline;
-
-    # autoyast tftp file name
-#    my $automac = &automac( $macref->{'mac'} );
-#
-#    my $sel = $sqlfsOBJ->detail( $automac );
-#    if ( defined $sel && $sel->{'enabled'} != 0 ) {
-#        if ( $sqlfsOBJ->update( { 'name' => $automac,
-#                                  'enabled' => 0,
-#                                  'description' =>
-#                                  "autoinst bahost disabled",
-#                                 } ) ) {
-#            die "Unable to update status for tftp file $automac\n" .
-#                $sqlfsOBJ->error();
-#        }
-#    }
-#
-    if ( $opts->{debug} > 1 ) {
-        while ( my ($key, $val) = each %{$macref} ) {
-            print "mac $key => " . $val eq "" ? "" : $val . "\n";
-        }
-        while ( my ($key, $val) = each %{$actref} ) {
-            print "act $key => " . $val eq "" ? "" : $val . "\n";
-        }
-    }
-
-    &admin_state_change( $dbh, $admin, $macref, $actref );
-    &update_db_mac_state( $dbh, $mac, $admin );
-    &update_db_action( $dbh, $actref );
-
-    if ( $opts->{verbose} ) {
-        printf "State of %s host entry now %s.\n",
             $hostname ne "" ? $hostname : $mac, $baState{ $admin };
     }
 

@@ -441,7 +441,7 @@ here we define a hash to make easy using the state constants easier
 
 The administrative bahost related actions / states including
 
-  enable | disable | ignore
+  enable | disable | ( ignore obsolete )
 
 use the admin that triggered this call
 and the current state to decide on next state
@@ -514,15 +514,8 @@ sub action_state_change
     unless ( defined $actref->{pxecurr} and $actref->{pxecurr} ne "" ) {
         $actref->{pxecurr} = $event;
     }
-    if ( $event eq BA_ACTION_NORESCUE ) {
-        # now the way to get sanity back is to use the mac state history
-        $macref->{state} = &get_previous_state( $dbh, $macref );
-        $actref->{oper} = $macref->{state};
-        $actref->{pxenext} = $macref->{state};
-    } else {
-        $actref->{oper} = $event;
-        $actref->{pxenext} = $event;
-    }
+    $actref->{oper} = $event;
+    $actref->{pxenext} = $event;
 }
 
 =item event_state_change
@@ -573,9 +566,9 @@ sub event_state_change
             ){
             $actref->{pxenext} = BA_ACTION_PXEWAIT;
         }
-        if ( $macref->{state} eq BA_ACTION_NONE or
-             ( defined $actref->{admin} and $actref->{admin} eq BA_ADMIN_IGNORED )
-            ){
+        if ( $macref->{state} eq BA_ACTION_NONE )
+        {
+            # obsolete IGNORE handling removed here
             $actref->{pxenext} = BA_ACTION_NONE;
         }
         $actref->{oper} = $event;

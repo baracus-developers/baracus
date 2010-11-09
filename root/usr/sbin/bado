@@ -62,7 +62,6 @@ Where E<lt>commandE<gt> is
     inventory <...>  Force re/collection of inventory next pxeboot
     localboot <...>  Boot from localdisk
     netboot   <...>  Boot a network image
-    norescue  <...>  Restore device to boot in non-rescue mode
     rescue    <...>  Boot device into a rescue mode
     wipe      <...>  Use Darik's Boot and Nuke to wipe connected drive(s)
 
@@ -103,7 +102,6 @@ my $cmds = {
             'inventory'     => \&inventory,
             'localboot'     => \&localboot,
             'netboot'       => \&netboot,
-            'norescue'      => \&norescue,
             'rescue'        => \&rescue,
             'wipe'          => \&wipe,
 
@@ -1922,115 +1920,6 @@ sub netboot
     if ( $opts->{verbose} ) {
         printf "Netboot set.\nNext pxeboot of %s will use server ip %s and target %s.\n",
             $hostname ne "" ? $hostname : $mac, $targetip, $targetid;
-    }
-
-    return 0;
-}
-
-
-=head2 norescue { --mac <mac> | --hostname <name> }
-
-Resume normal inventory, building or booting in non-rescue mode.
-
-Arguments
-
-  --mac <macaddr>             Specify device by mac address
-  --hostname <name>           Specify device by hostname ( if available )
-
-=cut
-
-sub norescue
-{
-    my $command = "norescue";
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $mac       = "";
-    my $hostname  = "";
-
-    my $macref;
-    my $actref;
-    my $chkref;
-
-    @ARGV = @_;
-
-    GetOptions(
-               'mac=s'          => \$mac,
-               'hostname=s'     => \$hostname,
-              );
-
-    if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
-    }
-
-    # this routine checks for mac and hostname args
-    # and if hostname passed finds related mac entry
-    # returns undef on error (e.g., unable to find hostname)
-    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
-    unless ( defined $mac ) {
-        # $opts->{LASTERROR} set in subroutine
-        return 1;
-    }
-
-    $macref = &get_db_mac( $dbh, $mac );
-    unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
-    }
-    if ( $opts->{debug} > 1 ) {
-        while ( my ($key, $val) = each %{$macref} ) {
-            print "mac $key => " . $val eq "" ? "" : $val . "\n";
-        }
-    }
-
-    $chkref = &get_db_action( $dbh, $mac );
-    if ( defined $chkref ) {
-        if ( $opts->{debug} > 1 ) {
-            while ( my ($key, $val) = each %{$chkref} ) {
-                print "check $key => " . $val eq "" ? "" : $val . "\n";
-            }
-        }
-        # store a copy of the ref found for modification
-        $actref = $chkref;
-    }
-
-    if ( defined $chkref and
-         $chkref->{pxenext} ne BA_ACTION_RESCUE ) {
-        $opts->{LASTERROR} = "device already in non-rescue boot mode.\n";
-        return 1;
-    }
-
-    ##
-    ## ALL CHECKS DONE - DO MODS
-
-    $actref->{cmdline} = $cmdline;
-    $actref->{mac} = $mac;
-
-    # if passed both mac and hostname create a host table entry
-    if ( $hostname ne "" ) {
-        $actref->{hostname} = $hostname;
-        unless ( &get_db_host( $dbh, $hostname ) ) {
-            &add_db_host( $dbh, $actref );
-        }
-    }
-
-    # recover previous non-rescue state and assign to mac state
-    &action_state_change( $dbh, BA_ACTION_NORESCUE, $macref, $actref );
-
-    &update_db_mac_state( $dbh, $mac, $macref->{state} );
-
-    # for proper command history update we update
-    if ( defined $chkref ) {
-        &update_db_action( $dbh, $actref );
-    } else {
-        &add_db_action( $dbh, $actref );
-    }
-
-    if ( $opts->{verbose} ) {
-        printf "Set complete. State of %s modified to support rescue mode on next boot.\n",
-            $hostname ne "" ? $hostname : $mac;
     }
 
     return 0;
