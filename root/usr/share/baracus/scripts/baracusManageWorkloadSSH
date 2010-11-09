@@ -1,0 +1,130 @@
+#!/bin/bash
+
+tmpdir="/tmp/bakey.$$"
+initrd="initrd.baracus"
+host=`cat /etc/HOSTNAME`
+badir=`echo ~baracus`
+bakeydir="${badir}/.ssh"
+donefile="${badir}/.ssh/workload_ssh_done"
+date="[`date +"%a %b %e %H:%M:%S %Y"`]"
+
+
+# sanity checks upfront
+
+if [[ ! -f ${bakeydir}/id_rsa.pub ]]; then
+    [[ -d $bakeydir ]] || mkdir -p $bakeydir
+    chown baracus:baracus $bakeydir
+    sudo -u baracus ssh-keygen -t rsa -N '' -f ${bakeydir}/id_rsa >& /dev/null
+    if [[ $? -ne 0 ]]; then
+        echo "$date Unable to generate Baracus SSH key"
+        exit 1
+    fi
+fi
+
+if [[ ! -f ${bakeydir}/authorized_keys ]]; then
+    sudo -u baracus cp ${bakeydir}/id_rsa.pub ${bakeydir}/authorized_keys
+fi
+
+if [[ -f ${donefile} ]]; then
+    echo "$date $donefile found - remove to re-insert ssh key in initrd.baracus"
+    exit 0
+else
+    echo "$date now re-generating initrd.baracus with baracus/.ssh key"
+fi
+
+which dropbearconvert >& /dev/null
+if [[ $? -ne 0 ]]; then
+    echo "$date Unable to find 'dropbearconvert.' Baracus requires dropbear."
+    exit 1
+fi
+
+service sshd status  >& /dev/null
+if [[ $? -ne 0 ]]; then
+    echo "$date SSHd not running on the Baracus server."
+    exit 1
+fi
+
+ssh-keyscan $host >& /dev/null
+if [[ $? -ne 0 ]]; then
+    echo "$date Using /etc/HOSTNAME content: \'$host\'"
+    echo "$date Unable to get host key with: \'ssh-keyscan $host\'"
+    exit 1
+fi
+
+baconfig list tftp ${initrd} -q -n | grep ${initrd} >& /dev/null
+if [[ $? -ne 0 ]]; then
+    echo "$date Unable to find Baracus baconfig list tftp ${initrd}"
+    echo "$date Either baracusd is not running or has not been properly initialized."
+    exit 1
+fi
+
+## create tmpdir 
+
+mkdir -p $tmpdir
+chmod 777 $tmpdir
+pushd $tmpdir >& /dev/null
+
+  ## export initrd
+
+  # pre-checked above
+  baconfig export tftp --name ${initrd} --file ${initrd}
+  
+  ## unpack initrd
+  
+  mv ${initrd} ${initrd}.gz
+  gzip -d ${initrd}.gz
+
+  mkdir initrd
+  pushd ${tmpdir}/initrd >& /dev/null
+    cpio --quiet -id < ../${initrd}
+
+    rm ../${initrd}
+  
+    ## add ssh params
+  
+    # pre-checked above
+    cp -r ${bakeydir} .
+    if [[ $? -ne 0 ]]; then
+        echo "[`date +"%a %b %e %H:%M:%S %Y"`] failed in cp -r ${bakeydir}"
+        popd +1 >& /dev/null
+        rm -rf ${tmpdir}
+        exit 1
+    fi
+
+    # pre-checked above
+    dropbearconvert openssh dropbear .ssh/id_rsa .ssh/id_rsa.db >& /dev/null
+    if [[ $? -ne 0 ]]; then
+        echo "[`date +"%a %b %e %H:%M:%S %Y"`] failed in dropbearconvert"
+        popd +1 >& /dev/null
+        rm -rf ${tmpdir}
+        exit 1
+    fi
+
+    # pre-checked above
+    ssh-keyscan $host > .ssh/known_hosts 2>/dev/null
+    if [[ $? -ne 0 ]]; then
+        echo "[`date +"%a %b %e %H:%M:%S %Y"`] failed in ssh-keyscan $host"
+        popd +1 >& /dev/null
+        rm -rf ${tmpdir}
+        exit 1
+    fi
+
+    # owner is root in workload 
+    chown -R root:root .ssh
+  
+    ## repack initrd
+    find . | cpio --quiet --create --format='newc' > ../${initrd}
+  popd >& /dev/null
+  
+  gzip ${initrd}
+  mv ${initrd}.gz ${initrd}
+  
+  baconfig update tftp --name ${initrd} --file ${initrd}
+
+## cleanup tmpdir
+
+popd >& /dev/null
+rm -rf ${tmpdir}
+
+echo "[`date +"%a %b %e %H:%M:%S %Y"`] touch $donefile"
+sudo -u baracus touch ${donefile}

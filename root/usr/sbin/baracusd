@@ -86,6 +86,7 @@ $now = ctime();
 print STDOUT "[${now}] baracusd launched with uid: $>\n";
 
 # set the effective id to baracus
+my $suid = $>;
 $> = $uid;
 
 # delayed printing to switch to non-root asap
@@ -125,9 +126,19 @@ foreach my $requiredfile ( @requiredfiles ) {
             die "$diestr\n";
         }
         print STDOUT "[${now}] missing required - now adding $requiredfile\n";
+        if ( ($requiredfile =~ m/initrd.baracus/) and
+             (-f "$baDir{root}/.ssh/workload_ssh_done") ) {
+            unlink "$baDir{root}/.ssh/workload_ssh_done";
+            print STDOUT "[${now}] forcing reload of ssh key in initrd.barcus\n";
+        }
         $sqlfsOBJ->store( $requiredfile );
     }
 }
+
+# as root - make sure initrd.baracus has SSH keys required
+$> = $suid;
+system("$baDir{'data'}/scripts/baracusManageWorkloadSSH");
+$> = $uid;
 
 # perpetually serve up files from SqlFS database via TFTP
 
@@ -135,6 +146,8 @@ foreach my $requiredfile ( @requiredfiles ) {
 # freaking winpe arch and windows install arch must match
 my $winpefiles = "BCD  bootmgr.exe  boot.sdi  boot.wim";
 my $iparchmap = {};
+
+print STDOUT "[" . ctime() ."] ready to serve tftp files\n";
 
 while (1) {
     # wait for any request (RRQ or WRQ)
