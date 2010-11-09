@@ -6,7 +6,8 @@ host=`cat /etc/HOSTNAME`
 badir=`echo ~baracus`
 bakeydir="${badir}/.ssh"
 donefile="${badir}/.ssh/workload_ssh_done"
-date="[`date +"%a %b %e %H:%M:%S %Y"`]"
+sshtgt=".ssh"
+date="[`date +'%a %b %d %H:%M:%S %Y'`]"
 
 
 # sanity checks upfront
@@ -14,7 +15,8 @@ date="[`date +"%a %b %e %H:%M:%S %Y"`]"
 if [[ ! -f ${bakeydir}/id_rsa.pub ]]; then
     [[ -d $bakeydir ]] || mkdir -p $bakeydir
     chown baracus:baracus $bakeydir
-    sudo -u baracus ssh-keygen -t rsa -N '' -f ${bakeydir}/id_rsa >& /dev/null
+    chmod 700 $bakeydir
+    sudo -u baracus ssh-keygen -q -t rsa -N '' -f ${bakeydir}/id_rsa >& /dev/null
     if [[ $? -ne 0 ]]; then
         echo "$date Unable to generate Baracus SSH key"
         exit 1
@@ -83,34 +85,34 @@ pushd $tmpdir >& /dev/null
     ## add ssh params
   
     # pre-checked above
-    cp -r ${bakeydir} .
+    cp -r ${bakeydir} ${sshtgt}
     if [[ $? -ne 0 ]]; then
-        echo "[`date +"%a %b %e %H:%M:%S %Y"`] failed in cp -r ${bakeydir}"
+        echo "$date failed in cp -r ${bakeydir} ${sshtgt}"
         popd +1 >& /dev/null
         rm -rf ${tmpdir}
         exit 1
     fi
 
     # pre-checked above
-    dropbearconvert openssh dropbear .ssh/id_rsa .ssh/id_rsa.db >& /dev/null
+    dropbearconvert openssh dropbear ${sshtgt}/id_rsa ${sshtgt}/id_rsa.db >& /dev/null
     if [[ $? -ne 0 ]]; then
-        echo "[`date +"%a %b %e %H:%M:%S %Y"`] failed in dropbearconvert"
+        echo "$date failed in dropbearconvert"
         popd +1 >& /dev/null
         rm -rf ${tmpdir}
         exit 1
     fi
 
     # pre-checked above
-    ssh-keyscan $host > .ssh/known_hosts 2>/dev/null
+    ssh-keyscan $host > ${sshtgt}/known_hosts 2>/dev/null
     if [[ $? -ne 0 ]]; then
-        echo "[`date +"%a %b %e %H:%M:%S %Y"`] failed in ssh-keyscan $host"
+        echo "$date failed in ssh-keyscan $host"
         popd +1 >& /dev/null
         rm -rf ${tmpdir}
         exit 1
     fi
 
     # owner is root in workload 
-    chown -R root:root .ssh
+    chown -R root:root ${sshtgt}
   
     ## repack initrd
     find . | cpio --quiet --create --format='newc' > ../${initrd}
@@ -126,5 +128,5 @@ pushd $tmpdir >& /dev/null
 popd >& /dev/null
 rm -rf ${tmpdir}
 
-echo "[`date +"%a %b %e %H:%M:%S %Y"`] touch $donefile"
+echo "$date touch $donefile"
 sudo -u baracus touch ${donefile}

@@ -57,6 +57,7 @@ Where E<lt>commandE<gt> is
 
     build     <...>  Boot and use autobuild recipe to install a distro
     image     <...>  Boot and install a specified image
+    clone     <...>  Boot and clone drive to create specified image
     empty     <...>  Clear relations and PXEBOOT presents infinite wait screen
     inventory <...>  Force re/collection of inventory next pxeboot
     localboot <...>  Boot from localdisk
@@ -883,7 +884,12 @@ sub image
         $entry{netboot} = $mcast; # continued gross overload of netboot value
     } elsif ( not -f "$baDir{images}/$entry{netboot}" ) {
         $opts->{LASTERROR} = "\nUnable to find specified image:  $baDir{images}/$entry{netboot}\n";
-        return 1;
+        if ( not -f "$baDir{images}/$entry{netboot}.gz" ) {
+            $opts->{LASTERROR} .= "\nAlso unable to find compressed image:  $baDir{images}/$entry{netboot}.gz\n";
+            return 1;
+        } else {
+            $opts->{LASTERROR} = ""; # don't set to empty often - leads to trouble
+        }
     }
 
     # this routine checks for mac and hostname args
@@ -1122,7 +1128,11 @@ sub clone
     }
 
     if ( -f "$baDir{images}/$entry{netboot}" ) {
-        $opts->{LASTERROR} = "\nSpecified image already present - refusing to overwrite:  $baDir{images}/$entry{netboot}\n";
+        $opts->{LASTERROR} = "\nSpecified image intermediate already present - refusing to overwrite:  $baDir{images}/$entry{netboot}\n";
+        return 1;
+    }
+    if ( -f "$baDir{images}/$entry{netboot}.gz" ) {
+        $opts->{LASTERROR} = "\nSpecified image already present - refusing to overwrite:  $baDir{images}/$entry{netboot}.gz\n";
         return 1;
     }
 
