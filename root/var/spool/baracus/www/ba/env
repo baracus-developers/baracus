@@ -28,8 +28,6 @@ use strict;
 use warnings;
 
 use CGI;
-use CGI::Carp qw(carpout);
-use Time::localtime;
 use Apache::DBI ();
 use DBI ();
 
@@ -47,14 +45,20 @@ use lib '/var/spool/baracus/www/modules';
 use BATools qw( :standard );
 
 BEGIN {
+    use Time::localtime;
+
     open(LOG, ">>$baDir{logs}/baracusd") or
         die("Unable to open $baDir{logs}/baracusd: $!");
-    carpout(\*LOG);
+    my $oldfh = select(LOG); $| = 1; select($oldfh);
+
+    sub printlog {
+        my $msg = shift;
+        print LOG "[" . ctime() . "] $msg";
+    }
 }
 
-$| = 1; # flush STDOUT
+my $oldfh = select(STDOUT); $| = 1; select($oldfh);
 
-my $now;
 my $cgi = new CGI;
 
 my $input = {};  # for CGI args or PUT cookie
@@ -146,7 +150,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         die "Missing 'mac=' in HTTP_COOKIE\n" unless ( defined $input->{mac} );
         $input->{mac} = &check_mac($input->{mac});
 
-        print STDERR "[". ctime() ."] $input->{mac} - host inventory received\n";
+        printlog "$input->{mac} - host inventory received\n";
         $filename = $input->{mac} . ".inventory";
 
         $macref = &get_db_mac( $dbh, $input->{mac} );
@@ -187,7 +191,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $state = BA_EVENT_REGISTER;
 
         if ( -f $newinv ) {
-            print STDERR "[". ctime() ."] $input->{mac} - hook $newinv\n";
+            printlog "$input->{mac} - hook $newinv\n";
             my $cmd = "$newinv $input->{mac}";
             $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
             $output .= `$cmd`;
@@ -263,7 +267,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             }
         } else {
             # really bad don't know this upload/put log type - or how we get here
-            print STDERR "[". ctime() ."] $input->{mac} - unknow action type $action log received\n";
+            printlog "$input->{mac} - unknow action type $action log received\n";
             $output = "permission denied\n";
             print $cgi->header( -type => "text/plain",
                                 -status => "401 unauthorized",
@@ -273,7 +277,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             exit 0;
         }
 
-        print STDERR "[". ctime() ."] $input->{mac} - $action completion log received\n";
+        printlog "$input->{mac} - $action completion log received\n";
 
         $filename = "$input->{mac}.${action}";
         $href = &find_tftpfile( $opts, $tftph, $filename );
@@ -305,7 +309,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $output = "upload success\n";
 
         if ( -f $hook ) {
-            print STDERR "[". ctime() ."] $input->{mac} - hook $hook\n";
+            printlog "$input->{mac} - hook $hook\n";
             my $cmd = "$hook $input->{mac}";
             $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
             $output .= `$cmd`;
@@ -389,7 +393,7 @@ chain http://$baVar{serverip}/ba/pxelinux.0?mac=\${mac}
              not defined $actref
             )
         {
-            print STDERR "[". ctime() ."] $input->{mac} - chain of unknown\n";
+            printlog "$input->{mac} - chain of unknown\n";
             $output = $default;
             print $cgi->header( -type => "text/plain",
                                 -content_length => length
@@ -403,7 +407,7 @@ chain http://$baVar{serverip}/ba/pxelinux.0?mac=\${mac}
 
         if ( $pxenext eq BA_ACTION_BUILD )
         {
-            print STDERR "[". ctime() ."] $input->{mac} - chain of build\n";
+            printlog "$input->{mac} - chain of build\n";
             $distref = &get_distro( $opts, $dbh, $actref );
 
             if ( $distref->{os} =~ m/solaris/i ) {
@@ -427,7 +431,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 $output = $default;
             }
         } else {
-            print STDERR "[". ctime() ."] $input->{mac} - chain of non-build\n";
+            printlog "$input->{mac} - chain of non-build\n";
             $output = $default;
         }
     } elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/boot\?.*\s*$| ) {
@@ -449,7 +453,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             ## INVENTORY - missing 'mac' or 'action' entry (or entries)
             ##
 
-            print STDERR "[". ctime() ."] $input->{mac} - found and need inventory\n";
+            printlog "$input->{mac} - found and need inventory\n";
 
             # add the mac entry as found... if it's the one missing
             unless ( defined $macref ) {
@@ -501,7 +505,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             )
         {
             # we shouldn't be here - we've already fed host pxe info...
-            print STDERR "[". ctime() ."] $input->{mac} - bad tftp daemon, bad.\n";
+            printlog "$input->{mac} - bad tftp daemon, bad.\n";
             exit 1;
         }
 
@@ -509,14 +513,14 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
              $pxenext eq BA_ACTION_PXEWAIT
             )
         {
-            print STDERR "[". ctime() ."] $input->{mac} - serving pxewait\n";
+            printlog "$input->{mac} - serving pxewait\n";
             &do_pxewait( $cgi, \%baVar, $input );
             # do_pxewait call exits
         }
 
         if ( $pxenext eq BA_ACTION_NETBOOT ) {
 
-            print STDERR "[". ctime() ."] $input->{mac} - netboot $actref->{netbootip} $actref->{netboot}\n";
+            printlog "$input->{mac} - netboot $actref->{netbootip} $actref->{netboot}\n";
             &update_db_mac_state( $dbh, $macref->{mac}, $pxenext );
             if ( $actref->{oper} ne $pxenext or
                  $actref->{pxecurr} ne $pxenext
@@ -534,13 +538,13 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 
         if ( $pxenext eq BA_ACTION_RESCUE ) {
 
-            print STDERR "[". ctime() ."] $input->{mac} - rescue mode\n";
+            printlog "$input->{mac} - rescue mode\n";
 
             $distref = &get_distro( $opts, $dbh, $actref );
             $hardref = &get_hardware( $opts, $dbh, $actref, $actref->{hardware_ver} );
 
             unless ( defined $distref and defined $hardref ) {
-                print STDERR "[". ctime() ."] $input->{mac} - missing distro or hardware in db\n";
+                printlog "$input->{mac} - missing distro or hardware in db\n";
                 exit 1;
             }
 
@@ -602,7 +606,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 $args .= "$hardref->{bootargs} " if (defined $hardref->{bootargs});
             }
 
-            print STDERR "[". ctime() ."] $input->{mac} - get inventory from host\n";
+            printlog "$input->{mac} - get inventory from host\n";
 
             &update_db_mac_state( $dbh, $macref->{mac}, $pxenext );
             if ( $actref->{oper} ne $pxenext or
@@ -624,7 +628,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             ## LOCALBOOT - host built so just have it boot from localdisk
             ##
 
-            print STDERR "[". ctime() ."] $input->{mac} - building, built, localboot\n";
+            printlog "$input->{mac} - building, built, localboot\n";
 
             &update_db_mac_state( $dbh, $macref->{mac}, $pxenext );
             if ( $actref->{oper} ne $pxenext or
@@ -646,7 +650,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             ## BUILD
             ##
 
-            print STDERR "[". ctime() ."] $input->{mac} - building\n";
+            printlog "$input->{mac} - building\n";
 
             $state = BA_EVENT_BUILDING;
 
@@ -778,7 +782,7 @@ chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
             my $lcmac = lc $input->{mac};
 
             if ($pxenext eq BA_ACTION_IMAGE) {
-                print STDERR "[". ctime() ."] $input->{mac} - serving imaging workload\n";
+                printlog "$input->{mac} - serving imaging workload\n";
                 $state = BA_EVENT_IMAGING;
                 $actref->{cmdline} = "# pxeboot directing to image disk";
                 $output =
@@ -790,7 +794,7 @@ LABEL image
         append initrd=http://$baVar{serverip}/ba/initrd.baracus root=/dev/ram0 install=exec:/usr/bin/baracus.image baimagedst="$hardref->{rootdisk}" baimagesrc="$actref->{netboot}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
             } elsif ( $pxenext eq BA_ACTION_MCAST ) {
-                print STDERR "[". ctime() ."] $input->{mac} - serving mcasting workload\n";
+                printlog "$input->{mac} - serving mcasting workload\n";
                 $state = BA_EVENT_MCASTING;
                 $actref->{cmdline} = "# pxeboot directing to multicast image disk";
                 # here netboot is in IP format (validated in bado image)
@@ -804,7 +808,7 @@ LABEL mcast
         append initrd=http://$baVar{serverip}/ba/initrd.baracus root=/dev/ram0 install=exec:/usr/bin/baracus.mcast baimagedst="$hardref->{rootdisk}" bardvaddr="$actref->{netboot}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
             } else {
-                print STDERR "[". ctime() ."] $input->{mac} - serving cloning workload\n";
+                printlog "$input->{mac} - serving cloning workload\n";
                 $state = BA_EVENT_CLONING;
                 $actref->{cmdline} = "# pxeboot directing clone disk image";
                 $output =
@@ -838,7 +842,7 @@ LABEL clone
                 $args .= "$hardref->{bootargs} " if (defined $hardref->{bootargs});
             }
 
-            print STDERR "[". ctime() ."] $input->{mac} - wiping\n";
+            printlog "$input->{mac} - wiping\n";
 
             $state = BA_EVENT_WIPING;
 
@@ -881,7 +885,7 @@ LABEL wipe
             ##
             ## WINST - missing 'mac' or 'action' entry (or entries)
             ##
-            print STDERR "[". ctime() ."] $input->{mac} - missing mac, action, distro in db\n";
+            printlog "$input->{mac} - missing mac, action, distro in db\n";
             exit 1;
         }
 
@@ -919,7 +923,7 @@ n:\\setup.exe
             ##
             ## WINST - missing 'mac' or 'action' entry (or entries)
             ##
-            print STDERR "[". ctime() ."] $input->{mac} - missing mac, action, distro in db\n";
+            printlog "$input->{mac} - missing mac, action, distro in db\n";
             print $cgi->header( -status => "404 Not found");
             exit 0;
         }
@@ -930,7 +934,7 @@ n:\\setup.exe
         &load_distro( $opts, $dbh, $actref );
 
         if ( $actref->{arch} !~ m/s390/ ) {
-            print STDERR "[". ctime() ."] $input->{mac} - non-s390 arch request for parm file\n";
+            printlog "$input->{mac} - non-s390 arch request for parm file\n";
             exit 1;
         }
 
@@ -952,7 +956,7 @@ n:\\setup.exe
 	    ## BUILD
 	    ##
 
-	    print STDERR "[". ctime() ."] $input->{mac} - building\n";
+	    printlog "$input->{mac} - building\n";
 
 	    $state = BA_EVENT_BUILDING;
 
@@ -999,7 +1003,7 @@ WriteChannel=$actref->{WriteChannel}
 DataChannel=$actref->{DataChannel}
 |;
 	    } else {
-            print STDERR "[". ctime() ."] Unsupported InstNetDev: $actref->{InstNetDev}\n";
+            printlog "Unsupported InstNetDev: $actref->{InstNetDev}\n";
 		exit 1;
 	    }
 
@@ -1014,7 +1018,7 @@ Gateway=$actref->{gateway}
 Nameserver=$actref->{dns1}
 |;
 	    } else {
-            print STDERR "[". ctime() ."] No IP configuration specified\n";
+            printlog "No IP configuration specified\n";
 		exit 1;
 	    }
 	    if ( $actref->{raccess} =~ m|(usessh=1)| ) {
@@ -1054,7 +1058,7 @@ Nameserver=$actref->{dns1}
 	    # PARM file should not be longer than 10 lines
 	    my $count = $output =~ tr/\n//;
 	    unless ($count < 10) {
-            print STDERR "[". ctime() ."] PARM file too long: $count lines\n";
+            printlog "PARM file too long: $count lines\n";
 		exit 1;
 	    }
 	} else {
@@ -1079,7 +1083,7 @@ Nameserver=$actref->{dns1}
 	    ##
 	    ## WINST - missing 'mac' or 'action' entry (or entries)
 	    ##
-	    print STDERR "[". ctime() ."] $input->{mac} - missing mac, action, distro in db\n";
+	    printlog "$input->{mac} - missing mac, action, distro in db\n";
 	    print $cgi->header( -status => "404 Not found");
 	    exit 0;
 	}
@@ -1090,7 +1094,7 @@ Nameserver=$actref->{dns1}
 	&load_distro( $opts, $dbh, $actref );
 
 	if ( $actref->{arch} !~ m/s390/ ) {
-	    print STDERR "[". ctime() ."] $input->{mac} - non-s390 arch request for exec file\n";
+	    printlog "$input->{mac} - non-s390 arch request for exec file\n";
 	    exit 1;
 	}
 
@@ -1133,7 +1137,7 @@ Address 'CMS' 'PURGE RDR ALL'
     {
         my $file = $1;
 
-        print STDERR "[". ctime() ."] # no mac required to serve $file\n";
+        printlog "# no mac required to serve $file\n";
 
         $sql = qq|SELECT bin FROM sqlfstable WHERE name = '$file'|;
 
@@ -1151,7 +1155,7 @@ Address 'CMS' 'PURGE RDR ALL'
         my $file = $1;
 
 #        my $date = &get_rundate();
-#        print STDERR "[". ctime() ."] # start time for get $file : $date\n";
+#        printlog "# start time for get $file : $date\n";
 
         ##
         ## AUTOBUILD FILE
@@ -1163,7 +1167,7 @@ Address 'CMS' 'PURGE RDR ALL'
         $macref = &get_db_mac( $dbh, $input->{mac} );
         if ( not defined $macref ) {
             $output = "$input->{mac} - user vs cgi... missing db mac entry";
-            print STDERR "[". ctime() ."] $output\n";
+            printlog "$output\n";
             print $cgi->header( -type => "text/plain",
                                 -content_length => length
                                 ($output)
@@ -1174,7 +1178,7 @@ Address 'CMS' 'PURGE RDR ALL'
         $actref = &get_db_action( $dbh, $input->{mac} );
         if (not defined $actref ) {
             $output = "$input->{mac} - user vs cgi... missing db action entry";
-            print STDERR "[". ctime() ."] $output\n";
+            printlog "$output\n";
             print $cgi->header( -type => "text/plain",
                                 -content_length => length
                                 ($output)
@@ -1190,7 +1194,7 @@ Address 'CMS' 'PURGE RDR ALL'
         unless ( defined $actauto->{autobuild} ) {
             # this entry has no related autobuild and shouldn't be asking
             $output = "$input->{mac} - user vs cgi... no 'autobuild' entry";
-            print STDERR "[". ctime() ."] $output\n";
+            printlog "$output\n";
             print $cgi->header( -type => "text/plain",
                                 -content_length => length
                                 ($output)
@@ -1220,12 +1224,12 @@ Address 'CMS' 'PURGE RDR ALL'
 	# Check if broadcast address is set
 	&check_broadcast( $opts, $actref );
 
-        print STDERR "[". ctime() ."] $input->{mac} - serving autobuild $file\n";
+        printlog "$input->{mac} - serving autobuild $file\n";
 
         $output .= &get_autobuild_expanded( $opts, $dbh, $actref );
 
 #        $date = &get_rundate();
-#        print STDERR "[". ctime() ."] # stop time for get $file : $date\n";
+#        printlog "# stop time for get $file : $date\n";
     }
 
     elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(linux|initrd)\?.*\s*$} )
@@ -1242,7 +1246,7 @@ Address 'CMS' 'PURGE RDR ALL'
         $macref = &get_db_mac( $dbh, $input->{mac} );
         if ( not defined $macref ) {
             $output = "$input->{mac} - user vs cgi... missing db mac entry";
-            print STDERR "[". ctime() ."] $output\n";
+            printlog "$output\n";
             print $cgi->header( -type => "text/plain",
                                 -content_length => length
                                 ($output)
@@ -1253,7 +1257,7 @@ Address 'CMS' 'PURGE RDR ALL'
         $actref = &get_db_action( $dbh, $input->{mac} );
         if (not defined $actref ) {
             $output = "$input->{mac} - user vs cgi... missing db action entry";
-            print STDERR "[". ctime() ."] $output\n";
+            printlog "$output\n";
             print $cgi->header( -type => "text/plain",
                                 -content_length => length
                                 ($output)
@@ -1263,7 +1267,7 @@ Address 'CMS' 'PURGE RDR ALL'
 
         $file = "$file.$actref->{distro}";
 
-        print STDERR "[". ctime() ."] $input->{mac} - serving $file\n";
+        printlog "$input->{mac} - serving $file\n";
 
         $sql = qq|SELECT bin FROM sqlfstable WHERE name = '$file'|;
 
@@ -1285,7 +1289,7 @@ Address 'CMS' 'PURGE RDR ALL'
         $actref = &get_db_action( $dbh, $input->{mac} );
         if (not defined $actref ) {
             $output = "$input->{mac} - user vs cgi... missing db action entry";
-            print STDERR "[". ctime() ."] $output\n";
+            printlog "$output\n";
             print $cgi->header( -type => "text/plain",
                                 -content_length => length
                                 ($output)
@@ -1293,7 +1297,7 @@ Address 'CMS' 'PURGE RDR ALL'
             exit 0;
         }
         $actref->{cmdline} = "# node now in pxewait - invoking hook";
-        print STDERR "[". ctime() ."] $input->{mac} - $actref->{cmdline}\n";
+        printlog "$input->{mac} - $actref->{cmdline}\n";
         $output = "pxewait hook called\n";
 
         if ( -f $inpxewait ) {
@@ -1313,7 +1317,7 @@ Address 'CMS' 'PURGE RDR ALL'
         $actref = &get_db_action_by_hostname( $dbh, $input->{hostname} );
         unless ( defined $actref ) {
             $output = "$input->{hostname} - build callback unable to find $hostname";
-            print STDERR "[". ctime() ."] $output\n";
+            printlog "$output\n";
             print $cgi->header( -type => "text/plain",
                                 -content_length => length
                                 ($output)
@@ -1330,7 +1334,7 @@ Address 'CMS' 'PURGE RDR ALL'
 
             $state = BA_EVENT_SPOOFED;
             $actref->{cmdline} = "# build complete callback spoofed";
-            print STDERR "[". ctime() ."] $input->{mac} - $hostname $actref->{cmdline}\n";
+            printlog "$input->{mac} - $hostname $actref->{cmdline}\n";
             $output = "build spoofed - spoof hook called\n";
 
             if ( -f $spoofed ) {
@@ -1342,7 +1346,7 @@ Address 'CMS' 'PURGE RDR ALL'
         else {
             $state = BA_EVENT_BUILT;
             $actref->{cmdline} = "# build complete callback verified";
-            print STDERR "[". ctime() ."] $input->{mac} - $hostname $actref->{cmdline}\n";
+            printlog "$input->{mac} - $hostname $actref->{cmdline}\n";
             $output = "build verified - verify hook called\n";
 
             if ( -f $built ) {

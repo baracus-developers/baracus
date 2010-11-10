@@ -7,7 +7,7 @@ badir=`echo ~baracus`
 bakeydir="${badir}/.ssh"
 donefile="${badir}/.ssh/workload_ssh_done"
 sshtgt=".ssh"
-date="[`date +'%a %b %d %H:%M:%S %Y'`]"
+date="[`date +'%a %b %e %H:%M:%S %Y'`]"
 
 
 # sanity checks upfront
