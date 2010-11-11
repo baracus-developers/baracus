@@ -7,6 +7,7 @@ badir=`echo ~baracus`
 bakeydir="${badir}/.ssh"
 donefile="${badir}/.ssh/workload_ssh_done"
 sshtgt=".ssh"
+sshdup="root/.ssh"
 date="[`date +'%a %b %e %H:%M:%S %Y'`]"
 
 
@@ -113,6 +114,9 @@ pushd $tmpdir >& /dev/null
 
     # owner is root in workload 
     chown -R root:root ${sshtgt}
+
+    # copy -r sshtgt to sshdup
+    cp -r ${sshtgt} ${sshdup} 
   
     ## repack initrd
     find . | cpio --quiet --create --format='newc' > ../${initrd}
