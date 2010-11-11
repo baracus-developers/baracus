@@ -171,18 +171,18 @@ while (1) {
         elsif ( ! $child ) {
             $sqlfsOBJ->clone_dhb_for_child();
             $now = ctime();
-            printf "[${now}] Received %s peer %s file '%s'\n",
-                $OPCODES{$request->{'_REQUEST_'}{'OPCODE'}},
-                    $request->{'_REQUEST_'}{'PeerAddr'},
+            printf "[${now}] %s Received %s for file '%s'\n",
+                $request->{'_REQUEST_'}{'PeerAddr'},
+                    $OPCODES{$request->{'_REQUEST_'}{'OPCODE'}},
                         $request->{'_REQUEST_'}{'FileName'};
 
             # process the request - track 01-<mac> denies and deliveries
             my $status = $request->processRQ( );
             if ( $status ) {
                 $now = ctime();
-                printf STDOUT "[${now}] Success  %s peer %s file '%s' done\n",
-                    $OPCODES{$request->{'_REQUEST_'}{'OPCODE'}},
-                        $request->{'_REQUEST_'}{'PeerAddr'},
+                printf STDOUT "[${now}] %s Success  %s for file '%s' done\n",
+                    $request->{'_REQUEST_'}{'PeerAddr'},
+                        $OPCODES{$request->{'_REQUEST_'}{'OPCODE'}},
                             $request->{'_REQUEST_'}{'FileName'};
 
                 if ( $request->{'_REQUEST_'}{'FileName'} =~ m|boot.wim| ) {
@@ -190,7 +190,7 @@ while (1) {
                     delete $iparchmap->{ $request->{'_REQUEST_'}{'PeerAddr'}};
                 }
             } else {
-                print STDOUT SqlTFTPd->error;
+                print STDOUT $request->{'_REQUEST_'}{'PeerAddr'} . " : " . SqlTFTPd->error;
             }
             # exit the forked proc
             exit 0;

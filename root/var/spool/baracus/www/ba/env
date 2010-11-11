@@ -53,7 +53,7 @@ BEGIN {
 
     sub printlog {
         my $msg = shift;
-        print LOG "[" . ctime() . "] $msg";
+        print LOG "[" . ctime() . "] $ENV{ REMOTE_ADDR } $msg";
     }
 }
 
@@ -277,7 +277,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             exit 0;
         }
 
-        printlog "$input->{mac} - $action completion log received\n";
+        printlog "$input->{mac} - $action completion log received ($input->{status})\n";
 
         $filename = "$input->{mac}.${action}";
         $href = &find_tftpfile( $opts, $tftph, $filename );
@@ -317,7 +317,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
 
         my $chkref = &get_db_action( $dbh, $input->{mac} );
         $actref = $chkref if ( defined $chkref );
-        $actref->{cmdline} = "# image complete log uploaded ($input->{status})";
+        $actref->{cmdline} = "# $action completion log received ($input->{status})";
         &event_state_change( $dbh, $state, $macref, $actref );
         &update_db_mac_state( $dbh, $input->{mac}, $state );
         if ( defined $chkref ) {
