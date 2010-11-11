@@ -105,7 +105,6 @@ pushd $tmpdir >& /dev/null
 
     # pre-checked above
     ssh-keyscan $host > ${sshtgt}/known_hosts 2>/dev/null
-    ssh-keyscan 192.168.122.1 >> ${sshtgt}/known_hosts 2>/dev/null
     if [[ $? -ne 0 ]]; then
         echo "$date failed in ssh-keyscan $host"
         popd +1 >& /dev/null
