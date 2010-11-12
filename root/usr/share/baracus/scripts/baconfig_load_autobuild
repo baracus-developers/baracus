@@ -83,14 +83,26 @@ baconfig add autobuild --name rhel-6.0-nfs-x86_64-dhcp \
 baconfig detail autobuild fedora-http-x86_64-dhcp  &> /dev/null || \
 baconfig add autobuild --name fedora-http-x86_64-dhcp \
 --description="fedora 11/12/13 64bit HTTP (dhcp)" \
---file=/usr/share/baracus/templates/autobuild/rhel-http-x86_64-dhcp \
+--file=/usr/share/baracus/templates/autobuild/fedora-http-x86_64-dhcp \
 --cert="fedora-11-x86_64 fedora-12-x86_64 fedora-13-x86_64"
 
 baconfig detail autobuild fedora-nfs-x86_64-dhcp  &> /dev/null || \
 baconfig add autobuild --name fedora-nfs-x86_64-dhcp \
 --description="fedora 11/12/13 64bit NFS (dhcp)" \
---file=/usr/share/baracus/templates/autobuild/rhel-nfs-x86_64-dhcp \
+--file=/usr/share/baracus/templates/autobuild/fedora-nfs-x86_64-dhcp \
 --cert="fedora-11-x86_64 fedora-12-x86_64 fedora-13-x86_64"
+
+baconfig detail autobuild fedora-14-http-x86_64-dhcp  &> /dev/null || \
+baconfig add autobuild --name fedora-14-http-x86_64-dhcp \
+--description="fedora 14 64bit HTTP (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/fedora-14-http-x86_64-dhcp \
+--cert="fedora-14-x86_64"
+
+baconfig detail autobuild fedora-14-nfs-x86_64-dhcp  &> /dev/null || \
+baconfig add autobuild --name fedora-14-nfs-x86_64-dhcp \
+--description="fedora 14 64bit NFS (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/fedora-14-nfs-x86_64-dhcp \
+--cert="fedora-14-x86_64"
 
 baconfig detail autobuild ubuntu-x86_64-dhcp &> /dev/null || \
 baconfig add autobuild --name ubuntu-x86_64-dhcp \
