@@ -56,6 +56,12 @@ baconfig add autobuild --name rhel-http-x86_64-dhcp \
 --file=/usr/share/baracus/templates/autobuild/rhel-http-x86_64-dhcp \
 --cert="rhel-5.3-x86_64 rhel-5.4-x86_64 rhel-5.5-x86_64"
 
+baconfig detail autobuild rhel-6.0-http-x86_64-dhcp  &> /dev/null || \
+baconfig add autobuild --name rhel-6.0-http-x86_64-dhcp \
+--description="rhel 6.x 64bit HTTP (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/rhel-6.0-http-x86_64-dhcp \
+--cert="rhel-6.0-x86_64"
+
 baconfig detail autobuild esx-http-x86_64-dhcp  &> /dev/null || \
 baconfig add autobuild --name esx-http-x86_64-dhcp \
 --description="ESX 4 64bit HTTP (dhcp)" \
@@ -67,6 +73,12 @@ baconfig add autobuild --name rhel-nfs-x86_64-dhcp \
 --description="rhel 5.x 64bit NFS (dhcp)" \
 --file=/usr/share/baracus/templates/autobuild/rhel-nfs-x86_64-dhcp \
 --cert="rhel-5.3-x86_64 rhel-5.4-x86_64 rhel-5.5-x86_64"
+
+baconfig detail autobuild rhel-6.0-nfs-x86_64-dhcp  &> /dev/null || \
+baconfig add autobuild --name rhel-6.0-nfs-x86_64-dhcp \
+--description="rhel 6.x 64bit NFS (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/rhel-6.0-nfs-x86_64-dhcp \
+--cert="rhel-6.0-x86_64"
 
 baconfig detail autobuild fedora-http-x86_64-dhcp  &> /dev/null || \
 baconfig add autobuild --name fedora-http-x86_64-dhcp \
