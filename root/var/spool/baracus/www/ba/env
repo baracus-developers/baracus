@@ -70,6 +70,7 @@ my $imagefail = "$baDir{hooks}/image_deploy_failed";
 my $mcastdone = "$baDir{hooks}/mcast_deploy_complete";
 my $mcastfail = "$baDir{hooks}/mcast_deploy_failed";
 my $newinv    = "$baDir{hooks}/new_inventory_available";
+my $incloner  = "$baDir{hooks}/node_in_clone_ready";
 my $inpxewait = "$baDir{hooks}/node_in_pxewait";
 my $inmcast   = "$baDir{hooks}/node_in_mcastwait";
 my $built     = "$baDir{hooks}/verify_client_build_passed";
@@ -189,10 +190,11 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
 
         $sth->finish();
         $state = BA_EVENT_REGISTER;
+        my $ip = $ENV{ REMOTE_ADDR };
 
         if ( -f $newinv ) {
             printlog "$input->{mac} - hook $newinv\n";
-            my $cmd = "$newinv $input->{mac}";
+            my $cmd = "$newinv $input->{mac} $ip" ;
             $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
             $output .= `$cmd`;
         }
@@ -307,10 +309,11 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         }
         $sth->finish();
         $output = "upload success\n";
+        my $ip = $ENV{ REMOTE_ADDR };
 
         if ( -f $hook ) {
             printlog "$input->{mac} - hook $hook\n";
-            my $cmd = "$hook $input->{mac}";
+            my $cmd = "$hook $input->{mac} $ip";
             $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
             $output .= `$cmd`;
         }
@@ -1280,13 +1283,26 @@ Address 'CMS' 'PURGE RDR ALL'
         $sth->finish();
     }
 
-    elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/pxewaitr\?.*\s*$| ) {
-        my $mac = $input->{ mac };
-        my $ip = $ENV{ REMOTE_ADDR };
+    elsif ( $ENV{REQUEST_URI} =~ m%^\s*/ba/(pxewaitr|cloner)\?.*\s*$% ) {
+
+        my $action = $1;
+        $action =~ s/r$//;
 
         die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
 
-        $actref = &get_db_action( $dbh, $input->{mac} );
+        my $mac = $input->{ mac };
+        my $ip = $ENV{ REMOTE_ADDR };
+
+        if ( $mac !~  m|^([0-9A-F]{1,2})(:([0-9A-F]){1,2}){5}$| ) {
+            $output = "$input->{mac} - invalid or malformed mac provided in cgi call";
+            printlog "$output\n";
+            print $cgi->header( -type => "text/plain",
+                                -content_length => length
+                                ($output)
+                               ), $output;
+            exit 0;
+        }
+        $actref = &get_db_action( $dbh, $mac );
         if (not defined $actref ) {
             $output = "$input->{mac} - user vs cgi... missing db action entry";
             printlog "$output\n";
@@ -1296,14 +1312,23 @@ Address 'CMS' 'PURGE RDR ALL'
                                ), $output;
             exit 0;
         }
-        $actref->{cmdline} = "# node now in pxewait - invoking hook";
-        printlog "$input->{mac} - $actref->{cmdline}\n";
-        $output = "pxewait hook called\n";
+        $actref->{cmdline} = "# $action ready notify event received";
+        printlog "$input->{mac} - $action ready notify event received\n";
+        $output = "$action hook called\n";
 
-        if ( -f $inpxewait ) {
-            my $cmd = "$inpxewait $mac $ip";
+        my $hook = "";
+
+        if ( $baState{$action} eq BA_ACTION_PXEWAIT ) {
+            $hook = $inpxewait;
+        } elsif ( $baState{$action} eq BA_ACTION_CLONE ) {
+            $hook = $incloner;
+        }
+
+        if ( -f $hook ) {
+            printlog "$input->{mac} - hook $hook\n";
+            my $cmd = "$hook $mac $ip";
             $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
-            my $output = `$cmd`;
+            $output .= `$cmd`;
         }
     }
 
