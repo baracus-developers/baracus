@@ -2,7 +2,7 @@
 
 Summary:   Tool to create network install build source and manage host builds
 Name:      baracus
-Version:   1.6.1
+Version:   1.6.2
 Release:   0
 Group:     System/Services
 License:   GPLv2 or Artistic V2
@@ -20,8 +20,9 @@ Requires:  perl-Config-General
 Requires:  perl-TermReadKey, perl-DBI, perl-DBD-Pg, perl-Tie-IxHash
 Requires:  perl-IO-Interface, perl-Net-Netmask, perl-XML-LibXSLT
 Requires:  rsync, dhcp-server, postgresql-server, createrepo, fence
-Requires:  samba, samba-client, ipmitool
+Requires:  samba, samba-client, ipmitool, dropbear
 Requires:  baracus-kernel
+BuildRequires: gcc-c++
 %if 0%{?suse_version} < 1030
 Requires:  nfs-utils
 %else
@@ -55,6 +56,9 @@ This package provides a web interface to these services.
 %setup -q
 
 %build
+pushd usr/share/baracus/utils
+CFLAGS="$RPM_OPT_FLAGS" CPPFLAGS="$RPM_OPT_FLAGS" make
+popd
 
 %install
 mkdir -p %{buildroot}
@@ -80,7 +84,12 @@ mkdir %{buildroot}/var/spool/%{name}/www/tmp
 mkdir -p %{buildroot}/var/spool/%{name}/builds/winstall/import/amd64
 mkdir -p %{buildroot}/var/spool/%{name}/builds/winstall/import/x86
 mkdir %{buildroot}/var/spool/%{name}/www/htdocs/pool
-rm -rf %{buildroot}/var/spool/baracus/www/pfork
+
+install -D -m755 %{buildroot}/usr/share/baracus/utils/pfork.bin %{buildroot}/var/spool/%{name}/www/modules/pfork.bin
+install -D -m755 %{buildroot}/usr/share/baracus/utils/sparsefile %{buildroot}/usr/bin/sparsefile
+rm -rf %{buildroot}/usr/share/baracus/utils
+rm -rf %{buildroot}/var/spool/baracus/templates
+rm %{buildroot}/var/spool/baracus/www/htdocs/blank.html
 
 %clean
 rm -rf %{buildroot}
@@ -117,6 +126,7 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 /var/adm/fillup-templates/*
 %doc %{_mandir}/man?/*
 %{_sbindir}/*
+%{_bindir}/*
 %config %{_initrddir}/%{name}d
 %config %{_initrddir}/%{name}db
 %dir %{_datadir}/%{name}
@@ -137,11 +147,10 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %attr(755,baracus,users) %dir /var/spool/%{name}/builds
 %attr(-,root,root) /var/spool/%{name}/builds/*
 %attr(-,root,root) /var/spool/%{name}/isos
-%attr(-,root,root) /var/spool/%{name}/images
+%attr(755,baracus,users) /var/spool/%{name}/images
 %attr(-,root,root) /var/spool/%{name}/logs
 %attr(-,root,root) /var/spool/%{name}/hooks
 %attr(-,root,root) /var/spool/%{name}/pgsql
-%attr(-,root,root) /var/spool/%{name}/templates
 %attr(755,root,root) %dir /var/spool/%{name}/www
 %attr(755,root,root) /var/spool/%{name}/www/ba
 %attr(755,root,root) /var/spool/%{name}/www/modules
