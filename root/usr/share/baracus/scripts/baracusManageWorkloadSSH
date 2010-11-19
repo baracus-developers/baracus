@@ -29,10 +29,10 @@ if [[ ! -f ${bakeydir}/authorized_keys ]]; then
 fi
 
 if [[ -f ${donefile} ]]; then
-    echo "$date $donefile found - remove to re-insert ssh key in initrd.baracus"
+    echo "$date $donefile found - remove to re-insert ssh key in $initrd"
     exit 0
 else
-    echo "$date now re-generating initrd.baracus with baracus/.ssh key"
+    echo "$date now re-generating $initrd with baracus/.ssh key"
 fi
 
 which dropbearconvert >& /dev/null
