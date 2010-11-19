@@ -1681,7 +1681,123 @@
     </product>
   </distro>
 
+  <!-- OpenSUSE 11.4 -->
 
+  <distro name="opensuse-11.4-x86_64">
+    <os>opensuse</os>
+    <release>11.4</release>
+    <arch>x86_64</arch>
+    <description>openSUSE 11.4 64bit</description>
+    <autodownload>open</autodownload>
+    <product name="dvd">
+      <addon>base</addon>
+      <iso name="openSUSE-11.4-DVD-x86_64.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>dd8dc7e71631b304c2df3126a21ccd8e</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.4-Milestone3/iso/openSUSE-DVD-Build0845-x86_64.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="opensuse-11.4-nonoss-x86_64">
+    <os>opensuse</os>
+    <release>11.4</release>
+    <addos>nonoss</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>opensuse-11.4-x86_64</requires> <!-- flag! content ignored -->
+    <description>openSUSE 11.4 non-OSS 64bit</description>
+    <autodownload>open</autodownload>
+    <product name="dvd">
+      <addon>signed</addon>
+      <iso name="openSUSE-11.4-Addon-NonOss-BiArch-i586-x86_64.iso">
+        <path/>
+        <md5>4bf43fea60202386191417378eb9f401</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.4-Milestone3/iso/openSUSE-Addon-NonOss-BiArch-Build0845-i586-x86_64.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="opensuse-11.4-lang-x86_64">
+    <os>opensuse</os>
+    <release>11.4</release>
+    <addos>lang</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>opensuse-11.4-x86_64</requires> <!-- flag! content ignored -->
+    <description>openSUSE 11.4 Languages 64bit</description>
+    <autodownload>open</autodownload>
+    <product name="dvd">
+      <addon>signed</addon>
+      <iso name="openSUSE-11.4-Addon-Lang-x86_64.iso">
+        <path/>
+        <md5>ff85b3ee89ad7c44b8951c299abb7855</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.4-Milestone3/iso/openSUSE-Addon-Lang-Build0845-x86_64.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="opensuse-11.4-x86">
+    <os>opensuse</os>
+    <release>11.4</release>
+    <arch>x86</arch>
+    <description>openSUSE 11.4 32bit</description>
+    <autodownload>open</autodownload>
+    <product name="dvd">
+      <addon>base</addon>
+      <iso name="openSUSE-11.4-DVD-i586.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+        </sharefiles>
+        <md5>4455ae572ef85b1803699de89f355459</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.4-Milestone3/iso/openSUSE-DVD-Build0845-i586.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="opensuse-11.4-nonoss-x86">
+    <os>opensuse</os>
+    <release>11.4</release>
+    <addos>nonoss</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>opensuse-11.4-x86</requires> <!-- flag! content ignored -->
+    <description>openSUSE 11.4 non-OSS 32bit</description>
+    <autodownload>open</autodownload>
+    <product name="dvd">
+      <addon>signed</addon>
+      <iso name="openSUSE-11.4-Addon-NonOss-BiArch-i586-x86_64.iso">
+        <path/>
+        <md5>4bf43fea60202386191417378eb9f401</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.4-Milestone3/iso/openSUSE-Addon-NonOss-BiArch-Build0845-i586-x86_64.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="opensuse-11.4-lang-x86">
+    <os>opensuse</os>
+    <release>11.4</release>
+    <addos>lang</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>opensuse-11.4-x86</requires> <!-- flag! content ignored -->
+    <description>openSUSE 11.4 Languages 32bit</description>
+    <autodownload>open</autodownload>
+    <product name="dvd">
+      <addon>signed</addon>
+      <iso name="openSUSE-11.4-Addon-Lang-i586.iso">
+        <path/>
+        <md5>ff85b3ee89ad7c44b8951c299abb7855</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.4-Milestone3/iso/openSUSE-Addon-Lang-Build0845-i586.iso]]></url>
+      </iso>
+    </product>
+  </distro>
 
   <!-- RHEL 3.9 -->
 
