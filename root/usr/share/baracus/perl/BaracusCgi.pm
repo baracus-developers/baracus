@@ -39,6 +39,9 @@ A collection of routines used in the baracus cgi
 
 =cut
 
+my $linux_baracus="linux.baracus";
+my $initrd_baracus="initrd.baracus";
+
 BEGIN {
   use Exporter ();
   use vars qw( @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
@@ -75,8 +78,8 @@ sub get_inventory() {
 PROMPT 0
 TIMEOUT 0
 LABEL register
-        kernel http://$baVar->{serverip}/ba/linux.baracus
-        append initrd=http://$baVar->{serverip}/ba/initrd.baracus install=exec:/usr/bin/baracus.register textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        kernel http://$baVar->{serverip}/ba/$linux_baracus
+        append initrd=http://$baVar->{serverip}/ba/$initrd_baracus install=exec:/usr/bin/baracus.register textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
 
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
@@ -115,8 +118,8 @@ sub do_pxewait() {
 PROMPT 0
 TIMEOUT 0
 LABEL pxewait
-        kernel http://$baVar->{serverip}/ba/linux.baracus
-        append initrd=http://$baVar->{serverip}/ba/initrd.baracus install=exec:/usr/bin/pxewait textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        kernel http://$baVar->{serverip}/ba/$linux_baracus
+        append initrd=http://$baVar->{serverip}/ba/$initrd_baracus install=exec:/usr/bin/pxewait textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
 
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
