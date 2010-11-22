@@ -2557,6 +2557,64 @@
     </product>
   </distro>
 
+  <!-- Debian 5.06 -->
+
+  <distro name="debian-5.06-x86_64">
+    <os>debian</os>
+    <release>5.06</release>
+    <arch>x86_64</arch>
+    <description>Debian 5.06 64bit</description>
+    <autodownload>open</autodownload>
+    <sharetype>http</sharetype>
+    <product name="dvds">
+      <addon>base</addon>
+      <iso name="mini.iso">
+        <path>mini</path>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='initrd.gz'/>
+        </sharefiles>
+        <md5>73eaa468d43f87270fa258bffbe8a046</md5>
+        <url><![CDATA[http://ftp.nl.debian.org/debian/dists/lenny/main/installer-amd64/current/images/netboot/mini.iso]]></url>
+      </iso>
+
+      <iso name="debian-506-amd64-DVD-1.iso">
+        <path>dvd1</path>
+        <sharefiles/>
+        <md5>0e23722ccbc4c70ca651b14472220c13</md5>
+        <url><![CDATA[http://mirrors.kernel.org/debian-cd/5.0.6/amd64/iso-dvd/debian-506-amd64-DVD-1.iso]]></url>
+      </iso>
+
+      <iso name="debian-506-amd64-DVD-2.iso">
+        <path>dvd2</path>
+        <sharefiles/>
+        <md5>75a1208d31dff57fe0ce2be8f1e063f6</md5>
+        <url><![CDATA[http://mirrors.kernel.org/debian-cd/5.0.6/amd64/iso-dvd/debian-506-amd64-DVD-2.iso]]></url>
+      </iso>
+
+      <iso name="debian-506-amd64-DVD-3.iso">
+        <path>dvd3</path>
+        <sharefiles/>
+        <md5>64adad65a8f45e38338dbc45726cb410</md5>
+        <url><![CDATA[http://mirrors.kernel.org/debian-cd/5.0.6/amd64/iso-dvd/debian-506-amd64-DVD-3.iso]]></url>
+      </iso>
+
+      <iso name="debian-506-amd64-DVD-4.iso">
+        <path>dvd4</path>
+        <sharefiles/>
+        <md5>ad7016661749437a1624e0c7d1e35662</md5>
+        <url><![CDATA[http://mirrors.kernel.org/debian-cd/5.0.6/amd64/iso-dvd/debian-506-amd64-DVD-4.iso]]></url>
+      </iso>
+
+      <iso name="debian-506-amd64-DVD-5.iso">
+        <path>dvd5</path>
+        <sharefiles/>
+        <md5>287a6da16a5ae633523a8da23e4a77fe</md5>
+        <url><![CDATA[http://mirrors.kernel.org/debian-cd/5.0.6/amd64/iso-dvd/debian-506-amd64-DVD-5.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
   <!-- Solaris 10 U8 -->
 
   <distro name="solaris-10.8-x86_64">
@@ -2698,13 +2756,16 @@
       <iso name="XenServer-5.6.0-install-cd.iso">
         <path/>
         <sharefiles>
-          <sharefile sharetype='tftp' name='kernel' file='boot/isolinux/mboot.c32'/>
-          <sharefile sharetype='tftp' name='initrd' file='boot/xen.gz'/>
+          <sharefile sharetype='tftp' name='mboot.c32' file='boot/isolinux/mboot.c32'/>
+          <sharefile sharetype='tftp' name='xen.gz' file='boot/xen.gz'/>
+          <sharefile sharetype='tftp' name='vmlinuz' file='boot/vmlinuz'/>
+          <sharefile sharetype='tftp' name='install.img' file='install.img'/>
         </sharefiles>
         <md5>fad62ddda35ae897bc1e6e273aaf1121</md5>
         <url><![CDATA[]]></url>
       </iso>
     </product>
   </distro>
+
 
 </config>

@@ -1562,7 +1562,7 @@ samba for other shares, and then try this basource command again.
 		unlink( "$tdir/$stname" );
 	    }
 	}
-    } elsif ( $distro =~ m/solaris/i )  {
+    } elsif ( $distro =~ m/(xenserver|solaris)/i )  {
         while ( my ($fname, $fh) = each ( %{$bh->{baseshares}} ) ) {
             if ( &sqlfs_getstate( $opts, $fname ) ) {
                 print "found $fname in tftp database\n" if $opts->{verbose};
