@@ -260,7 +260,7 @@ sub add() {
     &check_distro( $opts, $distro );
 
     if ( $addons ) {
-        print "Calling routine to verify addon(s) passed\n";
+        print "Calling routine to verify addon(s) passed\n" if $opts->{verbose};
         return 1 if &check_addons( $opts, $distro, $addons );
     }
 
@@ -281,11 +281,11 @@ sub add() {
         return 1 if &download_iso( $opts, $distro, $addons, $proxy, $checkhr );
     }
 
-    print "Calling routine to locate ISO files\n";
+    print "Calling routine to locate ISO files\n" if $opts->{verbose};
 
     my $daisohr = &verify_iso( $opts, $distro, $addons, $isos, $check, $checkhr );
 
-    print "Calling routines to generate build tree\n";
+    print "Calling routines to generate build tree\n" if $opts->{verbose};
     if ( &make_paths( $opts, $distro, $addons, $daisohr, $loopback ) ) {
         print "$opts->{LASTERROR}\n";
         $opts->{LASTERROR} = "";
@@ -300,7 +300,7 @@ sub add() {
         $opts->{LASTERROR} = "";
     }
 
-    print "Calling routine to configure bootloader\n";
+    print "Calling routine to configure bootloader\n" if $opts->{verbose};
     &add_bootloader_files( $opts, $distro );
 
     &source_register( $opts, $command, $distro, $addons );

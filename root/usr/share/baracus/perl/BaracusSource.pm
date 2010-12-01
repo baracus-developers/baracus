@@ -1142,7 +1142,7 @@ sub verify_iso
 
         foreach my $prod ( &baxml_products_getlist( $opts, $da ) ) {
             foreach my $isofile ( &baxml_isos_getlist( $opts, $da, $prod ) ) {
-                print "dist $da prod $prod iso $isofile\n";
+                print "dist $da prod $prod iso $isofile\n" if $opts->{verbose};
                 my $ih = &baxml_iso_gethash( $opts, $da, $prod, $isofile );
                 $distisoinfo->{$isofile}->{'hash'} = $ih;
                 $distisoinfo->{$isofile}->{'path'} = $ih->{'isopath'};
@@ -1677,7 +1677,7 @@ sub add_build_service
         }
     }
 
-    print "Calling routine to configure $sharetype\n";
+    print "Calling routine to configure $sharetype\n" if $opts->{verbose};
 
     # unlike http or cifs we pre-load nfs so we can manipulate
     if ($sharetype eq "nfs") {
