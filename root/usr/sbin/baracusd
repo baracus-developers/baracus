@@ -103,7 +103,7 @@ print STDOUT "[debug] dbsource   $dbsource\n" if $debug;
 
 my $sqlfsOBJ = SqlFS->new( 'DataSource' => "$dbsource",
                            'User' => "baracus",
-                           'debug' => $debug )
+                           'debug' => "$debug" )
     or die "Unable to create new instance of SqlFS\n";
 
 $listener->setSqlFSHandle( $sqlfsOBJ );
