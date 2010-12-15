@@ -40,6 +40,9 @@ use BaracusConfig qw( :vars :subs );
 use BaracusState  qw( :vars :admin );
 use BaracusSource qw( :vars :subs );
 
+my $source_handlers;
+BEGIN { $source_handlers = '/usr/share/baracus/source_handlers'; }
+use lib $source_handlers;
 
 =pod
 
@@ -291,7 +294,7 @@ sub add() {
         $opts->{LASTERROR} = "";
     }
 
-    &create_build( $opts, $distro );
+#    &create_build( $opts, $distro );
 
     unless ( $loopback ) { &streamline_install( $opts, $distro, $loopback ); }
 
@@ -302,6 +305,19 @@ sub add() {
 
     print "Calling routine to configure bootloader\n" if $opts->{verbose};
     &add_bootloader_files( $opts, $distro );
+
+    ## Call to external post add scriptlets
+    my $dhandler = ucfirst $distro;
+    $dhandler =~ s/\.//g;
+    $dhandler =~ s/-/_/g;
+    $dhandler = $dhandler . ".pm";
+    if (-e "$source_handlers/$dhandler") {
+        require $dhandler;
+        $dhandler =~ s/\.pm//g;
+        $dhandler->import(qw(external_source_handler));
+        print "loading external source handler $distro function: $command\n" if $opts->{verbose};
+        &external_source_handler( $command, $opts, $distro );
+    }
 
     &source_register( $opts, $command, $distro, $addons );
 }
@@ -519,7 +535,7 @@ sub remove() {
     my $distro;
     my $addons = "";
     my @addons;
-    my $share;
+    my $shares;
     my $is_loopback = "";
     my $ret = 0;
 
@@ -568,27 +584,38 @@ sub remove() {
         }
     }
 
+     ## Call to external post add scriptlets
+    my $dhandler = ucfirst $distro;
+    $dhandler =~ s/\.//g;
+    $dhandler =~ s/-/_/g;
+    $dhandler = $dhandler . ".pm";
+    if (-e "$source_handlers/$dhandler") {
+        require $dhandler;
+        $dhandler =~ s/\.pm//g;
+        $dhandler->import(qw(external_source_handler));
+        print "loading external source handler $distro function: $command\n" if $opts->{verbose};
+        &external_source_handler( $command, $opts, $distro );
+    }
+
     if ( scalar @addons ) {
         foreach my $addon ( @addons ) {
-            my @shares;
             print "Removing addon $addon\n";
-            ($share, undef) = &get_distro_share( $opts, $addon );
-            $is_loopback = &get_loopback( $opts, $share );
-#            &remove_build_service( $opts, "", $addons);
+            ($shares, undef) = &get_distro_share( $opts, $addon );
+            $is_loopback = &get_loopback( $opts, @$shares[0] );
             if ( &remove_build_service( $opts, "", $addons ) ) {
                 print "$opts->{LASTERROR}\n";
                 $opts->{LASTERROR} = "";
             }
-            print "$share ... removing\n" if $opts->{verbose};
+            print "@$shares[0] ... removing\n" if $opts->{verbose};
             if ( $is_loopback ) {
-                $ret = system("umount $share");
+                $ret = system("umount @$shares[0]");
                 if ( $ret > 0 ) {
                     $opts->{LASTERROR} = "loopback unmount failed\n";
                     return 1;
                 }
-                rmdir($share);
+                rmdir(@$shares[0]);
             } else {
-                rmtree($share);
+                rmtree(@$shares[0]);
             }
         }
         &source_register( $opts, $command, "", $addons);
@@ -611,43 +638,41 @@ sub remove() {
             return 1;
         }
         if ( scalar @addons and defined $sdk and $addons[0] eq $sdk ) {
-            ($share,undef) = &get_distro_share( $opts, $sdk );
-            $is_loopback = &get_loopback( $opts, $share );
-#            &remove_build_service( $opts, "", $sdk);
+            ($shares,undef) = &get_distro_share( $opts, $sdk );
+            $is_loopback = &get_loopback( $opts, @$shares[0] );
             if ( &remove_build_service( $opts, "", $sdk ) ) {
                 print "$opts->{LASTERROR}\n";
                 $opts->{LASTERROR} = "";
             }
-            print "$share ... removing\n" if $opts->{verbose};
+            print "@$shares[0] ... removing\n" if $opts->{verbose};
             if ( $is_loopback ) {
-                $ret =  system("umount $share");
+                $ret =  system("umount @$shares[0]");
                 if ( $ret > 0 ) {
                     $opts->{LASTERROR} = "loopback unmount failed\n";
                     return 1;
                 }
-                rmdir($share);
+                rmdir(@$shares[0]);
             } else {
-                rmtree($share);
+                rmtree(@$shares[0]);
             }
             &source_register( $opts, $command, "", $sdk);
         }
-        ($share,undef) = &get_distro_share( $opts, $distro );
-        $is_loopback = &get_loopback( $opts,  $share );
-#        &remove_build_service( $opts, $distro, $addons);
+        ($shares,undef) = &get_distro_share( $opts, $distro );
         if ( &remove_build_service( $opts, $distro, $addons ) ) {
-            print "$opts->{LASTERROR}\n";
-            $opts->{LASTERROR} = "";
+                print "$opts->{LASTERROR}\n";
+                $opts->{LASTERROR} = "";
         }
-        print "$share ... removing\n" if $opts->{verbose};
-        if ( $is_loopback ) {
-            $ret = system("umount $share");
-            if ( $ret > 0 ) {
-                    $opts->{LASTERROR} = "loopback unmount failed\n";
-                    return 1;
-                }
-            rmdir($share);
-        } else {
-            rmtree($share);
+        foreach my $share ( @$shares ) {
+            $is_loopback = &get_loopback( $opts, $share );
+            print "$share ... removing\n" if $opts->{verbose};
+            if ( $is_loopback ) {
+                $ret = system("umount $share");
+                if ( $ret > 0 ) {
+                        $opts->{LASTERROR} = "loopback unmount failed\n";
+                        return 1;
+                    }
+                rmdir($share);
+            } 
         }
 
         &remove_bootloader_files( $opts, $distro );
@@ -1106,7 +1131,7 @@ sub list() {
     return 0;
 }
 
-=head2 init { --exports | --mounts | --all }
+=head2 init
 
   Initialize or sync distro share media mount/exports to internal table.
 
@@ -1116,52 +1141,40 @@ sub list() {
   of the system boot initialization of Baracus but can be called explictly
   if media seems to be missing.
 
-Arguments
-
-    --exports        Export any media marked for export that is not already
-    --mounts         Mount and media marked for mount that is not already
-    --all            check for both out of sync exports and mounts
-
 =cut
 
 sub init() {
 
     my $command = 'init';
 
-    my $exports = 0;
-    my $mounts = 0;
-    my $ret1 = 0;
-    my $ret2 = 0;
+    my $ret = 0;
 
-    @ARGV = @_;
+    print "init mounts\n" if $opts->{debug};
+    $ret = &init_mounter( $opts );
+    $opts->{LASTERROR} .= "mount failure\n" if ( $ret > 0);
 
-    GetOptions(
-               'exports!'  => \$exports,
-               'mounts!'   => \$mounts,
-               );
+    print "init exports\n" if $opts->{debug};
+    $ret = 0;
+    $ret = &init_exporter( $opts );
+    $opts->{LASTERROR} .= "export failure\n" if ( $ret > 0);
 
-    if ( scalar @ARGV ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &help( $opts, $cmds, $command );
+    ## Call to external post add scriptlets
+    my @distroarray = &get_enabled_distro_list( $opts );
+    foreach my $distro ( &get_enabled_distro_list( $opts ) ) {
+        my $dhandler = ucfirst $distro;
+        $dhandler =~ s/\.//g;
+        $dhandler =~ s/-/_/g;
+        $dhandler = $dhandler . ".pm";
+        if (-e "$source_handlers/$dhandler") {
+            require $dhandler;
+            $dhandler =~ s/\.pm//g;
+            $dhandler->import(qw(external_source_handler));
+            print "loading external source handler $distro function: $command\n" if $opts->{verbose};
+            &external_source_handler( $command, "", "" );
+        }
     }
 
-    unless ( $mounts or $exports or $opts->{all} ) {
-        print "\nRequire init type or --all\n";
-        &help( $opts, $cmds, $command );
-    }
-
-    if (( $mounts )  || ( $opts->{all} )) {
-        print "init mounts\n" if $opts->{debug};
-        $ret1 = &init_mounter( $opts );
-        $opts->{LASTERROR} .= "mount failure\n" if ( $ret1 > 0);
-    }
-
-    if (( $exports ) || ( $opts->{all} )) {
-        print "init exports\n" if $opts->{debug};
-        $ret2 = &init_exporter( $opts );
-        $opts->{LASTERROR} .= "export failure\n" if ( $ret2 > 0);
-    }
-    return ( $ret1 ? $ret1 : $ret2 );
+    return $ret;
 }
 
 =head2 service { --start [service] | --stop [service] }

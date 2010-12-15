@@ -88,8 +88,6 @@ BEGIN {
                 get_iso_locations
                 verify_iso
                 make_paths
-                create_build
-                streamline_install
                 add_bootloader_files
                 remove_bootloader_files
                 add_build_service
@@ -111,6 +109,7 @@ BEGIN {
                 check_addon
                 init_exporter
                 init_mounter
+                get_enabled_distro_list
             )],
          );
 
@@ -210,7 +209,8 @@ sub add_db_source_entry
 
     my $dh = &baxml_distro_gethash( $opts, $distro );
 
-    my ($share,undef) = get_distro_share( $opts, $distro );
+    my ($shares,undef) = get_distro_share( $opts, $distro );
+    my $share = @$shares[0];
 
     my $dbref = &get_db_source_entry( $opts, $distro );
 
@@ -570,7 +570,8 @@ sub prepdbwithxml
 
     foreach my $distro ( keys %{$baXML->{distro}} ) {
         my $dh = $baXML->{distro}->{$distro};
-        my ($share, $name) = &get_distro_share( $opts, $distro );
+        my ($shares, $name) = &get_distro_share( $opts, $distro );
+        my $share = @$shares[0];
 
         $entry{'distroid'   } = $distro;
         $entry{'os'         } = $dh->{os};
@@ -1217,8 +1218,6 @@ sub make_paths
     my $daisohr = shift;
     my $loopback = shift;
 
-    $loopback = 0 if (( $distro =~ /rhel-3/ ) || ( $distro =~ /sles-9/ ));
-
     print "+++++ make_paths\n" if ( $opts->{debug} > 1 );
 
     use File::Basename;
@@ -1274,23 +1273,7 @@ sub make_paths
                     system( "mount -o loop $isofile $idir" );
                     &add_db_iso_entry($opts, $da, $iname, $idir, 1);
                 }
-            } else {
-                #if (( $distro =~ /rhel-3/ ) || ( $distro =~ /sles-9/ ))
-                next if ( -d $idir );
-                print "Creating Build Path $idir\n" if $opts->{verbose};
-                unless ( mkpath $idir ) {
-                    $opts->{LASTERROR} .= "Unable to create directory $idir $!";
-                    next;
-                }
-                my ($isoshort, $idirshort) = ($isofile, $idir);
-                $isoshort  =~ s|$baDir{isos}||;
-                $idirshort =~ s|$baDir{isos}||;
-                print "Extraction $isoshort to $idirshort\n"; # print LONG
-                system( "mount -o loop $isofile $tdir" );
-                system( "/usr/bin/rsync -azHl $tdir/* $idir" );
-                system( "umount $tdir" );
-                &add_db_iso_entry($opts, $da, $iname, $idir, 0);
-            }
+             }
         }
     }
 
@@ -1300,207 +1283,6 @@ sub make_paths
     return 1 if ($opts->{LASTERROR} ne "");
     return 0;
 }
-
-###########################################################################
-
-sub create_build
-{
-    my $opts    = shift;
-    my $distro  = shift;
-
-    print "+++++ create_build\n" if ( $opts->{debug} > 1 );
-
-    my $dh = &baxml_distro_gethash( $opts, $distro );
-    my $bh = $dh->{basedisthash};
-
-    my $share = $bh->{distpath};
-
-    return unless ( $distro eq $dh->{basedist} );
-
-    # driverupdate fix for the aytoyast tftp last ACK
-    # for x86/x86_64 sles10.2-11 - bnc 507086
-
-#    if ($distro =~ /sles-10\.2/ or $distro =~ /sles-11/) {
-#        my $driverupdate_in = "$baDir{'data'}/driverupdate";
-#        my $driverupdate_out = "$bh->{baseisopath}/driverupdate";
-#        if ( $opts->{debug} ) {
-#            print "Installing driverupdate for sles 10.2 - 11\n";
-#            print "from $driverupdate_in\n";
-#            print "to $driverupdate_out\n";
-#        }
-#
-#        my $addonstyle = "";
-#
-#        # we are base - find any product with non-base addon style
-#        # and if that fails then addon then product then addon style
-#        foreach my $prod ( &baxml_products_getlist( $opts, $distro ) ) {
-#            my $ph = &baxml_product_gethash( $opts, $distro, $prod );
-#            if ( defined $ph->{'addon'} and $ph->{'addon'} ne "base" ) {
-#                $addonstyle = $ph->{'addon'};
-#            }
-#        }
-#        if ( not $addonstyle and $bh->{addons} ) {
-#            foreach my $addon ( @{$bh->{addons}} ) {
-#                foreach my $prod ( &baxml_products_getlist( $opts, $addon ) ) {
-#                    my $ph = &baxml_product_gethash( $opts, $addon, $prod );
-#                    if ( defined $ph->{'addon'} and $ph->{'addon'} ne "base" ) {
-#                        $addonstyle = $ph->{'addon'};
-#                    }
-#                }
-#            }
-#        }
-#
-#        if ( $addonstyle ) {
-#            print "addon style is found to be: $addonstyle\n" if ( $opts->{debug} > 1 );
-#
-#            if ($addonstyle eq "flat") {
-#                if ( -f $driverupdate_out ) {
-#                    print "driverupdate already installed\n" if $opts->{verbose};
-#                } else {
-#                    print "$driverupdate_in => $driverupdate_out\n" if ( $opts->{debug} );
-#                    copy( $driverupdate_in, $driverupdate_out );
-#                }
-#            } elsif ($addonstyle eq "signed") {
-#
-#                use IO::File;
-#                # TODO - fix this for smoother sle11 installs - dhb
-#
-#                # copy, sign, add to directory.yast list
-#                # copy( $driverupdate_in, $driverupdate_out );
-#
-#                # $io = IO::File->new( "$driverupdate_out", 'r' );
-#                # $sha1->addfile($io);
-#                # $io->close;
-#                # print FILE $sha1->hexdigest, "  driverupdate\n";
-#                ;
-#            }
-#        }
-#    }
-
-    if ($distro =~ /sles-9/) {
-        my %yasthash;
-
-        ## Create yast/instorder and yast/order
-
-        my $first  = "Service-Pack";
-        my $second = "SUSE-SLES";
-        my $third  = "SUSE-CORE";
-
-        my @order = ( $first, $second, $third );
-        my @products = &baxml_products_getlist( $opts, $distro );
-
-
-    PORDER: foreach my $product ( @products ) {
-            for (my $count = 0; $count < 3; $count++ ) {
-                print "ordering $product -- test $order[$count]\n" if $opts->{debug};
-                if ( $product =~ m/$order[$count]/ ) {
-                    $yasthash{ $order[$count] } = $product;
-                    print "ordered $product -- $order[$count]\n" if $opts->{debug};
-                    ++$count;
-                    $yasthash{ $first  } = $product if ( $product =~ m/$first/  );
-                    $yasthash{ $second } = $product if ( $product =~ m/$second/ );
-                    $yasthash{ $third  } = $product if ( $product =~ m/$third/  );
-                    next PORDER;
-                }
-            }
-        }
-        print "Creating ORDER files for sles-9\n$share/yast/instorder\n$share/yast/order\n" if $opts->{debug};
-        mkpath "$share/yast" || die ("Cannot create yast directory\n");
-        open(IORDER, ">$share/yast/instorder") || die ("Cannot open file\n");
-        open(ORDER, ">$share/yast/order") || die ("Cannot open file\n");
-        foreach my $order ( @order ) {
-            if ( defined $yasthash{$order} ) {
-                print IORDER "/$yasthash{$order}/CD1\n";
-                print ORDER "/$yasthash{$order}/CD1\t/$yasthash{$order}/CD1\n";
-            }
-        }
-        print IORDER "/\n";
-        print ORDER "/\n";
-        close(IORDER);
-        close(ORDER);
-
-        ## Create necessary links (this is sles9 logic)
-        ##
-        chdir($share);
-        symlink("$yasthash{$second}/CD1/boot","boot");
-        symlink("$yasthash{$second}/CD1/content","content");
-        symlink("$yasthash{$second}/CD1/control.xml","control.xml");
-        symlink("$yasthash{$second}/CD1/media.1","media.1");
-
-        if ( defined $yasthash{$first} ) {
-            symlink("$yasthash{$first}/CD1/linux","linux");
-            symlink("$yasthash{$first}/CD1/driverupdate","driverupdate");
-        } else {
-            symlink("$yasthash{$second}/CD1/linux","linux");
-            symlink("$yasthash{$second}/CD1/driverupdate","driverupdate");
-        }
-    }
-}
-
-sub streamline_install
-{
-    my $opts   = shift;
-    my $distro = shift;
-
-    print "+++++ streamline_install\n" if ( $opts->{debug} > 1 );
-
-    my $licensefile;
-    my $remove = 0;
-
-    ## Need to make sure license acceptance does not interfere
-    ## Remove license.zip or info.txt and associated entry in
-    ## media.1/directory.yast
-    ##
-    if ( $distro =~ /opensuse-11.2/ ) {
-        ##
-        ## great - they've added a license file which they prompt for if missing
-        ## - and if missing they also claim not to have found the install dir...
-        ##
-#        print "NOTE -->> streamline of 11.2 not yet done <<-- NOTE\n";
-        $licensefile = "license.tar.gz";
-        $remove = 0;
-
-    }
-    elsif ($distro =~ /sles-10/ or $distro =~ /sles-11/) {
-        $licensefile = "license.zip";
-        $remove = 1;
-
-    } elsif ($distro =~ /sles-9/) {
-        ## Need to make sure license acceptance does not interfere
-        ##
-        $licensefile = "info.txt";
-        $remove = 1;
-    }
-
-    if ( $remove ) {
-        my $dh = &baxml_distro_gethash( $opts, $distro );
-#        print "streamline_install calling get_distro_share( $opts, $distro)\n";
-        my ($share,undef) = &get_distro_share( $opts, $distro );
-
-        my @dyast;
-        find ( { wanted =>
-                 sub {
-                     if ($_ eq $licensefile) {
-                         print "Removed $File::Find::name\n" if ( $opts->{debug} > 1 );
-                         unlink("$File::Find::name");
-                         push(@dyast, "$File::Find::dir/");
-                     }
-                 }
-                },
-               $share );
-        foreach my $dyast (@dyast) {
-            open(INFILE, "<$dyast/directory.yast") || die ("Cannot open file\n");
-            my $contents = join '', <INFILE>;
-            close(INFILE);
-            $contents =~ s|$licensefile\s*\n||;
-            open(OUTFILE, ">$dyast/directory.yast") || die ("Cannot open file\n");
-            print OUTFILE $contents;
-            close(OUTFILE);
-        }
-    }
-}
-
-#  called only if non-add-on ('requires' is *not* defined)
 
 sub add_bootloader_files
 {
@@ -1633,11 +1415,6 @@ sub remove_bootloader_files
         &sqlfs_remove( $opts, "initrd.$basedist" );
     }
 
-    foreach my $sharetype ( "http", "nfs" ) {
-        if ( &sqlfs_getstate( $opts, "template.$sharetype.$basedist" ) ) {
-            &sqlfs_remove( $opts, "template.$sharetype.$basedist" );
-        }
-    }
 }
 
 ################################################################################
@@ -1691,6 +1468,8 @@ sub add_build_service
 
             my ($file, $share, $state) =
                 &check_service_product( $opts, $da, $prod, $sharetype );
+
+            $share = $dh->{'distpath'}."/".$dh->{'sharepath'} if defined ( $dh->{'sharepath'} );
 
             if ( $state ) {
                 print "$sharetype file $file found added for $da\n" if $opts->{verbose};
@@ -1856,8 +1635,6 @@ sub init_mounter
     my $ret = 0;
     my $iso_location_hashref = &get_iso_locations( $opts );
 
-#    $opts->{LASTERROR} = "";
-
     my $sql = qq| SELECT mntpoint, iso
                   FROM $baTbls{'iso'}
                   WHERE is_loopback = 't'
@@ -1972,7 +1749,8 @@ sub check_service_product
 
     print "+++++ check_service_product\n" if ( $opts->{debug} > 1 );
 
-    my ($share, $name) = &get_distro_share( $opts, $distro );
+    my ($shares, $name) = &get_distro_share( $opts, $distro );
+    my $share = @$shares[0];
 
     my $file = "";
     my $state = 0;
@@ -1993,7 +1771,6 @@ sub check_service_product
         $file = "/etc/samba/$name.conf";
         $state = 1 if ( -f $file);
     }
-
     return $file, $share, $state;
 }
 
@@ -2220,6 +1997,33 @@ sub get_loopback
     return $href->{'is_loopback'};
 }
 
+sub get_enabled_distro_list
+{
+    my $opts  = shift;
+    my $status  = "3"; ## enabled
+    my @distros = "";
+    my $dbh = $opts->{dbh};
+
+    my $sql = qq|SELECT distroid
+                 FROM $baTbls{'distro'}
+                 WHERE status = ?
+                |;
+
+    my $sth;
+    my $href;
+
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( $status ) );
+
+    while ( my $distro = $sth->fetchrow_array() ) {
+        push @distros, $distro;
+    }
+
+    $sth->finish;
+
+    return @distros;
+}
+
 sub get_sharetype
 {
     my $opts = shift;
@@ -2269,6 +2073,7 @@ sub get_distro_share
     my $distro = shift;
 
     my $share;
+    my @shares;
     my $name;
 
     # collapse multi prod sles-9 down to
@@ -2286,12 +2091,16 @@ sub get_distro_share
         if ( scalar @prods > 1 ) {
             die "get_distro_share: Unsure how to handle multiple product distro $distro\n";
         }
-        my $ph = &baxml_product_gethash( $opts, $distro, $prods[0] );
-        $share = $ph->{prodpath};
+        foreach my $isofile ( &baxml_isos_getlist( $opts, $distro, $prods[0] ) ) {
+            my $ih = &baxml_iso_gethash( $opts, $distro, $prods[0], $isofile );
+            push @shares, $ih->{'isopath'};
+        }
+      #  my $ph = &baxml_product_gethash( $opts, $distro, $prods[0] );
+      #  $share = $ph->{prodpath};
         $name = "$distro-$prods[0]_server";
     }
-    print "get_distro_share: returning share $share and name $name\n" if $opts->{debug};
-    return ($share, $name);
+    print "get_distro_share: returning share @shares and name $name\n" if $opts->{debug};
+    return (\@shares, $name);
 }
 
 sub list_installed_addons
