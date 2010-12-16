@@ -1,4 +1,25 @@
 -------------------------------------------------------------------
+Thu Dec 16 15:28:06 UTC 2010 - dbahi@novell.com
+
+- 1.6.3
+- makefile to help with git archive and some 'install' stuff
+- some debian support tweaks
+
+-------------------------------------------------------------------
+Sat Nov 13 02:06:38 UTC 2010 - dbahi@novell.com
+
+- changes for workloads clone and pxewait and more hook work
+
+-------------------------------------------------------------------
+Thu Nov 11 02:21:58 UTC 2010 - dbahi@novell.com
+
+- 1.6.2
+- image now supports gzip files (but not tar) and add bado clone
+- remove obsolete bahost ignore and bado norescue
+- consolidated baracusd, hook, and cgi logging to logs/baracusd 
+- more hooks now available for workload completion 
+
+-------------------------------------------------------------------
 Wed Oct 18 01:00:00 UTC 2010 - dbahi@novell.com
 
 - 1.6.1
