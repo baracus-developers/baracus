@@ -2,7 +2,7 @@
 
 Summary:   Tool to create network install build source and manage host builds
 Name:      baracus
-Version:   1.6.2
+Version:   1.6.3
 Release:   0
 Group:     System/Services
 License:   GPLv2 or Artistic V2
@@ -61,8 +61,8 @@ CFLAGS="$RPM_OPT_FLAGS" CPPFLAGS="$RPM_OPT_FLAGS" make
 popd
 
 %install
-mkdir -p %{buildroot}
-cp -r $PWD/* %{buildroot}/.
+
+prefix=%{buildroot} make install
 
 install -D -m644 %{S:1} %{buildroot}/var/adm/fillup-templates/sysconfig.%{name}
 install -D -m755 %{S:2} %{buildroot}%{_initrddir}/%{name}d
@@ -76,20 +76,9 @@ ln -s ../..%{_initrddir}/%{name}db %{buildroot}%{_sbindir}/rc%{name}db
 install -D -m644 %{S:5} %{buildroot}/etc/apache2/conf.d/%{name}.conf
 install -D -m644 %{S:6} %{buildroot}/etc/apache2/conf.d/%{name}-webserver.conf
 chmod -R 700 %{buildroot}%{_datadir}/%{name}/gpghome
-mkdir %{buildroot}/var/spool/%{name}/isos
-mkdir %{buildroot}/var/spool/%{name}/images
-mkdir %{buildroot}/var/spool/%{name}/logs
-mkdir %{buildroot}/var/spool/%{name}/pgsql
-mkdir %{buildroot}/var/spool/%{name}/www/tmp
-mkdir -p %{buildroot}/var/spool/%{name}/builds/winstall/import/amd64
-mkdir -p %{buildroot}/var/spool/%{name}/builds/winstall/import/x86
-mkdir %{buildroot}/var/spool/%{name}/www/htdocs/pool
 
 install -D -m755 %{buildroot}/usr/share/baracus/utils/pfork.bin %{buildroot}/var/spool/%{name}/www/modules/pfork.bin
 install -D -m755 %{buildroot}/usr/share/baracus/utils/sparsefile %{buildroot}/usr/bin/sparsefile
-rm -rf %{buildroot}/usr/share/baracus/utils
-rm -rf %{buildroot}/var/spool/baracus/templates
-rm %{buildroot}/var/spool/baracus/www/htdocs/blank.html
 
 %clean
 rm -rf %{buildroot}
