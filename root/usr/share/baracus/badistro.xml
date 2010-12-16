@@ -27,10 +27,6 @@
 
   <!--                    2009-08-26               PLEASE READ 
 
-      many distribution attributes here were becoming redundant
-      leading to mixed or poorly updated entries where not all
-      attributes were in agreement.
-
       the unique ID of an installable distribution is 'distro'.
 
       'distro' is composed like so:
@@ -51,12 +47,14 @@
       'addrel,' and 'requires'. where 'requires' is a flag indicating
       this add-on augments 'os'-'release'-'arch'.
 
-      basepath os/release/arch, is no longer explicitly here in xml.
       for creation of network install sources the isos are dropped in
       basepath followed by 'product' name and then adds any per-iso
       'path'
 
         os/release/arch/product[/per-iso path]
+
+      basepath can be overridden with 'sharepath' and is used for
+      multi-dvd unionfs paths.  (ie. debian)
 
       addon 'base' type is fundamentally not an add-on and is used to
       mark the 'product' that has an iso entry with 'kernel' and
@@ -2566,6 +2564,7 @@
     <description>Debian 5.06 64bit</description>
     <autodownload>open</autodownload>
     <sharetype>http</sharetype>
+    <sharepath>mirror</sharepath>
     <product name="dvds">
       <addon>base</addon>
       <iso name="mini.iso">
