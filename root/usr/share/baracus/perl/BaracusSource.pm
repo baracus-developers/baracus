@@ -952,12 +952,12 @@ sub download_iso
     foreach my $da ( @dalist ) {
         my @distisolist = ();
         my $distisoinfo = {};
-        my $skip = 0;
         foreach my $prod ( &baxml_products_getlist( $opts, $da ) ) {
             foreach my $isofile ( &baxml_isos_getlist( $opts, $da, $prod ) ) {
                 my $ih = &baxml_iso_gethash( $opts, $da, $prod, $isofile );
                 $distisoinfo->{$isofile}->{path} = $ih->{isopath};
                 $distisoinfo->{$isofile}->{hash} = $ih;
+                my $skip = 0;
                 find ( { wanted =>
                          sub {
                              if ($_ eq $isofile) {
@@ -971,7 +971,6 @@ sub download_iso
                        $baDir{isos} );
                 unless ( $skip ) {
                     push @distisolist, $isofile;
-                    $skip = 0;
                 }
             }
         }

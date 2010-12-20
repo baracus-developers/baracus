@@ -110,6 +110,12 @@ baconfig add autobuild --name ubuntu-x86_64-dhcp \
 --file=/usr/share/baracus/templates/autobuild/ubuntu-x86_64-dhcp \
 --cert="ubuntu-9.10-x86_64 ubuntu-10.4-x86_64 ubuntu_desktop-10.4-x86_64"
 
+baconfig detail autobuild debian-x86_64-dhcp &> /dev/null || \
+baconfig add autobuild --name debian-x86_64-dhcp
+--description="debian 64bit (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/debian-5.06-x86_64-dhcp \
+--cert="debian-5.06-x86_64"
+
 baconfig detail autobuild win_ent-x86_64-dhcp &> /dev/null || \
 baconfig add autobuild --name win_ent-x86_64-dhcp \
 --description="win enterprise 64bit (dhcp)" \

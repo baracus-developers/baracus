@@ -2573,7 +2573,7 @@
           <sharefile sharetype='tftp' name='kernel' file='linux'/>
           <sharefile sharetype='tftp' name='initrd' file='initrd.gz'/>
         </sharefiles>
-        <md5>73eaa468d43f87270fa258bffbe8a046</md5>
+        <md5>f82a03fca8f28492cdfda09ca0f8f4e3</md5>
         <url><![CDATA[http://ftp.nl.debian.org/debian/dists/lenny/main/installer-amd64/current/images/netboot/mini.iso]]></url>
       </iso>
 
