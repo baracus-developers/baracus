@@ -908,9 +908,7 @@ LABEL wipe
 |;
 
         }
-
-    }
-    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(winst)\?.*\s*$} ) {
+    } elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(winst)\?.*\s*$} ) {
 
         die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
 
