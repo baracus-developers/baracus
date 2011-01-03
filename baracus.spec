@@ -14,13 +14,14 @@ Source3:   sysconfig.%{name}db
 Source4:   initd.%{name}db
 Source5:   apache.baracus.conf
 Source6:   apache.baracus-webserver.conf
+#Source7:   Makefile
 Requires:  apache2, apache2-mod_perl, perl-Apache-DBI, pidentd, sudo
 Requires:  perl, perl-XML-Simple, perl-libwww-perl, perl-Data-UUID
 Requires:  perl-Config-General
 Requires:  perl-TermReadKey, perl-DBI, perl-DBD-Pg, perl-Tie-IxHash
 Requires:  perl-IO-Interface, perl-Net-Netmask, perl-XML-LibXSLT
 Requires:  rsync, dhcp-server, postgresql-server, createrepo, fence
-Requires:  samba, samba-client, ipmitool, dropbear
+Requires:  samba, samba-client, ipmitool, dropbear, fuse-funionfs
 Requires:  baracus-kernel
 BuildRequires: gcc-c++
 %if 0%{?suse_version} < 1030
@@ -61,8 +62,20 @@ CFLAGS="$RPM_OPT_FLAGS" CPPFLAGS="$RPM_OPT_FLAGS" make
 popd
 
 %install
+# do not use the make install target from top level
+mkdir -p %{buildroot}
+cp -r ${PWD}/* %{buildroot}/.
 
-prefix=%{buildroot} make install
+rm          %{buildroot}/var/spool/baracus/www/htdocs/blank.html
+rm    -rf   %{buildroot}/var/spool/baracus/templates
+mkdir       %{buildroot}/var/spool/baracus/isos
+mkdir       %{buildroot}/var/spool/baracus/images
+mkdir       %{buildroot}/var/spool/baracus/logs
+mkdir       %{buildroot}/var/spool/baracus/pgsql
+mkdir       %{buildroot}/var/spool/baracus/www/tmp
+mkdir       %{buildroot}/var/spool/baracus/www/htdocs/pool
+mkdir -p    %{buildroot}/var/spool/baracus/builds/winstall/import/amd64
+mkdir -p    %{buildroot}/var/spool/baracus/builds/winstall/import/x86
 
 install -D -m644 %{S:1} %{buildroot}/var/adm/fillup-templates/sysconfig.%{name}
 install -D -m755 %{S:2} %{buildroot}%{_initrddir}/%{name}d
@@ -79,6 +92,10 @@ chmod -R 700 %{buildroot}%{_datadir}/%{name}/gpghome
 
 install -D -m755 %{buildroot}/usr/share/baracus/utils/pfork.bin %{buildroot}/var/spool/%{name}/www/modules/pfork.bin
 install -D -m755 %{buildroot}/usr/share/baracus/utils/sparsefile %{buildroot}/usr/bin/sparsefile
+rm    -rf   %{buildroot}/usr/share/baracus/utils
+
+rm    -rf   %{buildroot}/etc/modprobe.d/baracus.loop
+install -D -m644 %{buildroot}/usr/share/baracus/templates/modprobe.d.max_loop.conf %{buildroot}/etc/modprobe.d/baracus-loop.conf
 
 %clean
 rm -rf %{buildroot}
@@ -97,7 +114,6 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %postun
 %restart_on_update baracusdb baracusd apache2
 %insserv_cleanup
-
 
 %postun webserver
 %restart_on_update apache2
@@ -118,14 +134,15 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %{_bindir}/*
 %config %{_initrddir}/%{name}d
 %config %{_initrddir}/%{name}db
+/etc/modprobe.d
 %dir %{_datadir}/%{name}
 %dir %{_datadir}/%{name}/data
 %doc %{_datadir}/%{name}/*.xml
 %doc %{_datadir}/%{name}/doc
 %{_datadir}/%{name}/data/*
-%{_datadir}/%{name}/driverupdate
 %{_datadir}/%{name}/profile_default
 %{_datadir}/%{name}/templates
+%{_datadir}/%{name}/source_handlers
 %{_datadir}/%{name}/perl
 %{_datadir}/%{name}/gpghome
 %{_datadir}/%{name}/scripts

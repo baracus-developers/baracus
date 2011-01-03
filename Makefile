@@ -4,11 +4,7 @@ VERSION = $(shell sed -e '/Version:/!d' \
 
 TARBALL = baracus-$(VERSION).tar.bz2
 
-AUX = $(TARBALL) baracus.spec baracus.changes \
-	  apache.baracus.conf apache.baracus-webserver.conf \
-	  initd.baracusd initd.baracusdb \
-      sysconfig.baracus sysconfig.baracusdb
-
+root   ?= ./root
 prefix ?= /
 
 .PHONY: clean
@@ -27,9 +23,9 @@ untar: $(TARBALL)
 	tar xf $(TARBALL)
 
 .PHONY: install
-install: untar $(AUX)
+install: untar
 	mkdir -p    $(prefix)
-	rsync -Savu baracus-$(VERSION)/* $(prefix)/.
+	rsync -Savu $(root)/* $(prefix)/.
 	rm          $(prefix)/var/spool/baracus/www/htdocs/blank.html
 	rm    -rf   $(prefix)/usr/share/baracus/utils
 	rm    -rf   $(prefix)/var/spool/baracus/templates
