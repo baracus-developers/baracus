@@ -1584,6 +1584,8 @@ sub remove_build_service
             my ($file, $share, $state) =
                 &check_service_product( $opts, $da, $prod, $sharetype );
 
+            $share = $dh->{'distpath'}."/".$dh->{'sharepath'} if defined ( $dh->{'sharepath'} );
+
             if ( not $state ) {
                 print "$sharetype file $file found removed for $da\n" if $opts->{verbose};
             } else {
@@ -2081,23 +2083,19 @@ sub get_distro_share
     # all other shares have one installable product
     # os/release/arch[/addos[/addrel]]/product
 
-    if ( $distro =~ /sles-9/ ) {
         my $dh = &baxml_distro_gethash( $opts, $distro );
-        $share = $dh->{basedisthash}->{distpath};
         $name  = "$dh->{basedist}_server";
-    } else {
-        my @prods = &baxml_products_getlist( $opts, $distro );
-        if ( scalar @prods > 1 ) {
-            die "get_distro_share: Unsure how to handle multiple product distro $distro\n";
+
+        foreach my $prod ( &baxml_products_getlist( $opts, $distro ) ) {
+            foreach my $isofile ( &baxml_isos_getlist( $opts, $distro, $prod ) ) {
+                my $ih = &baxml_iso_gethash( $opts, $distro, $prod, $isofile );
+                push @shares, $ih->{'isopath'};
+            }
         }
-        foreach my $isofile ( &baxml_isos_getlist( $opts, $distro, $prods[0] ) ) {
-            my $ih = &baxml_iso_gethash( $opts, $distro, $prods[0], $isofile );
-            push @shares, $ih->{'isopath'};
-        }
-      #  my $ph = &baxml_product_gethash( $opts, $distro, $prods[0] );
-      #  $share = $ph->{prodpath};
-        $name = "$distro-$prods[0]_server";
-    }
+          #  my $ph = &baxml_product_gethash( $opts, $distro, $prods[0] );
+          #  $share = $ph->{prodpath};
+        #    $name = "$distro-$prod_server";
+
     print "get_distro_share: returning share @shares and name $name\n" if $opts->{debug};
     return (\@shares, $name);
 }
