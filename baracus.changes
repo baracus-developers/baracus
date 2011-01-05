@@ -1,4 +1,20 @@
 -------------------------------------------------------------------
+Wed Jan  5 15:32:21 UTC 2011 - dbahi@novell.com
+
+- 1.6.4 release with debian 5.0.7 support
+- more flexible source handler support
+
+-------------------------------------------------------------------
+Mon Jan  3 16:05:30 UTC 2011 - dbahi@novell.com
+
+- add dependency on fuse-fuserfs
+
+-------------------------------------------------------------------
+Mon Dec 20 23:56:25 UTC 2010 - dbahi@novell.com
+
+- bug fixes and more debian tweaks
+
+-------------------------------------------------------------------
 Thu Dec 16 15:28:06 UTC 2010 - dbahi@novell.com
 
 - 1.6.3
