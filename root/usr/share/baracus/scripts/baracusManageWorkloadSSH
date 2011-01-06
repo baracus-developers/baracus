@@ -49,8 +49,8 @@ fi
 
 ssh-keyscan $host >& /dev/null
 if [[ $? -ne 0 ]]; then
-    echo "$date Using /etc/HOSTNAME content: \'$host\'"
-    echo "$date Unable to get host key with: \'ssh-keyscan $host\'"
+    echo "$date Using /etc/HOSTNAME content: '$host'"
+    echo "$date Unable to get host key with: 'ssh-keyscan $host'"
     exit 1
 fi
 
