@@ -39,9 +39,6 @@ A collection of routines used in the baracus cgi
 
 =cut
 
-my $linux_baracus="linux.baracus";
-my $initrd_baracus="initrd.baracus";
-
 BEGIN {
   use Exporter ();
   use vars qw( @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
@@ -64,6 +61,24 @@ BEGIN {
 
 our $VERSION = '0.01';
 
+sub get_arch_linux {
+    my $arch = shift;
+    my $linux="linux.baracus";
+    if ( $arch eq "xen" ) {
+	$linux="linux_xen.baracus";
+    }
+    return $linux;   
+}
+
+sub get_arch_initrd {
+    my $arch = shift;
+    my $initrd="initrd.baracus";
+    if ( $arch eq "xen" ) {
+	$initrd="initrd_xen.baracus";
+    }
+    return $initrd;   
+
+}
 
 sub get_inventory() {
     my $cgi   = shift;
@@ -73,13 +88,16 @@ sub get_inventory() {
     $args = "" unless ( defined $args );
 
     my $lcmac = lc $input->{mac};
+    my $arch = lc $input->{arch};
+    my $inventory_linux=get_arch_linux($arch);
+    my $inventory_initrd=get_arch_initrd($arch);
 
     my $output = qq|DEFAULT register
 PROMPT 0
 TIMEOUT 0
 LABEL register
-        kernel http://$baVar->{serverip}/ba/$linux_baracus
-        append initrd=http://$baVar->{serverip}/ba/$initrd_baracus install=exec:/usr/bin/baracus.register textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        kernel http://$baVar->{serverip}/ba/$inventory_linux
+        append initrd=http://$baVar->{serverip}/ba/$inventory_initrd install=exec:/usr/bin/baracus.register textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
 
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
@@ -113,13 +131,16 @@ sub do_pxewait() {
     $args = "" unless ( defined $args );
 
     my $lcmac = lc $input->{mac};
+    my $arch = lc $input->{arch};
+    my $pxewait_linux=get_arch_linux($arch);
+    my $pxewait_initrd=get_arch_initrd($arch);
 
     my $output = qq|DEFAULT pxewait
 PROMPT 0
 TIMEOUT 0
 LABEL pxewait
-        kernel http://$baVar->{serverip}/ba/$linux_baracus
-        append initrd=http://$baVar->{serverip}/ba/$initrd_baracus install=exec:/usr/bin/pxewait textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        kernel http://$baVar->{serverip}/ba/$pxewait_linux
+        append initrd=http://$baVar->{serverip}/ba/$pxewait_initrd install=exec:/usr/bin/pxewait textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
 
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
