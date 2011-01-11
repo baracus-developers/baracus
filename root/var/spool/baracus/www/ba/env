@@ -823,6 +823,8 @@ chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
             }
 
             my $lcmac = lc $input->{mac};
+	    my $linux_img=get_arch_linux($input);
+	    my $initrd_img=get_arch_initrd($input);
 
             if ($pxenext eq BA_ACTION_IMAGE) {
                 printlog "$input->{mac} - serving imaging workload\n";
@@ -833,13 +835,16 @@ chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
 PROMPT 0
 TIMEOUT 0
 LABEL image
-        kernel http://$baVar{serverip}/ba/$linux_baracus
-        append initrd=http://$baVar{serverip}/ba/$initrd_baracus root=/dev/ram0 install=exec:/usr/bin/baracus.image baimagedst="$hardref->{rootdisk}" baimagesrc="$actref->{netboot}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        kernel http://$baVar{serverip}/ba/$linux_img
+        append initrd=http://$baVar{serverip}/ba/$initrd_img root=/dev/ram0 install=exec:/usr/bin/baracus.image baimagedst="$hardref->{rootdisk}" baimagesrc="$actref->{netboot}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
             } elsif ( $pxenext eq BA_ACTION_MCAST ) {
                 printlog "$input->{mac} - serving mcasting workload\n";
                 $state = BA_EVENT_MCASTING;
                 $actref->{cmdline} = "# pxeboot directing to multicast image disk";
+	    	my $linux_mcst=get_arch_linux($input);
+	    	my $initrd_mcst=get_arch_initrd($input);
+
                 # here netboot is in IP format (validated in bado image)
                 # so we're handling a multicast rendez-vous address
                 $output =
@@ -847,20 +852,24 @@ LABEL image
 PROMPT 0
 TIMEOUT 0
 LABEL mcast
-        kernel http://$baVar{serverip}/ba/$linux_baracus
-        append initrd=http://$baVar{serverip}/ba/$initrd_baracus root=/dev/ram0 install=exec:/usr/bin/baracus.mcast baimagedst="$hardref->{rootdisk}" bardvaddr="$actref->{netboot}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        kernel http://$baVar{serverip}/ba/$linux_mcst
+        append initrd=http://$baVar{serverip}/ba/$initrd_mcst root=/dev/ram0 install=exec:/usr/bin/baracus.mcast baimagedst="$hardref->{rootdisk}" bardvaddr="$actref->{netboot}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
             } else {
                 printlog "$input->{mac} - serving cloning workload\n";
                 $state = BA_EVENT_CLONING;
                 $actref->{cmdline} = "# pxeboot directing clone disk image";
+
+	    	my $linux_cln=get_arch_linux($input);
+	    	my $initrd_cln=get_arch_initrd($input);
+
                 $output =
                     qq|DEFAULT clone
 PROMPT 0
 TIMEOUT 0
 LABEL clone
-        kernel http://$baVar{serverip}/ba/$linux_baracus
-        append initrd=http://$baVar{serverip}/ba/$initrd_baracus root=/dev/ram0 install=exec:/usr/bin/baracus.clone baimagedst="$actref->{netboot}" baimagesrc="$hardref->{rootdisk}" autoclone=$actref->{autoclone} baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        kernel http://$baVar{serverip}/ba/$linux_cln
+        append initrd=http://$baVar{serverip}/ba/$initrd_cln root=/dev/ram0 install=exec:/usr/bin/baracus.clone baimagedst="$actref->{netboot}" baimagesrc="$hardref->{rootdisk}" autoclone=$actref->{autoclone} baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
             }
 
@@ -900,13 +909,17 @@ LABEL clone
 
             my $autonuke = "";
             $autonuke = " --autonuke" if ( $actref->{autonuke} );
+
+	    my $linux_nuk=get_arch_linux($input);
+	    my $initrd_nuk=get_arch_initrd($input);
+
             $output =
                 qq|DEFAULT wipe
 PROMPT 0
 TIMEOUT 0
 LABEL wipe
-        kernel http://$baVar{serverip}/ba/$linux_baracus
-        append initrd=http://$baVar{serverip}/ba/$initrd_baracus root=/dev/ram0 install=exec:/usr/bin/baracus.dban nuke="dwipe${autonuke}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        kernel http://$baVar{serverip}/ba/$linux_nuk
+        append initrd=http://$baVar{serverip}/ba/$initrd_nuk root=/dev/ram0 install=exec:/usr/bin/baracus.dban nuke="dwipe${autonuke}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
 
         }

@@ -49,6 +49,8 @@ BEGIN {
       (
        subs =>
        [qw(
+              get_arch_linux
+              get_arch_initrd
               get_inventory
               do_localboot
               do_pxewait
@@ -61,25 +63,27 @@ BEGIN {
 
 our $VERSION = '0.01';
 
+my $linux_baracus = "linux.baracus";
+my $linux_baracus_xen = "linux_xen.baracus";
+my $initrd_baracus = "initrd.baracus";
+my $initrd_xen_baracus = "initrd_xen.baracus";
+
 sub get_arch_linux {
     my $input = shift;
     my $arch = lc $input->{arch};
-    my $linux="linux.baracus";
     if ( $arch eq "xen" ) {
-	$linux="linux_xen.baracus";
-    }
-    return $linux;   
+	return $linux_baracus_xen;
+    } 
+    return $linux_baracus;
 }
 
 sub get_arch_initrd {
     my $input = shift;
     my $arch = lc $input->{arch};
-    my $initrd="initrd.baracus";
     if ( $arch eq "xen" ) {
-	$initrd="initrd_xen.baracus";
+	return $initrd_xen_baracus;
     }
-    return $initrd;   
-
+    return $initrd_baracus;   
 }
 
 sub get_inventory() {
