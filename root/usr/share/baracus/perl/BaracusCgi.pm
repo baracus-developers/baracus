@@ -62,7 +62,8 @@ BEGIN {
 our $VERSION = '0.01';
 
 sub get_arch_linux {
-    my $arch = shift;
+    my $input = shift;
+    my $arch = lc $input->{arch};
     my $linux="linux.baracus";
     if ( $arch eq "xen" ) {
 	$linux="linux_xen.baracus";
@@ -71,7 +72,8 @@ sub get_arch_linux {
 }
 
 sub get_arch_initrd {
-    my $arch = shift;
+    my $input = shift;
+    my $arch = lc $input->{arch};
     my $initrd="initrd.baracus";
     if ( $arch eq "xen" ) {
 	$initrd="initrd_xen.baracus";
@@ -88,9 +90,8 @@ sub get_inventory() {
     $args = "" unless ( defined $args );
 
     my $lcmac = lc $input->{mac};
-    my $arch = lc $input->{arch};
-    my $inventory_linux=get_arch_linux($arch);
-    my $inventory_initrd=get_arch_initrd($arch);
+    my $inventory_linux=get_arch_linux($input);
+    my $inventory_initrd=get_arch_initrd($input);
 
     my $output = qq|DEFAULT register
 PROMPT 0
@@ -131,9 +132,8 @@ sub do_pxewait() {
     $args = "" unless ( defined $args );
 
     my $lcmac = lc $input->{mac};
-    my $arch = lc $input->{arch};
-    my $pxewait_linux=get_arch_linux($arch);
-    my $pxewait_initrd=get_arch_initrd($arch);
+    my $pxewait_linux=get_arch_linux($input);
+    my $pxewait_initrd=get_arch_initrd($input);
 
     my $output = qq|DEFAULT pxewait
 PROMPT 0
