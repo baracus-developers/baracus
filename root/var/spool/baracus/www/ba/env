@@ -79,9 +79,9 @@ my $wipedone  = "$baDir{hooks}/wipe_disk_complete";
 my $wipefail  = "$baDir{hooks}/wipe_disk_failed";
 
 my $linux_baracus = "linux.baracus";
-my $linux_xen_baracus = "linux_xen.baracus";
+my $linux_xen_baracus = "linux-xen.baracus";
 my $initrd_baracus = "initrd.baracus";
-my $initrd_xen_baracus = "initrd_xen.baracus";
+my $initrd_xen_baracus = "initrd-xen.baracus";
 
 my $dbh = DBI->connect
     ("DBI:Pg:dbname=baracus;port=5162",

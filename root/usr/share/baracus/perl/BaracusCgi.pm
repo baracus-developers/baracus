@@ -64,9 +64,9 @@ BEGIN {
 our $VERSION = '0.01';
 
 my $linux_baracus = "linux.baracus";
-my $linux_baracus_xen = "linux_xen.baracus";
+my $linux_baracus_xen = "linux-xen.baracus";
 my $initrd_baracus = "initrd.baracus";
-my $initrd_xen_baracus = "initrd_xen.baracus";
+my $initrd_xen_baracus = "initrd-xen.baracus";
 
 sub get_arch_linux {
     my $input = shift;
