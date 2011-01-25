@@ -102,6 +102,9 @@ my %keymap =
      'share_ip'         =>  'shareip',
      'baracusd_options' =>  'bdoptions',
      'remote_logging'   =>  'rlogging',
+     'ipmi'             =>  'ipmi',
+     'ipmi_lan'          =>  'ipmilan',
+     'ipmi_passwd'       =>  'ipmipasswd',
      );
 
 %baVar =
@@ -119,6 +122,10 @@ my %keymap =
      share_ip         => "" ,
      baracusd_options => "" ,
      remote_logging   => "" ,
+
+     ipmi             => "" ,
+     ipmi_lan          => "" ,
+     ipmi_passwd       => "" ,
      );
 
 my %tmpHash = $conf->getall;

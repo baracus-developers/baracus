@@ -39,6 +39,7 @@ BEGIN {
       (
        subs => [ qw(
         add
+        add_powerdb_entry
         remove
         list_start
         list_next

@@ -77,6 +77,8 @@ my $built     = "$baDir{hooks}/verify_client_build_passed";
 my $spoofed   = "$baDir{hooks}/verify_client_build_failed";
 my $wipedone  = "$baDir{hooks}/wipe_disk_complete";
 my $wipefail  = "$baDir{hooks}/wipe_disk_failed";
+my $ipmidone  = "$baDir{hooks}/ipmi_user_complete";
+my $ipmifail  = "$baDir{hooks}/ipmi_user_failed";
 
 my $linux_baracus = "linux.baracus";
 my $linux_xen_baracus = "linux-xen.baracus";
@@ -382,8 +384,49 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
         foreach my $env ( keys %ENV ) {
             $output .= "$env => $ENV{ $env }\n";
         }
-    }
-    elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/chain\?.*\s*$| ) {
+    } elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/ipmi\s*$| ) {
+
+        ##
+        ##  IPMI - COMPLETE HOOK AND REGISTER IPMI INTERFACE
+        ##
+
+        die "Missing 'mac=' in COOKIE\n" unless ( defined $input->{mac} );
+        die "Missing 'ipmiaddr=' in COOKIE\n" unless ( defined $input->{ipmiaddr} );
+        die "Missing 'status=' in COOKIE\n" unless ( defined $input->{status} );
+
+        my $hook = "";
+
+        ## Add ipmi interface to power table
+        use Socket;
+        my $hostname = "";
+        my $ipaddr = inet_aton("$input->{nodeaddr}");
+        $hostname = gethostbyaddr($ipaddr, AF_INET);
+        $hostname = "null" if ( $hostname eq "" );
+
+        my %ipmi = ( 'mac', $input->{mac},
+                     'hostname', $hostname,
+                     'ctype', 'ipmi',
+                     'login', 'baracus',
+                     'passwd', $baVar{ipmipasswd},
+                     'bmcaddr', $input->{ipmiaddr},
+                     'dbh', $dbh );
+
+        &add_powerdb_entry( \%ipmi );
+
+        die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+
+        if ( $input->{status} eq "success") {
+            $hook = "$ipmidone";
+        } else {
+            $hook = "$ipmifail"; }
+
+        if ( -f $hook ) {
+            printlog "$input->{mac} - hook $hook\n";
+            my $cmd = "$hook $input->{ipmimac} $input->{ipmiaddr} $input->{mac} $input->{nodeaddr} $hostname $input->{status} \"$input->{ipmimsg}\"";
+            $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
+            $output .= `$cmd`;
+        }
+    } elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/chain\?.*\s*$| ) {
 
         die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
 
