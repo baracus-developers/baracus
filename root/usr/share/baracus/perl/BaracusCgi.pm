@@ -29,7 +29,7 @@ use Carp;
 use strict;
 use warnings;
 
-se BaracusConfig qw( :vars );
+use BaracusConfig qw( :vars );
 
 =head1 NAME
 
