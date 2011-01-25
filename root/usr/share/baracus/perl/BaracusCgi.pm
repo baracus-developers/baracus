@@ -29,6 +29,8 @@ use Carp;
 use strict;
 use warnings;
 
+se BaracusConfig qw( :vars );
+
 =head1 NAME
 
 BaracusCgi - subroutines of use
@@ -68,6 +70,8 @@ my $linux_baracus_xen = "linux-xen.baracus";
 my $initrd_baracus = "initrd.baracus";
 my $initrd_xen_baracus = "initrd-xen.baracus";
 
+my $bootargs = "";
+
 sub get_arch_linux {
     my $input = shift;
     my $arch = lc $input->{arch};
@@ -93,6 +97,9 @@ sub get_inventory() {
     my $args  = shift;
     $args = "" unless ( defined $args );
 
+    $bootargs = "ipmi=true" if ( $baVar{ipmi} eq "true" );
+    $bootargs .= " ipmilan=true" if ( $baVar{ipmilan} eq "true" );
+
     my $lcmac = lc $input->{mac};
     my $inventory_linux=get_arch_linux($input);
     my $inventory_initrd=get_arch_initrd($input);
@@ -102,7 +109,7 @@ PROMPT 0
 TIMEOUT 0
 LABEL register
         kernel http://$baVar->{serverip}/ba/$inventory_linux
-        append initrd=http://$baVar->{serverip}/ba/$inventory_initrd install=exec:/usr/bin/baracus.register textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        append initrd=http://$baVar->{serverip}/ba/$inventory_initrd install=exec:/usr/bin/baracus.register textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60 $bootargs
 |;
 
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;

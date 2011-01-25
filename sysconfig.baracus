@@ -66,3 +66,31 @@ BARACUSD_OPTIONS="none"
 # daemon in /etc/sysconfig/syslog and restart the syslog service afterwards.
 #
 REMOTE_LOGGING="yes"
+
+## Description:    auto-configure ipmi interface on newly discovered nodes
+## Type:           truefalse
+## Default:        "false"
+## ServiceRestart: apache2
+#
+#
+#
+IPMI=false
+
+## Description:    auto-configure ipmi interface netowrking on newly discovered nodes
+## Type:           truefalse
+## Default:        "false"
+## ServiceRestart: apache2
+#
+# This will set the network on the ipmi interface to dhcp so your DHCP server
+# needs to be able to manage these requests
+#
+IPMI_LAN=false
+
+## Description:    auto-configure ipmi interface password
+## Type:           string
+## Default:        ""
+## ServiceRestart: apache2
+#
+#
+#
+IPMI_PASSWD=
