@@ -128,7 +128,7 @@ baconfig add autobuild --name win_ent-x86-dhcp \
 --file=/usr/share/baracus/templates/autobuild/win_ent-7-x86.xml \
 --cert="windows_ent-7-x86"
 
-baconfig detail autobuild xenserver-5.6-x86-dhcp.xml  &> /dev/null || \
+baconfig detail autobuild xenserver-5.6-x86-dhcp  &> /dev/null || \
 baconfig add autobuild --name xenserver-5.6-x86-dhcp \
 --description="xenserver 5.6 32bit (dhcp)" \
 --file=/usr/share/baracus/templates/autobuild/xenserver-5.6-x86-dhcp.xml \
