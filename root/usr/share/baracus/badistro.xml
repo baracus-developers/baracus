@@ -2988,8 +2988,8 @@
 
 <!-- Nicira NVP -->
 
- <distro name="nicira-controller-4621-x86_64">
-    <os>nicira-controller</os>
+ <distro name="nicira_controller-4621-x86_64">
+    <os>nicira_controller</os>
     <release>4621</release>
     <arch>x86_64</arch>
     <description>Nicira nvp-controller build 4621 64bit</description>
@@ -3019,8 +3019,8 @@
 
 <!-- Nicira Extender -->
 
-  <distro name="nicira-extender-4621-x86_64">
-    <os>nicira-extender</os>
+  <distro name="nicira_extender-4621-x86_64">
+    <os>nicira_extender</os>
     <release>4621</release>
     <arch>x86_64</arch>
     <description>Nicira nvp-extender build 4621 64bit</description>
@@ -3050,8 +3050,8 @@
 
 <!-- Nicira Pool -->
 
-  <distro name="nicira-pool-4621-x86_64">
-    <os>nicira-pool</os>
+  <distro name="nicira_pool-4621-x86_64">
+    <os>nicira_pool</os>
     <release>4621</release>
     <arch>x86_64</arch>
     <description>Nicira nvp-pool build 4621 64bit</description>

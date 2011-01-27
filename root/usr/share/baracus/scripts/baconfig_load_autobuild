@@ -134,6 +134,11 @@ baconfig add autobuild --name xenserver-5.6-x86-dhcp \
 --file=/usr/share/baracus/templates/autobuild/xenserver-5.6-x86-dhcp.xml \
 --cert="xenserver-5.6-x86"
 
+baconfig detail autobuild nicira_cont-4621-x86_64-dhcp  &> /dev/null || \
+baconfig add autobuild --name nicira_cont-4621-x86_64-dhcp \
+--description="Nicira Controller 64bit (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/nicira_cont-4621-x86_64-dhcp \
+--cert="nicira_controller-4621-x86_64"
 
 ## Static autobuild templates
 ##
