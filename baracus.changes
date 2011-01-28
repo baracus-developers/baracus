@@ -1,4 +1,16 @@
 -------------------------------------------------------------------
+Fri Jan 28 07:19:43 UTC 2011 - dbahi@novell.com
+
+- ipmi now configured via baracus inventory workload if desired
+- update supports autobuild nicira/debian installs
+- more formal xen support
+
+-------------------------------------------------------------------
+Thu Jan  6 21:12:30 UTC 2011 - dbahi@novell.com
+
+- update to syslinux-4.04-pre4 and gpxe_baracus.0 rebuild
+
+-------------------------------------------------------------------
 Wed Jan  5 15:32:21 UTC 2011 - dbahi@novell.com
 
 - 1.6.4 release with debian 5.0.7 support

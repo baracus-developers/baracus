@@ -115,6 +115,8 @@ my @requiredfiles = ( "$baDir{'data'}/data/pxelinux.0",
                       "$baDir{'data'}/data/gpxe_baracus.0",
                       "$baDir{'data'}/data/linux.baracus",
                       "$baDir{'data'}/data/initrd.baracus",
+                      "$baDir{'data'}/data/linux-xen.baracus",
+                      "$baDir{'data'}/data/initrd-xen.baracus",
                      );
 
 foreach my $requiredfile ( @requiredfiles ) {
