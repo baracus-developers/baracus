@@ -76,7 +76,7 @@ sub external_source_handler() {
 
     ## source_handler to generate required debian mirror
     ## mirror created via unionfs mouting 5 DVDs
-    my $basepath = "/var/spool/baracus/builds/nicira-pool/4621/x86_64";
+    my $basepath = "/var/spool/baracus/builds/nicira_pool/4621/x86_64";
 
     ## check for loaded fuse module and insert if needed
     unless ( system("lsmod | grep fuse &> /dev/null") ) { system("modprobe -a fuse &> /dev/null"); }

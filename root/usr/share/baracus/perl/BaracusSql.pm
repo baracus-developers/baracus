@@ -422,7 +422,7 @@ sub get_baracus_tables
     my $tbl_autobuild = "autobuild";
     my %tbl_autobuild_columns =
         (
-         'autobuildid' => 'VARCHAR(32)',
+         'autobuildid' => 'VARCHAR(128)',
          'version'     => 'INTEGER',
          'description' => 'VARCHAR(64)',
          'data'        => 'VARCHAR',

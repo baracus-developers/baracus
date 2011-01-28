@@ -2084,7 +2084,7 @@ sub get_distro_share
     # os/release/arch[/addos[/addrel]]/product
 
         my $dh = &baxml_distro_gethash( $opts, $distro );
-        $name  = "$dh->{basedist}_server";
+        $name  = "${distro}_server";
 
         foreach my $prod ( &baxml_products_getlist( $opts, $distro ) ) {
             foreach my $isofile ( &baxml_isos_getlist( $opts, $distro, $prod ) ) {
