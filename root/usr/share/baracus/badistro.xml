@@ -165,7 +165,7 @@
       <iso name="SLES-11-SP1-DVD-x86_64-GM-DVD1.iso">
         <path/>
         <sharefiles>
-          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/vmlinux-xen'/>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/vmlinuz-xen'/>
           <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/initrd-xen'/>
         </sharefiles>
         <md5>d2e10420f3689faa49a004b60fb396b7</md5>
