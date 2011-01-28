@@ -53,6 +53,13 @@ baconfig add hardware --name default-vda \
 --rootdisk=/dev/vda \
 --rootpart=/dev/vda
 
+baconfig detail hardware default-xvda --all &> /dev/null || \
+baconfig add hardware --name default-xvda \
+--description="/dev/xvda drive for suse / xen" \
+--bootargs="acpi=on selinux=0 apm=off insmod=virtio_pci insmod=virtio_blk" \
+--rootdisk=/dev/xvda \
+--rootpart=/dev/xvda
+
 baconfig detail hardware default-hp --all &> /dev/null || \
 baconfig add hardware --name default-hp \
 --description="/dev/cciss smart array" \
