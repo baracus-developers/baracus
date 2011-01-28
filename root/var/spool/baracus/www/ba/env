@@ -783,10 +783,11 @@ LABEL label_$actref->{hostname}
     append initrd=http://$baVar{serverip}/ba/initrd?mac=$input->{mac} $hardref->{bootargs} $actref->{raccess} $args $actref->{loghost}
 |;
 
-            } elsif ( $distref->{os} =~ m/debian/i ) {
-                $args = qq|hostname=unassigned-hostname locale=$actref->{lang} console-setup/ask_detect=$actref->{consoleaskdetect} console-setup/layoutcode=$actref->{consolelayoutcode} debian-installer/allow_unauthenticated=true|;
+            } elsif ( $distref->{os} =~ m/debian/i  or
+                      $distref->{os} =~ m/nicira/i) {
+                $args = qq|hostname=unassigned-hostname domain=unassigned-domain locale=$actref->{lang} console-setup/ask_detect=$actref->{consoleaskdetect} console-setup/layoutcode=$actref->{consolelayoutcode} debian-installer/allow_unauthenticated=true |;
                 if ( $actref->{autobuild} ne "none" ) {
-                    $args .= qq|preseed/url=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
+                    $args .= qq|preseed/url=http://$baVar{serverip}/ba/auto?mac=$input->{mac} console-keymaps-at/keymap=$actref->{keymap}|;
                 } else {
                     $args .= qq|tasks=standard pkgsel/language-pack-patterns= pkgsel/install-language-support=false priority=low debian-installer/allow_unauthenticated=true|;
                 }
