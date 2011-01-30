@@ -40,6 +40,7 @@ use BaracusCgi qw( :subs );
 use BaracusCore qw( :subs );
 use BaracusAux qw( :subs );
 use BaracusHost qw( :subs );
+use BaracusPower qw( :subs );
 
 use lib '/var/spool/baracus/www/modules';
 use BATools qw( :standard );
