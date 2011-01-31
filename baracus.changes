@@ -1,4 +1,15 @@
 -------------------------------------------------------------------
+Mon Jan 31 06:18:13 UTC 2011 - dbahi@novell.com
+
+- release 1.7.1
+- ipmi and xen cleanup
+
+-------------------------------------------------------------------
+Fri Jan 28 16:57:16 UTC 2011 - dbahi@novell.com
+
+- make sure baracusd loads linux/initrd xen flavors on startup
+
+-------------------------------------------------------------------
 Fri Jan 28 07:19:43 UTC 2011 - dbahi@novell.com
 
 - ipmi now configured via baracus inventory workload if desired

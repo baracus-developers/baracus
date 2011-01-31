@@ -134,3 +134,6 @@ rm -rf ${tmpdir}
 
 echo "$date touch $donefile"
 sudo -u baracus touch ${donefile}
+
+echo "make all right for root to access nodes with baracus workloads"
+/usr/share/baracus/scripts/baracus_server_root_sshkey.sh
