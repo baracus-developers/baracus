@@ -93,4 +93,4 @@ IPMI_LAN=false
 #
 #
 #
-IPMI_PASSWD=
+IPMI_PASSWD="baracus"

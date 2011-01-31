@@ -398,10 +398,10 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
         ##
 
         die "Missing 'mac' in COOKIE\n" unless ( defined $input->{mac});
-        die "Missing 'nodeaddr' in COOKIE\n" unless ( defined input->{nodeaddr} );
+        die "Missing 'nodeaddr' in COOKIE\n" unless ( defined $input->{nodeaddr} );
         die "Missing 'ipmiaddr' in COOKIE\n" unless ( defined $input->{ipmiaddr});
         die "Missing 'ipmimac' in COOKIE\n" unless ( defined $input->{ipmimac} );
-        die "Missing 'status=' in COOKIE\n" unless ( defined $input->{status} );
+        die "Missing 'status' in COOKIE\n" unless ( defined $input->{status} );
 
         my $hook = "";
 
@@ -431,7 +431,6 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
         } else {
             $hook = "$ipmifail";
         }
-
 
         # if ipmi is fetched node has info we need, success or fail, so call hook
 
@@ -1499,9 +1498,10 @@ Address 'CMS' 'PURGE RDR ALL'
     ##
     ## kernel and initrd for inventory and dban
     ##
-    
+
     elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/($linux_baracus|$initrd_baracus|$linux_xen_baracus|$initrd_xen_baracus)\s*$} ) {
-	printlog "$input->{mac} - kernel - initrd \n";
+
+        printlog "# no mac required to serve $1\n";
 
         $sql = qq|SELECT bin FROM sqlfstable WHERE name = '$1'|;
         die "$!" unless ( $sth = $tftph->prepare( $sql ) );
@@ -1513,7 +1513,7 @@ Address 'CMS' 'PURGE RDR ALL'
     }
 
     else {
-        # shoudld be some 401 or something
+        # should be some 401 or something
         $output = "invalid URL";
     }
 }
