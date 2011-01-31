@@ -144,6 +144,9 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
     ##       http://$baVar{serverip}/ba/inventory
     ##
 
+    foreach my $key ( $cgi->param() ) {
+        $input->{$key} = $cgi->param($key);
+    }
     foreach my $key ( $cgi->cookie() ) {
         $input->{$key} = $cgi->cookie($key);
     }
@@ -371,6 +374,9 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
     foreach my $key ( $cgi->param() ) {
         $input->{$key} = $cgi->param($key);
     }
+    foreach my $key ( $cgi->cookie() ) {
+        $input->{$key} = $cgi->cookie($key);
+    }
 
     if ( $ENV{REQUEST_URI} =~ m|^\s*/ba/env.*\s*$| ) {
 
@@ -391,8 +397,10 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
         ##  IPMI - COMPLETE HOOK AND REGISTER IPMI INTERFACE
         ##
 
-        die "Missing 'mac=' in COOKIE\n" unless ( defined $input->{mac} );
-        die "Missing 'ipmiaddr=' in COOKIE\n" unless ( defined $input->{ipmiaddr} );
+        die "Missing 'mac' in COOKIE\n" unless ( defined $input->{mac});
+        die "Missing 'nodeaddr' in COOKIE\n" unless ( defined input->{nodeaddr} );
+        die "Missing 'ipmiaddr' in COOKIE\n" unless ( defined $input->{ipmiaddr});
+        die "Missing 'ipmimac' in COOKIE\n" unless ( defined $input->{ipmimac} );
         die "Missing 'status=' in COOKIE\n" unless ( defined $input->{status} );
 
         my $hook = "";
@@ -404,22 +412,28 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
         $hostname = gethostbyaddr($ipaddr, AF_INET);
         $hostname = "null" if ( $hostname eq "" );
 
-        my %ipmi = ( 'mac', $input->{mac},
-                     'hostname', $hostname,
-                     'ctype', 'ipmi',
-                     'login', 'baracus',
-                     'passwd', $baVar{ipmipasswd},
-                     'bmcaddr', $input->{ipmiaddr},
-                     'dbh', $dbh );
-
-        &add_powerdb_entry( \%ipmi );
-
-        die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+        printlog "$input->{mac} - ipmi info received ($input->{status})\n";
 
         if ( $input->{status} eq "success") {
+            # ok to call the hook on failure bug not the db add
+            my %ipmi =
+                (
+                 'mac' => "$input->{mac}",
+                 'hostname' => "$hostname",
+                 'ctype' => 'ipmi',
+                 'login'=> 'baracus',
+                 'passwd'=> "$baVar{ipmipasswd}",
+                 'bmcaddr'=> "$input->{ipmiaddr}",
+                 'dbh'=> $dbh
+                 );
+            &add_powerdb_entry( \%ipmi );
             $hook = "$ipmidone";
         } else {
-            $hook = "$ipmifail"; }
+            $hook = "$ipmifail";
+        }
+
+
+        # if ipmi is fetched node has info we need, success or fail, so call hook
 
         if ( -f $hook ) {
             printlog "$input->{mac} - hook $hook\n";
