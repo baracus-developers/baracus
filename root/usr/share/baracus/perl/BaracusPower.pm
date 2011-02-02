@@ -63,6 +63,7 @@ my %powermod = (
            'ilo'         => 'fence_ilo',
            'drac'        => 'fence_drac',
            'vmware'      => 'fence_vmware',
+           'vmware_ws'   => 'vmrun',
            'apc'         => 'fence_apc',
            'wti'         => 'fence_ati',
            'egenera'     => 'fence_egenera',
@@ -78,6 +79,7 @@ my %cmds = (
            'ilo'         => \&ilo,
            'drac'        => \&fence_drac,
            'vmware'      => \&vmware,
+           'vmware_ws'   => \&vmware_ws,
            'apc'         => \&fence_apc,
            'wti'         => \&fence_ati,
            'egenera'     => \&fence_egenera,
@@ -367,6 +369,37 @@ sub vmware() {
         $result = (split / /, $result)[6];
         $result = (split /\n/, $result)[0];
         print "Power Status: $result\n";
+    }
+
+    return 0;
+
+}
+
+sub vmware_ws() {
+
+    my $bmcref = shift;
+    my $operation = shift;
+
+    my $status;
+    my %action = (
+                  'on'     => 'start',
+                  'off'    => 'stop',
+                  'cycle'  => 'reset',
+                  'status' => 'list',
+                  );
+
+    my $command = "ssh $bmcref->{'login'}". "@" ."$bmcref->{'bmcaddr'} $powermod{ $bmcref->{'ctype'} } $action{ $operation } $bmcref->{'node'}";
+    $command .= " nogui" if ( $action{ $operation } eq "start" );
+    $command .= " hard" if  ( $action{ $operation } eq "stop" );
+    unless ($operation eq "status") { $command .= " >& /dev/null"; }
+    my $result = `$command`;
+
+    if ($action{ $operation } eq "list") {
+        $status = "not running";
+        if ($result =~ m/$bmcref->{'node'}/) {
+            $status = "running";
+        } 
+        print "Power Status: $status\n";
     }
 
     return 0;

@@ -517,7 +517,7 @@ sub get_baracus_tables
          'login'   => 'VARCHAR(16)',
          'passwd'  => 'VARCHAR(32)',
          'bmcaddr' => 'VARCHAR(1024)', # virsh URI
-         'node'    => 'VARCHAR(32)',
+         'node'    => 'VARCHAR(4096)',
          'other'   => 'VARCHAR(32)',
          );
 
