@@ -248,6 +248,10 @@ sub check_mac
 ##
 ## A.ISI.EDU  XX.LCS.MIT.EDU  SRI-NIC.ARPA
 
+## To simplify implementations, the total number of octets that represent a
+## domain name (i.e., the sum of all label octets and label lengths) is
+## limited to 255.
+
 sub check_hostname
 {
     my $name = shift;
@@ -256,7 +260,8 @@ sub check_hostname
     my $ld  = '[a-zA-Z0-9]';
     my $ldh = '[-a-zA-Z0-9]';
 
-    return 0 if ($name =~ m/^(?:$l(?:(($ld|$ldh){1,61})$ld)?)$/);
+#    return 0 if (length($name) < 256 && $name =~ m/^(?:$l(?:(($ldh){1,61})$ld)?)(.(?:$l(?:(($ldh){1,61})$ld)?)){0,80}$/);
+    return 0 if ( $name =~ m/^(?:$l(?:(($ldh){1,61})$ld)?)$/);
     return 1;
 }
 
