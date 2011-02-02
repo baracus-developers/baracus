@@ -2,7 +2,7 @@
 
 tmpdir="/tmp/bakey.$$"
 initrd="initrd.baracus"
-host=`cat /etc/HOSTNAME`
+#host=`cat /etc/HOSTNAME`
 badir=`echo ~baracus`
 bakeydir="${badir}/.ssh"
 donefile="${badir}/.ssh/workload_ssh_done"
@@ -47,12 +47,12 @@ if [[ $? -ne 0 ]]; then
     exit 1
 fi
 
-ssh-keyscan $host >& /dev/null
-if [[ $? -ne 0 ]]; then
-    echo "$date Using /etc/HOSTNAME content: '$host'"
-    echo "$date Unable to get host key with: 'ssh-keyscan $host'"
-    exit 1
-fi
+#ssh-keyscan $host >& /dev/null
+#if [[ $? -ne 0 ]]; then
+#    echo "$date Using /etc/HOSTNAME content: '$host'"
+#    echo "$date Unable to get host key with: 'ssh-keyscan $host'"
+#    exit 1
+#fi
 
 baconfig list tftp ${initrd} -q -n | grep ${initrd} >& /dev/null
 if [[ $? -ne 0 ]]; then
@@ -104,13 +104,16 @@ pushd $tmpdir >& /dev/null
     fi
 
     # pre-checked above
-    ssh-keyscan $host > ${sshtgt}/known_hosts 2>/dev/null
-    if [[ $? -ne 0 ]]; then
-        echo "$date failed in ssh-keyscan $host"
-        popd +1 >& /dev/null
-        rm -rf ${tmpdir}
-        exit 1
-    fi
+    for host in `ip addr | grep -Ee "^[ \t]*inet " | sed -re 's%^[ \t]*inet ([^\/]+)/[0-9]+ .*$%\1%' | grep -v 127.`
+    do
+        ssh-keyscan $host > ${sshtgt}/known_hosts 2>/dev/null
+        if [[ $? -ne 0 ]]; then
+            echo "$date failed in ssh-keyscan $host"
+            popd +1 >& /dev/null
+            rm -rf ${tmpdir}
+            exit 1
+        fi
+    done
 
     # owner is root in workload 
     chown -R root:root ${sshtgt}
@@ -135,5 +138,5 @@ rm -rf ${tmpdir}
 echo "$date touch $donefile"
 sudo -u baracus touch ${donefile}
 
-echo "make all right for root to access nodes with baracus workloads"
+echo "$date grant root access to nodes with baracus workloads"
 /usr/share/baracus/scripts/baracus_server_root_sshkey.sh
