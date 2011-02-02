@@ -399,9 +399,10 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
 
         die "Missing 'mac' in COOKIE\n" unless ( defined $input->{mac});
         die "Missing 'nodeaddr' in COOKIE\n" unless ( defined $input->{nodeaddr} );
-        die "Missing 'ipmiaddr' in COOKIE\n" unless ( defined $input->{ipmiaddr});
         die "Missing 'ipmimac' in COOKIE\n" unless ( defined $input->{ipmimac} );
+        die "Missing 'ipmiaddr' in COOKIE\n" unless ( defined $input->{ipmiaddr});
         die "Missing 'status' in COOKIE\n" unless ( defined $input->{status} );
+        die "Missing 'ipmimsg' in COOKIE\n" unless ( defined $input->{ipmimsg} );
 
         my $hook = "";
 
@@ -410,9 +411,10 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
         my $hostname = "";
         my $ipaddr = inet_aton("$input->{nodeaddr}");
         $hostname = gethostbyaddr($ipaddr, AF_INET);
+        $hostname =~ s/^([^\.]*).?.*/$1/;
         $hostname = "null" if ( $hostname eq "" );
 
-        printlog "$input->{mac} - ipmi info received ($input->{status})\n";
+        printlog "$input->{mac} - ipmi callback ($input->{status}: \'$input->{ipmimsg}\')\n";
 
         if ( $input->{status} eq "success") {
             # ok to call the hook on failure bug not the db add
@@ -436,7 +438,7 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
 
         if ( -f $hook ) {
             printlog "$input->{mac} - hook $hook\n";
-            my $cmd = "$hook $input->{ipmimac} $input->{ipmiaddr} $input->{mac} $input->{nodeaddr} $hostname $input->{status} \"$input->{ipmimsg}\"";
+            my $cmd = "$hook $input->{ipmimac} $input->{ipmiaddr} $input->{mac} $input->{nodeaddr} $hostname $input->{status} \'$input->{ipmimsg}\'";
             $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
             $output .= `$cmd`;
         }
