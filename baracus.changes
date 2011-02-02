@@ -1,4 +1,15 @@
 -------------------------------------------------------------------
+Wed Feb  2 21:30:39 UTC 2011 - dbahi@novell.com
+
+- add vm fusion and workstation power handling
+
+-------------------------------------------------------------------
+Wed Feb  2 20:28:22 UTC 2011 - dbahi@novell.com
+
+- remove some non-release related files
+- more ipmi touches
+
+-------------------------------------------------------------------
 Mon Jan 31 06:18:13 UTC 2011 - dbahi@novell.com
 
 - release 1.7.1
@@ -13,7 +24,7 @@ Fri Jan 28 16:57:16 UTC 2011 - dbahi@novell.com
 Fri Jan 28 07:19:43 UTC 2011 - dbahi@novell.com
 
 - ipmi now configured via baracus inventory workload if desired
-- update supports autobuild nicira/debian installs
+- update supports autobuild debian installs
 - more formal xen support
 
 -------------------------------------------------------------------
