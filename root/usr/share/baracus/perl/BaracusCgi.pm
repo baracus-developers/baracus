@@ -70,8 +70,6 @@ my $linux_baracus_xen = "linux-xen.baracus";
 my $initrd_baracus = "initrd.baracus";
 my $initrd_xen_baracus = "initrd-xen.baracus";
 
-my $bootargs = "";
-
 sub get_arch_linux {
     my $input = shift;
     my $arch = lc $input->{arch};
@@ -95,10 +93,9 @@ sub get_inventory() {
     my $baVar = shift;
     my $input = shift;
     my $args  = shift;
-    $args = "" unless ( defined $args );
-
-    $bootargs = "ipmi=true" if ( $baVar{ipmi} eq "true" );
-    $bootargs .= " ipmilan=true" if ( $baVar{ipmilan} eq "true" );
+    $args = "acpi=off selinux=0 apm=off" unless ( defined $args && "$args" != "" );
+    $args .= " ipmi=true" if ( $baVar{ipmi} eq "true" );
+    $args .= " ipmilan=true" if ( $baVar{ipmilan} eq "true" );
 
     my $lcmac = lc $input->{mac};
     my $inventory_linux=get_arch_linux($input);
@@ -109,7 +106,7 @@ PROMPT 0
 TIMEOUT 0
 LABEL register
         kernel http://$baVar->{serverip}/ba/$inventory_linux
-        append initrd=http://$baVar->{serverip}/ba/$inventory_initrd install=exec:/usr/bin/baracus.register textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60 $bootargs
+        append initrd=http://$baVar->{serverip}/ba/$inventory_initrd install=exec:/usr/bin/baracus.register textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
 
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
@@ -140,7 +137,7 @@ sub do_pxewait() {
     my $baVar = shift;
     my $input = shift;
     my $args  = shift;
-    $args = "" unless ( defined $args );
+    $args = "acpi=off selinux=0 apm=off" unless ( defined $args && "$args" != "");
 
     my $lcmac = lc $input->{mac};
     my $pxewait_linux=get_arch_linux($input);
@@ -179,6 +176,7 @@ sub do_rescue() {
     my $mac = shift;
     my $serverip = shift;
     my $args = shift;
+
     my $output = qq|DEFAULT rescue
 PROMPT 0
 TIMEOUT 0

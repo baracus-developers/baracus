@@ -27,7 +27,7 @@
 baconfig detail hardware default --all &> /dev/null || \
 baconfig add hardware --name default \
 --description="/dev/sda drive" \
---bootargs="acpi=on selinux=0 apm=off" \
+--bootargs="acpi=off selinux=0 apm=off" \
 --rootdisk=/dev/sda \
 --rootpart=/dev/sda \
 --cert "sles-11.1-x86_64 sles-11.1-x86 sles-10.3-x86_64 sles-10.3-x86"
