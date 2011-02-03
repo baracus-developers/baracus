@@ -405,7 +405,7 @@ nameserver __DNS1__
     <pre-scripts config:type="list">
       <script>
         <filename>mount_nfsroot</filename>
-        <source><![CDATA[export TARGET_ROOT="quadrophenia:/media/nfsroot/root1"
+        <source><![CDATA[export TARGET_ROOT=__NFSROOT__
 mount -o nolock -t nfs $TARGET_ROOT /mnt
 mkdir /mnt/etc/
 echo "$TARGET_ROOT / nfs defaults 0 0" > /mnt/etc/fstab]]></source>
