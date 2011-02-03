@@ -332,7 +332,7 @@ sub list
     if ( $uri ) {
         unless ($opts->{quiet}) {
         print "----------------------------------------------------------------------------------------------\n";
-        printf "%-26s %-56s\n", "targetid", "uri";
+        printf "%-26s %-56s\n", "id", "uri";
         print "----------------------------------------------------------------------------------------------\n";
         }
 
@@ -346,7 +346,7 @@ sub list
     } else {
         unless ($opts->{quiet}) {
         print "----------------------------------------------------------------------------------------------\n";
-        printf "%-26s %-7s %-18s %-30s\n", "targetid", "type", "targetip", "target";
+        printf "%-26s %-7s %-18s %-30s\n", "id", "type", "targetip", "target";
         print "----------------------------------------------------------------------------------------------\n";
         }
 
@@ -394,7 +394,7 @@ sub detail
         return 1;
     }
 
-    printf "%-12s %s\n", "Target ID",   $lunref->{'targetid'} ;
+    printf "%-12s %s\n", "ID",   $lunref->{'targetid'} ;
     printf "%-12s %s\n", "Target IP",   $lunref->{'targetip'} ;
     printf "%-12s %s\n", "Target Type", $baLunType{ $lunref->{'type'} } ;
     printf "%-12s %s\n", "Target",      $lunref->{'target'} ;
