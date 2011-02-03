@@ -404,24 +404,12 @@ nameserver __DNS1__
   </networking>
   <scripts>
     <pre-scripts config:type="list">
-      <script><source>
-        <![CDATA[ 
-        echo "Testing the pre script" > /tmp/pre-script_out.txt;
-        mount -o nolock -t nfs quadrophenia:/media/nfsroot/root1 /mnt;
-        ]]>
-      </source></script>
-    </pre-scripts>
-    <chroot-scripts config:type="list">
-       <chrooted config:type="boolean">true</chrooted>
-       <script><source>
-        <![CDATA[ 
-        mkinitrd -m "nfs 8139too 8139cp" -f nfs -D eth0;
-        ]]>
-        </source>
+      <script>
+        <filename>mount_nfsroot</filename>
+        <source><![CDATA[echo "Testing the pre script" > /tmp/pre-script_out.txt
+mount -o nolock -t nfs quadrophenia:/media/nfsroot/root1 /mnt]]></source>
       </script>
-    </chroot-scripts>
-    <post-scripts config:type="list">
-    </post-scripts>
+    </pre-scripts>
     <init-scripts config:type="list">
       <script>
         <filename>build_notify</filename>
