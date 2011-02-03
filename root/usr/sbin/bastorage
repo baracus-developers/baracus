@@ -296,6 +296,8 @@ List the network storage for which Baracus has information.
 
 Option
 
+     --uri                    list with uri output
+
      --filter id::'partial*'  filter results based on wildcard
      --filter name::specific  filter for a single match
 
@@ -306,11 +308,13 @@ sub list
     my $command = "list";
 
     my $filter = "";
+    my $uri = "";
 
     @ARGV = @_;
 
     GetOptions(
                'filter=s'   => \$filter,
+               'uri'        => \$uri,
               );
 
     if ( scalar @ARGV ) {
@@ -325,24 +329,32 @@ sub list
         return 1;
     }
 
-    unless ($opts->{quiet}) {
-    print "----------------------------------------------------------------------------------------------\n";
-    printf "%-26s %-15s %-26s %-6s %-8s\n", "targetid", "targetip", "target", "name", "size", "user";
-    print "----------------------------------------------------------------------------------------------\n";
-    }
+    if ( $uri ) {
+        unless ($opts->{quiet}) {
+        print "----------------------------------------------------------------------------------------------\n";
+        printf "%-26s %-56s\n", "targetid", "uri";
+        print "----------------------------------------------------------------------------------------------\n";
+        }
 
-    my $size;
-    my $user;
-    my $name;
+        my $dbref;
+        my $curi;
+        while ( $dbref = &list_next_lun( $sth ) ) {
+            $curi = &gen_uri( $dbh, $dbref->{targetid} );
+            printf "%-26s %-56s\n",
+                $dbref->{targetid}, $curi;
+        }
+    } else {
+        unless ($opts->{quiet}) {
+        print "----------------------------------------------------------------------------------------------\n";
+        printf "%-26s %-7s %-18s %-30s\n", "targetid", "type", "targetip", "target";
+        print "----------------------------------------------------------------------------------------------\n";
+        }
 
-    my $dbref;
-    while ( $dbref = &list_next_lun( $sth ) ) {
-        $size  = defined $dbref->{size}         ? $dbref->{size}         : "";
-        $user  = defined $dbref->{username}     ? $dbref->{username}     : "";
-        $name  = defined $dbref->{name}         ? $dbref->{name}         : "";
-
-        printf "%-26s %-15s %-26s %-6s %-8s\n",
-            $dbref->{targetid}, $dbref->{targetip}, $dbref->{target}, $name, $size, $user ;
+        my $dbref;
+        while ( $dbref = &list_next_lun( $sth ) ) {
+            printf "%-26s %-7s %-18s %-30s\n",
+                $dbref->{targetid}, $baLunType{ $dbref->{type} }, $dbref->{targetip}, $dbref->{target};
+        }
     }
 
     return 0;
@@ -384,21 +396,22 @@ sub detail
 
     printf "%-12s %s\n", "Target ID",   $lunref->{'targetid'} ;
     printf "%-12s %s\n", "Target IP",   $lunref->{'targetip'} ;
-    printf "%-12s %s\n", "Target Type",   $baLunType{ $lunref->{'type'} } ;
+    printf "%-12s %s\n", "Target Type", $baLunType{ $lunref->{'type'} } ;
     printf "%-12s %s\n", "Target",      $lunref->{'target'} ;
+    printf "%-12s %s\n", "Target URI",  &gen_uri( $dbh, $lunref->{'targetid'} ) ;
     if ( defined $lunref->{'size'} and $lunref->{'size'} ne "" ) {
         printf "%-12s %s\n", "Size",        $lunref->{'size'}     ;
+        print "\n";
     }
-    print "\n";
     if ( defined $lunref->{'description'} and $lunref->{'description'} ne "" ) {
         printf "%-12s %s\n", "Description", $lunref->{'description'} ;
+        print "\n";
     }
-    print "\n";
     if ( defined $lunref->{'username'} and $lunref->{'username'} ne "" ) {
         printf "%-12s %s\n", "Username", $lunref->{'username'} ;
     }
     if ( defined $lunref->{'passwd'} and $lunref->{'passwd'} ne "" ) {
-        printf "%-12s %s\n", "Password", "....." ;
+        printf "%-12s %s\n", "Password", "*****" ;
     }
     return 0;
 }
