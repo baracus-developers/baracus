@@ -468,8 +468,8 @@ sub get_baracus_tables
          'autoclone'   => 'BOOLEAN', # if asserted pass autoclone option
          'disk'        => 'INTEGER', # localboot target disk
          'partition'   => 'INTEGER', # localboot target partition
-         'netboot'     => 'VARCHAR', # netboot target (for iSCSI and ilk)
-         'netbootip'   => 'VARCHAR', # netboot target server ip address
+         'rootid'      => 'VARCHAR', # netboot target alias
+         'imageid'     => 'VARCHAR', # clone/image id
          'cmdline'     => 'VARCHAR',
          'creation'    => 'TIMESTAMP',
          'change'      => 'TIMESTAMP',
@@ -524,13 +524,13 @@ sub get_baracus_tables
     my $tbl_lun = "lun";
     my %tbl_lun_columns =
         (
-         'targetid'    => 'VARCHAR(64) PRIMARY KEY',
+         'targetid'    => 'VARCHAR(64) PRIMARY KEY', # target alias/name
          'targetip'    => 'VARCHAR(15)',
+         'target'      => 'VARCHAR(64)', # target path
          'size'        => 'VARCHAR',
-         'type'        => 'INTEGER', # 1 ISCSI, 2 AOE, 3 NFS, 4 FC <<-- should be embedded in the targetid / URI
+         'type'        => 'INTEGER', # 1 ISCSI, 2 AOE, 3 NFS, 4 IMAGE
          'username'    => 'VARCHAR(32)',
          'passwd'      => 'VARCHAR(32)',
-         'name'        => 'VARCHAR(32)',
          'description' => 'VARCHAR(124)',
          );
 
