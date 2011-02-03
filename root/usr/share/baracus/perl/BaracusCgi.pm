@@ -164,7 +164,7 @@ PROMPT 0
 TIMEOUT 0
 LABEL netboot
     kernel http://$serverip/ba/sanboot.c32
-    append iscsi:$actref->{netbootip}::::$actref->{netboot}
+    append $actref->{uri}
 |;
 
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;

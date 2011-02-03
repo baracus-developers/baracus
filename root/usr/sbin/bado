@@ -862,7 +862,7 @@ sub image
         (
          'mac=s'        => \$entry{mac},
          'hostname=s'   => \$entry{hostname},
-         'image=s'      => \$entry{netboot},
+         'image=s'      => \$entry{imageid},
          'mcast=s'      => \$mcast,
          'hardware=s'   => \$entry{hardware},
          'disk=s'       => \$entry{disk},
@@ -874,16 +874,16 @@ sub image
         return 1;
     }
 
-    if ( $mcast ne "" and $entry{netboot} ne "" ) {
+    if ( $mcast ne "" and $entry{imageid} ne "" ) {
         $opts->{LASTERROR} = "\nEither --image or --mcast, not both.\n";
         return 1;
     } elsif ( $mcast ne "" ) {
         &check_ip( $mcast );
-        $entry{netboot} = $mcast; # continued gross overload of netboot value
-    } elsif ( not -f "$baDir{images}/$entry{netboot}" ) {
-        $opts->{LASTERROR} = "\nUnable to find specified image:  $baDir{images}/$entry{netboot}\n";
-        if ( not -f "$baDir{images}/$entry{netboot}.gz" ) {
-            $opts->{LASTERROR} .= "\nAlso unable to find compressed image:  $baDir{images}/$entry{netboot}.gz\n";
+        $entry{imageid} = $mcast; # continued gross overload of imageid value
+    } elsif ( not -f "$baDir{images}/$entry{imageid}" ) {
+        $opts->{LASTERROR} = "\nUnable to find specified image:  $baDir{images}/$entry{imageid}\n";
+        if ( not -f "$baDir{images}/$entry{imageid}.gz" ) {
+            $opts->{LASTERROR} .= "\nAlso unable to find compressed image:  $baDir{images}/$entry{imageid}.gz\n";
             return 1;
         } else {
             $opts->{LASTERROR} = ""; # don't set to empty often - leads to trouble
@@ -977,7 +977,7 @@ sub image
     $actref->{'ip'} = $entry{ip};
     $actref->{'mac'} = $entry{mac};
     $actref->{'uuid'} = &get_uuid;
-    $actref->{'netboot'} = $entry{netboot};
+    $actref->{'imageid'} = $entry{imageid};
 
     if ($opts->{debug}) {
         print "settings to use:\n";
@@ -1108,14 +1108,14 @@ sub clone
 
     @ARGV = @_;
 
-    # overloading netboot here should be
+    # overloading imageid here should be
     # bastorage (rename baimage) URI for iscsi and image store
 
     GetOptions
         (
          'mac=s'        => \$entry{mac},
          'hostname=s'   => \$entry{hostname},
-         'image=s'      => \$entry{netboot},
+         'image=s'      => \$entry{imageid},
          'hardware=s'   => \$entry{hardware},
          'autoclone!'   => \$entry{autoclone},
          );
@@ -1125,12 +1125,12 @@ sub clone
         return 1;
     }
 
-    if ( -f "$baDir{images}/$entry{netboot}" ) {
-        $opts->{LASTERROR} = "\nSpecified image intermediate already present - refusing to overwrite:  $baDir{images}/$entry{netboot}\n";
+    if ( -f "$baDir{images}/$entry{imageid}" ) {
+        $opts->{LASTERROR} = "\nSpecified image intermediate already present - refusing to overwrite:  $baDir{images}/$entry{imageid}\n";
         return 1;
     }
-    if ( -f "$baDir{images}/$entry{netboot}.gz" ) {
-        $opts->{LASTERROR} = "\nSpecified image already present - refusing to overwrite:  $baDir{images}/$entry{netboot}.gz\n";
+    if ( -f "$baDir{images}/$entry{imageid}.gz" ) {
+        $opts->{LASTERROR} = "\nSpecified image already present - refusing to overwrite:  $baDir{images}/$entry{imageid}.gz\n";
         return 1;
     }
 
@@ -1212,7 +1212,7 @@ sub clone
     $actref->{'ip'} = $entry{ip};
     $actref->{'mac'} = $entry{mac};
     $actref->{'uuid'} = &get_uuid;
-    $actref->{'netboot'} = $entry{netboot};
+    $actref->{'imageid'} = $entry{imageid};
 
     if ($opts->{debug}) {
         print "settings to use:\n";
@@ -1779,7 +1779,7 @@ sub localboot
 }
 
 
-=head2 netboot { --mac <macaddr> | --hostname <name> } --targetip <addr> --targetid <iqn>
+=head2 netboot { --mac <macaddr> | --hostname <name> } --rootid <rootid>
 
 After running this command, the pxeboot entry for the host is enabled, and when that host PXE boots again it will use the network storage device target.
 
@@ -1788,16 +1788,7 @@ Arguments
   --mac <macaddr>          Specify device by mac address
   --hostname <name>        Specify device by hostname ( if available )
 
-  --targetip <addr>        IP address of the target share server.
-  --targetid <iqn>         Network share target specifier.
-
-At this time the only supported format is iSCSI Qualified Name (iqn)
-
-IQN follows syntax iqn.YYYY-MM.{reversed domain name}[:arbitrary naming string]
-
-Where the owner of the domain name is responsible for everything after the colon in the bracketed optional string.
-
-For example:  iqn.2009-12.com.novell:baracus.uniquehostname.disk1
+  --rootid <rootid>        rootid alias as registered with bastorage
 
 =cut
 
@@ -1811,8 +1802,7 @@ sub netboot
 
     my $mac      = "";
     my $hostname = "";
-    my $targetip = "";
-    my $targetid = "";
+    my $rootid = "";
 
     my $macref;
     my $actref;
@@ -1823,8 +1813,7 @@ sub netboot
     GetOptions(
                'mac=s'      => \$mac,
                'hostname=s' => \$hostname,
-               'targetip=s' => \$targetip,
-               'targetid=s' => \$targetid,
+               'rootid=s'   => \$rootid,
               );
 
     if ( scalar @ARGV ) {
@@ -1841,23 +1830,16 @@ sub netboot
         return 1;
     }
 
-    if ( $targetid eq "" ) {
-        $opts->{LASTERROR} = "Target --targetid needed for netboot\n";
+    if ( $rootid eq "" ) {
+        $opts->{LASTERROR} = "Target --rootid needed for netboot\n";
         return 1;
     }
 
-    if ( my $val = &check_target( $targetid ) ) {
-        print "return $val \n";
-        $opts->{LASTERROR} = "Invalid targetid. Please use format iqn.<YYYY-MM>.<com.domain.reversed>[:<string>].\n";
+    ## Check that rootid is registered
+    unless ( &is_rootid( $opts, $dbh, $rootid ) ) {
+        $opts->{LASTERROR} = "Invalid rootid - $rootid not registered \n";
         return 1;
     }
-
-    if ( $targetip eq "" ) {
-        $opts->{LASTERROR} = "Target --targetip needed for netboot target server\n";
-        return 1;
-    }
-
-    &check_ip( $targetip );
 
     $macref = &get_db_mac( $dbh, $mac );
     unless ( defined $macref ) {
@@ -1882,18 +1864,16 @@ sub netboot
 
     if ( defined $chkref and
          $chkref->{pxenext} eq BA_ACTION_NETBOOT and
-         $chkref->{netbootip} eq $targetip and
-         $chkref->{netboot} eq $targetid
+         $chkref->{rootid} eq $rootid
         ) {
-        $opts->{LASTERROR} = "device in NETBOOT state using $chkref->{netboot}\n";
+        $opts->{LASTERROR} = "device in NETBOOT state using $chkref->{rootid}\n";
         return 1;
     }
 
     ##
     ## ALL CHECKS DONE - DO MODS
 
-    $actref->{netbootip} = $targetip;
-    $actref->{netboot} = $targetid;
+    $actref->{rootid} = $rootid;
 
     $actref->{cmdline} = $cmdline;
     $actref->{mac} = $mac;
@@ -1918,8 +1898,8 @@ sub netboot
     }
 
     if ( $opts->{verbose} ) {
-        printf "Netboot set.\nNext pxeboot of %s will use server ip %s and target %s.\n",
-            $hostname ne "" ? $hostname : $mac, $targetip, $targetid;
+        printf "Netboot set.\nNext pxeboot of %s will use remote rootid %s \n",
+            $hostname ne "" ? $hostname : $mac, $rootid;
     }
 
     return 0;

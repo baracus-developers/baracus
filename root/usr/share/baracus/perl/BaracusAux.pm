@@ -90,6 +90,7 @@ BEGIN {
                 get_certs_hash
                 check_cert
                 cert_for_distro
+                is_rootid
                 get_versions
                 redundant_data
                 find_helper
@@ -774,6 +775,8 @@ sub check_mandatory
     return 0;
 }
 
+
+
 # checks for distro usable for cert
 #
 # return value
@@ -992,6 +995,43 @@ sub cert_for_distro
     return \%cert_hash;
 }
 
+# is_rootid
+#
+# args: $rootid $dbh
+# ret:  boolean - 0/not-registered 1/registered
+#   
+
+sub is_rootid
+{
+    my $opts = shift;
+    my $dbh = shift;
+    my $rootid = shift;
+
+    my $ret = 0;
+    my $tbl = "lun";
+
+    my $sql_cols = lc get_cols( $baTbls{ $tbl } );
+    my $sql = qq| SELECT $sql_cols FROM $baTbls{ $tbl  } WHERE $baTblId{ $tbl } = '$rootid' |;
+
+    my $sth;
+    unless ( $sth = $dbh->prepare( $sql ) ) {
+        $opts->{LASTERROR} = "Unable to prepare 'get_entry' statement\n" . $dbh->errstr;
+        return ( undef, undef, undef );
+    }
+
+    unless( $sth->execute() ) {
+        $opts->{LASTERROR} = "Unable to execute 'get_entry' statement\n" . $sth->err;
+        return ( undef, undef, undef );
+    }
+
+    my $href = $sth->fetchrow_hashref();
+    if ( $href ) { $ret = 1; } 
+
+    $sth->finish;
+
+    return $ret;
+
+}
 
 # get_versions
 #
