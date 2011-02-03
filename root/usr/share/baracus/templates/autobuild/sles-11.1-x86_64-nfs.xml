@@ -14,7 +14,6 @@ __ADDON__
       </device_map_entry>
     </device_map>
     <global>
-      <activate>true</activate>
       <boot_root>true</boot_root>
       <default>0</default>
       <generic_mbr>true</generic_mbr>
@@ -406,8 +405,10 @@ nameserver __DNS1__
     <pre-scripts config:type="list">
       <script>
         <filename>mount_nfsroot</filename>
-        <source><![CDATA[echo "Testing the pre script" > /tmp/pre-script_out.txt
-mount -o nolock -t nfs quadrophenia:/media/nfsroot/root1 /mnt]]></source>
+        <source><![CDATA[export TARGET_ROOT="quadrophenia:/media/nfsroot/root1"
+mount -o nolock -t nfs $TARGET_ROOT /mnt
+mkdir /mnt/etc/
+echo "$TARGET_ROOT / nfs defaults 0 0" > /mnt/etc/fstab]]></source>
       </script>
     </pre-scripts>
     <init-scripts config:type="list">
