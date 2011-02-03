@@ -276,6 +276,7 @@ sub build
     my $serialbaud="";
     my $disk      = "0";
     my $partition = "0";
+    my $netroot="";
 
     my %entry;
     my $cols = lc get_cols( $baTbls{ action });
@@ -308,6 +309,7 @@ sub build
          'serialbaud=s'  => \$serialbaud,
          'disk=s'        => \$disk,
          'partition=s'   => \$partition,
+         'netroot=s'     => \$netroot,
          );
 
     if ( scalar @ARGV ) {
@@ -378,6 +380,15 @@ sub build
     if ( $entry{ip} eq "" ) {
         $opts->{LASTERROR} = "Missing  --ip\n";
         return 1;
+    }
+
+    ## if netroot specified verify it is a registered device
+    if ( $entry{netroot} ne "" ) {
+        $chkref = &get_db_lun( $dbh, $entry->{netroot} );
+        unless ( defined $chkref ) {
+            $opts->{LASTERROR} = ": $entry->{netroot} does not exists\n";
+            return 1;
+        }
     }
 
     # done with all checking of hostname/mac/ip
@@ -454,6 +465,10 @@ sub build
             print "add post-addons:  $key => $actref->{$key}\n";
         }
     }
+
+    # netroot may be in profile *and* on command line
+    # command line wins over profile entry
+    $actref->{'rootid'} = $entry{netroot} if ($entry{netroot});
 
     # hardware file may be in profile *and* on command line
     # command line wins over profile entry
@@ -637,7 +652,7 @@ sub build
     $actref->{'mac'} = $entry{mac};
     $actref->{'uuid'} = &get_uuid;
     $actref->{'autoinst'} = &automac( $entry{mac} );
-    $actref->{basedist} = "$actref->{os}-$actref->{release}-$actref->{arch}";
+    $actref->{'basedist'} = "$actref->{os}-$actref->{release}-$actref->{arch}";
     $actref->{'initrd'} = "initrd.$actref->{'basedist'}";
     $actref->{'kernel'} = "linux.$actref->{'basedist'}";
 
@@ -854,9 +869,6 @@ sub image
     }
 
     @ARGV = @_;
-
-    # overloading netboot here should be
-    # bastorage (rename baimage) URI for iscsi and image store
 
     GetOptions
         (
@@ -2384,7 +2396,7 @@ sub list()
 
     my $actref;
     my $hostname;
-    my $netboot;
+    my $rootid;
     my $curr;
     my $next;
     my $oper;
@@ -2392,7 +2404,7 @@ sub list()
 
     while ( $actref = &list_next( $sth ) ) {
         $hostname = defined $actref->{hostname} ? $actref->{hostname} : "";
-        $netboot  = defined $actref->{netboot}  ? $actref->{netboot}  : "";
+        $rootid   = defined $actref->{rootid}  ? $actref->{rootid}  : "";
 
         $curr  = defined $actref->{pxecurr} ? $baState{$actref->{pxecurr}} : "";
         $next  = defined $actref->{pxenext} ? $baState{$actref->{pxenext}} : "";

@@ -468,7 +468,7 @@ sub get_baracus_tables
          'autoclone'   => 'BOOLEAN', # if asserted pass autoclone option
          'disk'        => 'INTEGER', # localboot target disk
          'partition'   => 'INTEGER', # localboot target partition
-         'rootid'      => 'VARCHAR', # netboot target alias
+         'rootid'      => 'VARCHAR', # netroot target alias
          'imageid'     => 'VARCHAR', # clone/image id
          'cmdline'     => 'VARCHAR',
          'creation'    => 'TIMESTAMP',

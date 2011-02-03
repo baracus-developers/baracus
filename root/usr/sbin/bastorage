@@ -230,8 +230,7 @@ sub add
     # check for pre-exsisting id
     $chkref = &get_db_lun( $dbh, $lunref->{targetid} );
     if ( defined $chkref ) {
-        my $name = defined $chkref->{'name'} ? $chkref->{'name'} : "";
-        $opts->{LASTERROR} = "lun: $lunref->{targetid} already exists $name\n";
+        $opts->{LASTERROR} = "id: $lunref->{targetid} already exists\n";
         return 1;
     }
 
