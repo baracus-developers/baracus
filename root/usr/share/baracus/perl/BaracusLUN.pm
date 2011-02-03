@@ -34,6 +34,7 @@ use lib "/usr/share/baracus/perl";
 use BaracusSql   qw( :subs :vars );
 use BaracusState qw( :vars );
 use BaracusCore  qw( :subs );
+use BaracusLUN   qw( :vars );
 
 =pod
 
@@ -55,6 +56,14 @@ BEGIN {
     @EXPORT_OK   = qw();
     %EXPORT_TAGS =
         (
+         vars =>
+         [qw(
+                %baLunType
+                BA_LUN_ISCSI 
+                BA_LUN_NFS
+                BA_LUN_AOE
+                BA_LUN_IMAGE
+            )],
          subs   =>
          [qw(
 
@@ -64,13 +73,47 @@ BEGIN {
                 remove_db_lun
                 update_db_lun
                 get_db_lun
+                gen_uri
 
             )],
          );
     Exporter::export_ok_tags('subs');
+    Exporter::export_ok_tags('vars');
 }
 
 our $VERSION = '0.01';
+
+use vars qw( %baLunType );
+
+# LUN Type constants
+use constant BA_LUN_ISCSI         => 1  ;
+use constant BA_LUN_NFS           => 2  ;
+use constant BA_LUN_AOE           => 3  ;
+use constant BA_LUN_IMAGE         => 4  ;
+
+=item hash baState
+
+here we define a hash to make easy using the state constants easier
+
+=cut
+
+%baLunType =
+    (
+     1              => 'iscsi' ,
+     2              => 'nfs'   ,
+     3              => 'aoe'   ,
+     4              => 'image' ,
+
+     'iscsi'        => BA_LUN_ISCSI ,
+     'nfs'          => BA_LUN_NFS   ,
+     'aoe'          => BA_LUN_AOE   ,
+     'image'        => BA_LUN_IMAGE ,
+
+     BA_LUN_ISCSI   => 'iscsi' ,
+     BA_LUN_NFS     => 'nfs'   ,
+     BA_LUN_AOE     => 'aoe'   ,
+     BA_LUN_IMAGE   => 'image' ,
+     );
 
 # Subs
 
@@ -162,6 +205,36 @@ sub get_db_lun
 }
 
 #
+# gen_uri($dbh, $rootid)
+#
+
+sub gen_uri
+{
+    my $dbh      = shift;
+    my $targetid = shift; ## rootid
+
+    my $uri;
+    my $sth;
+
+    my $sql = qq|SELECT * FROM $baTbls{ lun } WHERE targetid = '$targetid' |;
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
+
+    my $href = $sth->fetchrow_hashref();
+    
+    if ( $baLunType{ $href->{type} } eq "nfs" ) {
+        $uri = "$href->{'targetip'}" . ":" . "$href->{'target'}";
+    } elsif ( $baLunType{ $href->{type} } eq "iscsi" ) {
+        $uri = "$baLunType{ $href->{type} }" . ":" . "$href->{'targetip'}" . "::::" . "$href->{'target'}";
+    } elsif ( $baLunType{ $href->{type} } eq "aoe" ) {
+        $uri = "$baLunType{ $href->{type} }" . ":" . "$href->{'target'}";
+    } else {
+        $uri = "null";
+    }
+    return $uri;
+}
+
+#
 # list_start_lun($dbh, targetid)
 #
 
@@ -185,9 +258,6 @@ sub list_start_lun
     }
 
     $fkey = "targetid" if $fkey eq "id";
-
-    # no good w/o $opts passed in
-#    print "list_start_lun key: $fkey filter: $filter\n" if $opts->{debug};
 
     my $sql = qq|SELECT * FROM lun WHERE $fkey LIKE '$filter' ORDER BY targetid|;
 

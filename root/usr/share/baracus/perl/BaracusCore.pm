@@ -62,7 +62,7 @@ BEGIN {
                 check_ip
                 check_mac
                 check_hostname
-                check_target
+                check_rootid
                 macback
                 bootmac
                 automac
@@ -263,61 +263,6 @@ sub check_hostname
 #    return 0 if (length($name) < 256 && $name =~ m/^(?:$l(?:(($ldh){1,61})$ld)?)(.(?:$l(?:(($ldh){1,61})$ld)?)){0,80}$/);
     return 0 if ( $name =~ m/^(?:$l(?:(($ldh){1,61})$ld)?)$/);
     return 1;
-}
-
-##      RFC 3720
-##
-##      -  The string "iqn.", used to distinguish these names from "eui."
-##         formatted names.
-##      -  A date code, in yyyy-mm format.  This date MUST be a date
-##         during which the naming authority owned the domain name used in
-##         this format, and SHOULD be the first month in which the domain
-##         name was owned by this naming authority at 00:01 GMT of the
-##         first day of the month.  This date code uses the Gregorian
-##         calendar.  All four digits in the year must be present.  Both
-##         digits of the month must be present, with January == "01" and
-##         December == "12".  The dash must be included.
-##      -  A dot "."
-##      -  The reversed domain name of the naming authority (person or
-##         organization) creating this iSCSI name.
-##      -  An optional, colon (:) prefixed, string within the character
-##         set and length boundaries that the owner of the domain name
-##         deems appropriate.  This may contain product types, serial
-##         numbers, host identifiers, or software keys (e.g., it may
-##         include colons to separate organization boundaries).  With the
-##         exception of the colon prefix, the owner of the domain name can
-##         assign everything after the reversed domain name as desired.
-##         It is the responsibility of the entity that is the naming
-##         authority to ensure that the iSCSI names it assigns are
-##         worldwide unique.  For example, "Example Storage Arrays, Inc.",
-##         might own the domain name "example.com".
-
-sub check_target
-{
-    my $target = shift;
-
-    my $l   = '[a-zA-Z]';
-    my $ld  = '[a-zA-Z0-9]';
-    my $ldh = '[-a-zA-Z0-9]';
-
-    my $name = qr/(?:$l(?:(($ld|$ldh){1,61})$ld)?)/;
-    my $yyyy = qr/(19|20|21)([0-9]){2}/;
-    my $mm   = qr/(([0][1-9])|([1][0-2]))/;
-
-    my ( $id, $date, $rest ) = split ( /\./, $target, 3 );
-
-    if ( $id !~ m/^iqn$/ ) {
-        return 1;
-    }
-    if ( $date !~ m/^$yyyy-$mm$/ ) {
-        return 2;
-    }
-    my ( $domain, $rest2 ) = split ( /:/, $rest, 2 );
-
-    if ( $domain !~ m/^${name}(\.${name}){0,16}$/ ) {
-        return 3;
-    }
-    return 0;
 }
 
 # mac manipulations
