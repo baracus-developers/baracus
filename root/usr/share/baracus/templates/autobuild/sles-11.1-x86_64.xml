@@ -59,19 +59,19 @@ __ADDON__
       <section>
         <append>__BOOTARGS__ resume=__ROOTPART__2 splash=silent crashkernel=128M-:64M@16M showopts </append>
         <initial>1</initial>
-        <initrd>/boot/initrd-2.6.27.19-5-default</initrd>
+        <initrd>/boot/initrd-2.6.32.12-0.7.1-default</initrd>
         <lines_cache_id>0</lines_cache_id>
-        <name>SUSE Linux Enterprise Server 11 - 2.6.27.19-5</name>
+        <name>SUSE Linux Enterprise Server 11 SP1 - 2.6.32.12-0.7.1</name>
         <original_name>linux</original_name>
         <root>__ROOTPART__1</root>
         <type>image</type>
       </section>
       <section>
         <append>showopts ide=nodma apm=off noresume edd=off powersaved=off nohz=off highres=off processor.max_cstate=1 x11failsafe</append>
-        <image>/boot/vmlinuz-2.6.27.19-5-default</image>
-        <initrd>/boot/initrd-2.6.27.19-5-default</initrd>
+        <image>/boot/vmlinuz-2.6.32.12-0.7.1-default</image>
+        <initrd>/boot/initrd-2.6.32.12-0.7.1</initrd>
         <lines_cache_id>1</lines_cache_id>
-        <name>Failsafe -- SUSE Linux Enterprise Server 11 - 2.6.27.19-5</name>
+        <name>Failsafe -- SUSE Linux Enterprise Server 11 SP1 - 2.6.32.12-0.7.1</name>
         <original_name>failsafe</original_name>
         <root>__ROOTPART__1</root>
         <type>image</type>
