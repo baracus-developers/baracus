@@ -420,35 +420,6 @@ wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></sourc
     </init-scripts>
   </scripts>
   <partitioning config:type="list">
-    <drive>
-      <device>__ROOTDISK__</device>
-      <initialize config:type="boolean">true</initialize>
-      <partitions config:type="list">
-        <partition>
-          <filesystem config:type="symbol">ext3</filesystem>
-          <create config:type="boolean">true</create>
-          <format config:type="boolean">true</format>
-          <mount>/</mount>
-          <mountby config:type="symbol">id</mountby>
-          <partition_id config:type="integer">131</partition_id>
-          <partition_nr config:type="integer">1</partition_nr>
-          <size>max</size>
-        </partition>
-        <partition>
-          <filesystem config:type="symbol">swap</filesystem>
-          <create config:type="boolean">true</create>
-          <format config:type="boolean">true</format>
-          <mount>swap</mount>
-          <mountby config:type="symbol">id</mountby>
-          <partition_id config:type="integer">130</partition_id>
-          <partition_nr config:type="integer">2</partition_nr>
-          <size>auto</size>
-        </partition>
-      </partitions>
-      <pesize></pesize>
-      <type config:type="symbol">CT_DISK</type>
-      <use>all</use>
-    </drive>
   </partitioning>
   <proxy>
     <enabled config:type="boolean">false</enabled>
@@ -463,22 +434,22 @@ wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></sourc
     <errors>
       <log config:type="boolean">true</log>
       <show config:type="boolean">true</show>
-      <timeout config:type="integer">0</timeout>
+      <timeout config:type="integer">10</timeout>
     </errors>
     <messages>
       <log config:type="boolean">true</log>
       <show config:type="boolean">true</show>
-      <timeout config:type="integer">0</timeout>
+      <timeout config:type="integer">10</timeout>
     </messages>
     <warnings>
       <log config:type="boolean">true</log>
       <show config:type="boolean">true</show>
-      <timeout config:type="integer">0</timeout>
+      <timeout config:type="integer">10</timeout>
     </warnings>
     <yesno_messages>
       <log config:type="boolean">true</log>
       <show config:type="boolean">true</show>
-      <timeout config:type="integer">0</timeout>
+      <timeout config:type="integer">10</timeout>
     </yesno_messages>
   </report>
   <runlevel>
