@@ -44,6 +44,12 @@ baconfig add autobuild --name sles-11-x86_64-dhcp \
 --file=/usr/share/baracus/templates/autobuild/sles-11-x86_64-dhcp.xml \
 --cert="sles-11-x86_64 sles-11.1-x86_64"
 
+baconfig detail autobuild sles-11-x86_64-nfs  &> /dev/null || \
+baconfig add autobuild --name sles-11-x86_64-nfs \
+--description="sles 11/11.1 64bit (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/sles-11-x86_64-nfs.xml \
+--cert="sles-11-x86_64 sles-11.1-x86_64"
+
 baconfig detail autobuild opensuse-11-x86_64-dhcp  &> /dev/null || \
 baconfig add autobuild --name opensuse-11-x86_64-dhcp \
 --description="opensuse 11.x64bit (dhcp)" \
