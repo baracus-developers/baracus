@@ -408,7 +408,13 @@ nameserver __DNS1__
         <source><![CDATA[export TARGET_ROOT=__NFSROOT__
 mount -o nolock -t nfs $TARGET_ROOT /mnt
 mkdir /mnt/etc/
-echo "$TARGET_ROOT / nfs defaults 0 0" > /mnt/etc/fstab]]></source>
+cat > /mnt/etc/fstab <<- EOF
+$TARGET_ROOT 	/ 	nfs	defaults 	0 0
+proc		/proc		proc	defaults 		0 0
+sysfs		/sys		sysfs	noauto			0 0
+devpts  	/dev/pts	devpts	mode=0620,gid=5		0 0
+EOF
+echo "pre-script complete"]]></source>
       </script>
     </pre-scripts>
     <init-scripts config:type="list">
