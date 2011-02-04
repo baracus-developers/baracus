@@ -14,15 +14,34 @@ __ADDON__
       </device_map_entry>
     </device_map>
     <global>
-      <boot_root>true</boot_root>
       <default>0</default>
-      <generic_mbr>true</generic_mbr>
       <gfxmenu>/boot/message</gfxmenu>
       <lines_cache_id>2</lines_cache_id>
       <timeout config:type="integer">8</timeout>
-      <loader_type>grub</loader_type>
     </global>
     <loader_type>grub</loader_type>
+    <sections config:type="list">
+      <section>
+        <append>nfsroot=__NFSROOT__ __BOOTARGS__ resume=__ROOTPART__2 splash=silent crashkernel=128M-:64M@16M showopts </append>
+        <initial>1</initial>
+        <initrd>/boot/initrd-2.6.32.12-0.7.1-default</initrd>
+        <lines_cache_id>0</lines_cache_id>
+        <name>SUSE Linux Enterprise Server 11 SP1 - 2.6.32.12-0.7.1</name>
+        <original_name>linux</original_name>
+        <root>__ROOTDISK__</root>
+        <type>image</type>
+      </section>
+      <section>
+        <append>nfsroot=__NFSROOT__ showopts ide=nodma apm=off noresume edd=off powersaved=off nohz=off highres=off processor.max_cstate=1 x11failsafe</append>
+        <image>/boot/vmlinuz-2.6.32.12-0.7.1-default</image>
+        <initrd>/boot/initrd-2.6.32.12-0.7.1</initrd>
+        <lines_cache_id>1</lines_cache_id>
+        <name>Failsafe -- SUSE Linux Enterprise Server 11 SP1 - 2.6.32.12-0.7.1</name>
+        <original_name>failsafe</original_name>
+        <root>__ROOTDISK__</root>
+        <type>image</type>
+      </section>
+    </sections>
   </bootloader>
   <ca_mgm>
     <CAName>YaST_Default_CA</CAName>
