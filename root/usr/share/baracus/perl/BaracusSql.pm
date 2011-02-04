@@ -469,6 +469,9 @@ sub get_baracus_tables
          'disk'        => 'INTEGER', # localboot target disk
          'partition'   => 'INTEGER', # localboot target partition
          'rootid'      => 'VARCHAR', # netroot target alias
+         'rooturi'     => 'VARCHAR', # netroot uri
+         'rootip'      => 'VARCHAR(15)', # Netroot IP
+         'roottarget'  => 'VARCHAR', # Netroot target
          'imageid'     => 'VARCHAR', # clone/image id
          'cmdline'     => 'VARCHAR',
          'creation'    => 'TIMESTAMP',

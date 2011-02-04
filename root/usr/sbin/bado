@@ -42,6 +42,7 @@ use BaracusHost qw( :subs );
 use BaracusSource qw( :vars );
 use BaracusState qw( :admin :actions :subs :vars );
 use BaracusAux qw( :subs );
+use BaracusLUN qw( :subs );
 
 =pod
 
@@ -276,7 +277,6 @@ sub build
     my $serialbaud="";
     my $disk      = "0";
     my $partition = "0";
-    my $netroot="";
 
     my %entry;
     my $cols = lc get_cols( $baTbls{ action });
@@ -298,6 +298,7 @@ sub build
          'hardware=s'    => \$entry{hardware},
          'profile=s'     => \$entry{profile},
          'autobuild=s'   => \$entry{autobuild},
+         'netroot=s'     => \$entry{netroot},
          'addon=s'       => \&multiarg_handler,
          'vars=s'        => \&multiarg_handler,
          'module=s'      => \&multiarg_handler,
@@ -309,7 +310,6 @@ sub build
          'serialbaud=s'  => \$serialbaud,
          'disk=s'        => \$disk,
          'partition=s'   => \$partition,
-         'netroot=s'     => \$netroot,
          );
 
     if ( scalar @ARGV ) {
@@ -383,10 +383,10 @@ sub build
     }
 
     ## if netroot specified verify it is a registered device
-    if ( $entry{netroot} ne "" ) {
-        $chkref = &get_db_lun( $dbh, $entry->{netroot} );
+    if ( $entry{netroot} ) {
+        $chkref = &get_db_lun( $dbh, $entry{netroot} );
         unless ( defined $chkref ) {
-            $opts->{LASTERROR} = ": $entry->{netroot} does not exists\n";
+            $opts->{LASTERROR} = "netroot: $entry{netroot} does not exists\n";
             return 1;
         }
     }
@@ -469,6 +469,11 @@ sub build
     # netroot may be in profile *and* on command line
     # command line wins over profile entry
     $actref->{'rootid'} = $entry{netroot} if ($entry{netroot});
+    $actref->{'rooturi'} = &gen_uri( $dbh, $entry{netroot} ) if ($entry{netroot});
+
+    my $lunref = &get_db_lun($dbh, $entry{netroot});
+    $actref->{'rootip'} = $lunref->{targetip};
+    $actref->{'roottarget'} = $lunref->{target};
 
     # hardware file may be in profile *and* on command line
     # command line wins over profile entry
@@ -1892,6 +1897,11 @@ sub netboot
     ## ALL CHECKS DONE - DO MODS
 
     $actref->{rootid} = $rootid;
+    $actref->{rooturi} = &gen_uri( $dbh, $rootid );
+
+    my $lunref = &get_db_lun($dbh, $rootid);
+    $actref->{rootip} = $lunref->{targetip};
+    $actref->{roottarget} = $lunref->{target};
 
     $actref->{cmdline} = $cmdline;
     $actref->{mac} = $mac;

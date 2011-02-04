@@ -605,7 +605,8 @@ sub detail
             print "\n";
             print "Netboot\n";
             print "-------\n";
-            printf "%-18s", "Netboot RootID:";      print " $dbref->{rootid}" if $dbref->{rootid}; print "\n";
+            printf "%-18s", "Net Root ID:";      print " $dbref->{rootid}" if $dbref->{rootid}; print "\n";
+            printf "%-18s", "Net Root URI:";     print " $dbref->{rooturi}" if $dbref->{rooturi}; print "\n";
             print "\n";
             print "Additional Details\n";
             print "------------------\n";
