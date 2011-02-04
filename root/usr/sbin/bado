@@ -644,6 +644,8 @@ sub build
         &load_vars( $opts, $actref );
     }
 
+    my $tmpref = get_db_action( $dbh, $entry{mac} );
+
     # do not want any setting to override these values
 
     $actref->{'cmdline'} = $cmdline;
@@ -658,7 +660,12 @@ sub build
 
     $actref->{'admin'}   = BA_ADMIN_ENABLED;
     $actref->{'oper'}    = BA_ADMIN_ADDED;
-    $actref->{'pxecurr'} = BA_ACTION_INVENTORY;
+
+    if ( defined $tmpref->{pxecurr} and $tmpref->{pxecurr} ne "" ) {
+        $actref->{'pxecurr'} = $tmpref->{'pxecurr'};
+    } else {
+        $actref->{'pxecurr'} = BA_ACTION_INVENTORY;
+    }
     $actref->{'pxenext'} = BA_ACTION_BUILD;
 
     $actref->{'autonuke'} = 0;
@@ -725,7 +732,6 @@ sub build
 
     # find existing action relation and update it or create if not found
     # avoid overwrite of the carefully constructed $actref hash
-    my $tmpref = get_db_action( $dbh, $actref->{mac} );
     if ( defined $tmpref ) {
         # here's a rather involved check
         # to make sure we're not updating a dup
@@ -1352,7 +1358,7 @@ sub empty
     # returns undef on error (e.g., unable to find hostname)
     $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
     unless ( defined $mac ) {
-        # $opt->{LASTERROR} set in subroutine
+        # $opts->{LASTERROR} set in subroutine
         return 1;
     }
 
@@ -1459,7 +1465,7 @@ sub inventory
     # returns undef on error (e.g., unable to find hostname)
     $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
     unless ( defined $mac ) {
-        # $opt->{LASTERROR} set in subroutine
+        # $opts->{LASTERROR} set in subroutine
         return 1;
     }
 
@@ -1589,7 +1595,7 @@ sub wipe
     # returns undef on error (e.g., unable to find hostname)
     $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
     unless ( defined $mac ) {
-        # $opt->{LASTERROR} set in subroutine
+        # $opts->{LASTERROR} set in subroutine
         return 1;
     }
 

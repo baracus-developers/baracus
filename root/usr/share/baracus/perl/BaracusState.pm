@@ -575,15 +575,22 @@ sub event_state_change
         $actref->{pxecurr} = BA_ACTION_INVENTORY;
     }
     elsif ( $event eq BA_EVENT_BUILDING ) {
+        if ( defined $actref->{rootid} and $actref->{rootid} ne "" ) {
+            $actref->{pxenext} = BA_ACTION_NETBOOT;
+        } else {
+            $actref->{pxenext} = BA_ACTION_LOCALBOOT;
+        }
         $actref->{oper}    = $event;
         $actref->{pxecurr} = BA_ACTION_BUILD;
-        $actref->{pxenext} = BA_ACTION_LOCALBOOT;
-    }
-    elsif ( $event eq BA_EVENT_BUILT or
-            $event eq BA_EVENT_SPOOFED
-           ) {
+    } elsif ( $event eq BA_EVENT_BUILT or
+              $event eq BA_EVENT_SPOOFED
+             ) {
+        if ( defined $actref->{rootid} and $actref->{rootid} ne "" ) {
+            $actref->{pxecurr} = BA_ACTION_NETBOOT;
+        } else {
+            $actref->{pxecurr} = BA_ACTION_LOCALBOOT;
+        }
         $actref->{oper}    = $event;
-        $actref->{pxecurr} = BA_ACTION_LOCALBOOT;
     }
     elsif ( $event eq BA_EVENT_WIPING ) {
         $actref->{oper}    = $event;
