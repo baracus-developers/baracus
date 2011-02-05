@@ -42,7 +42,6 @@ use BaracusHost qw( :subs );
 use BaracusSource qw( :vars );
 use BaracusState qw( :admin :actions :subs :vars );
 use BaracusAux qw( :subs );
-use BaracusLUN qw( :subs );
 
 =pod
 
@@ -239,6 +238,8 @@ And further <...> optional parameters include
   --disk <num>             Disk number (zero-based) to boot [ default 0 (first)]
   --partition <num>        Partition number to boot [ default 0 (first)]
 
+  --netroot <storageid>    The storage id for a network root build
+
   --usevnc                 allow vnc build access
   --vncpass                defines vnc password for remote access
 
@@ -286,6 +287,7 @@ sub build
 
     #Make dhcp the default for ip
     $entry{ip} = 'dhcp';
+    $entry{netroot} = '0';
 
     @ARGV = @_;
 
@@ -382,15 +384,6 @@ sub build
         return 1;
     }
 
-    ## if netroot specified verify it is a registered device
-    if ( $entry{netroot} ) {
-        $chkref = &get_db_lun( $dbh, $entry{netroot} );
-        unless ( defined $chkref ) {
-            $opts->{LASTERROR} = "netroot: $entry{netroot} does not exists\n";
-            return 1;
-        }
-    }
-
     # done with all checking of hostname/mac/ip
     # begin loading of hash used for remainder of processing command
     undef $actref;
@@ -414,6 +407,22 @@ sub build
     if ($opts->{debug} > 1) {
         foreach my $key ( sort ( keys %{$actref} )) {
             print "add post-profile:  $key => $actref->{$key}\n";
+        }
+    }
+
+    # netroot may be in profile and specified on the command line
+    # command line wins over profile entry
+    # also note that cmdline --netroot="" will clear the initial '0' value
+    # so that an empty string can be passed to "null" the netroot from a profile
+    $actref->{netroot} = $entry{netroot} if ($entry{netroot} ne "0");
+
+    # netroot may not be specified at all  
+    if ( defined $actref->{netroot} and $actref->{netroot} ne "" ) {
+        return 1 if ( &load_storage( $opts, $dbh, $actref ) );
+        if ($opts->{debug} > 1) {
+            foreach my $key ( sort ( keys %{$actref} )) {
+                print "add post-storage:  $key => $actref->{$key}\n";
+            }
         }
     }
 
@@ -465,15 +474,6 @@ sub build
             print "add post-addons:  $key => $actref->{$key}\n";
         }
     }
-
-    # netroot may be in profile *and* on command line
-    # command line wins over profile entry
-    $actref->{'rootid'} = $entry{netroot} if ($entry{netroot});
-    $actref->{'rooturi'} = &gen_uri( $dbh, $entry{netroot} ) if ($entry{netroot});
-
-    my $lunref = &get_db_lun($dbh, $entry{netroot});
-    $actref->{'rootip'} = $lunref->{targetip};
-    $actref->{'roottarget'} = $lunref->{target};
 
     # hardware file may be in profile *and* on command line
     # command line wins over profile entry
@@ -649,8 +649,6 @@ sub build
         &load_vars( $opts, $actref );
     }
 
-    my $tmpref = get_db_action( $dbh, $entry{mac} );
-
     # do not want any setting to override these values
 
     $actref->{'cmdline'} = $cmdline;
@@ -665,12 +663,7 @@ sub build
 
     $actref->{'admin'}   = BA_ADMIN_ENABLED;
     $actref->{'oper'}    = BA_ADMIN_ADDED;
-
-    if ( defined $tmpref->{pxecurr} and $tmpref->{pxecurr} ne "" ) {
-        $actref->{'pxecurr'} = $tmpref->{'pxecurr'};
-    } else {
-        $actref->{'pxecurr'} = BA_ACTION_INVENTORY;
-    }
+    $actref->{'pxecurr'} = BA_ACTION_INVENTORY;
     $actref->{'pxenext'} = BA_ACTION_BUILD;
 
     $actref->{'autonuke'} = 0;
@@ -737,6 +730,7 @@ sub build
 
     # find existing action relation and update it or create if not found
     # avoid overwrite of the carefully constructed $actref hash
+    my $tmpref = get_db_action( $dbh, $actref->{mac} );
     if ( defined $tmpref ) {
         # here's a rather involved check
         # to make sure we're not updating a dup
@@ -1802,7 +1796,7 @@ sub localboot
 }
 
 
-=head2 netboot { --mac <macaddr> | --hostname <name> } --rootid <rootid>
+=head2 netboot { --mac <macaddr> | --hostname <name> } --netroot <storageid>
 
 After running this command, the pxeboot entry for the host is enabled, and when that host PXE boots again it will use the network storage device target.
 
@@ -1811,7 +1805,7 @@ Arguments
   --mac <macaddr>          Specify device by mac address
   --hostname <name>        Specify device by hostname ( if available )
 
-  --rootid <rootid>        rootid alias as registered with bastorage
+  --netroot <storageid>    Storage ID for bastorage bootable disk entry
 
 =cut
 
@@ -1825,7 +1819,7 @@ sub netboot
 
     my $mac      = "";
     my $hostname = "";
-    my $rootid = "";
+    my $netroot  = "";
 
     my $macref;
     my $actref;
@@ -1836,7 +1830,7 @@ sub netboot
     GetOptions(
                'mac=s'      => \$mac,
                'hostname=s' => \$hostname,
-               'rootid=s'   => \$rootid,
+               'netroot=s'  => \$netroot,
               );
 
     if ( scalar @ARGV ) {
@@ -1853,14 +1847,8 @@ sub netboot
         return 1;
     }
 
-    if ( $rootid eq "" ) {
-        $opts->{LASTERROR} = "Target --rootid needed for netboot\n";
-        return 1;
-    }
-
-    ## Check that rootid is registered
-    unless ( &is_rootid( $opts, $dbh, $rootid ) ) {
-        $opts->{LASTERROR} = "Invalid rootid - $rootid not registered \n";
+    if ( $netroot eq "" ) {
+        $opts->{LASTERROR} = "Storage id --netroot needed for netboot\n";
         return 1;
     }
 
@@ -1885,26 +1873,22 @@ sub netboot
         $actref = $chkref;
     }
 
+    $actref->{cmdline} = $cmdline;
+    $actref->{mac}     = $mac;
+    $actref->{netroot} = $netroot;
+
+    return 1 if ( &load_storage( $opts, $dbh, $actref ) );
+
     if ( defined $chkref and
          $chkref->{pxenext} eq BA_ACTION_NETBOOT and
-         $chkref->{rootid} eq $rootid
+         $chkref->{netroot} eq $netroot
         ) {
-        $opts->{LASTERROR} = "device in NETBOOT state using $chkref->{rootid}\n";
+        $opts->{LASTERROR} = "device in NETBOOT state using $chkref->{netroot}\n";
         return 1;
     }
 
     ##
     ## ALL CHECKS DONE - DO MODS
-
-    $actref->{rootid} = $rootid;
-    $actref->{rooturi} = &gen_uri( $dbh, $rootid );
-
-    my $lunref = &get_db_lun($dbh, $rootid);
-    $actref->{rootip} = $lunref->{targetip};
-    $actref->{roottarget} = $lunref->{target};
-
-    $actref->{cmdline} = $cmdline;
-    $actref->{mac} = $mac;
 
     # if passed both mac and hostname create a host table entry
     if ( $hostname ne "" ) {
@@ -1926,8 +1910,8 @@ sub netboot
     }
 
     if ( $opts->{verbose} ) {
-        printf "Netboot set.\nNext pxeboot of %s will use remote rootid %s \n",
-            $hostname ne "" ? $hostname : $mac, $rootid;
+        printf "Netboot set.\nNext pxeboot of %s will use remote netroot %s \n",
+            $hostname ne "" ? $hostname : $mac, $netroot;
     }
 
     return 0;
@@ -2412,7 +2396,7 @@ sub list()
 
     my $actref;
     my $hostname;
-    my $rootid;
+    my $netroot;
     my $curr;
     my $next;
     my $oper;
@@ -2420,7 +2404,7 @@ sub list()
 
     while ( $actref = &list_next( $sth ) ) {
         $hostname = defined $actref->{hostname} ? $actref->{hostname} : "";
-        $rootid   = defined $actref->{rootid}  ? $actref->{rootid}  : "";
+        $netroot  = defined $actref->{netroot}  ? $actref->{netroot}  : "";
 
         $curr  = defined $actref->{pxecurr} ? $baState{$actref->{pxecurr}} : "";
         $next  = defined $actref->{pxenext} ? $baState{$actref->{pxenext}} : "";

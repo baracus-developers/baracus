@@ -35,6 +35,7 @@ use BaracusSql    qw( :subs :vars );
 use BaracusState  qw( :vars :subs :states );
 use BaracusCore   qw( :subs );
 use BaracusConfig qw( :vars );
+use BaracusLUN    qw( :subs );
 
 =pod
 
@@ -72,6 +73,7 @@ BEGIN {
                 delete_tftpfile
 
                 load_profile
+                load_storage
                 load_distro
                 load_addons
                 load_hardware
@@ -307,6 +309,36 @@ sub load_profile
 
     # record the version from the entry for storage
     $aref->{profile_ver} = $found->{version};
+
+    return 0;
+}
+
+sub load_storage
+{
+    my $opts = shift;
+    my $dbh  = shift;
+    my $aref = shift;
+
+    my $found = &get_db_lun( $dbh, $aref->{netroot} );
+    unless ( defined $found ) {
+        $opts->{LASTERROR} = "Unable to find storage entry for $aref->{netroot}\n";
+        return 1;
+    }
+    print $found . "\n" if ( $opts->{debug} > 1 );
+
+    while ( my ($key, $value) = each( %$found ) ) {
+        if (defined $value) {
+            $aref->{$key} = $value;
+        } else {
+            $aref->{$key} = "";
+        }
+        print "storage: $key => $aref->{$key}\n" if ( $opts->{debug} > 1 );
+    }
+
+    # hash special cases
+    $aref->{rooturi} = &get_db_lun_uri( $dbh, $aref->{netroot} );
+    delete $aref->{username};
+    delete $aref->{passwd};
 
     return 0;
 }

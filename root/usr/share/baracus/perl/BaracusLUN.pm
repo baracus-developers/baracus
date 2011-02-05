@@ -73,7 +73,7 @@ BEGIN {
                 remove_db_lun
                 update_db_lun
                 get_db_lun
-                gen_uri
+                get_db_lun_uri
 
             )],
          );
@@ -205,13 +205,13 @@ sub get_db_lun
 }
 
 #
-# gen_uri($dbh, $rootid)
+# get_db_lun_uri($dbh, $targetid)
 #
 
-sub gen_uri
+sub get_db_lun_uri
 {
     my $dbh      = shift;
-    my $targetid = shift; ## rootid
+    my $targetid = shift; ## netroot
 
     my $uri;
     my $sth;

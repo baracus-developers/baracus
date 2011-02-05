@@ -598,6 +598,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 $actref->{cmdline} = "# pxeboot network image";
                 &update_db_action( $dbh, $actref );
             }
+            &load_storage( $opts, $dbh, $actref );
             &do_netboot( $cgi, $actref, $baVar{serverip} );
             # do_netboot exits
         }
@@ -731,6 +732,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             $hardref = &get_hardware( $opts, $dbh, $actref, $actref->{hardware_ver} );
             &load_baracusconfig( $opts, $actref );
             &load_distro( $opts, $dbh, $actref );
+            &load_storage( $opts, $dbh, $actref );
             &load_profile( $opts, $dbh, $actref );
             &load_vars( $opts, $actref );
 
@@ -1041,9 +1043,10 @@ n:\\setup.exe
         }
 
         &load_baracusconfig( $opts, $actref );
-        &load_profile( $opts, $dbh, $actref );
+        &load_storage( $opts, $dbh, $actref );
         &load_hardware( $opts, $dbh, $actref );
         &load_distro( $opts, $dbh, $actref );
+        &load_profile( $opts, $dbh, $actref );
 
         if ( $actref->{arch} !~ m/s390/ ) {
             printlog "$input->{mac} - non-s390 arch request for parm file\n";
@@ -1201,9 +1204,10 @@ Nameserver=$actref->{dns1}
 	}
 
 	&load_baracusconfig( $opts, $actref );
-	&load_profile( $opts, $dbh, $actref );
+	&load_storage( $opts, $dbh, $actref );
 	&load_hardware( $opts, $dbh, $actref );
 	&load_distro( $opts, $dbh, $actref );
+	&load_profile( $opts, $dbh, $actref );
 
 	if ( $actref->{arch} !~ m/s390/ ) {
 	    printlog "$input->{mac} - non-s390 arch request for exec file\n";
@@ -1325,11 +1329,12 @@ Address 'CMS' 'PURGE RDR ALL'
         }
 
         &load_baracusconfig( $opts, $actref );
-        &load_profile ( $opts, $dbh, $actref );
+        &load_storage ( $opts, $dbh, $actref );
         &load_hardware( $opts, $dbh, $actref );
         &load_distro  ( $opts, $dbh, $actref );
         &load_addons  ( $opts, $dbh, $actref );
         &load_modules ( $opts, $dbh, $actref );
+        &load_profile ( $opts, $dbh, $actref );
 
         &load_vars         ( $opts, $actref );
 

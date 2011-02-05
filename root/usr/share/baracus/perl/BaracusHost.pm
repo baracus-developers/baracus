@@ -34,7 +34,6 @@ use lib "/usr/share/baracus/perl";
 use BaracusSql   qw( :subs :vars );
 use BaracusState qw( :vars );
 use BaracusCore  qw( :subs );
-use BaracusLUN   qw( :subs );
 
 =pod
 
