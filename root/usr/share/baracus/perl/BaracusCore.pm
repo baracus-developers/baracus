@@ -62,7 +62,6 @@ BEGIN {
                 check_ip
                 check_mac
                 check_hostname
-                check_rootid
                 macback
                 bootmac
                 automac

@@ -575,7 +575,7 @@ sub event_state_change
         $actref->{pxecurr} = BA_ACTION_INVENTORY;
     }
     elsif ( $event eq BA_EVENT_BUILDING ) {
-        if ( defined $actref->{rootid} and $actref->{rootid} ne "" ) {
+        if ( defined $actref->{netroot} and $actref->{netroot} ne "" ) {
             $actref->{pxenext} = BA_ACTION_NETBOOT;
         } else {
             $actref->{pxenext} = BA_ACTION_LOCALBOOT;
@@ -585,7 +585,7 @@ sub event_state_change
     } elsif ( $event eq BA_EVENT_BUILT or
               $event eq BA_EVENT_SPOOFED
              ) {
-        if ( defined $actref->{rootid} and $actref->{rootid} ne "" ) {
+        if ( defined $actref->{netroot} and $actref->{netroot} ne "" ) {
             $actref->{pxecurr} = BA_ACTION_NETBOOT;
         } else {
             $actref->{pxecurr} = BA_ACTION_LOCALBOOT;

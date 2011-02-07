@@ -587,7 +587,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 
         if ( $pxenext eq BA_ACTION_NETBOOT ) {
 
-            printlog "$input->{mac} - netboot: $actref->{rootid}\n";
+            printlog "$input->{mac} - netboot: $actref->{netroot}\n";
             &update_db_mac_state( $dbh, $macref->{mac}, $pxenext );
             if ( $actref->{oper} ne $pxenext or
                  $actref->{pxecurr} ne $pxenext

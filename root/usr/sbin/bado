@@ -416,7 +416,7 @@ sub build
     # so that an empty string can be passed to "null" the netroot from a profile
     $actref->{netroot} = $entry{netroot} if ($entry{netroot} ne "0");
 
-    # netroot may not be specified at all  
+    # netroot may not be specified at all
     if ( defined $actref->{netroot} and $actref->{netroot} ne "" ) {
         return 1 if ( &load_storage( $opts, $dbh, $actref ) );
         if ($opts->{debug} > 1) {
@@ -1857,18 +1857,26 @@ sub netboot
         &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
     }
     if ( $opts->{debug} > 1 ) {
-        while ( my ($key, $val) = each %{$macref} ) {
-            print "mac $key => " . $val eq "" ? "" : $val . "\n";
+        while ( my ($key, $val) = each( %$macref ) ) {
+            print "mac: $key => $macref->{$key}\n" if defined $val;
         }
     }
 
     $chkref = &get_db_action( $dbh, $mac );
     if ( defined $chkref ) {
         if ( $opts->{debug} > 1 ) {
-            while ( my ($key, $val) = each %{$chkref} ) {
-                print "check $key => " . $val eq "" ? "" : $val . "\n";
+            while ( my ($key, $val) = each( %$chkref ) ) {
+                print "check: $key => $chkref->{$key}\n" if defined $val;
             }
         }
+
+        if ( ( $chkref->{pxenext} eq BA_ACTION_NETBOOT ) and
+             ( $chkref->{netroot} eq $netroot )
+            ) {
+            $opts->{LASTERROR} = "device in NETBOOT state using $chkref->{netroot}\n";
+            return 1;
+        }
+
         # store a copy of the ref found for modification
         $actref = $chkref;
     }
@@ -1878,14 +1886,6 @@ sub netboot
     $actref->{netroot} = $netroot;
 
     return 1 if ( &load_storage( $opts, $dbh, $actref ) );
-
-    if ( defined $chkref and
-         $chkref->{pxenext} eq BA_ACTION_NETBOOT and
-         $chkref->{netroot} eq $netroot
-        ) {
-        $opts->{LASTERROR} = "device in NETBOOT state using $chkref->{netroot}\n";
-        return 1;
-    }
 
     ##
     ## ALL CHECKS DONE - DO MODS

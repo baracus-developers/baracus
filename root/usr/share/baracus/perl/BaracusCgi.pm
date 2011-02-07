@@ -93,7 +93,7 @@ sub get_inventory() {
     my $baVar = shift;
     my $input = shift;
     my $args  = shift;
-    $args = "acpi=off selinux=0 apm=off" unless ( defined $args && "$args" != "" );
+    $args = "acpi=off selinux=0 apm=off" unless ( defined $args && "$args" ne "" );
     $args .= " ipmi=true" if ( $baVar{ipmi} eq "true" );
     $args .= " ipmilan=true" if ( $baVar{ipmilan} eq "true" );
 
@@ -137,7 +137,7 @@ sub do_pxewait() {
     my $baVar = shift;
     my $input = shift;
     my $args  = shift;
-    $args = "acpi=off selinux=0 apm=off" unless ( defined $args && "$args" != "");
+    $args = "acpi=off selinux=0 apm=off" unless ( defined $args && "$args" ne "");
 
     my $lcmac = lc $input->{mac};
     my $pxewait_linux=get_arch_linux($input);
