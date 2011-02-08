@@ -599,7 +599,12 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 &update_db_action( $dbh, $actref );
             }
             &load_storage( $opts, $dbh, $actref );
-            &do_netboot( $cgi, $actref, $baVar{serverip} );
+	    if ( defined $actref->{roottype} and 
+		 $actref->{roottype} eq "nfs" ) {
+            	&do_netboot_nfs( $cgi, $actref, $baVar{serverip} );
+	    } else {
+                &do_netboot( $cgi, $actref, $baVar{serverip} );
+	    }
             # do_netboot exits
         }
 
@@ -752,7 +757,9 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 if ( $actref->{autobuild} ne "none" ) {
                     $args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
                 }
-
+		if ( $actref->{roottype} eq "nfs" ) {
+		    $args .= qq| ip=dhcp root=/dev/nfs nfsroot=$actref->{rooturi}|;
+		}
                 my $lcmac = lc $input->{mac};
 
                 $output = qq|DEFAULT label_$actref->{hostname}
