@@ -57,6 +57,7 @@ BEGIN {
               do_localboot
               do_pxewait
               do_netboot
+              do_netboot_nfs
               do_rescue
           )]
        );
@@ -165,6 +166,22 @@ TIMEOUT 0
 LABEL netboot
     kernel http://$serverip/ba/sanboot.c32
     append $actref->{rooturi}
+|;
+
+    print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
+    exit 0;
+}
+
+sub do_netboot_nfs() {
+    my $cgi = shift;
+    my $actref = shift;
+    my $serverip = shift;
+    my $output = qq|DEFAULT netboot
+PROMPT 0
+TIMEOUT 0
+LABEL netboot
+    kernel http://$serverip/ba/kernel
+    append root=/dev/$actref->{roottype} nfsroot=$actref->{rooturi}
 |;
 
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
