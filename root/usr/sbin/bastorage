@@ -154,7 +154,7 @@ die "DOES NOT EXECUTE";
 
 =head1 COMMANDS
 
-=head2 add --id <unique uri> --ip <server> --username <username> --password <password> --name <name> --description <"text">
+=head2 add --id <unique uri> --ip <server> --type <sharetype> --username <username> --password <password> --name <name> --description <"text">
 
 Where
 
@@ -165,7 +165,7 @@ Where
   --passwd <password>      password for LUN authentication
   --description <"text">   Quoted descriptive text for the share.
   --size <"text">          Describe the size of the partition.
-
+  --type <sharetype>       storage protocol [iscsi|nfs|aoe|image]
 =cut
 
 sub add
