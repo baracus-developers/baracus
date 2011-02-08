@@ -26,6 +26,7 @@
 
 use strict;
 
+use Clone qw( clone );
 use Getopt::Long qw( :config pass_through );
 use Pod::Usage;
 use File::Find;
@@ -174,6 +175,17 @@ print "setting uid back to $uid\n" if ($opts->{debug} > 2);
 $> = $uid;
 
 my $baXML = &baxml_load( $opts, "$baDir{'data'}/badistro.xml" );
+
+my @xmlfiles = &get_xml_filelist( $opts, $baDir{'distros.d'} );
+
+for my $xmlfile ( @xmlfiles ) {
+    print "now loading user distro file: $xmlfile\n" if $opts->{debug};
+    my $tmpXML = &baxml_load( $opts, $xmlfile );
+    while ( my ($key, $val) = each %{$tmpXML->{distro}} ) {
+        print " $key => $val\n" if $opts->{debug};
+        $baXML->{'distro'}->{$key} = clone( $val );
+    }
+}
 
 $opts->{dbh}      = $dbh;
 $opts->{dbrole}   = $dbrole;

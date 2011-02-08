@@ -71,6 +71,7 @@ BEGIN {
        subs =>
        [qw(
               multiarg_handler
+              get_xml_filelist
           )],
        );
   Exporter::export_ok_tags('vars');
@@ -103,8 +104,8 @@ my %keymap =
      'baracusd_options' =>  'bdoptions',
      'remote_logging'   =>  'rlogging',
      'ipmi'             =>  'ipmi',
-     'ipmi_lan'          =>  'ipmilan',
-     'ipmi_passwd'       =>  'ipmipasswd',
+     'ipmi_lan'         =>  'ipmilan',
+     'ipmi_passwd'      =>  'ipmipasswd',
      );
 
 %baVar =
@@ -124,8 +125,8 @@ my %keymap =
      remote_logging   => "" ,
 
      ipmi             => "" ,
-     ipmi_lan          => "" ,
-     ipmi_passwd       => "" ,
+     ipmi_lan         => "" ,
+     ipmi_passwd      => "" ,
      );
 
 my %tmpHash = $conf->getall;
@@ -211,6 +212,13 @@ $baDir{ root } = $baracusdir;
 $baDir{ data } = "/usr/share/baracus";
 $baDir{ buildroot } = $baDir{builds};
 
+my $baconfigdir = "/etc/baracus";
+my @bcdirs = qw( distros.d repos.d );
+foreach my $bd (@bcdirs) {
+    $baDir{ $bd } = "$baconfigdir/$bd";
+}
+$baDir{ config } = $baconfigdir;
+
 
 ###########################################################################
 
@@ -249,6 +257,30 @@ sub multiarg_handler() {
             $multiarg{ $option } .= " $value";
         }
     }
+}
+
+# return array of FQN files with '.xml' extension in and below xmldir passed
+
+sub get_xml_filelist
+{
+    use File::Find;
+
+    my $opts    = shift;
+    my $xmldir  = shift;
+    my @xmlfiles;
+
+    find ( { wanted =>
+             sub {
+                 if ($_ =~ m/^.*\.xml$/ ) {
+                     print "found $File::Find::name\n" if $opts->{debug};
+                     push @xmlfiles, $File::Find::fullname;
+                 }
+             },
+             follow => 1
+            },
+           $xmldir );
+
+    return @xmlfiles;
 }
 
 ###########################################################################
