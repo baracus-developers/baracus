@@ -22,7 +22,7 @@ __ADDON__
     <loader_type>grub</loader_type>
     <sections config:type="list">
       <section>
-        <append>nfsroot=__NFSROOT__ __BOOTARGS__ resume=__ROOTPART__2 splash=silent crashkernel=128M-:64M@16M showopts </append>
+        <append>__BOOTARGS__ resume=__ROOTPART__2 splash=silent crashkernel=128M-:64M@16M showopts</append>
         <initial>1</initial>
         <initrd>/boot/initrd-2.6.32.12-0.7.1-default</initrd>
         <lines_cache_id>0</lines_cache_id>
@@ -32,7 +32,7 @@ __ADDON__
         <type>image</type>
       </section>
       <section>
-        <append>nfsroot=__NFSROOT__ showopts ide=nodma apm=off noresume edd=off powersaved=off nohz=off highres=off processor.max_cstate=1 x11failsafe</append>
+        <append>showopts ide=nodma apm=off noresume edd=off powersaved=off nohz=off highres=off processor.max_cstate=1 x11failsafe</append>
         <image>/boot/vmlinuz-2.6.32.12-0.7.1-default</image>
         <initrd>/boot/initrd-2.6.32.12-0.7.1</initrd>
         <lines_cache_id>1</lines_cache_id>
@@ -424,7 +424,7 @@ nameserver __DNS1__
     <pre-scripts config:type="list">
       <script>
         <filename>mount_nfsroot</filename>
-        <source><![CDATA[export TARGET_ROOT=__NFSROOT__
+        <source><![CDATA[export TARGET_ROOT=__ROOTURI__
 mount -o nolock -t nfs $TARGET_ROOT /mnt
 mkdir /mnt/etc/
 cat > /mnt/etc/fstab <<- EOF
