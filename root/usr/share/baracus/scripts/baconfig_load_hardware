@@ -61,6 +61,14 @@ baconfig add hardware --name default-xvda \
 --rootpart=/dev/xvda \
 --cert "sles-11.1-x86_64_xen sles-11.1-x86_xen"
 
+baconfig detail hardware default-nfs --all &> /dev/null || \
+baconfig add hardware --name default-nfs \
+--description="/dev/nfs drive for NFS root" \
+--bootargs="acpi=on selinux=0 apm=off insmod=virtio_pci,virtio_blk,xenblk,xennet,nfs,8139too,8139cp ip=dhcp" \
+--rootdisk=/dev/nfs \
+--rootpart=/dev/nfs \
+--cert "sles-11.1-x86_64 sles-11.1-x86"
+
 baconfig detail hardware default-hp --all &> /dev/null || \
 baconfig add hardware --name default-hp \
 --description="/dev/cciss smart array" \
