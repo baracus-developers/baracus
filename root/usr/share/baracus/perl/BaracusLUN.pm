@@ -74,7 +74,6 @@ BEGIN {
                 update_db_lun
                 get_db_lun
                 get_db_lun_uri
-                get_db_lun_type
 
             )],
          );
@@ -233,28 +232,6 @@ sub get_db_lun_uri
         $uri = "null";
     }
     return $uri;
-}
-
-#
-# get_db_lun_type($dbh, $targetid)
-#
-
-sub get_db_lun_type
-{
-    my $dbh      = shift;
-    my $targetid = shift; ## netroot
-    
-    my $roottype;
-    my $sth;
-
-    my $sql = qq|SELECT * FROM $baTbls{ lun } WHERE targetid = '$targetid' |;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    my $href = $sth->fetchrow_hashref();
-
-    $roottype = $baLunType{ $href->{type} };
-    return $roottype;
 }
 
 #

@@ -336,7 +336,6 @@ sub load_storage
 
     # hash special cases
     $aref->{rooturi} = &get_db_lun_uri( $dbh, $aref->{netroot} );
-    $aref->{roottype} = &get_db_lun_type( $dbh, $aref->{netroot} );
     delete $aref->{username};
     delete $aref->{passwd};
 

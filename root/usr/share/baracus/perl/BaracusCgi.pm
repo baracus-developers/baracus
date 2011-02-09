@@ -181,13 +181,10 @@ PROMPT 0
 TIMEOUT 0
 LABEL netboot_nfs
     kernel http://$serverip/ba/linux?mac=$actref->{mac}
-    append initrd=http://$serverip/ba/initrd?mac=$actref->{mac}
+    append initrd=http://$serverip/ba/initrd?mac=$actref->{mac} root=/dev/nfs nfsroot=$actref->{rooturi}
 |;
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
     exit 0;
-
-    #kernel http://$serverip/ba/$linux_baracus
-    #append initrd=http://$serverip/ba/$initrd_baracus insmod=nfs root=/dev/nfs nfsroot=$actref->{rooturi}
 }
 
 sub do_rescue() {
