@@ -176,16 +176,18 @@ sub do_netboot_nfs() {
     my $cgi = shift;
     my $actref = shift;
     my $serverip = shift;
-    my $output = qq|DEFAULT netboot
+    my $output = qq|DEFAULT netboot_nfs
 PROMPT 0
 TIMEOUT 0
-LABEL netboot
-    kernel http://$serverip/ba/kernel
-    append root=/dev/$actref->{roottype} nfsroot=$actref->{rooturi}
+LABEL netboot_nfs
+    kernel http://$serverip/ba/linux?mac=$actref->{mac}
+    append initrd=http://$serverip/ba/initrd?mac=$actref->{mac}
 |;
-
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
     exit 0;
+
+    #kernel http://$serverip/ba/$linux_baracus
+    #append initrd=http://$serverip/ba/$initrd_baracus insmod=nfs root=/dev/nfs nfsroot=$actref->{rooturi}
 }
 
 sub do_rescue() {
