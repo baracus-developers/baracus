@@ -478,22 +478,16 @@ chain http://$baVar{serverip}/ba/pxelinux.0?mac=\${mac}
             $distref = &get_distro( $opts, $dbh, $actref );
 
             if ( $distref->{os} =~ m/solaris/i ) {
-#                # my $iqn = "iqn.2010-01.lab.lsg:gfs-b9";
+
                 $output = qq|#!gpxe
 chain tftp://$baVar{serverip}/pxegrub
 |;
             } elsif ( $distref->{os} =~ m/win/i ) {
 
-                my $iqn = "iqn.2010-01.lab.lsg:gfs-b9";
                 $output = qq|#!gpxe
 chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 |;
 
-#dhcp net0
-#set keep-san-nb 1
-#sanboot iscsi:151.155.230.116::::$iqn
-#chain http://$baVar{serverip}/ba/startrom.0?mac=$input->{mac}
-#|;
             } else {
                 $output = $default;
             }
@@ -853,25 +847,20 @@ chain pxegrub
 
 # the mac isn't required here for operation but it identifies the requesting device 
 
-                $output = qq|#!gpxe
+                if ( $actref->{target} ) {
+                    $output = qq|#!gpxe
+set keep-san-nb 1
+sanboot  $actref->{rooturi}
 chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
 |;
-#chain http://$baVar{serverip}/ba/startrom.0
-
-#                $output = qq|DEFAULT label_$actref->{hostname}
-#PROMPT 0
-#TIMEOUT 0
-#
-#LABEL label_$actref->{hostname}
-#    kernel tftp://$baVar{serverip}/startrom.0
-#|;
-
-#    kernel http://$baVar{serverip}/baracus/startrom.0
-#    kernel http://$baVar{serverip}/ba/startrom.0?mac=$input->{mac}
-#    kernel http://$baVar{serverip}/ba/linux?mac=$input->{mac}
+                } else {
+                    $output = qq|#!gpxe
+chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
+|;
 
             }
         }
+    }
 
         if ( $pxenext eq BA_ACTION_IMAGE or
              $pxenext eq BA_ACTION_MCAST or
