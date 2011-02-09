@@ -389,6 +389,8 @@ sub build
     undef $actref;
 
     $actref = {};
+    $actref->{netroot} = "";  # default to wiping the netroot info
+
     # baDir and baVar into actref
     &load_baracusconfig( $opts, $actref );
 
@@ -986,6 +988,7 @@ sub image
 
     $actref->{disk} = $disk;
     $actref->{partition} = $partition;
+    $actref->{netroot} = "";  # wipe the netroot info
 
     # do not want any setting to override these values
 
@@ -1635,6 +1638,7 @@ sub wipe
 
     $actref->{cmdline} = $cmdline;
     $actref->{mac} = $mac;
+    $actref->{netroot} = "";  # wipe the netroot info
 
     # if passed both mac and hostname create a host table entry
     if ( $hostname ne "" ) {
@@ -1768,6 +1772,7 @@ sub localboot
     $actref->{mac} = $mac;
     $actref->{disk} = $disk;
     $actref->{partition} = $partition;
+    $actref->{netroot} = "";  # wipe the netroot info
 
     # if passed both mac and hostname create a host table entry
     if ( $hostname ne "" ) {
