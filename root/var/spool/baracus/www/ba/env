@@ -600,7 +600,8 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             }
             &load_storage( $opts, $dbh, $actref );
 	    if ( defined $actref->{roottype} and 
-		 $actref->{roottype} eq "nfs" ) {
+		$actref->{roottype} eq "nfs" ) {
+		printlog "$actref->{mac} - netboot_nfs: $actref->{rooturi}\n";
             	&do_netboot_nfs( $cgi, $actref, $baVar{serverip} );
 	    } else {
                 &do_netboot( $cgi, $actref, $baVar{serverip} );
