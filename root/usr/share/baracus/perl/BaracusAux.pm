@@ -234,7 +234,7 @@ sub get_version_or_enabled
 # with chunking this is only good for non-data
 # fetch of name for checking if already exists
 sub find_tftpfile() {
-    my $type = "tftp";
+    my $type = "file";
 
     my $opts     = shift;
     my $tftph    = shift;
@@ -250,7 +250,7 @@ sub find_tftpfile() {
 }
 
 sub delete_tftpfile() {
-    my $type = "tftp";
+    my $type = "file";
 
     my $opts     = shift;
     my $tftph    = shift;
@@ -1029,7 +1029,7 @@ sub cert_for_distro
 
 # get_versions
 #
-# args: type (module, hardware, profile, tftp), $name, $version
+# args: type (module, hardware, profile, file), $name, $version
 # ret:  hash to entries found to specified, highest, enabled versions on match
 #         or undef on error
 
@@ -1195,7 +1195,7 @@ sub find_helper
                   FROM $baTbls{ $type }
                   WHERE autobuildid = '$name'
                  |;
-    } elsif ( $type eq "tftp" ) {
+    } elsif ( $type eq "file" ) {
         $sql = qq|SELECT name, id
                   FROM $baTbls{ $type }
                   WHERE name = '$name'

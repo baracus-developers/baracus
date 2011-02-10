@@ -459,7 +459,7 @@ sub update_db_iso_entry
 
 
 ###########################################################################
-# sqlfsOBJ - sqlfstable - tftp db
+# sqlfsOBJ - sqlfstable - file db
 
 # lookup file - 0 missing, 1 enabled, 2 disabled
 sub sqlfs_getstate
@@ -521,7 +521,7 @@ sub sqlfs_storeScalar
     return $status;
 }
 
-# remove a file located in sqlfs tftp relation
+# remove a file located in sqlfs file relation
 sub sqlfs_remove
 {
     my $opts = shift;
@@ -1332,7 +1332,7 @@ samba for other shares, and then try this basource command again.
 	    }
         my $stname = "${fname}-${arch}";
 	    if ( &sqlfs_getstate( $opts, $stname  ) ) {
-		print "found $stname in tftp database\n" if $opts->{verbose};
+		print "found $stname in file database\n" if $opts->{verbose};
 	    } else {
 		print "cp from $fh->{file} to $tdir/$stname\n"
 		    if ( $opts->{debug} > 1 );
@@ -1346,7 +1346,7 @@ samba for other shares, and then try this basource command again.
     } elsif ( $distro =~ m/(xenserver|solaris)/i )  {
         while ( my ($fname, $fh) = each ( %{$bh->{baseshares}} ) ) {
             if ( &sqlfs_getstate( $opts, $fname ) ) {
-                print "found $fname in tftp database\n" if $opts->{verbose};
+                print "found $fname in file database\n" if $opts->{verbose};
             } else {
                 print "cp from $fh->{file} to $tdir/$fname\n"
                     if ( $opts->{debug} > 1 );
@@ -1359,7 +1359,7 @@ samba for other shares, and then try this basource command again.
         }
     } else {
 	if ( &sqlfs_getstate( $opts, "linux.$distro" ) ) {
-	    print "found bootloader linux.$basedist in tftp database\n" if $opts->{verbose};
+	    print "found bootloader linux.$basedist in file database\n" if $opts->{verbose};
 	} else {
 	    print "cp from $bh->{baselinux} to $tdir/linux.$basedist\n"
 		if ( $opts->{debug} > 1 );
@@ -1368,7 +1368,7 @@ samba for other shares, and then try this basource command again.
 	    unlink ( "$tdir/linux.$basedist" );
 	}
 	if( &sqlfs_getstate( $opts, "initrd.$basedist" ) ) {
-	    print "found bootloader initrd.$basedist in tftp database\n"
+	    print "found bootloader initrd.$basedist in file database\n"
 		if $opts->{verbose};
 	} else {
 	    print "cp from $bh->{baseinitrd} to $tdir/initrd.gz\n" if ( $opts->{debug} > 1 );

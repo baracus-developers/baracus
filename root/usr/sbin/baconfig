@@ -51,7 +51,7 @@ Where E<lt>commandE<gt> is
 
     list   <type> [match]  List entries in database.
     add    <type> <...>    Copy to database from specified file.
-    update <type> <...>    Modify module, profile or tftp entry.
+    update <type> <...>    Modify module, profile or file entry.
     export <type> <...>    Export data portion of entry to new file.
     detail <type> <name>   Display file entry in database table.
     remove <type> <name>   Delete file from database table.
@@ -65,7 +65,7 @@ And, where E<lt>typeE<gt> is
     module    Postinstall scripts to run on build completion.
     profile   Network or other variable definitions.
     autobuild Build recipe templates with variables for customization.
-    tftp      TFTP filesystem database.
+    file      file database.
 
 And, where <...> indicates additional required arguments.
 
@@ -109,7 +109,7 @@ my $cmds =
  'man'     => \&man,
  };
 
-my @types = qw ( hardware module profile autobuild tftp );
+my @types = qw ( hardware module profile autobuild file );
 
 my $opts =
 {
@@ -181,7 +181,7 @@ die "DOES NOT EXECUTE";
 
 =head2 list <type> [--all] [--quiet] [match]
 
-Takes <type> as an argument, (hardware, module, profile, autobuild, tftp).
+Takes <type> as an argument, (hardware, module, profile, autobuild, file).
 Also takes optional string [ match ] to use for partial matching.
 
 Lists enabled entries of type, matching match, in filesystem.
@@ -242,7 +242,7 @@ sub list
             printf "%-32s ver sts mty description\n", $type;
         } elsif ( $type eq "autobuild" ) {
             printf "%-32s ver sts description\n", $type;
-        } elsif ( $type eq "tftp" ) {
+        } elsif ( $type eq "file" ) {
             printf "%-32s cnt sts description\n", $type;
         } else {
             printf "%-32s description\n", $type;
@@ -292,7 +292,7 @@ sub list
                         (defined $href->{'description'}) ?
                             $href->{'description'} : "";
             }
-        } elsif ( $type eq "tftp" ) {
+        } elsif ( $type eq "file" ) {
             next unless ( $opts->{all} || $href->{'enabled'} );
             # name, count, status, description
             printf "%-32s ", $href->{'name'};
@@ -333,7 +333,7 @@ sub add
     elsif ( $type eq "module"    ) { $status = &add_module( @_ );    }
     elsif ( $type eq "profile"   ) { $status = &add_profile( @_ );   }
     elsif ( $type eq "autobuild" ) { $status = &add_autobuild( @_ ); }
-    elsif ( $type eq "tftp"      ) { $status = &add_tftp( @_ );      }
+    elsif ( $type eq "file"      ) { $status = &add_tftp( @_ );      }
     else {
         # should be redundant with &check_type above
         $opts->{LASTERROR} = "Invalid <type> '$type' passed for add.\n";
@@ -904,21 +904,21 @@ sub add_autobuild
     return 0;
 }
 
-=head2 add tftp <options and args>
+=head2 add file <options and args>
 
 Where <options and args> are
 
     --name id              Required unique id.
-    --enable | --noenable  Enable tftp file for use. [ default enable ]
+    --enable | --noenable  Enable file for use. [ default enable ]
     --description "note"   Quoted note describing this file.
-    --file <path/prof>     File to use for this tftp entry.
+    --file <path/prof>     File to use for this file entry.
 
 =cut
 
 sub add_tftp
 {
     my $command = "add";
-    my $type = "tftp";
+    my $type = "file";
     my $file = "";
 
     my %entry =
@@ -3039,7 +3039,7 @@ sub list_start
                   WHERE autobuildid LIKE ?
                   ORDER BY autobuildid, version
                  |;
-    } elsif ( $type eq "tftp" ) {
+    } elsif ( $type eq "file" ) {
         $sql = qq|SELECT name, description, COUNT( id ) as count, enabled
                   FROM $baTbls{ $type }
                   WHERE name LIKE ?

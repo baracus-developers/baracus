@@ -89,7 +89,7 @@ use vars qw ( %baTbls %baTblCert %baTblId );
 
 %baTbls =
     (
-     'tftp'      => 'sqlfstable',
+     'file'      => 'sqlfstable',
 
      'mac'       => 'mac',
      'host'      => 'host',
