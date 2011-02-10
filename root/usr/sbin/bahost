@@ -601,12 +601,24 @@ sub detail
                 }
             }
             print "\n";
+            print "\n";
 
-            print "\n";
-            print "Netboot\n";
-            print "-------\n";
-            printf "%-18s", "NetRoot StorageID:"; print " $dbref->{netroot}" if $dbref->{netroot}; print "\n";
-            print "\n";
+            if ( $dbref->{netroot} ) {
+                print "Netboot\n";
+                print "-------\n";
+                printf "%-18s", "NetRoot StorageID:"; print " $dbref->{netroot}";
+                print "\n";
+                print "\n";
+            }
+
+            if ( $dbref->{imageid} ) {
+                print "Image\n";
+                print "-----\n";
+                printf "%-18s", "Image StorageID:"; print " $dbref->{imageid}";
+                print "\n";
+                print "\n";
+            }
+
             print "Additional Details\n";
             print "------------------\n";
             printf "%-18s", "Loghost:";           print " $dbref->{loghost}" if $dbref->{loghost}; print "\n";
