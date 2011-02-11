@@ -130,7 +130,7 @@ sub new
                        TIMESTAMP 'epoch' + (AVG(EXTRACT(EPOCH FROM insertion)) * interval '1 second') as create
                        FROM $cfg{'TableName'}
                        WHERE name LIKE ?
-                       GROUP BY name, enabled
+                       GROUP BY name, size, enabled
                       |;
 
     # remove a file
