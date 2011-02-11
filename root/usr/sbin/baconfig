@@ -1070,7 +1070,7 @@ sub update
     elsif ( $type eq "module"    ) { $status = &update_module( @_ );    }
     elsif ( $type eq "profile"   ) { $status = &update_profile( @_ );   }
     elsif ( $type eq "autobuild" ) { $status = &update_autobuild( @_ ); }
-    elsif ( $type eq "tftp"      ) { $status = &update_tftp( @_ );      }
+    elsif ( $type eq "file"      ) { $status = &update_tftp( @_ );      }
     else {
         # should be redundant with &check_type above
         $opts->{LASTERROR} = "Invalid <type> '$type' passed for update.\n";
@@ -2065,7 +2065,7 @@ sub update_autobuild
     return 0;
 }
 
-=head2 update tftp <options and args>
+=head2 update file <options and args>
 
 Where <options and args> are
 
@@ -2081,7 +2081,7 @@ There is no support for versioning of these files.
 sub update_tftp
 {
     my $command = "update";
-    my $type = 'tftp';
+    my $type = 'file';
     my $file = "";
 
     my $sth;
@@ -2343,7 +2343,7 @@ sub update_tftp
 
 =head2 export E<lt>typeE<gt> <options and args>
 
-Where <type> may be module, profile, autobuild, or tftp.  Not hardware.
+Where <type> may be module, profile, autobuild, or file.  Not hardware.
 
 For similar functionality with hardware type it is suggested to simply redirect the 'detail <type>' output.  With hardware there is no related '--file' argument used to add or update it.
 
@@ -2392,7 +2392,7 @@ sub export
         $entry{'name'} =~ s|.*/||; # only the short name for the lookup
     }
 
-    if ( $type eq "tftp" ) {
+    if ( $type eq "file" ) {
         if ( $entry{'version'} ne "0" ) {
             print "Ignoring unsupported --version specifier for type $type\n";
         }
@@ -2457,7 +2457,7 @@ sub export
                   FROM $baTbls{ $type }
                   WHERE autobuildid = '| . $entry{'name'} . qq|'
                   AND version = '| . $entry{'version'} . qq|'|;
-    } elsif ( $type eq "tftp" ) {
+    } elsif ( $type eq "file" ) {
         $sql = qq|SELECT bin as data
                   FROM $baTbls{ $type }
                   WHERE name = '| . $entry{'name'} . qq|'
@@ -2488,7 +2488,7 @@ sub export
     my $row;
     while ( $href = $sth->fetchrow_hashref( ) ) {
         $rowcount += 1;
-        if ( $type ne "tftp" ) {
+        if ( $type ne "file" ) {
             $row = $href->{'data'};
         } else {
             $row = &bytea_decode ( $href->{'data'} );
@@ -2593,7 +2593,7 @@ sub detail
         $sql_cert = qq|SELECT distroid
                        FROM $baTbls{ 'abcert' }
                        WHERE autobuildid = '| . $name . qq|'|;
-    } elsif ( $type eq "tftp" ) {
+    } elsif ( $type eq "file" ) {
         $sql .= "WHERE name = ?";
         $sql .= " ORDER BY id";
 
@@ -2745,7 +2745,7 @@ sub detail
                 print  $href->{'data'};
                 $printcount += 1;
             }
-        } elsif ( $type eq "tftp" ) {
+        } elsif ( $type eq "file" ) {
             # because tftp file data is stored in chunks
             # need to collect the chunks before output
             if ( $tftpname ne $name ) {
@@ -2909,7 +2909,7 @@ sub remove
              qq|DELETE FROM $baTbls{ $type  } WHERE autobuildid = ?|,
              qq|DELETE FROM $baTbls{ abcert } WHERE autobuildid = ?|
              );
-    } elsif ( $type eq "tftp" ) {
+    } elsif ( $type eq "file" ) {
         @sql =
             (
              qq|DELETE FROM $baTbls{ $type } WHERE name = ?|
