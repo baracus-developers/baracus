@@ -320,7 +320,7 @@ sub remove()
         remove_db_host_by_mac( $dbh, $mac );
     }
 
-    remove_inventory( $opts, $mac );
+    remove_sqlFS_files( $opts, $mac );
 
     my $macref = get_db_mac( $dbh, $mac );
     if ( defined $macref ) {

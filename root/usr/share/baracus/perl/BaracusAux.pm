@@ -83,7 +83,7 @@ BEGIN {
                 load_baracusconfig
                 get_autobuild_expanded
 
-                remove_inventory
+                remove_sqlFS_files
                 get_mandatory_modules
 
                 check_enabled
@@ -660,21 +660,26 @@ sub get_autobuild_expanded
 #     $sqlfsOBJ->remove( $automac );
 # }
 
-sub remove_inventory
+sub remove_sqlFS_files
 {
     my $opts    = shift;
     my $mac     = shift;
     my $dbtftp  = "sqltftp";
 
+    my $lhref;
     my $deepdebug = $opts->{debug} > 2 ? 1 : 0;
     my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp;port=5162",
                                'User' => "baracus",
                                'debug' => $deepdebug )
         or die "Unable to create new instance of SqlFS\n";
 
-    my $inventory = "${mac}.inventory";
+    my $list =  $sqlfsOBJ->list_start( "${mac}" );
+    while ( $lhref = $sqlfsOBJ->list_next( $list ) ) {
+        $sqlfsOBJ->remove( $lhref->{name} );
+        print "$lhref->{name} removed from file DB \n" if ( $opts->{debug} > 1 );
+    }
+    $sqlfsOBJ->list_start( $list );
 
-    $sqlfsOBJ->remove( $inventory );
 }
 
 
