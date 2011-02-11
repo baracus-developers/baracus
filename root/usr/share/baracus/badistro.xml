@@ -620,6 +620,27 @@
     </product>
   </distro>
 
+  <distro name="sles-10.4-x86_xen">
+    <os>sles</os>
+    <release>10.4</release>
+    <arch>x86_xen</arch>
+    <description>SUSE Linux Enterprise Server 10 SP4 32bit Xen</description>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <addon>base</addon>
+      <iso name="SLES-10-SP4-DVD-i386-RC2-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/vmlinuz-xenpae'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/initrd-xenpae'/>
+        </sharefiles>
+        <md5>cc03499d8141d2276713ba0ef760aec8</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP4-DVD-i386-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=AdQfSs70M8E~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
   <distro name="sles-10.3-sdk-x86_xen">
     <os>sles</os>
     <release>10.3</release>
