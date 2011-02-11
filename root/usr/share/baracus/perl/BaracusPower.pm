@@ -239,14 +239,14 @@ sub virsh() {
 
     if ( $bmcref->{'ctype'} eq "virsh" ) {
         if ( ! defined $bmcref->{'bmcaddr'} ) {
-            $bmcref->{'bmcaddr'} = "qemu+unix:///system";
+            $bmcref->{'bmcaddr'} = "remote:///";
         } elsif ( $bmcref->{'bmcaddr'} =~ m|^(\d{1,3}\.){1,3}\d{1,3}$| ) {
             if ( defined $bmcref->{'login'}
                  and $bmcref->{'login'} ne "none"
                  and $bmcref->{'login'} ne "" ) {
                 $bmcref->{'bmcaddr'} = "$bmcref->{'login'}\@$bmcref->{'bmcaddr'}";
             }
-            $bmcref->{'bmcaddr'} = "qemu+ssh://$bmcref->{'bmcaddr'}/system";
+            $bmcref->{'bmcaddr'} = "remote+ssh://$bmcref->{'bmcaddr'}/";
         }
     }
 
