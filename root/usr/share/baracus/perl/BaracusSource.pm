@@ -461,6 +461,23 @@ sub update_db_iso_entry
 ###########################################################################
 # sqlfsOBJ - sqlfstable - file db
 
+# write db file out to fs - 0 ok - 1 on err (unix like)
+sub sqlfs_fetch
+{
+    my $opts = shift;
+    my $file = shift;
+
+    print "setting uid to $opts->{dbrole}\n" if ($opts->{debug} > 2);
+    my $uid = BaracusDB::su_user( $opts->{dbrole} );
+
+    my $sel = $opts->{sqlfsOBJ}->fetch( $file );
+
+    print "setting uid back to $uid\n" if ($opts->{debug} > 2);
+    $> = $uid;
+
+    return $sel;
+}
+
 # lookup file - 0 missing, 1 enabled, 2 disabled
 sub sqlfs_getstate
 {
@@ -1300,50 +1317,75 @@ sub add_bootloader_files
     my $arch = $dh->{arch};
     my $basedist = $dh->{basedist};
 
-    if ( $distro =~ m/win/i )  {
-	while ( my ($fname, $fh) = each ( %{$bh->{baseshares}} ) ) {
-	    unless ( -f $fh->{file} ) {
-		my $winstall_msg = qq|
+    if ( $distro =~ m/win/i ) {
+        my $baddiff = 0;
+        while ( my ($fname, $fh) = each ( %{$bh->{baseshares}} ) ) {
+            unless ( -f $fh->{file} ) {
+                my $winstall_msg = qq|
 Missing $fh->{file}
 
 Network install files for Win products need to be generated.
 
-Make sure you have the helper cifs share available:
+Make sure you have the helper cifs share available to user
+'root' with no password:
 
   > grep winstall.conf /etc/samba/smb.conf
   include = /etc/samba/winstall.conf
-  > service smb start       # if not already running
-  > smbclient -L localhost  # look for winstall
+  > service smb start    # if not already running
+  > smbpasswd -a root
+  # hit return twice for the password
+  > smbclient -L $baVar{shareip}  # look for winstall
+  > smbclient -U root //$baVar{shareip}/winstall
+  # ctrl-c out of smb client
 
 Then in a running instance of Win 7/2008/Vista,
 which has Auto Install Toolkit (AIK) installed,
+launch an AIK cmd shell as administrator, and
 mount the share "winstall" and run "bawinstall.bat"
 as follows:
 
-  c: net use x: \\\\$baVar{shareip}\\winstall
+  c: net use /user:root x: \\\\$baVar{shareip}\\winstall
   x:
   bawinstall.bat x
 
-Afterwards, stop smb ( rcsmb stop ) unless you have need of
-samba for other shares, and then try this basource command again.
+Afterwards,
+
+  > service smb stop   # unless needed for other shares
+
+then try this basource command again.
+
+  > basource add --distro $distro
+
 |;
-		print $winstall_msg;
+                print $winstall_msg;
                 exit;
-	    }
-        my $stname = "${fname}-${arch}";
-	    if ( &sqlfs_getstate( $opts, $stname  ) ) {
-		print "found $stname in file database\n" if $opts->{verbose};
-	    } else {
-		print "cp from $fh->{file} to $tdir/$stname\n"
-		    if ( $opts->{debug} > 1 );
-		# we don't go from $fh->{file} to sqlfs_store directly
-		# there may be a name change / difference from $fname
-		copy($fh->{file},"$tdir/$stname") or die "Copy failed: $!";
-		&sqlfs_store( $opts, "$tdir/$stname" );
-		unlink( "$tdir/$stname" );
-	    }
-	}
-    } elsif ( $distro =~ m/(xenserver|solaris)/i )  {
+            }
+            my $stname = "${fname}-${arch}";
+            if ( &sqlfs_fetch( $opts, "$tdir/$stname" ) == 0 ) {
+                # file found and written out for compare
+                my $result = system("diff $fh->{file} $tdir/$stname >& /dev/null");
+                if ( $result == 0 ) {   # same as what we'd add
+                    print "found $stname in file database\n" if $opts->{verbose};
+                } else {
+                    if ( $baddiff == 0 ) {
+                        $baddiff = 1;
+                        print "\nDifferences in the db files and the winstall/import area have been found.\nYou likely have regenerated the winpe env and have not updated the files in the db.\nPlease run the following commands to sync these files:\n\n"
+                    }
+                    print "  baconfig update file --name $stname --file $fh->{file}\n";
+                }
+            } else {
+                # file not found in db
+                print "cp from $fh->{file} to $tdir/$stname\n" if ( $opts->{debug} > 1 );
+                # we don't go from $fh->{file} to sqlfs_store directly
+                # there may be a name change / difference from $fname
+                copy($fh->{file},"$tdir/$stname") or die "Copy failed: $!";
+                &sqlfs_store( $opts, "$tdir/$stname" );
+            }
+            unlink( "$tdir/$stname" );
+        }
+        print "\n" if $baddiff;
+
+    } elsif ( $distro =~ m/(xenserver|solaris)/i ) {
         while ( my ($fname, $fh) = each ( %{$bh->{baseshares}} ) ) {
             if ( &sqlfs_getstate( $opts, $fname ) ) {
                 print "found $fname in file database\n" if $opts->{verbose};
@@ -1358,7 +1400,7 @@ samba for other shares, and then try this basource command again.
             }
         }
     } else {
-	if ( &sqlfs_getstate( $opts, "linux.$distro" ) ) {
+        if ( &sqlfs_getstate( $opts, "linux.$distro" ) ) {
 	    print "found bootloader linux.$basedist in file database\n" if $opts->{verbose};
 	} else {
 	    print "cp from $bh->{baselinux} to $tdir/linux.$basedist\n"
