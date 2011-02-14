@@ -19,6 +19,41 @@ __ADDON__
       <lines_cache_id>2</lines_cache_id>
       <timeout config:type="integer">8</timeout>
     </global>
+    <initrd_modules config:type="list">
+      <initrd_module>
+        <module>processor</module>
+      </initrd_module>
+      <initrd_module>
+        <module>thermal</module>
+      </initrd_module>
+      <initrd_module>
+        <module>ata_piix</module>
+      </initrd_module>
+      <initrd_module>
+        <module>ata_generic</module>
+      </initrd_module>
+      <initrd_module>
+        <module>piix</module>
+      </initrd_module>
+      <initrd_module>
+        <module>ide_pci_generic</module>
+      </initrd_module>
+      <initrd_module>
+        <module>fan</module>
+      </initrd_module>
+      <initrd_module>
+        <module>jbd</module>
+      </initrd_module>
+      <initrd_module>
+        <module>ext3</module>
+      </initrd_module>
+      <initrd_module>
+        <module>edd</module>
+      </initrd_module>
+      <initrd_module>
+        <module>nfs</module>
+      </initrd_module>
+    </initrd_modules>
     <loader_type>grub</loader_type>
     <sections config:type="list">
       <section>
