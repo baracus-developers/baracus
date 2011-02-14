@@ -152,6 +152,27 @@
     </product>
   </distro>
 
+  <distro name="sles-11.1-sdk-x86_64">
+    <os>sles</os>
+    <release>11.1</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-11.1-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 11 SP1 Software Development Kit 64bit</description>
+
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <addon>signed</addon>
+      <iso name="SLE-11-SP1-SDK-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <md5>c045bef43dbf9d3de01569cee6853cf2</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzzeQqpY9nK4%7E%2FSLE-11-SP1-SDK-DVD-x86_64-GM-DVD1.iso&buildid=zzeQqpY9nK4~&fileid=kGzgMW9NCts~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
   <distro name="sles-11.1-x86_64_xen">
     <os>sles</os>
     <release>11.1</release>
@@ -174,14 +195,14 @@
     </product>
   </distro>
 
-  <distro name="sles-11.1-sdk-x86_64">
+  <distro name="sles-11.1-sdk-x86_64_xen">
     <os>sles</os>
     <release>11.1</release>
     <addos>sdk</addos>
     <addrel/>
-    <arch>x86_64</arch>
-    <requires>sles-11.1-x86_64</requires> <!-- flag! content ignored -->
-    <description>SLES 11 SP1 Software Development Kit 64bit</description>
+    <arch>x86_64_xen</arch>
+    <requires>sles-11.1-x86_64_xen</requires> <!-- flag! content ignored -->
+    <description>SLES 11 SP1 Software Development Kit 64bit Xen</description>
 
     <autodownload>auth</autodownload>
 
@@ -194,7 +215,6 @@
       </iso>
     </product>
   </distro>
-
 
   <distro name="sles-11.1-x86">
     <os>sles</os>
@@ -211,28 +231,6 @@
         <sharefiles>
           <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
           <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
-        </sharefiles>
-        <md5>0dd6886858d93501c38854552b9b1b0d</md5>
-        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FwGqu-GCcLaI%7E%2FSLES-11-SP1-DVD-i586-GM-DVD1.iso&buildid=wGqu-GCcLaI~&fileid=99Ag3s91ZNw~&mirror=AkamaiHost&nohost=false]]></url>
-      </iso>
-    </product>
-  </distro>
-
-  <distro name="sles-11.1-x86_xen">
-    <os>sles</os>
-    <release>11.1</release>
-    <arch>x86_xen</arch>
-    <description>SUSE Linux Enterprise Server 11 SP1 32bit Xen</description>
-
-    <autodownload>auth</autodownload>
-
-    <product name="dvd">
-      <addon>base</addon>
-      <iso name="SLES-11-SP1-DVD-i586-GM-DVD1.iso">
-        <path/>
-        <sharefiles>
-          <sharefile sharetype='tftp' name='kernel' file='boot/i386/vmlinuz-xen'/>
-          <sharefile sharetype='tftp' name='initrd' file='boot/i386/initrd-xen'/>
         </sharefiles>
         <md5>0dd6886858d93501c38854552b9b1b0d</md5>
         <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FwGqu-GCcLaI%7E%2FSLES-11-SP1-DVD-i586-GM-DVD1.iso&buildid=wGqu-GCcLaI~&fileid=99Ag3s91ZNw~&mirror=AkamaiHost&nohost=false]]></url>
@@ -261,6 +259,48 @@
     </product>
   </distro>
 
+  <distro name="sles-11.1-x86_xen">
+    <os>sles</os>
+    <release>11.1</release>
+    <arch>x86_xen</arch>
+    <description>SUSE Linux Enterprise Server 11 SP1 32bit Xen</description>
+
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <addon>base</addon>
+      <iso name="SLES-11-SP1-DVD-i586-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/vmlinuz-xen'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/initrd-xen'/>
+        </sharefiles>
+        <md5>0dd6886858d93501c38854552b9b1b0d</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FwGqu-GCcLaI%7E%2FSLES-11-SP1-DVD-i586-GM-DVD1.iso&buildid=wGqu-GCcLaI~&fileid=99Ag3s91ZNw~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-11.1-sdk-x86_xen">
+    <os>sles</os>
+    <release>11.1</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>x86_xen</arch>
+    <requires>sles-11.1-x86_xen</requires> <!-- flag! content ignored -->
+    <description>SLES 11 SP1 Software Development Kit 32bit Xen</description>
+
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <addon>signed</addon>
+      <iso name="SLE-11-SP1-SDK-DVD-i586-GM-DVD1.iso">
+        <path/>
+        <md5>f00961bd4788751f22c91e062a3ac82b</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzzeQqpY9nK4%7E%2FSLE-11-SP1-SDK-DVD-i586-GM-DVD1.iso&buildid=zzeQqpY9nK4~&fileid=6VXYBbeQ4F0~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
 
 
   <!-- SLED 11 SP 1 -->
@@ -279,6 +319,27 @@
         <sharefiles>
           <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
           <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>f37c4159fdc3906c09ffb6817a20461b</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FefgnQnRkzh4%7E%2FSLED-11-SP1-DVD-x86_64-GM-DVD1.iso&buildid=efgnQnRkzh4~&fileid=8mDCw6PatAI~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sled-11.1-x86_64_xen">
+    <os>sled</os>
+    <release>11.1</release>
+    <arch>x86_64_xen</arch>
+    <description>SUSE Linux Enterprise Desktop 11 SP1 64bit Xen</description>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <addon>base</addon>
+      <iso name="SLED-11-SP1-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/vmlinuz-xen'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/initrd-xen'/>
         </sharefiles>
         <md5>f37c4159fdc3906c09ffb6817a20461b</md5>
         <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FefgnQnRkzh4%7E%2FSLED-11-SP1-DVD-x86_64-GM-DVD1.iso&buildid=efgnQnRkzh4~&fileid=8mDCw6PatAI~&mirror=AkamaiHost&nohost=false]]></url>
@@ -307,6 +368,26 @@
     </product>
   </distro>
 
+  <distro name="sled-11.1-x86_xen">
+    <os>sled</os>
+    <release>11.1</release>
+    <arch>x86_xen</arch>
+    <description>SUSE Linux Enterprise Desktop 11 SP1 32bit Xen</description>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <addon>base</addon>
+      <iso name="SLED-11-SP1-DVD-i586-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/vmlinuz-xen'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/initrd-xen'/>
+        </sharefiles>
+        <md5>314a93bec3667465480690911de16490</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FefgnQnRkzh4%7E%2FSLED-11-SP1-DVD-i586-GM-DVD1.iso&buildid=efgnQnRkzh4~&fileid=HHRkAJ0J1Jk~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
 
   <!-- SLES 11 -->
 
@@ -389,7 +470,6 @@
       </iso>
     </product>
   </distro>
-
 
   <!-- SLED-11 -->
 
@@ -597,7 +677,7 @@
     </product>
   </distro>
 
-  <!-- SLES 10 SP 4 -->
+  <!-- SLES 10 SP 3-->
 
   <distro name="sles-10.3-s390x">
     <os>sles</os>
