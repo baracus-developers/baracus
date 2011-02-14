@@ -2077,10 +2077,10 @@
     <autodownload>open</autodownload>
     <product name="dvd">
       <addon>signed</addon>
-      <iso name="openSUSE-11.4-Addon-NonOss-BiArch-i586-x86_64.iso">
+      <iso name="openSUSE-Addon-Lang-Build1057-x86_64.iso">
         <path/>
         <md5>4bf43fea60202386191417378eb9f401</md5>
-        <url><![CDATA[http://download.opensuse.org/distribution/11.4-Milestone3/iso/openSUSE-Addon-NonOss-BiArch-Build0845-i586-x86_64.iso]]></url>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.4-RC1/iso/SUSE-Addon-NonOss-BiArch-Build1057-i586-x86_64.iso]]></url>
       </iso>
     </product>
   </distro>
@@ -2099,7 +2099,7 @@
       <iso name="openSUSE-11.4-Addon-Lang-x86_64.iso">
         <path/>
         <md5>ff85b3ee89ad7c44b8951c299abb7855</md5>
-        <url><![CDATA[http://download.opensuse.org/distribution/11.4-Milestone3/iso/openSUSE-Addon-Lang-Build0845-x86_64.iso]]></url>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.4-RC1/iso/openSUSE-Addon-Lang-Build1056-x86_64.iso]]></url>
       </iso>
     </product>
   </distro>
@@ -2119,7 +2119,7 @@
           <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
         </sharefiles>
         <md5>4455ae572ef85b1803699de89f355459</md5>
-        <url><![CDATA[http://download.opensuse.org/distribution/11.4-Milestone3/iso/openSUSE-DVD-Build0845-i586.iso]]></url>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.4-RC1/iso/openSUSE-DVD-Build1056-i586.iso]]></url>
       </iso>
     </product>
   </distro>
@@ -2138,7 +2138,7 @@
       <iso name="openSUSE-11.4-Addon-NonOss-BiArch-i586-x86_64.iso">
         <path/>
         <md5>4bf43fea60202386191417378eb9f401</md5>
-        <url><![CDATA[http://download.opensuse.org/distribution/11.4-Milestone3/iso/openSUSE-Addon-NonOss-BiArch-Build0845-i586-x86_64.iso]]></url>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.4-RC1/iso/openSUSE-Addon-NonOss-BiArch-Build1056-i586-x86_64.iso]]></url>
       </iso>
     </product>
   </distro>
@@ -2154,10 +2154,10 @@
     <autodownload>open</autodownload>
     <product name="dvd">
       <addon>signed</addon>
-      <iso name="openSUSE-11.4-Addon-Lang-i586.iso">
+      <iso name="openSUSE-Addon-Lang-Build1057-i586.iso">
         <path/>
         <md5>ff85b3ee89ad7c44b8951c299abb7855</md5>
-        <url><![CDATA[http://download.opensuse.org/distribution/11.4-Milestone3/iso/openSUSE-Addon-Lang-Build0845-i586.iso]]></url>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.4-RC1/iso/openSUSE-Addon-Lang-Build1056-i586.iso]]></url>
       </iso>
     </product>
   </distro>
