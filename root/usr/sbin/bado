@@ -42,6 +42,7 @@ use BaracusHost qw( :subs );
 use BaracusSource qw( :vars );
 use BaracusState qw( :admin :actions :subs :vars );
 use BaracusAux qw( :subs );
+use BaracusLUN qw( :vars :subs );
 
 =pod
 
@@ -821,7 +822,7 @@ sub build
     return 0;
 }
 
-=head2 image --mac <macaddr> --hostname <name> --hardware <hw> { --image <file> | --mcast <chan> }
+=head2 image --mac <macaddr> --hostname <name> --hardware <hw> { --image <file> | --mcastid <chan> }
 
 Deploy an image file to a remote system disk
 
@@ -837,17 +838,14 @@ Arguments
                            as SuSE family would for bootargs and rootdisk.
                              > baconfig list hardware
 
-  --image <file>           Image file (raw installable) to be deployed.
+  --id <id>                Image ID as registered bith storage to be deployed.
                            This file should be present in ~baracus/images,
                            but specified here without that pathing.
 
-  --mcast <chan>           Image via multicast. Provide the <chan> here,
-                           the rendez-vous mcast ip address used for peering
-                           sender and recievers.
+  --mcastid <chan>         Image via multicast. Provide the <chanid> here,
 
-                           There should be a corresponding server, with
-                           the same rendez-vous channel, in the "bamcast"
-                           table or this node will wait till there is one.
+                           There should be a corresponding server, as registered
+                           and maintained with the "bamcast" tool.
 
 =cut
 
@@ -881,8 +879,8 @@ sub image
         (
          'mac=s'        => \$entry{mac},
          'hostname=s'   => \$entry{hostname},
-         'image=s'      => \$entry{imageid},
-         'mcast=s'      => \$mcast,
+         'id=s'         => \$entry{imageid},
+         'mcastid=s'    => \$entry{mcastid},
          'hardware=s'   => \$entry{hardware},
          'disk=s'       => \$entry{disk},
          'partition=s'  => \$entry{partition},
@@ -893,20 +891,35 @@ sub image
         return 1;
     }
 
-    if ( $mcast ne "" and $entry{imageid} ne "" ) {
-        $opts->{LASTERROR} = "\nEither --image or --mcast, not both.\n";
+    if ( $entry{imageid} eq "" ) {
+        $opts->{LASTERROR} = "Missing  --image\n";
         return 1;
-    } elsif ( $mcast ne "" ) {
-        &check_ip( $mcast );
-        $entry{imageid} = $mcast; # continued gross overload of imageid value
-    } elsif ( not -f "$baDir{images}/$entry{imageid}" ) {
-        $opts->{LASTERROR} = "\nUnable to find specified image:  $baDir{images}/$entry{imageid}\n";
-        if ( not -f "$baDir{images}/$entry{imageid}.gz" ) {
-            $opts->{LASTERROR} .= "\nAlso unable to find compressed image:  $baDir{images}/$entry{imageid}.gz\n";
+    }
+
+    # get and check for image based on id
+    my $imgref = &get_db_lun( $dbh, $entry{imageid} );
+    if ( ! defined $imgref ) {
+        $opts->{LASTERROR} = "imageid: $entry{imageid} does not exist\n";
+        return 1;
+    }
+
+    if ( $entry{mcastid} ne "" and $entry{imageid} ne "" ) {
+        $opts->{LASTERROR} = "\nEither --imageid or --mcastid, not both.\n";
+        return 1;
+    } elsif ( $entry{mcastid} ne "" ) {
+     # need to write mcastid checker
+     # &check_mcastid( $entry{mcastid} );
+    } elsif ( $entry{imageid} ne "" ) {
+        if ( $baLunType{ $imgref->{type} } ne "image" ) {
+            $opts->{LASTERROR} = "$entry{imageid} is not registered as type image\n";
             return 1;
-        } else {
-            $opts->{LASTERROR} = ""; # don't set to empty often - leads to trouble
         }
+        unless ( -e "$baDir{images}/$imgref->{target}" ) {
+            $opts->{LASTERROR} = "Unable to find specified image:  $baDir{images}/$imgref->{target}\n";
+            return 1;
+        }
+    } else {
+            $opts->{LASTERROR} = ""; # don't set to empty often - leads to trouble
     }
 
     # this routine checks for mac and hostname args
@@ -997,7 +1010,8 @@ sub image
     $actref->{'ip'} = $entry{ip};
     $actref->{'mac'} = $entry{mac};
     $actref->{'uuid'} = &get_uuid;
-    $actref->{'imageid'} = $entry{imageid};
+    $actref->{'imageid'} = $entry{imageid} if ( defined $entry{imageid} );
+    $actref->{'mcastid'} = $entry{mcastid} if ( defined $entry{mcastid} );
 
     if ($opts->{debug}) {
         print "settings to use:\n";
@@ -1023,9 +1037,9 @@ sub image
     # now that modules have been checked and loaded
     # create the action_module entries and store ver
 
-    my $action = $mcast ? BA_ACTION_MCAST : BA_ACTION_IMAGE ;
+    my $action = $entry{mcastid} ? BA_ACTION_MCAST : BA_ACTION_IMAGE ;
 
-    action_state_change( $dbh, $action, $macref, $actref );
+    &action_state_change( $dbh, $action, $macref, $actref );
 
     &update_db_mac_state ( $dbh, $actref->{mac}, $action );
 

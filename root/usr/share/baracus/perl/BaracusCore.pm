@@ -59,6 +59,7 @@ BEGIN {
                 check_command
                 get_uuid
                 get_rundate
+                get_md5sum
                 check_ip
                 check_mac
                 check_hostname
@@ -293,6 +294,22 @@ sub _boot_auto_mac_ {
         }
     }
     return $mac;
+}
+
+sub get_md5sum
+{
+    my $file = shift;
+
+    use Digest::MD5 qw(md5 md5_hex md5_base64);
+
+    open(FILE, $file) or
+        die "Can't open '$file': $!";
+    binmode(FILE);
+    my $md5 = Digest::MD5->new->addfile(*FILE)->hexdigest;
+    chomp($md5);
+ 
+    return $md5;
+    
 }
 
 

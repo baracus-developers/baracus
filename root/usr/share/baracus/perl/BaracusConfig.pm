@@ -243,7 +243,6 @@ sub multiarg_handler() {
         return;
     }
     foreach $value (@values) {
-        $value = lc $value;
         if ( $option eq "vars" ) {
             # special check for key=value assignment syntax
             die("FINISH") if ( $value !~ m/=/ );
