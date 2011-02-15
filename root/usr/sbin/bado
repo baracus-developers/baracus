@@ -838,7 +838,7 @@ Arguments
                            as SuSE family would for bootargs and rootdisk.
                              > baconfig list hardware
 
-  --imageid <id>           Image ID as registered bith storage to be deployed.
+  --id <id>                Image ID as registered bith storage to be deployed.
                            This file should be present in ~baracus/images,
                            but specified here without that pathing.
 
@@ -879,7 +879,7 @@ sub image
         (
          'mac=s'        => \$entry{mac},
          'hostname=s'   => \$entry{hostname},
-         'imageid=s'    => \$entry{imageid},
+         'id=s'         => \$entry{imageid},
          'mcastid=s'    => \$entry{mcastid},
          'hardware=s'   => \$entry{hardware},
          'disk=s'       => \$entry{disk},
