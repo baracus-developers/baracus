@@ -108,6 +108,7 @@ use vars qw ( %baTbls %baTblCert %baTblId );
      'actmod'    => 'action_module',
      'power'     => 'power',
      'lun'       => 'lun',
+     'mchannel'  => 'mchannel',
      'user'      => 'auth',
      );
 
@@ -143,6 +144,7 @@ use vars qw ( %baTbls %baTblCert %baTblId );
      'actmod'    => 'mac',          # to get all modules for given action/mac
      'power'     => 'mac',          # unique id
      'lun'       => 'targetid',     # unique id
+     'mchannel'  => 'mcastid',      # unique id
      'user'      => 'username',     # unique id
      );
 
@@ -470,6 +472,7 @@ sub get_baracus_tables
          'partition'   => 'INTEGER', # localboot target partition
          'netroot'     => 'VARCHAR', # netroot target alias
          'imageid'     => 'VARCHAR', # clone/image id
+         'mcastid'     => 'VARCHAR', # multicast channel id
          'cmdline'     => 'VARCHAR',
          'creation'    => 'TIMESTAMP',
          'change'      => 'TIMESTAMP',
@@ -527,11 +530,23 @@ sub get_baracus_tables
          'targetid'    => 'VARCHAR(64) PRIMARY KEY', # target alias/name
          'targetip'    => 'VARCHAR(15)',
          'target'      => 'VARCHAR(64)', # target path
+         'md5sum'      => 'VARCHAR(32)',
          'size'        => 'VARCHAR',
          'type'        => 'INTEGER', # 1 ISCSI, 2 AOE, 3 NFS, 4 IMAGE
          'username'    => 'VARCHAR(32)',
          'passwd'      => 'VARCHAR(32)',
          'description' => 'VARCHAR(124)',
+         );
+
+    my $tbl_mchannel = "mchannel";
+    my %tbl_mchannel_columns =
+        (
+         'mcastid'     => 'VARCHAR(64) PRIMARY KEY', # udpcast channel alias/name
+         'target'      => 'VARCHAR(64)',
+         'dataip'      => 'VARCHAR(15)',
+         'rdvip'       => 'VARCHAR(15)',
+         'interface'   => 'VARCHAR(8)',
+         'ratemx'      => 'INTEGER',
          );
 
     my $tbl_auth = "auth";
@@ -564,6 +579,7 @@ sub get_baracus_tables
          $tbl_action_autobuild  => \%tbl_action_autobuild_columns,
          $tbl_power             => \%tbl_power_columns,
          $tbl_lun               => \%tbl_lun_columns,
+         $tbl_mchannel          => \%tbl_mchannel_columns,
          $tbl_auth              => \%tbl_auth_columns,
         );
     return \%baracus_tbls;

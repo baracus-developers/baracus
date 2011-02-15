@@ -40,6 +40,7 @@ use BaracusDB;
 use BaracusSql qw( :vars :subs );         # %baTbls && get_cols
 use BaracusConfig qw( :vars :subs );
 use BaracusState qw( :vars :states );     # %aState  && BA_ states
+use BaracusCore qw( :subs );
 
 =pod
 
@@ -1132,7 +1133,6 @@ sub verify_iso
 
     print "+++++ verify_iso\n" if ( $opts->{debug} > 1 );
 
-    use Digest::MD5 qw(md5 md5_hex md5_base64);
     use File::Basename;
 
     my @dalist;
@@ -1202,11 +1202,7 @@ sub verify_iso
                 next unless ( $check_list =~ m|$isoshort| );
             }
             print $isoshort . " checksum in progress\n";
-            open(FILE, $isofile) or
-                die "Can't open '$isofile': $!";
-            binmode(FILE);
-            my $md5 = Digest::MD5->new->addfile(*FILE)->hexdigest;
-            chomp($md5);
+            my $md5 = &get_md5sum( $isofile );
             my $iname = basename( $isofile );
             my $storedmd5 = $daisohr->{$da}->{info}->{$iname}->{hash}->{md5};
             print "$isoshort : $md5 == $storedmd5 ?\n" if ($opts->{debug});

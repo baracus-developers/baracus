@@ -206,7 +206,7 @@ sub add
         $opts->{LASTERROR} = "Missing  --id\n";
         return 1;
     }
-    if ( $lunref->{targetip} eq "" ) {
+    if ( ( $lunref->{targetip} eq "" ) and ( $lunref->{type} ne "image" ) ) {
         $opts->{LASTERROR} = "Missing  --ip\n";
         return 1;
     }
@@ -221,7 +221,7 @@ sub add
         $lunref->{type} = $baLunType{ $lunref->{type} };
     }
 
-    &check_ip( $lunref->{targetip} );  # exits on error
+    &check_ip( $lunref->{targetip} ) if ( $lunref->{targetip} ne "" );  # exits on error
 
     # check for pre-exsisting id
     $chkref = &get_db_lun( $dbh, $lunref->{targetid} );
@@ -229,6 +229,17 @@ sub add
         $opts->{LASTERROR} = "id: $lunref->{targetid} already exists\n";
         return 1;
     }
+
+    # if image, generate md5sum and load into ~/images if not already
+    if ( $baLunType{ $lunref->{type} } eq "image" ) {
+        if ( -e "$baDir{images}/$lunref->{target}" ) {
+             print "Calcuating image md5sum ...\n" if $opts->{verbose};
+             $lunref->{md5sum} = &get_md5sum( "$baDir{images}/$lunref->{target}" );
+        } else {
+            $opts->{LASTERROR} = "image: $lunref->{target} does not exist in image directory\n";
+            return 1;
+        }
+    } 
 
     # done with all checking
     # begin loading of hash used for remainder of processing command
@@ -239,7 +250,7 @@ sub add
 
     if ( $opts->{verbose} )
     {
-        printf "lun: $lunref->{id} added\n";
+        printf "lun: $lunref->{targetid} added\n";
     }
 
     return 0;
