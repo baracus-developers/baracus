@@ -547,6 +547,8 @@ sub get_baracus_tables
          'rdvip'       => 'VARCHAR(15)',
          'interface'   => 'VARCHAR(8)',
          'ratemx'      => 'INTEGER',
+         'mrecv'       => 'INTEGER',
+         'status'      => 'BOOLEAN',
          );
 
     my $tbl_auth = "auth";
