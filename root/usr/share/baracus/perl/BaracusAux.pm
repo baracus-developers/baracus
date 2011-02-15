@@ -395,10 +395,7 @@ sub load_addons
         print "load_addons: working with $name\n" if ($opts->{debug} > 1);
         my $tref = { distro => "$name" };
         my $found = &get_distro( $opts, $dbh, $tref );
-        if ( not defined $found ) {
-            $status = 1 if ( $status == 0 );
-            $opts->{LASTERROR} = "Unable to find addon entry for $name\n";
-        } else {
+        if ( defined $found ) {
             my $addonbase = "$found->{os}-$found->{release}-$found->{arch}";
             if ( $aref->{distro} ne $addonbase ) {
                 if ( $status == 0 ) {
@@ -406,7 +403,7 @@ sub load_addons
                 }
                 $opts->{LASTERROR} .= "addon $name is for $addonbase not the specified $aref->{distro}\n";
             } else {
-                print $found . "\n" if ($opts->{debug} > 1);
+                print $found . " addon\n" if ($opts->{debug} > 1);
 
                 $aref->{addon} .= "\n" if ( $aref->{addon} );
                 $aref->{addon} .="      <listentry>
@@ -422,6 +419,27 @@ sub load_addons
                 }
                 $aref->{addon} .="      </listentry>"
             }
+        } elsif ( -d "$baDir{byum}/${name}" ) {
+            print $found . " repo\n" if ($opts->{debug} > 1);
+            # so we have a 'repo' with this name
+            $aref->{addon} .= "\n" if ( $aref->{addon} );
+            $aref->{addon} .="      <listentry>
+        <media_url>http://$baVar{serverip}/${name}</media_url>
+        <product>${name}</product>
+        <product_dir>/</product_dir>\n";
+            $aref->{addon} .="      </listentry>"
+        } elsif ( $name =~ m%^(http|ftp)\:\/\/(([^/]+\/){1,4}).*% ) {
+            print $found . " url\n" if ($opts->{debug} > 1);
+            # so we have a 'URL'
+            $aref->{addon} .= "\n" if ( $aref->{addon} );
+            $aref->{addon} .="      <listentry>
+        <media_url>${name}</media_url>
+        <product>$2</product>
+        <product_dir>/</product_dir>\n";
+            $aref->{addon} .="      </listentry>"
+        } else {
+            $status = 1 if ( $status == 0 );
+            $opts->{LASTERROR} = "Unable to find addon entry for $name\n";
         }
     }
     return $status;
