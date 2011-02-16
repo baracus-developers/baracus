@@ -87,6 +87,9 @@ my $linux_xen_baracus = "linux-xen.baracus";
 my $initrd_baracus = "initrd.baracus";
 my $initrd_xen_baracus = "initrd-xen.baracus";
 
+my $linux_net="linux_net";
+my $initrd_net="initrd_net";
+
 my $dbh = DBI->connect
     ("DBI:Pg:dbname=baracus;port=5162",
      "wwwrun",
@@ -1498,6 +1501,37 @@ Address 'CMS' 'PURGE RDR ALL'
         &update_db_mac_state( $dbh, $input->{mac}, $state );
         &update_db_action( $dbh, $actref );
     }
+
+    ##
+    ## NFS boot 
+    ##
+
+    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/($linux_net|$initrd_net)\?.*\s*$} )
+    {
+	my $fd;
+	my $fn;
+
+	$input->{mac} = &check_mac($input->{mac});
+
+        printlog "$input->{mac} - NFS boot $1.\n";
+
+	if ($1 eq $linux_net) {
+		$fn="/net/172.17.1.209/media/nfsroot/root1/boot/vmlinuz-2.6.32.12-0.7-default";
+	} else {
+		$fn="/net/172.17.1.209/media/nfsroot/root1/boot/initrd-2.6.32.12-0.7-default";
+	}
+	open ($fd, "<", $fn) || printlog "Error opening $fn";
+	binmode($fd);
+	undef $/;
+	my $fdata=<$fd>;
+	$/ = "\n";
+	close $fd;
+	
+	my $flength = length( $fdata );
+	printlog "read $flength";
+        $output .= $fdata;
+    }
+
 
     ##
     ## kernel and initrd for inventory and dban
