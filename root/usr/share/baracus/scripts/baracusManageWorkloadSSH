@@ -54,9 +54,9 @@ fi
 #    exit 1
 #fi
 
-baconfig list tftp ${initrd} -q -n | grep ${initrd} >& /dev/null
+baconfig list file ${initrd} -q -n | grep ${initrd} >& /dev/null
 if [[ $? -ne 0 ]]; then
-    echo "$date Unable to find Baracus baconfig list tftp ${initrd}"
+    echo "$date Unable to find Baracus baconfig list file ${initrd}"
     echo "$date Either baracusd is not running or has not been properly initialized."
     exit 1
 fi
@@ -70,7 +70,7 @@ pushd $tmpdir >& /dev/null
   ## export initrd
 
   # pre-checked above
-  baconfig export tftp --name ${initrd} --file ${initrd}
+  baconfig export file --name ${initrd} --file ${initrd}
   
   ## unpack initrd
   
@@ -128,7 +128,7 @@ pushd $tmpdir >& /dev/null
   gzip ${initrd}
   mv ${initrd}.gz ${initrd}
   
-  baconfig update tftp --name ${initrd} --file ${initrd}
+  baconfig update file --name ${initrd} --file ${initrd}
 
 ## cleanup tmpdir
 
