@@ -599,6 +599,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             }
             &load_storage( $opts, $dbh, $actref );
             if ($actref->{type} == BA_LUN_NFS ) {
+		printlog "$input->{mac} - $actref->{targetip} $actref->{target}";
             	&do_netboot_nfs( $cgi, $actref, $baVar{serverip} );
             } else {
                 &do_netboot( $cgi, $actref, $baVar{serverip} );
@@ -1513,12 +1514,12 @@ Address 'CMS' 'PURGE RDR ALL'
 
 	$input->{mac} = &check_mac($input->{mac});
 
-        printlog "$input->{mac} - NFS boot $1.\n";
+        printlog "$input->{mac} - $input->{nfsroot} : NFS boot $1.\n";
 
 	if ($1 eq $linux_net) {
-		$fn="/net/172.17.1.209/media/nfsroot/root1/boot/vmlinuz-2.6.32.12-0.7-default";
+		$fn="/net/$input->{nfsroot}/boot/vmlinuz-2.6.32.12-0.7-default";
 	} else {
-		$fn="/net/172.17.1.209/media/nfsroot/root1/boot/initrd-2.6.32.12-0.7-default";
+		$fn="/net/$input->{nfsroot}/boot/initrd-2.6.32.12-0.7-default";
 	}
 	open ($fd, "<", $fn) || printlog "Error opening $fn";
 	binmode($fd);

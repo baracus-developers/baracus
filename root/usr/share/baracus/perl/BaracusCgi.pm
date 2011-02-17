@@ -172,17 +172,21 @@ LABEL netboot
     exit 0;
 }
 
+#?nfs:$actref->{targetip}/$actref->{target}
+#mac=$actref->{mac}
+
 sub do_netboot_nfs() {
     my $cgi = shift;
     my $actref = shift;
     my $serverip = shift;
 
     my $output = qq|DEFAULT netboot_nfs
+# NFS boot from: $actref->{targetid}
 PROMPT 0
 TIMEOUT 0
 LABEL netboot_nfs
-    kernel http://$serverip/ba/linux_net?mac=$actref->{mac}
-    append initrd=http://$serverip/ba/initrd_net?mac=$actref->{mac} root=/dev/nfs nfsroot=$actref->{rooturi}
+    kernel http://$serverip/ba/linux_net?mac=$actref->{mac}&nfsroot=$actref->{targetip}/$actref->{target}
+    append initrd=http://$serverip/ba/initrd_net?mac=$actref->{mac}&nfsroot=$actref->{targetip}/$actref->{target} root=/dev/nfs nfsroot=$actref->{rooturi}
 |;
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
     exit 0;
