@@ -1510,16 +1510,24 @@ Address 'CMS' 'PURGE RDR ALL'
     elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/($linux_net|$initrd_net)\?.*\s*$} )
     {
 	my $fd;
-	my $fn;
+	my $fn = "/net/$input->{nfsroot}";
+	my $fnmenu = "$fn/boot/grub/menu.lst";
 
 	$input->{mac} = &check_mac($input->{mac});
 
         printlog "$input->{mac} - $input->{nfsroot} : NFS boot $1.\n";
 
+	open ($fd, "<", "$fnmenu") || printlog "Error opening $fnmenu";
+	undef $/;
+	my $fmenu=<$fd>;
+	$/ = "\n";
+	close $fd;
+	printlog "grub.conf:\n\n$fmenu\n";
+
 	if ($1 eq $linux_net) {
-		$fn="/net/$input->{nfsroot}/boot/vmlinuz-2.6.32.12-0.7-default";
+		$fn .= "/boot/vmlinuz-2.6.32.12-0.7-default";
 	} else {
-		$fn="/net/$input->{nfsroot}/boot/initrd-2.6.32.12-0.7-default";
+		$fn .= "/boot/initrd-2.6.32.12-0.7-default";
 	}
 	open ($fd, "<", $fn) || printlog "Error opening $fn";
 	binmode($fd);
