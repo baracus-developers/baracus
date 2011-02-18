@@ -2,7 +2,7 @@
 
 Summary:   Tool to create network install build source and manage host builds
 Name:      baracus
-Version:   1.7.2
+Version:   1.8.0
 Release:   0
 Group:     System/Services
 License:   GPLv2 or Artistic V2
@@ -17,7 +17,7 @@ Source6:   apache.baracus-webserver.conf
 #Source7:   Makefile
 Requires:  apache2, apache2-mod_perl, perl-Apache-DBI, pidentd, sudo
 Requires:  perl, perl-XML-Simple, perl-libwww-perl, perl-Data-UUID
-Requires:  perl-Config-General
+Requires:  perl-Config-General, perl-Clone
 Requires:  perl-TermReadKey, perl-DBI, perl-DBD-Pg, perl-Tie-IxHash
 Requires:  perl-IO-Interface, perl-Net-Netmask, perl-XML-LibXSLT
 Requires:  rsync, dhcp-server, postgresql-server, createrepo, fence
@@ -66,6 +66,7 @@ popd
 mkdir -p %{buildroot}
 cp -r ${PWD}/* %{buildroot}/.
 
+rm          %{buildroot}/etc/baracus/README
 rm          %{buildroot}/var/spool/baracus/www/htdocs/blank.html
 rm    -rf   %{buildroot}/var/spool/baracus/templates
 mkdir       %{buildroot}/var/spool/baracus/isos
@@ -96,6 +97,7 @@ rm    -rf   %{buildroot}/usr/share/baracus/utils
 
 rm    -rf   %{buildroot}/etc/modprobe.d/baracus.loop
 install -D -m644 %{buildroot}/usr/share/baracus/templates/modprobe.d.max_loop.conf %{buildroot}/etc/modprobe.d/baracus-loop.conf
+install -d -m755 %{buildroot}%{_sysconfdir}/%{name}/distros.d
 
 %clean
 rm -rf %{buildroot}
@@ -148,6 +150,8 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %{_datadir}/%{name}/scripts
 %dir %{_sysconfdir}/apache2
 %dir %{_sysconfdir}/apache2/conf.d
+%dir %{_sysconfdir}/%{name}
+%dir %{_sysconfdir}/%{name}/distros.d
 %config %{_sysconfdir}/apache2/conf.d/%{name}.conf
 %attr(755,baracus,users) %dir /var/spool/%{name}
 %attr(755,baracus,users) %dir /var/spool/%{name}/builds
