@@ -1524,39 +1524,43 @@ Address 'CMS' 'PURGE RDR ALL'
 
         printlog "$input->{mac} - $input->{nfsroot} : NFS boot $1.\n";
 
-	my $global_default = undef;
-	my $gotit = 0;
+	my $g_default = undef;
+	my $g_kernelname = undef;
+	my $g_rdname = undef;
 	my $titleno = -1;
 	my $line = 0;
 	open ($fd, "<", "$fnmenu") || printlog "Error opening $fnmenu";
 	while(<$fd>) {
-	  printlog "line: $line\n";
+	  printlog "line: $line: $_ \n";
 	  $line++;
-	  m,^\s*default\s+(.+), && $titleno == -1 && ($global_default = $title);
-	  next unless m,^\s*title\s+(.*),i;
-	  $title_name = $title;
-	  $titleno++;
-
-#	    # Argument may be entirely numerical, in which case it is an index,
-#	    # or a perl RE that leads to the first title matching.
-#	    if (( $ARGV[0] =~ m,^[0-9]+$, && $titleno    eq   $ARGV[0] ) ||
-#	        ( $ARGV[0] !~ m,^[0-9]+$, && $title_name =~ m,$ARGV[0],i) ) {
-	 if ($titleno == $global_default) {
-	    	$gotit = 1;
-	      	printlog "match global_default $global_default -- $_\n";
-		my $nextline=<$fd>;
-		printlog "next: $nextline";
-	      	last;
-	  } else {
-	    printlog "$titleno: $title_name\n";
+#	  if ($titleno != $g_default && m,^\s*title\s+(.*),i ) {
+	  if ( m,^\s*default\s+(.*),i && not defined $g_default ) {
+	     $g_default = 0;
+	     printlog "default: $g_default: $_ \n";
+	     next;
+	  }
+	  if ( m,^\s*title\s+(.*),i && $titleno != $g_default ) {
+	     $titleno++;
+	     printlog "title: $titleno: $_ \n";
+	     next;
+	  }
+	  if ( m,^\s*kernel\s+\(.*\)(\S*),i && not defined $g_kernelname ) {
+	     $g_kernelname = $1;
+	     printlog "match kernel $g_default -- $g_kernelname\n";
+	     next;
+	  }
+	  if ( m,^\s*initrd\s+\(.*\)(\S*),i && not defined $g_rdname ) {
+	     $g_rdname = $1;
+	     printlog "match initrd $g_default -- $g_rdname\n";
+	     last;
 	  }
 	}
 	close $fd;
 
 	if ($1 eq $linux_net) {
-		$fn .= "/boot/vmlinuz-2.6.32.12-0.7-default";
+		$fn .= $g_kernelname;
 	} else {
-		$fn .= "/boot/initrd-2.6.32.12-0.7-default";
+		$fn .= $g_rdname;
 	}
 	open ($fd, "<", $fn) || printlog "Error opening $fn";
 	binmode($fd);
