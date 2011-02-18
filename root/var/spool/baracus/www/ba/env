@@ -599,7 +599,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             }
             &load_storage( $opts, $dbh, $actref );
             if ($actref->{type} == BA_LUN_NFS ) {
-		printlog "$input->{mac} - $actref->{targetip} $actref->{target}";
+#		printlog "$input->{mac} - nfs://$actref->{targetip}$actref->{target}\n";
             	&do_netboot_nfs( $cgi, $actref, $baVar{serverip} );
             } else {
                 &do_netboot( $cgi, $actref, $baVar{serverip} );
@@ -1522,7 +1522,7 @@ Address 'CMS' 'PURGE RDR ALL'
 
 	$input->{mac} = &check_mac($input->{mac});
 
-        printlog "$input->{mac} - $input->{nfsroot} : NFS boot $1.\n";
+        printlog "$input->{mac} - NFS boot $1 @ $input->{nfsroot}\n";
 
 	my $g_default = undef;
 	my $g_kernelname = undef;
@@ -1530,28 +1530,35 @@ Address 'CMS' 'PURGE RDR ALL'
 	my $titleno = -1;
 	my $line = 0;
 	open ($fd, "<", "$fnmenu") || printlog "Error opening $fnmenu";
+	printlog "$input->{mac} - reading $fnmenu\n";
 	while(<$fd>) {
-	  printlog "line: $line: $_ \n";
+#	  printlog "line: $line: $_ \n";
 	  $line++;
 #	  if ($titleno != $g_default && m,^\s*title\s+(.*),i ) {
-	  if ( m,^\s*default\s+(.*),i && not defined $g_default ) {
-	     $g_default = 0;
-	     printlog "default: $g_default: $_ \n";
-	     next;
+	  if ( m,^\s*default\s+(.*),i ) {
+	      if ( defined $g_default ) {
+	  	  printlog "$input->{mac} - ignoring default $_\n";
+	      } else {
+	          $g_default = $1;
+	          printlog "$input->{mac} - default boot: $g_default \n";
+	      }
+	      next;
 	  }
-	  if ( m,^\s*title\s+(.*),i && $titleno != $g_default ) {
-	     $titleno++;
-	     printlog "title: $titleno: $_ \n";
-	     next;
+	  if ( m,^\s*title\s+(.*),i ) {
+	      $titleno++;
+	      printlog "$input->{mac} - title: $titleno: $1 \n";
+	  }
+	  if ( $titleno != $g_default ) {
+	      next;
 	  }
 	  if ( m,^\s*kernel\s+\(.*\)(\S*),i && not defined $g_kernelname ) {
 	     $g_kernelname = $1;
-	     printlog "match kernel $g_default -- $g_kernelname\n";
+	     printlog "$input->{mac} - kernel $g_default -- $g_kernelname\n";
 	     next;
 	  }
 	  if ( m,^\s*initrd\s+\(.*\)(\S*),i && not defined $g_rdname ) {
 	     $g_rdname = $1;
-	     printlog "match initrd $g_default -- $g_rdname\n";
+	     printlog "$input->{mac} - initrd $g_default -- $g_rdname\n";
 	     last;
 	  }
 	}
@@ -1570,7 +1577,7 @@ Address 'CMS' 'PURGE RDR ALL'
 	close $fd;
 	
 	my $flength = length( $fdata );
-	printlog "read $flength";
+	printlog "$input->{mac} - read $fn length $flength bytes\n";
         $output .= $fdata;
     }
 
