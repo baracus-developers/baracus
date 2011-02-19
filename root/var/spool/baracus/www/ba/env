@@ -1524,7 +1524,8 @@ Address 'CMS' 'PURGE RDR ALL'
 
         printlog "$input->{mac} - NFS boot $1 @ $input->{nfsroot}\n";
 
-	my $g_default = undef;
+	my $g_default = 0;
+#	my $g_default = undef;
 	my $g_kernelname = undef;
 	my $g_rdname = undef;
 	my $titleno = -1;
