@@ -58,6 +58,7 @@ BEGIN {
         (
          subs   =>
          [qw(
+                add_db_mac
                 get_mac_by_hostname
                 update_db_mac_state
                 add_action_autobuild
@@ -147,19 +148,30 @@ sub get_mac_by_hostname
 ##
 ## MAC relation - for macaddr and global state (admin, actions, events) hist
 
+sub add_db_mac
+{
+    my $dbh     = shift;
+    my $mac     = shift;
+    my $state   = shift;
+    my $macref  = {};
+
+    $macref->{mac} = $mac;
+    $macref->{state} = $state;
+    $macref->{$baState{ $state }} = "now()";
+    &add_db_data( $dbh, 'mac', $macref );
+}
+
 sub update_db_mac_state
 {
-    my $dbh   = shift;
-    my $mac   = shift;
-    my $state = shift;
+    my $dbh     = shift;
+    my $mac     = shift;
+    my $state   = shift;
+    my $macref  = {};
 
-    my $fields = "state,$baState{ $state }";
-    my $values = qq|'$state',CURRENT_TIMESTAMP|;
-    my $sth;
-    my $sql = qq|UPDATE mac SET ( $fields ) = ( $values ) WHERE mac = '$mac'|;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-    $sth->finish();
+    $macref->{mac} = $mac;
+    $macref->{state} = $state;
+    $macref->{$baState{ $state }} = "now()";
+    &update_db_data( $dbh, 'mac', $macref );
 }
 
 ###########################################################################

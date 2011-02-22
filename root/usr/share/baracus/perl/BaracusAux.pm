@@ -103,7 +103,7 @@ BEGIN {
                 get_db_data
                 get_db_data_by
 
-		check_broadcast
+                check_broadcast
             )],
          );
     Exporter::export_ok_tags('subs');
@@ -1169,6 +1169,7 @@ sub update_db_data
     foreach my $field ( split( /,/, $fields ) ) {
         next if ( $field eq $baTblId{ $tbl } );  # skip key
         next if ( $field eq "creation" );  # skip creation col
+        $Hash{ $field } = "now()" if ( $field eq "change" ); # add update time
         push @fields, $field;
     }
     $fields = join(', ', @fields);

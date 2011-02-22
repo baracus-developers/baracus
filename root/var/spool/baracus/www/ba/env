@@ -173,10 +173,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
         unless ( $macref ) {
             # user deleted entry while system was doing what baracus told it
-            $macref->{mac} = $input->{mac};
-            $macref->{state} = BA_EVENT_FOUND;
-            $macref->{$baState{ $macref->{state} }} = "now()";
-            &add_db_data( $dbh, 'mac', $macref );
+            &add_db_mac( $dbh, $input->{mac}, BA_EVENT_FOUND );
             $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
         }
 
@@ -246,10 +243,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
         unless ( $macref ) {
             # user deleted entry while system was doing what baracus told it
-            $macref->{mac} = $input->{mac};
-            $macref->{state} = BA_EVENT_FOUND;
-            $macref->{$baState{ $macref->{state} }} = "now()";
-            &add_db_data( $dbh, 'mac', $macref );
+            &add_db_mac( $dbh, $input->{mac}, BA_EVENT_FOUND );
             $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
         }
 
@@ -527,10 +521,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 
             # add the mac entry as found... if it's the one missing
             unless ( defined $macref ) {
-                $macref->{mac} = $input->{mac};
-                $macref->{state} = BA_EVENT_FOUND;
-                $macref->{$baState{ $macref->{state} }} = "now()";
-                &add_db_data( $dbh, 'mac', $macref );
+                &add_db_mac( $dbh, $input->{mac}, BA_EVENT_FOUND );
                 $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
             }
             # set the check if we already have an action entry

@@ -712,10 +712,7 @@ sub build
 
     $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
     unless ( defined $macref ) {
-        $macref->{mac} = $actref->{mac};
-        $macref->{state} = BA_ADMIN_ADDED;
-        $macref->{$baState{ $macref->{state} }} = "now()";
-        &add_db_data( $dbh, 'mac', $macref );
+        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED );
         $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
     }
 
@@ -773,7 +770,6 @@ sub build
 	    }
         }
         if ( $gotdiff != 0 ) {
-            $actref->{change} = "now()";
             &update_db_data( $dbh, 'action', $actref);
         }
     } else {
@@ -1022,10 +1018,7 @@ sub image
     }
     $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
     unless ( defined $macref ) {
-        $macref->{mac} = $actref->{mac};
-        $macref->{state} = BA_ADMIN_ADDED;
-        $macref->{$baState{ $macref->{state} }} = "now()";
-        &add_db_data( $dbh, 'mac', $macref );
+        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED );
         $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
     }
 
@@ -1085,7 +1078,6 @@ sub image
 	    }
         }
         if ( $gotdiff != 0 ) {
-            $actref->{change} = "now()";
             &update_db_data( $dbh, 'action', $actref);
         }
     } else {
@@ -1259,10 +1251,7 @@ sub clone
     }
     $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
     unless ( defined $macref ) {
-        $macref->{mac} = $actref->{mac};
-        $macref->{state} = BA_ADMIN_ADDED;
-        $macref->{$baState{ $macref->{state} }} = "now()";
-        &add_db_data( $dbh, 'mac', $macref );
+        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED );
         $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
     }
 
@@ -1320,7 +1309,6 @@ sub clone
 	    }
         }
         if ( $gotdiff != 0 ) {
-            $actref->{change} = "now()";
             &update_db_data( $dbh, 'action', $actref);
         }
     } else {
@@ -1384,10 +1372,7 @@ sub empty
 
     $macref = &get_db_data( $dbh, 'mac', $mac );
     unless ( defined $macref ) {
-        $macref->{mac} = $mac;
-        $macref->{state} = BA_ADMIN_ADDED;
-        $macref->{$baState{ $macref->{state} }} = "now()";
-        &add_db_data( $dbh, 'mac', $macref );
+        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
     }
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
@@ -1425,7 +1410,6 @@ sub empty
 
     # for proper command history update we update
     if ( defined $chkref ) {
-        $actref->{change} = "now()";
         &update_db_data( $dbh, 'action', $actref );
     }
     else {
@@ -1494,10 +1478,7 @@ sub inventory
 
     $macref = &get_db_data( $dbh, 'mac', $mac );
     unless ( defined $macref ) {
-        $macref->{mac} = $mac;
-        $macref->{state} = BA_ADMIN_ADDED;
-        $macref->{$baState{ $macref->{state} }} = "now()";
-        &add_db_data( $dbh, 'mac', $macref );
+        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
     }
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
@@ -1542,7 +1523,6 @@ sub inventory
 
     # for proper command history update we update
     if ( defined $chkref ) {
-        $actref->{change} = "now()";
         &update_db_data( $dbh, 'action', $actref );
     } else {
         &add_db_data( $dbh, 'action', $actref );
@@ -1628,10 +1608,7 @@ sub wipe
 
     $macref = &get_db_data( $dbh, 'mac', $mac );
     unless ( defined $macref ) {
-        $macref->{mac} = $mac;
-        $macref->{state} = BA_ADMIN_ADDED;
-        $macref->{$baState{ $macref->{state} }} = "now()";
-        &add_db_data( $dbh, 'mac', $macref );
+        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
     }
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
@@ -1682,7 +1659,6 @@ sub wipe
 
     # for proper command history update we update
     if ( defined $chkref ) {
-        $actref->{change} = "now()";
         &update_db_data( $dbh, 'action', $actref );
     } else {
         &add_db_data( $dbh, 'action', $actref );
@@ -1767,10 +1743,7 @@ sub localboot
 
     $macref = &get_db_data( $dbh, 'mac', $mac );
     unless ( defined $macref ) {
-        $macref->{mac} = $mac;
-        $macref->{state} = BA_ADMIN_ADDED;
-        $macref->{$baState{ $macref->{state} }} = "now()";
-        &add_db_data( $dbh, 'mac', $macref );
+        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
     }
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
@@ -1819,7 +1792,6 @@ sub localboot
 
     # for proper command history update we update
     if ( defined $chkref ) {
-        $actref->{change} = "now()";
         &update_db_data( $dbh, 'action', $actref );
     } else {
         &add_db_data( $dbh, 'action', $actref );
@@ -1892,10 +1864,7 @@ sub netboot
 
     $macref = &get_db_data( $dbh, 'mac', $mac );
     unless ( defined $macref ) {
-        $macref->{mac} = $mac;
-        $macref->{state} = BA_ADMIN_ADDED;
-        $macref->{$baState{ $macref->{state} }} = "now()";
-        &add_db_data( $dbh, 'mac', $macref );
+        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
     }
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each( %$macref ) ) {
@@ -1945,7 +1914,6 @@ sub netboot
 
     # for proper command history update we update
     if ( defined $chkref ) {
-        $actref->{change} = "now()";
         &update_db_data( $dbh, 'action', $actref );
     } else {
         &add_db_data( $dbh, 'action', $actref );
@@ -2311,10 +2279,7 @@ sub rescue
 
     $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
     unless ( defined $macref ) {
-        $macref->{mac} = $actref->{mac};
-        $macref->{state} = BA_ADMIN_ADDED;
-        $macref->{$baState{ $macref->{state} }} = "now()";
-        &add_db_data( $dbh, 'mac', $macref );
+        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED );
         $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
     }
 
@@ -2368,7 +2333,6 @@ sub rescue
 	    }
         }
         if ( $gotdiff != 0 ) {
-            $actref->{change} = "now()";
             &update_db_data( $dbh, 'action', $actref);
         }
     } else {
