@@ -215,7 +215,7 @@ sub update_db_user
 
     my $sql = qq|UPDATE $baTbls{ user }
                 SET ( $fields ) = ( $values )
-                WHERE targetid = '$href->{username}' |;
+                WHERE username = '$href->{username}' |;
 
     my $sth;
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
@@ -240,7 +240,7 @@ sub get_db_user
 }
 
 #
-# list_start_user($dbh, targetid)
+# list_start_user($dbh, $username_filter)
 #
 
 sub list_start_user

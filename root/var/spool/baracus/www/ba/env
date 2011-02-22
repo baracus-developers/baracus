@@ -41,7 +41,7 @@ use BaracusCore qw( :subs );
 use BaracusAux qw( :subs );
 use BaracusHost qw( :subs );
 use BaracusPower qw( :subs );
-use BaracusLUN qw( :vars :subs );
+use BaracusStorage qw( :vars :subs );
 
 use lib '/var/spool/baracus/www/modules';
 use BATools qw( :standard );
@@ -51,9 +51,9 @@ BEGIN {
 
     open(LOG, ">>$baDir{logs}/baracusd") or
         die("Unable to open $baDir{logs}/baracusd: $!");
-    my $oldfh = select(LOG); $| = 1; select($oldfh);
+    my $oldfh = select(LOG); $| = 1; select($sub);
 
-    sub printlog {
+    oldfh printlog {
         my $msg = shift;
         print LOG "[" . ctime() . "] $ENV{ REMOTE_ADDR } $msg";
     }
@@ -604,8 +604,8 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 &update_db_data( $dbh, 'action', $actref );
             }
             &load_storage( $opts, $dbh, $actref );
-            if ($actref->{type} == BA_LUN_NFS ) {
-#		printlog "$input->{mac} - nfs://$actref->{targetip}$actref->{target}\n";
+            if ($actref->{type} == BA_STORAGE_NFS ) {
+                printlog "$input->{mac} - nfs://$actref->{storageip}$actref->{storage}\n";
             	&do_netboot_nfs( $cgi, $actref, $baVar{serverip} );
             } else {
                 &do_netboot( $cgi, $actref, $baVar{serverip} );
@@ -762,8 +762,8 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 if ( $actref->{autobuild} ne "none" ) {
                     $args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
                 }
-                if ( defined $actref->{type} and $actref->{type} == BA_LUN_NFS ) {
-                    $args .= qq| root=/dev/nfs nfsroot=$actref->{rooturi}|;
+                if ( defined $actref->{type} and $actref->{type} == BA_STORAGE_NFS ) {
+                    $args .= qq| root=/dev/nfs nfsroot=$actref->{storageuri}|;
                 }
                 my $lcmac = lc $input->{mac};
 
@@ -857,10 +857,10 @@ chain pxegrub
 
 # the mac isn't required here for operation but it identifies the requesting device 
 
-                if ( $actref->{target} ) {
+                if ( $actref->{storageid} ) {
                     $output = qq|#!gpxe
 set keep-san-nb 1
-sanboot  $actref->{rooturi}
+sanboot  $actref->{storageuri}
 chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
 |;
                 } else {
@@ -889,7 +889,7 @@ chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
                 $args .= "$hardref->{bootargs} " if (defined $hardref->{bootargs});
             }
 
-            $imgref = &get_db_data( $dbh, 'lun', $actref->{imageid} );
+            $imgref = &get_db_data( $dbh, 'storage', $actref->{storageid} );
 
             my $lcmac = lc $input->{mac};
 	    my $linux_img=get_arch_linux($input);
@@ -905,7 +905,7 @@ PROMPT 0
 TIMEOUT 0
 LABEL image
         kernel http://$baVar{serverip}/ba/$linux_img
-        append initrd=http://$baVar{serverip}/ba/$initrd_img root=/dev/ram0 install=exec:/usr/bin/baracus.image baimagedst="$hardref->{rootdisk}" baimagesrc="$imgref->{target}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        append initrd=http://$baVar{serverip}/ba/$initrd_img root=/dev/ram0 install=exec:/usr/bin/baracus.image baimagedst="$hardref->{rootdisk}" baimagesrc="$imgref->{storage}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
             } elsif ( $pxenext eq BA_ACTION_MCAST ) {
                 printlog "$input->{mac} - serving mcasting workload\n";
@@ -922,7 +922,7 @@ PROMPT 0
 TIMEOUT 0
 LABEL mcast
         kernel http://$baVar{serverip}/ba/$linux_mcst
-        append initrd=http://$baVar{serverip}/ba/$initrd_mcst root=/dev/ram0 install=exec:/usr/bin/baracus.mcast baimagedst="$hardref->{rootdisk}" bardvaddr="$imgref->{target}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        append initrd=http://$baVar{serverip}/ba/$initrd_mcst root=/dev/ram0 install=exec:/usr/bin/baracus.mcast baimagedst="$hardref->{rootdisk}" bardvaddr="$imgref->{storage}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
             } else {
                 printlog "$input->{mac} - serving cloning workload\n";
@@ -938,7 +938,7 @@ PROMPT 0
 TIMEOUT 0
 LABEL clone
         kernel http://$baVar{serverip}/ba/$linux_cln
-        append initrd=http://$baVar{serverip}/ba/$initrd_cln root=/dev/ram0 install=exec:/usr/bin/baracus.clone baimagedst="$imgref->{target}" baimagesrc="$hardref->{rootdisk}" autoclone=$actref->{autoclone} baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        append initrd=http://$baVar{serverip}/ba/$initrd_cln root=/dev/ram0 install=exec:/usr/bin/baracus.clone baimagedst="$imgref->{storage}" baimagesrc="$hardref->{rootdisk}" autoclone=$actref->{autoclone} baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
             }
 

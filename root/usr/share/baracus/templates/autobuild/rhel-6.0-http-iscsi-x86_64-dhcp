@@ -7,8 +7,8 @@ install
 ##
 url --url=__SHARETYPE__://__SHAREIP__/install/__OS__-__RELEASE__-__ARCH__
 
-iscsiname __TARGET__
-iscsi --ipaddr=__TARGETIP__
+iscsiname iqn.2011-02.net.test:__MAC__
+iscsi --ipaddr=__STORAGEIP__ --target=__STORAGE__
 
 key --skip
 lang "__LANG__"

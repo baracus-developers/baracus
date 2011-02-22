@@ -906,7 +906,7 @@ sub getStorageListDb
     my $filter = shift;
 
     my $sql = qq| SELECT *
-                  FROM $baTbls{'lun'}
+                  FROM $baTbls{'storage'}
                   WHERE targetid LIKE '$filter%'
                |;
 
@@ -923,7 +923,7 @@ sub getStorageDetail
 {
     my $targetid = shift;
     my $sql = qq| SELECT *
-                  FROM $baTbls{'lun'}
+                  FROM $baTbls{'storage'}
                   WHERE targetid = '$targetid'
                |;
 

@@ -39,17 +39,17 @@ __ADDON__
         <lines_cache_id>0</lines_cache_id>
         <name>SUSE Linux Enterprise Server 11 SP1 - 2.6.32.12-0.7</name>
         <original_name>linux</original_name>
-        <root>__ROOTDISK__ nfsroot=__ROOTURI__</root>
+        <root>__ROOTDISK__ nfsroot=__STORAGEURI__</root>
         <type>image</type>
       </section>
       <section>
-        <append>root=/dev/nfs nfsroot=__ROOTURI__ showopts ide=nodma apm=off noresume edd=off powersaved=off nohz=off highres=off processor.max_cstate=1 x11failsafe</append>
+        <append>root=/dev/nfs nfsroot=__STORAGEURI__ showopts ide=nodma apm=off noresume edd=off powersaved=off nohz=off highres=off processor.max_cstate=1 x11failsafe</append>
         <image>/boot/vmlinuz-2.6.32.12-0.7-default</image>
         <initrd>/boot/initrd-2.6.32.12-0.7-default</initrd>
         <lines_cache_id>1</lines_cache_id>
         <name>Failsafe -- SUSE Linux Enterprise Server 11 SP1 - 2.6.32.12-0.7</name>
         <original_name>failsafe</original_name>
-        <root>__ROOTDISK__ nfsroot=__ROOTURI__</root>
+        <root>__ROOTDISK__ nfsroot=__STORAGEURI__</root>
         <type>image</type>
       </section>
     </sections>
@@ -405,7 +405,7 @@ nameserver __DNS1__
     <pre-scripts config:type="list">
       <script>
         <filename>mount_nfsroot</filename>
-        <source><![CDATA[export TARGET_ROOT=__ROOTURI__
+        <source><![CDATA[export TARGET_ROOT=__STORAGEURI__
 mount -o nolock -t nfs $TARGET_ROOT /mnt
 mkdir /mnt/etc/
 cat > /mnt/etc/fstab <<- EOF

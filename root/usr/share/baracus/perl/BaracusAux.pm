@@ -35,8 +35,7 @@ use BaracusSql    qw( :subs :vars );
 use BaracusState  qw( :vars :subs :states );
 use BaracusCore   qw( :subs );
 use BaracusConfig qw( :vars );
-use BaracusLUN    qw( :subs );
-use BaracusAux    qw( :subs );
+use BaracusStorage qw( :subs );
 
 =pod
 
@@ -326,9 +325,9 @@ sub load_storage
     my $dbh  = shift;
     my $aref = shift;
 
-    my $found = &get_db_data( $dbh, 'lun', $aref->{netroot} );
+    my $found = &get_db_data( $dbh, 'storage', $aref->{storageid} );
     unless ( defined $found ) {
-        $opts->{LASTERROR} = "Unable to find storage entry for $aref->{netroot}\n";
+        $opts->{LASTERROR} = "Unable to find storage entry for $aref->{storageid}\n";
         return 1;
     }
     print $found . "\n" if ( $opts->{debug} > 1 );
@@ -343,7 +342,7 @@ sub load_storage
     }
 
     # hash special cases
-    $aref->{rooturi} = &get_db_lun_uri( $dbh, $aref->{netroot} );
+    $aref->{storageuri} = &get_db_storage_uri( $dbh, $aref->{storageid} );
     delete $aref->{username};
     delete $aref->{passwd};
 

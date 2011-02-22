@@ -165,14 +165,14 @@ PROMPT 0
 TIMEOUT 0
 LABEL netboot
     kernel http://$serverip/ba/sanboot.c32
-    append $actref->{rooturi}
+    append $actref->{storageuri}
 |;
 
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
     exit 0;
 }
 
-#?nfs:$actref->{targetip}/$actref->{target}
+#?nfs:$actref->{storageip}/$actref->{storage}
 #mac=$actref->{mac}
 
 sub do_netboot_nfs() {
@@ -181,12 +181,12 @@ sub do_netboot_nfs() {
     my $serverip = shift;
 
     my $output = qq|DEFAULT netboot_nfs
-# NFS boot from: $actref->{targetid}
+# NFS boot from: $actref->{storageid}
 PROMPT 0
 TIMEOUT 0
 LABEL netboot_nfs
-    kernel http://$serverip/ba/linux_net?mac=$actref->{mac}&nfsroot=$actref->{targetip}/$actref->{target}
-    append initrd=http://$serverip/ba/initrd_net?mac=$actref->{mac}&nfsroot=$actref->{targetip}/$actref->{target} root=/dev/nfs nfsroot=$actref->{rooturi}
+    kernel http://$serverip/ba/linux_net?mac=$actref->{mac}&nfsroot=$actref->{storageip}/$actref->{storage}
+    append initrd=http://$serverip/ba/initrd_net?mac=$actref->{mac}&nfsroot=$actref->{storageip}/$actref->{storage} root=/dev/nfs nfsroot=$actref->{storageuri}
 |;
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
     exit 0;

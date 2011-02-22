@@ -215,8 +215,8 @@ sub getStorageSelectionList
 	{
 		if( length($val) > 1)
 		{
-            my ($id, $ip, $name, $rest) = split ('\s', $val, 4);
-			$option = "<option name=target value='--targetid $id --targetip $ip'> $name </option>\n";	
+            my ($id, $type, $ip, $target, $rest) = split ('\s', $val, 5);
+			$option = "<option name=target value='--storageid $id'> $name </option>\n";	
 			$retString = $retString . $option;
 		}
 	}

@@ -42,7 +42,7 @@ use BaracusHost qw( :subs );
 use BaracusSource qw( :vars );
 use BaracusState qw( :admin :actions :subs :vars );
 use BaracusAux qw( :subs );
-use BaracusLUN qw( :vars :subs );
+use BaracusStorage qw( :vars :subs );
 
 =pod
 
@@ -239,7 +239,7 @@ And further <...> optional parameters include
   --disk <num>             Disk number (zero-based) to boot [ default 0 (first)]
   --partition <num>        Partition number to boot [ default 0 (first)]
 
-  --netroot <storageid>    The storage id for a network root build
+  --storageid <storageid>  The storage id for a network root build
 
   --usevnc                 allow vnc build access
   --vncpass                defines vnc password for remote access
@@ -824,7 +824,7 @@ sub build
     return 0;
 }
 
-=head2 image --mac <macaddr> --hostname <name> --hardware <hw> { --image <file> | --mcastid <chan> }
+=head2 image --mac <macaddr> --hostname <name> --hardware <hw> { --storageid <store> | --mcastid <chan> }
 
 Deploy an image file to a remote system disk
 
@@ -840,9 +840,11 @@ Arguments
                            as SuSE family would for bootargs and rootdisk.
                              > baconfig list hardware
 
-  --id <id>                Image ID as registered bith storage to be deployed.
+  --storageid <storageid>  Image to be deployed, as registered with bastorage.
+
                            This file should be present in ~baracus/images,
-                           but specified here without that pathing.
+                           but specified here by reference to its related
+                           bastorage table entry.
 
   --mcastid <chan>         Image via multicast. Provide the <chanid> here,
 
@@ -864,6 +866,7 @@ sub image
     my $macref;
     my $hostref;
     my $actref;
+    my $sref;
 
     my $mcast = "";
     my $disk = "0";
@@ -881,7 +884,7 @@ sub image
         (
          'mac=s'        => \$entry{mac},
          'hostname=s'   => \$entry{hostname},
-         'id=s'         => \$entry{imageid},
+         'storageid=s'  => \$entry{storageid},
          'mcastid=s'    => \$entry{mcastid},
          'hardware=s'   => \$entry{hardware},
          'disk=s'       => \$entry{disk},
@@ -893,35 +896,31 @@ sub image
         return 1;
     }
 
-    if ( $entry{imageid} eq "" ) {
-        $opts->{LASTERROR} = "Missing  --image\n";
-        return 1;
-    }
-
-    # get and check for image based on id
-    my $imgref = &get_db_data( $dbh, 'lun', $entry{imageid} );
-    if ( ! defined $imgref ) {
-        $opts->{LASTERROR} = "imageid: $entry{imageid} does not exist\n";
-        return 1;
-    }
-
-    if ( $entry{mcastid} ne "" and $entry{imageid} ne "" ) {
-        $opts->{LASTERROR} = "\nEither --imageid or --mcastid, not both.\n";
+    if ( $entry{mcastid} ne "" and $entry{storageid} ne "" ) {
+        $opts->{LASTERROR} = "\nEither --storageid or --mcastid, not both.\n";
         return 1;
     } elsif ( $entry{mcastid} ne "" ) {
-     # need to write mcastid checker
-     # &check_mcastid( $entry{mcastid} );
-    } elsif ( $entry{imageid} ne "" ) {
-        if ( $baLunType{ $imgref->{type} } ne "image" ) {
-            $opts->{LASTERROR} = "$entry{imageid} is not registered as type image\n";
+        ;
+        # need to write mcastid checker
+        # &check_mcastid( $entry{mcastid} );
+    } elsif ( $entry{storageid} ne "" ) {
+        # get and check for image based on id
+        $sref = &get_db_data( $dbh, 'storage', $entry{storageid} );
+        unless ( defined $sref ) {
+            $opts->{LASTERROR} = "storageid does not exist: $entry{storageid}\n";
             return 1;
         }
-        unless ( -e "$baDir{images}/$imgref->{target}" ) {
-            $opts->{LASTERROR} = "Unable to find specified image:  $baDir{images}/$imgref->{target}\n";
+        if ( $sref->{type} != BA_STORAGE_IMAGE ) {
+            $opts->{LASTERROR} = "Storage specified has non-image type: $baStorageType{ $sref->{type} }\n";
+            return 1;
+        }
+        unless ( -f "$baDir{images}/$sref->{storage}" ) {
+            $opts->{LASTERROR} = "Unable to find specified image:  $baDir{images}/$sref->{storage}\n";
             return 1;
         }
     } else {
-            $opts->{LASTERROR} = ""; # don't set to empty often - leads to trouble
+        $opts->{LASTERROR} = "Neither --storageid nor --mcastid provided\n";
+        return 1;
     }
 
     # this routine checks for mac and hostname args
@@ -968,7 +967,6 @@ sub image
         }
     }
 
-
     # hardware file may be in profile *and* on command line
     # command line wins over profile entry
     $actref->{'hardware'}= $entry{hardware} if ($entry{hardware});
@@ -1012,7 +1010,7 @@ sub image
     $actref->{'ip'} = $entry{ip};
     $actref->{'mac'} = $entry{mac};
     $actref->{'uuid'} = &get_uuid;
-    $actref->{'imageid'} = $entry{imageid} if ( defined $entry{imageid} );
+    $actref->{'storageid'} = $entry{storageid} if ( defined $entry{storageid} );
     $actref->{'mcastid'} = $entry{mcastid} if ( defined $entry{mcastid} );
 
     if ($opts->{debug}) {

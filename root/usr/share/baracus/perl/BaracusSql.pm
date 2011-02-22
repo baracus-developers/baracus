@@ -107,8 +107,8 @@ use vars qw ( %baTbls %baTblCert %baTblId );
      'actabld'   => 'action_autobuild',
      'actmod'    => 'action_module',
      'power'     => 'power',
-     'lun'       => 'lun',
-     'mchannel'  => 'mchannel',
+     'storage'   => 'storage',
+     'mcast'     => 'mcast',
      'user'      => 'auth',
      );
 
@@ -144,8 +144,8 @@ use vars qw ( %baTbls %baTblCert %baTblId );
      'actmod'    => 'mac',          # to get all modules for given action/mac
      'actabld'   => 'mac',          # unique id
      'power'     => 'mac',          # unique id
-     'lun'       => 'targetid',     # unique id
-     'mchannel'  => 'mcastid',      # unique id
+     'storage'   => 'storageid'     # unique id
+     'mcast'     => 'mcastid',      # unique id
      'user'      => 'username',     # unique id
      );
 
@@ -471,8 +471,7 @@ sub get_baracus_tables
          'autoclone'   => 'BOOLEAN', # if asserted pass autoclone option
          'disk'        => 'INTEGER', # localboot target disk
          'partition'   => 'INTEGER', # localboot target partition
-         'netroot'     => 'VARCHAR', # netroot target alias
-         'imageid'     => 'VARCHAR', # clone/image id
+         'storageid'   => 'VARCHAR', # clone/image id
          'mcastid'     => 'VARCHAR', # multicast channel id
          'cmdline'     => 'VARCHAR',
          'creation'    => 'TIMESTAMP',
@@ -525,25 +524,25 @@ sub get_baracus_tables
          'other'   => 'VARCHAR(32)',
          );
 
-    my $tbl_lun = "lun";
-    my %tbl_lun_columns =
+    my $tbl_storage = "storage";
+    my %tbl_storage_columns =
         (
-         'targetid'    => 'VARCHAR(64) PRIMARY KEY', # target alias/name
-         'targetip'    => 'VARCHAR(15)',
-         'target'      => 'VARCHAR(64)', # target path
+         'storageid'   => 'VARCHAR(64) PRIMARY KEY', # storage alias/name
+         'storageip'   => 'VARCHAR(15)',
+         'storage'     => 'VARCHAR(64)', # storage path
          'md5sum'      => 'VARCHAR(32)',
          'size'        => 'VARCHAR',
-         'type'        => 'INTEGER', # 1 ISCSI, 2 AOE, 3 NFS, 4 IMAGE
+         'type'        => 'INTEGER',     # 1 ISCSI, 2 AOE, 3 NFS, 4 IMAGE
          'username'    => 'VARCHAR(32)',
          'passwd'      => 'VARCHAR(32)',
          'description' => 'VARCHAR(124)',
          );
 
-    my $tbl_mchannel = "mchannel";
-    my %tbl_mchannel_columns =
+    my $tbl_mcast = "mcast";
+    my %tbl_mcast_columns =
         (
          'mcastid'     => 'VARCHAR(64) PRIMARY KEY', # udpcast channel alias/name
-         'target'      => 'VARCHAR(64)',
+         'storageid'   => 'VARCHAR(64)',
          'dataip'      => 'VARCHAR(15)',
          'rdvip'       => 'VARCHAR(15)',
          'interface'   => 'VARCHAR(8)',
@@ -581,8 +580,8 @@ sub get_baracus_tables
          $tbl_action_module     => \%tbl_action_module_columns,
          $tbl_action_autobuild  => \%tbl_action_autobuild_columns,
          $tbl_power             => \%tbl_power_columns,
-         $tbl_lun               => \%tbl_lun_columns,
-         $tbl_mchannel          => \%tbl_mchannel_columns,
+         $tbl_storage           => \%tbl_storage_columns,
+         $tbl_mcast             => \%tbl_mcast_columns,
          $tbl_auth              => \%tbl_auth_columns,
         );
     return \%baracus_tbls;

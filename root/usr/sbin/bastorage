@@ -38,7 +38,7 @@ use BaracusDB;
 use BaracusCore qw( :subs  );
 use BaracusConfig qw( :vars :subs );
 use BaracusAux qw( :subs  );
-use BaracusLUN qw( :vars :subs );
+use BaracusStorage qw( :vars :subs );
 
 
 #     update    <...>  Update a storage name or description
@@ -47,7 +47,7 @@ use BaracusLUN qw( :vars :subs );
 
 =head1 NAME
 
-B<bastorage> - Baracus "storage" for SAN and NAS identification and handling
+B<bastorage> - Baracus identification and handling for SAN, NAS and images
 
 =head1 SYNOPSIS
 
@@ -81,7 +81,7 @@ This tool allows for the identification of disserperate network storage (Network
 
 my $man      = 0;
 my $help     = 0;
-my $tbl      = "lun";
+my $tbl      = "storage";
 
 # no add / remove here - all cmds add or update as needed
 # to 'mac', 'build', and 'templateid' tables
@@ -156,18 +156,25 @@ die "DOES NOT EXECUTE";
 
 =head1 COMMANDS
 
-=head2 add --id <unique uri> --ip <server> --type <sharetype> --username <username> --password <password> --name <name> --description <"text">
+=head2 add --name <storageid> --type <type> --storage <path_or_uri> [options]
 
-Where
+With arguments
 
-  --id <unique uri>        Globally unique share locator URI.
-  --ip <server>            Address of the network storage server.
-  --target <target>        remote target path or iqn identifer
-  --username <username>    username for LUN authentication
-  --passwd <password>      password for LUN authentication
+  --name <storageid>       Unique identifying name.
+  --type <sharetype>       Storage protocol [iscsi|nfs|aoe|image]
+  --storage <path_or_uri>  Path, unique resource id, or iqn identifier.
+
+For --type other than 'image'
+
+  --ip <server>            Address of network storage server.
+
+And options
+
   --description <"text">   Quoted descriptive text for the share.
-  --size <"text">          Describe the size of the partition.
-  --type <sharetype>       storage protocol [iscsi|nfs|aoe|image]
+  --size <"text">          User description for the storage size.
+  --username <username>    Username for storage authentication
+  --passwd <password>      Password for storage authentication
+
 =cut
 
 sub add
@@ -178,88 +185,86 @@ sub add
         &help( $opts, $cmds, $command );
     }
 
-    my $lunref = {
-                  targetid => "",
-                  targetip => "",
-                  };
+    my $sref = {};
+    my $cols = lc get_cols( $baTbls{ $tbl });
+    foreach my $key (split(/[,\s*]/, $cols )) {
+        $sref->{$key} = '';
+    }
+
     my $chkref;
 
     @ARGV = @_;
 
-    GetOptions(
-               'id=s'          => \$lunref->{'targetid'},
-               'ip=s'          => \$lunref->{'targetip'},
-               'type=s'        => \$lunref->{'type'},
-               'target=s'      => \$lunref->{'target'},
-               'username=s'    => \$lunref->{'username'},
-               'passwd=s'      => \$lunref->{'passwd'},
-               'size=s'        => \$lunref->{'size'},
-               'description=s' => \$lunref->{'description'},
-              );
+    GetOptions
+        (
+         'name=s'        => \$sref->{'storageid'},
+         'ip=s'          => \$sref->{'storageip'},
+         'storage=s'     => \$sref->{'storage'},
+         'type=s'        => \$sref->{'type'},     # in as string & store as int
+         'username=s'    => \$sref->{'username'},
+         'passwd=s'      => \$sref->{'passwd'},
+         'description=s' => \$sref->{'description'},
+         'size=s'        => \$sref->{'size'},
+         );
 
     if ( scalar @ARGV ) {
         $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
         return 1;
     }
 
-    ## Verify Mandatory parameters
-    ##
-    if ( $lunref->{'targetid'} eq "" ) {
-        $opts->{LASTERROR} = "Missing  --id\n";
+    if ( defined $baStorageType{ $sref->{type} } ) {
+        $sref->{type} = $baStorageType{ $sref->{type} };
+    } else {
+        $opts->{LASTERROR} = "Incorrect --type: $sref->{type}\n";
         return 1;
     }
-    if ( ( $lunref->{targetip} eq "" ) and ( $lunref->{type} ne "image" ) ) {
+
+    ## Verify Mandatory parameters
+    ##
+    if ( $sref->{'storageid'} eq "" ) {
+        $opts->{LASTERROR} = "Missing  --name\n";
+        return 1;
+    }
+    if ( ( $sref->{storageip} eq "" ) and
+         ( $sref->{type} != BA_STORAGE_IMAGE ) ) {
         $opts->{LASTERROR} = "Missing  --ip\n";
         return 1;
     }
-    if ( $lunref->{target} eq "" ) {
-        $opts->{LASTERROR} = "Missing  --target\n";
+    if ( $sref->{storage} eq "" ) {
+        $opts->{LASTERROR} = "Missing --storage\n";
         return 1;
     }
-    unless ( defined $baLunType{ $lunref->{type} } ) {
-        $opts->{LASTERROR} = "Incorrect  --type \n";
-        return 1;
-    } else {
-        $lunref->{type} = $baLunType{ $lunref->{type} };
-    }
 
-    &check_ip( $lunref->{targetip} ) if ( $lunref->{targetip} ne "" );  # exits on error
+    # exits on error
+    &check_ip( $sref->{storageip} ) if ( $sref->{storageip} ne "" );
 
-    # check for pre-exsisting id
-    $chkref = &get_db_data( $dbh, $tbl, $lunref->{targetid} );
+    # check for pre-exsisting name
+    $chkref = &get_db_data( $dbh, $tbl, $sref->{storageid} );
     if ( defined $chkref ) {
-        $opts->{LASTERROR} = "id: $lunref->{targetid} already exists\n";
+        $opts->{LASTERROR} = "storage name already exists: $sref->{storageid}\n";
         return 1;
     }
 
     # if image, generate md5sum and load into ~/images if not already
-    if ( $baLunType{ $lunref->{type} } eq "image" ) {
-        if ( -e "$baDir{images}/$lunref->{target}" ) {
+    if ( $sref->{type} eq BA_STORAGE_IMAGE ) {
+        if ( -e "$baDir{images}/$sref->{storage}" ) {
              print "Calcuating image md5sum ...\n" if $opts->{verbose};
-             $lunref->{md5sum} = &get_md5sum( "$baDir{images}/$lunref->{target}" );
+             $sref->{md5sum} = &get_md5sum( "$baDir{images}/$sref->{storage}" );
         } else {
-            $opts->{LASTERROR} = "image: $lunref->{target} does not exist in image directory\n";
+            $opts->{LASTERROR} = "file not found in ~baracus/image/ dir: $sref->{storage}\n";
             return 1;
         }
-    } 
+    }
 
     # done with all checking
-    # begin loading of hash used for remainder of processing command
-
-    $lunref->{name} = $lunref->{id} unless ( defined $lunref->{name} );
-
-    &add_db_data( $dbh, $tbl, $lunref );
-
-    if ( $opts->{verbose} )
-    {
-        printf "lun: $lunref->{targetid} added\n";
-    }
+    &add_db_data( $dbh, $tbl, $sref );
+    printf "storage added: $sref->{storageid}\n" if ( $opts->{verbose} );
 
     return 0;
 }
 
 
-=head2 remove --id <id>
+=head2 remove --name <storageid>
 
 This command does not remove any data from the network storage device. Instead this only removes the info from Baracus so that it cannot easily be assigned to a host.
 
@@ -275,14 +280,13 @@ sub remove
         &help( $opts, $cmds, $command );
     }
 
-    my $id="";
-
+    my $name;
     my $chkref;
 
     @ARGV = @_;
 
     GetOptions(
-               'id=s' => \$id,
+               'name=s' => \$name,
                );
 
     if ( scalar @ARGV ) {
@@ -290,15 +294,14 @@ sub remove
         return 1;
     }
 
-    $chkref = &get_db_data( $dbh, $tbl, $id );
+    $chkref = &get_db_data( $dbh, $tbl, $name );
     if ( defined $chkref ) {
-        &remove_db_data( $dbh, $tbl, $id );
+        &remove_db_data( $dbh, $tbl, $name );
     }
-
     return 0;
 }
 
-=head2 list [ --filter <id|name>::<partial*|specific> ]
+=head2 list [ --filter <name|storage>::<partial*|specific> ] [ --uri ]
 
 List the network storage for which Baracus has information.
 
@@ -306,8 +309,8 @@ Option
 
      --uri                    list with uri output
 
-     --filter id::'partial*'  filter results based on wildcard
-     --filter name::specific  filter for a single match
+     --filter name::'partial*'   filter results based on wildcard
+     --filter storage::specific  filter for a single match
 
 =cut
 
@@ -330,7 +333,7 @@ sub list
         return 1;
     }
 
-    my $sth = list_start_lun ( $dbh, $filter );
+    my $sth = list_start_storage ( $dbh, $filter );
 
     unless( defined $sth ) {
         # well - we've likely died in list_start if logic would get here
@@ -340,35 +343,35 @@ sub list
     if ( $uri ) {
         unless ($opts->{quiet}) {
         print "----------------------------------------------------------------------------------------------\n";
-        printf "%-26s %-56s\n", "id", "uri";
+        printf "%-26s %-56s\n", "name", "uri";
         print "----------------------------------------------------------------------------------------------\n";
         }
 
         my $dbref;
         my $curi;
-        while ( $dbref = &list_next_lun( $sth ) ) {
-            $curi = &get_db_lun_uri( $dbh, $dbref->{targetid} );
+        while ( $dbref = &list_next_storage( $sth ) ) {
+            $curi = &get_db_storage_uri( $dbh, $dbref->{storageid} );
             printf "%-26s %-56s\n",
-                $dbref->{targetid}, $curi;
+                $dbref->{storageid}, $curi;
         }
     } else {
         unless ($opts->{quiet}) {
         print "----------------------------------------------------------------------------------------------\n";
-        printf "%-26s %-7s %-18s %-30s\n", "id", "type", "targetip", "target";
+        printf "%-26s %-7s %-18s %-30s\n", "name", "type", "storageip", "storage";
         print "----------------------------------------------------------------------------------------------\n";
         }
 
         my $dbref;
-        while ( $dbref = &list_next_lun( $sth ) ) {
+        while ( $dbref = &list_next_storage( $sth ) ) {
             printf "%-26s %-7s %-18s %-30s\n",
-                $dbref->{targetid}, $baLunType{ $dbref->{type} }, $dbref->{targetip}, $dbref->{target};
+                $dbref->{storageid}, $baStorageType{ $dbref->{type} }, $dbref->{storageip}, $dbref->{storage};
         }
     }
 
     return 0;
 }
 
-=head2 detail --id <targetid>
+=head2 detail --name <storageid>
 
 Show details for specified network storage device
 
@@ -382,13 +385,13 @@ sub detail
         &help( $opts, $cmds, $command );
     }
 
-    my $lunref;
-    my $id = "";
+    my $sref;
+    my $name = "";
 
     @ARGV = @_;
 
     GetOptions(
-               'id=s' => \$id,
+               'name=s' => \$name,
                );
 
     if ( scalar @ARGV ) {
@@ -396,29 +399,27 @@ sub detail
         return 1;
     }
 
-    $lunref = &get_db_data( $dbh, $tbl, $id );
-    unless ( defined $lunref ) {
-        $opts->{LASTERROR} = "No storage found with id: $id\n";
+    $sref = &get_db_data( $dbh, $tbl, $name );
+    unless ( defined $sref ) {
+        $opts->{LASTERROR} = "No storage found with storage id: $name\n";
         return 1;
     }
 
-    printf "%-12s %s\n", "ID",   $lunref->{'targetid'} ;
-    printf "%-12s %s\n", "Target IP",   $lunref->{'targetip'} ;
-    printf "%-12s %s\n", "Target Type", $baLunType{ $lunref->{'type'} } ;
-    printf "%-12s %s\n", "Target",      $lunref->{'target'} ;
-    printf "%-12s %s\n", "Target URI",  &get_db_lun_uri( $dbh, $lunref->{'targetid'} ) ;
-    if ( defined $lunref->{'size'} and $lunref->{'size'} ne "" ) {
-        printf "%-12s %s\n", "Size",        $lunref->{'size'}     ;
-        print "\n";
+    printf "%-12s %s\n", "Storage ID",   $sref->{'storageid'} ;
+    printf "%-12s %s\n", "Storage Type", $baStorageType{ $sref->{'type'} } ;
+    printf "%-12s %s\n", "Storage IP",   $sref->{'storageip'} ;
+    printf "%-12s %s\n", "Storage",      $sref->{'storage'} ;
+    printf "%-12s %s\n", "Storage URI",  &get_db_storage_uri( $dbh, $sref->{'storageid'} ) ;
+    if ( defined $sref->{'size'} and $sref->{'size'} ne "" ) {
+        printf "%-12s %s\n", "Size", $sref->{'size'} ;
     }
-    if ( defined $lunref->{'description'} and $lunref->{'description'} ne "" ) {
-        printf "%-12s %s\n", "Description", $lunref->{'description'} ;
-        print "\n";
+    if ( defined $sref->{'description'} and $sref->{'description'} ne "" ) {
+        printf "%-12s %s\n", "Description", $sref->{'description'} ;
     }
-    if ( defined $lunref->{'username'} and $lunref->{'username'} ne "" ) {
-        printf "%-12s %s\n", "Username", $lunref->{'username'} ;
+    if ( defined $sref->{'username'} and $sref->{'username'} ne "" ) {
+        printf "%-12s %s\n", "Username", $sref->{'username'} ;
     }
-    if ( defined $lunref->{'passwd'} and $lunref->{'passwd'} ne "" ) {
+    if ( defined $sref->{'passwd'} and $sref->{'passwd'} ne "" ) {
         printf "%-12s %s\n", "Password", "*****" ;
     }
     return 0;
