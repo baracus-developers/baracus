@@ -144,7 +144,7 @@ use vars qw ( %baTbls %baTblCert %baTblId );
      'actmod'    => 'mac',          # to get all modules for given action/mac
      'actabld'   => 'mac',          # unique id
      'power'     => 'mac',          # unique id
-     'storage'   => 'storageid'     # unique id
+     'storage'   => 'storageid',    # unique id
      'mcast'     => 'mcastid',      # unique id
      'user'      => 'username',     # unique id
      );
