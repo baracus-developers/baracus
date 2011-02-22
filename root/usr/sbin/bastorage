@@ -38,6 +38,7 @@ use BaracusDB;
 use BaracusCore qw( :subs  );
 use BaracusConfig qw( :vars :subs );
 use BaracusAux qw( :subs  );
+use BaracusSql qw( :vars :subs );
 use BaracusStorage qw( :vars :subs );
 
 
