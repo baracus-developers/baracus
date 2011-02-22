@@ -170,12 +170,14 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         printlog "$input->{mac} - host inventory received\n";
         $filename = $input->{mac} . ".inventory";
 
-        $macref = &get_db_mac( $dbh, $input->{mac} );
+        $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
         unless ( $macref ) {
             # user deleted entry while system was doing what baracus told it
-            $state = BA_EVENT_FOUND;
-            &add_db_mac( $dbh, $input->{mac}, $state );
-            $macref = &get_db_mac( $dbh, $input->{mac} );
+            $macref->{mac} = $input->{mac};
+            $macref->{state} = BA_EVENT_FOUND;
+            $macref->{$baState{ $macref->{state} }} = "now()";
+            &add_db_data( $dbh, 'mac', $macref );
+            $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
         }
 
         $href = &find_tftpfile( $opts, $tftph, $filename );
@@ -215,16 +217,16 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             $output .= `$cmd`;
         }
 
-        my $chkref = &get_db_action( $dbh, $input->{mac} );
+        my $chkref = &get_db_data( $dbh, 'action', $input->{mac} );
         $actref = $chkref if ( defined $chkref );
         $actref->{cmdline} = "# inventory uploaded";
         &event_state_change( $dbh, $state, $macref, $actref );
         &update_db_mac_state( $dbh, $input->{mac}, $state );
         if ( defined $chkref ) {
-            &update_db_action( $dbh, $actref );
+            &update_db_data( $dbh, 'action', $actref );
         } else {
             $actref->{mac} = $input->{mac};
-            &add_db_action( $dbh, $actref );
+            &add_db_data( $dbh, 'action', $actref );
         }
 
         $output = "upload success\n";
@@ -241,12 +243,14 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         die "Missing 'status=' in COOKIE\n" unless ( defined $input->{status} );
 
         $input->{mac} = &check_mac($input->{mac});
-        $macref = &get_db_mac( $dbh, $input->{mac} );
+        $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
         unless ( $macref ) {
             # user deleted entry while system was doing what baracus told it
-            $state = BA_EVENT_FOUND;
-            &add_db_mac( $dbh, $input->{mac}, $state );
-            $macref = &get_db_mac( $dbh, $input->{mac} );
+            $macref->{mac} = $input->{mac};
+            $macref->{state} = BA_EVENT_FOUND;
+            $macref->{$baState{ $macref->{state} }} = "now()";
+            &add_db_data( $dbh, 'mac', $macref );
+            $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
         }
 
         my $hook = "";
@@ -334,16 +338,16 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             $output .= `$cmd`;
         }
 
-        my $chkref = &get_db_action( $dbh, $input->{mac} );
+        my $chkref = &get_db_data( $dbh, 'action', $input->{mac} );
         $actref = $chkref if ( defined $chkref );
         $actref->{cmdline} = "# $action completion log received ($input->{status})";
         &event_state_change( $dbh, $state, $macref, $actref );
         &update_db_mac_state( $dbh, $input->{mac}, $state );
         if ( defined $chkref ) {
-            &update_db_action( $dbh, $actref );
+            &update_db_data( $dbh, 'action', $actref );
         } else {
             $actref->{mac} = $input->{mac};
-            &add_db_action( $dbh, $actref );
+            &add_db_data( $dbh, 'action', $actref );
         }
 
     } else {
@@ -416,7 +420,7 @@ elsif ( $ENV{REQUEST_METHOD} eq "GET" )
         my $hostname = "";
         my $ipaddr = inet_aton("$input->{nodeaddr}");
         $hostname = gethostbyaddr($ipaddr, AF_INET);
-        $hostname =~ s/^([^\.]*).?.*/$1/;
+        $hostname =~ s/^([^\.]*).?.*/$1/ if ( $hostname ne "" );
         $hostname = "null" if ( $hostname eq "" );
 
         printlog "$input->{mac} - ipmi callback ($input->{status}: \'$input->{ipmimsg}\')\n";
@@ -459,8 +463,8 @@ chain http://$baVar{serverip}/ba/pxelinux.0?mac=\${mac}
 |;
 
         $input->{mac} = &check_mac($input->{mac});
-        $macref = &get_db_mac( $dbh, $input->{mac} );
-        $actref = &get_db_action( $dbh, $input->{mac} );
+        $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
+        $actref = &get_db_data( $dbh, 'action', $input->{mac} );
         if ( not defined $macref or
              not defined $actref
             )
@@ -509,8 +513,8 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
         die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
 
         $input->{mac} = &check_mac($input->{mac});
-        $macref = &get_db_mac( $dbh, $input->{mac} );
-        $actref = &get_db_action( $dbh, $input->{mac} );
+        $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
+        $actref = &get_db_data( $dbh, 'action', $input->{mac} );
         if ( not defined $macref or
              not defined $actref
             )
@@ -523,9 +527,11 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 
             # add the mac entry as found... if it's the one missing
             unless ( defined $macref ) {
-                $state = BA_EVENT_FOUND;
-                &add_db_mac( $dbh, $input->{mac}, $state );
-                $macref = &get_db_mac( $dbh, $input->{mac} );
+                $macref->{mac} = $input->{mac};
+                $macref->{state} = BA_EVENT_FOUND;
+                $macref->{$baState{ $macref->{state} }} = "now()";
+                &add_db_data( $dbh, 'mac', $macref );
+                $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
             }
             # set the check if we already have an action entry
             my $chkref = $actref if ( defined $actref );
@@ -542,10 +548,10 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             if ( defined $chkref ) {
                 # should never be the case that we have
                 # action w/o mac first... but this don't hurt
-                &update_db_action( $dbh, $actref );
+                &update_db_data( $dbh, 'action', $actref );
             } else {
                 $actref->{mac} = $input->{mac};
-                &add_db_action( $dbh, $actref );
+                &add_db_data( $dbh, 'action', $actref );
             }
 
             &get_inventory( $cgi, \%baVar, $input ); # routine exits
@@ -595,7 +601,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 $actref->{oper} = $pxenext;
                 $actref->{pxecurr} = $pxenext;
                 $actref->{cmdline} = "# pxeboot network image";
-                &update_db_action( $dbh, $actref );
+                &update_db_data( $dbh, 'action', $actref );
             }
             &load_storage( $opts, $dbh, $actref );
             if ($actref->{type} == BA_LUN_NFS ) {
@@ -627,7 +633,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 $actref->{oper} = $pxenext;
                 $actref->{pxecurr} = $pxenext;
                 $actref->{cmdline} = "# pxeboot rescue mode";
-                &update_db_action( $dbh, $actref );
+                &update_db_data( $dbh, 'action', $actref );
             }
 
             my $args;
@@ -686,7 +692,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 $actref->{oper} = $pxenext;
                 $actref->{pxecurr} = $pxenext;
                 $actref->{cmdline} = "# pxeboot inventory request";
-                &update_db_action( $dbh, $actref );
+                &update_db_data( $dbh, 'action', $actref );
             }
 
             &get_inventory( $cgi, \%baVar, $input, $args );
@@ -708,7 +714,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 $actref->{oper} = $pxenext;
                 $actref->{pxecurr} = $pxenext;
                 $actref->{cmdline} = "# pxeboot directing to localdisk";
-                &update_db_action( $dbh, $actref );
+                &update_db_data( $dbh, 'action', $actref );
             }
 
             &do_localboot( $cgi, $actref, $baVar{serverip} );
@@ -728,7 +734,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             &event_state_change( $dbh, $state, $macref, $actref );
             &update_db_mac_state( $dbh, $macref->{mac}, $state );
             $actref->{cmdline} = "# pxeboot directing to network install";
-            &update_db_action( $dbh, $actref );
+            &update_db_data( $dbh, 'action', $actref );
 
             my $args;
 
@@ -740,7 +746,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             &load_profile( $opts, $dbh, $actref );
             &load_vars( $opts, $actref );
 
-            my $actauto = &get_action_autobuild_hash( $dbh, $input->{mac} );
+            my $actauto = &get_db_data( $dbh, 'actabld', $input->{mac} );
             if ( defined $actauto->{autobuild} ) {
                 $actref->{autobuild} = $actauto->{autobuild};
                 $actref->{autobuild_ver} = $actauto->{autobuild_ver};
@@ -883,7 +889,7 @@ chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
                 $args .= "$hardref->{bootargs} " if (defined $hardref->{bootargs});
             }
 
-            $imgref = &get_db_lun( $dbh, $actref->{imageid} );
+            $imgref = &get_db_data( $dbh, 'lun', $actref->{imageid} );
 
             my $lcmac = lc $input->{mac};
 	    my $linux_img=get_arch_linux($input);
@@ -939,7 +945,7 @@ LABEL clone
             &event_state_change( $dbh, $state, $macref, $actref );
             &update_db_mac_state( $dbh, $macref->{mac}, $state );
             if ( $actref->{oper} ne $state ) {
-                &update_db_action( $dbh, $actref );
+                &update_db_data( $dbh, 'action', $actref );
             }
 
         }
@@ -965,7 +971,7 @@ LABEL clone
             &update_db_mac_state( $dbh, $macref->{mac}, $pxenext );
             if ( $actref->{oper} ne $state ) {
                 $actref->{cmdline} = "# pxeboot directing to wipe disk";
-                &update_db_action( $dbh, $actref );
+                &update_db_data( $dbh, 'action', $actref );
             }
 
             my $lcmac = lc $input->{mac};
@@ -991,8 +997,8 @@ LABEL wipe
         die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
 
         $input->{mac} = &check_mac($input->{mac});
-        $macref = &get_db_mac( $dbh, $input->{mac} );
-        $actref = &get_db_action( $dbh, $input->{mac} );
+        $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
+        $actref = &get_db_data( $dbh, 'action', $input->{mac} );
         $distref = &get_distro( $opts, $dbh, $actref );
         if ( not defined $macref or
              not defined $actref or
@@ -1006,7 +1012,7 @@ LABEL wipe
             exit 1;
         }
 
-        my $actauto = &get_action_autobuild_hash( $dbh, $input->{mac} );
+        my $actauto = &get_db_data( $dbh, 'actabld', $input->{mac} );
         if ( defined $actauto->{autobuild} ) {
             $output .= qq|\@echo off
 \@echo curl.exe -G http://$baVar{serverip}/ba/auto?mac=$input->{mac} -o X:\\Autounattend.xml
@@ -1029,8 +1035,8 @@ n:\\setup.exe
         die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
 
         $input->{mac} = &check_mac($input->{mac});
-        $macref = &get_db_mac( $dbh, $input->{mac} );
-        $actref = &get_db_action( $dbh, $input->{mac} );
+        $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
+        $actref = &get_db_data( $dbh, 'action', $input->{mac} );
         $distref = &get_distro( $opts, $dbh, $actref );
         if ( not defined $macref or
              not defined $actref or
@@ -1081,7 +1087,7 @@ n:\\setup.exe
 	    &event_state_change( $dbh, $state, $macref, $actref );
 	    &update_db_mac_state( $dbh, $macref->{mac}, $state );
 	    $actref->{cmdline} = "# pxeboot directing to network install";
-	    &update_db_action( $dbh, $actref );
+	    &update_db_data( $dbh, 'action', $actref );
 
 ## example parm
 #
@@ -1147,7 +1153,7 @@ Nameserver=$actref->{dns1}
 		$args .= $1 . " " if ( $actref->{raccess} =~ m|(vncpassword=[^ \t\s]+)| );
 	    }
 
-	    my $actauto = &get_action_autobuild_hash( $dbh, $input->{mac} );
+            my $actauto = &get_db_data( $dbh, 'actabld', $input->{mac} );
 	    if ( defined $actauto->{autobuild} ) {
 		$actref->{autobuild} = $actauto->{autobuild};
 		$actref->{autobuild_ver} = $actauto->{autobuild_ver};
@@ -1190,8 +1196,8 @@ Nameserver=$actref->{dns1}
 	die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
 
 	$input->{mac} = &check_mac($input->{mac});
-	$macref = &get_db_mac( $dbh, $input->{mac} );
-	$actref = &get_db_action( $dbh, $input->{mac} );
+	$macref = &get_db_data( $dbh, 'mac', $input->{mac} );
+	$actref = &get_db_data( $dbh, 'action', $input->{mac} );
 	$distref = &get_distro( $opts, $dbh, $actref );
 	if ( not defined $macref or
 	     not defined $actref or
@@ -1283,7 +1289,7 @@ Address 'CMS' 'PURGE RDR ALL'
         die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
 
         $input->{mac} = &check_mac($input->{mac});
-        $macref = &get_db_mac( $dbh, $input->{mac} );
+        $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
         if ( not defined $macref ) {
             $output = "$input->{mac} - user vs cgi... missing db mac entry";
             printlog "$output\n";
@@ -1294,7 +1300,7 @@ Address 'CMS' 'PURGE RDR ALL'
             exit 0;
         }
 
-        $actref = &get_db_action( $dbh, $input->{mac} );
+        $actref = &get_db_data( $dbh, 'action', $input->{mac} );
         if (not defined $actref ) {
             $output = "$input->{mac} - user vs cgi... missing db action entry";
             printlog "$output\n";
@@ -1309,7 +1315,7 @@ Address 'CMS' 'PURGE RDR ALL'
 
         # the mac and action might have been produced with an inventory req
 
-        my $actauto = &get_action_autobuild_hash( $dbh, $input->{mac} );
+        my $actauto = &get_db_data( $dbh, 'actabld', $input->{mac} );
         unless ( defined $actauto->{autobuild} ) {
             # this entry has no related autobuild and shouldn't be asking
             $output = "$input->{mac} - user vs cgi... no 'autobuild' entry";
@@ -1363,7 +1369,7 @@ Address 'CMS' 'PURGE RDR ALL'
         die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
 
         $input->{mac} = &check_mac($input->{mac});
-        $macref = &get_db_mac( $dbh, $input->{mac} );
+        $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
         if ( not defined $macref ) {
             $output = "$input->{mac} - user vs cgi... missing db mac entry";
             printlog "$output\n";
@@ -1374,7 +1380,7 @@ Address 'CMS' 'PURGE RDR ALL'
             exit 0;
         }
 
-        $actref = &get_db_action( $dbh, $input->{mac} );
+        $actref = &get_db_data( $dbh, 'action', $input->{mac} );
         if (not defined $actref ) {
             $output = "$input->{mac} - user vs cgi... missing db action entry";
             printlog "$output\n";
@@ -1419,7 +1425,7 @@ Address 'CMS' 'PURGE RDR ALL'
                                ), $output;
             exit 0;
         }
-        $actref = &get_db_action( $dbh, $mac );
+        $actref = &get_db_data( $dbh, 'action', $mac );
         if (not defined $actref ) {
             $output = "$input->{mac} - user vs cgi... missing db action entry";
             printlog "$output\n";
@@ -1456,7 +1462,7 @@ Address 'CMS' 'PURGE RDR ALL'
         my $ip = $ENV{ REMOTE_ADDR };
 
         # hash with a hostname
-        $actref = &get_db_action_by_hostname( $dbh, $input->{hostname} );
+        $actref = &get_db_data_by( $dbh, 'action', $input->{hostname}, 'hostname' );
         unless ( defined $actref ) {
             $output = "$input->{hostname} - build callback unable to find $hostname";
             printlog "$output\n";
@@ -1467,7 +1473,7 @@ Address 'CMS' 'PURGE RDR ALL'
             exit 0;
         }
         $input->{mac} = $actref->{ mac };
-        $macref = &get_db_mac( $dbh, $input->{mac} );
+        $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
 
         # check for spoofing of url access
         if (( "$uuid" ne "$actref->{'uuid'}" ) or
@@ -1500,7 +1506,7 @@ Address 'CMS' 'PURGE RDR ALL'
 
         &event_state_change( $dbh, $state, $macref, $actref );
         &update_db_mac_state( $dbh, $input->{mac}, $state );
-        &update_db_action( $dbh, $actref );
+        &update_db_data( $dbh, 'action', $actref );
     }
 
     ##

@@ -232,12 +232,15 @@ sub add()
         return 1;
     }
 
-    $macref = get_db_mac( $dbh, $mac );
+    $macref = get_db_data( $dbh, 'mac', $mac );
     unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
+        $macref->{mac} = $mac;
+        $macref->{state} = BA_ADMIN_ADDED;
+        $macref->{$baState{ $macref->{state} }} = "now()";
+        &add_db_data( $dbh, 'mac', $macref );
     }
 
-    $chkref = &get_db_action( $dbh, $mac );
+    $chkref = &get_db_data( $dbh, 'action', $mac );
     if ( defined $chkref ) {
         if ( $opts->{debug} > 1 ) {
             while ( my ($key, $val) = each %{$chkref} ) {
@@ -254,15 +257,15 @@ sub add()
     # if passed both mac and hostname create a host table entry
     if ( $hostname ne "" ) {
         $actref->{hostname} = $hostname;
-        unless ( &get_db_host( $dbh, $hostname ) ) {
-            &add_db_host( $dbh, $actref );
+        unless ( &get_db_data( $dbh, 'host', $hostname ) ) {
+            &add_db_data( $dbh, 'host', $actref );
         }
     }
 
     unless ( defined $chkref ) {
-        $macref = get_db_mac( $dbh, $mac ) unless ( defined $macref );
+        $macref = &get_db_data( $dbh, 'mac', $mac ) unless ( defined $macref );
         &admin_state_change( $dbh, BA_ADMIN_ADDED, $macref, $actref );
-        &add_db_action( $dbh, $actref );
+        &add_db_data( $dbh, 'action', $actref );
     }
 
     return 0;
@@ -305,26 +308,25 @@ sub remove()
 
     update_db_mac_state( $dbh, $mac, BA_ADMIN_REMOVED );
 
-    my $actref = get_db_action( $dbh, $mac );
+    my $actref = &get_db_data( $dbh, 'action', $mac );
     if ( defined $actref ) {
         admin_state_change( $dbh, BA_ADMIN_REMOVED, undef, $actref );
         $actref->{cmdline} = $cmdline;
-        &update_db_action( $dbh, $actref );
-        remove_db_action( $dbh, $mac );
-#        remove_autobuild( $opts, $actref );
+        &update_db_data( $dbh, 'action', $actref );
+        &remove_db_data( $dbh, 'action', $mac );
     }
 
     # must come before removal of mac relation
-    my $hostref = get_db_host_by_mac( $dbh, $mac );
+    my $hostref = &get_db_data_by( $dbh, 'host', $mac, 'mac' );
     if ( defined $hostref ) {
-        remove_db_host_by_mac( $dbh, $mac );
+        &remove_db_data_by(  $dbh, 'host', $mac, 'mac');
     }
 
     remove_sqlFS_files( $opts, $mac );
 
-    my $macref = get_db_mac( $dbh, $mac );
+    my $macref = &get_db_data( $dbh, 'mac', $mac );
     if ( defined $macref ) {
-        remove_db_mac( $dbh, $mac );
+       &remove_db_data( $dbh, 'mac', $mac );
     }
 
     return 0;
@@ -580,7 +582,7 @@ sub detail
             printf "%-18s", "addons:";            print " $dbref->{addons}" if $dbref->{addons}; print "\n";
             printf "%-18s", "hardware:";          print " (ver $dbref->{hardware_ver}) $dbref->{hardware}" if $dbref->{hardware}; print "\n";
             printf "%-18s", "profile:";           print " (ver $dbref->{profile_ver}) $dbref->{profile}" if $dbref->{profile}; print "\n";
-            my $abuild = &get_action_autobuild_hash( $dbh, $dbref->{mac});
+            my $abuild = &get_db_data( $dbh, 'actabld', $dbref->{mac});
             if (defined $abuild)
             {
                 printf "%-18s", "autobuild:";     print " (ver $abuild->{autobuild_ver}) $abuild->{autobuild}\n";
@@ -699,10 +701,12 @@ sub _enable_disable_
         return 1;
     }
 
-    $macref = &get_db_mac( $dbh, $mac );
+    $macref = &get_db_data( $dbh, 'mac', $mac );
     unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
-        $macref = &get_db_mac( $dbh, $mac );
+        $macref->{state} = "BA_ADMIN_ADDED";
+        $macref->{$baState{ $macref->{state} } } = "CURRENT_TIMESTAMP";
+        &add_db_data( $dbh, 'mac', $macref );
+        $macref = &get_db_data( $dbh, 'mac', $mac );
     }
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
@@ -710,7 +714,7 @@ sub _enable_disable_
         }
     }
 
-    $chkref = &get_db_action( $dbh, $mac );
+    $chkref = &get_db_data( $dbh, 'action', $mac );
     if ( defined $chkref ) {
         if ( $opts->{debug} > 1 ) {
             while ( my ($key, $val) = each %{$chkref} ) {
@@ -740,7 +744,7 @@ sub _enable_disable_
 
     &admin_state_change( $dbh, $admin, $macref, $actref );
     &update_db_mac_state( $dbh, $mac, $admin );
-    &update_db_action( $dbh, $actref );
+    &update_db_data( $dbh, 'action', $actref );
 
     if ( $opts->{verbose} ) {
         printf "State of %s host entry and related files now %s.\n",

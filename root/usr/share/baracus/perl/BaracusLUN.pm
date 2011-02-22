@@ -69,10 +69,6 @@ BEGIN {
 
                 list_start_lun
                 list_next_lun
-                add_db_lun
-                remove_db_lun
-                update_db_lun
-                get_db_lun
                 get_db_lun_uri
 
             )],
@@ -116,97 +112,6 @@ here we define a hash to make easy using the state constants easier
      );
 
 # Subs
-
-#
-# add_db_lun($dbh, $hashref)
-#
-
-sub add_db_lun
-{
-    my $dbh     = shift;
-    my $hostref = shift;
-    my %Hash    = %{$hostref};
-
-    my $fields = lc get_cols( $baTbls{ lun  } );
-    $fields =~ s/[ \t]*//g;
-    my @fields = split( /,/, $fields );
-    my $values = join(', ', (map { $dbh->quote($_) } @Hash{@fields}));
-
-    my $sql = qq|INSERT INTO $baTbls{ lun } ( $fields ) VALUES ( $values )|;
-    my $sth;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-    $sth->finish;
-    undef $sth;
-}
-
-#
-# remove_db_lun($dbh, $targetid)
-#
-
-sub remove_db_lun
-{
-    my $dbh = shift;
-    my $targetid = shift;
-
-    my $sql = qq|DELETE FROM $baTbls{'lun'} WHERE targetid='$targetid'|;
-    my $sth;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-    $sth->finish();
-    undef $sth;
-}
-
-#
-# update_db_lun
-#
-
-sub update_db_lun
-{
-    my $dbh    = shift;
-    my $lunref = shift;
-    my %Hash   = %{$lunref};
-
-    my $fields = lc get_cols( $baTbls{ lun } );
-    $fields =~ s/[ \t]*//g;
-    my @fields;
-
-    foreach my $field ( split( /,/, $fields ) ) {
-        next if ( $field eq "targetid" );  # skip key
-        push @fields, $field;
-    }
-    $fields = join(', ', @fields);
-    my $values = join(', ', (map { $dbh->quote($_) } @Hash{@fields}));
-
-    my $sql = qq|UPDATE $baTbls{ lun }
-                SET ( $fields ) = ( $values )
-                WHERE targetid = '$lunref->{targetid}' |;
-
-    my $sth;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-}
-
-#
-# get_db_lun($dbh, $targetid)
-#
-
-sub get_db_lun
-{
-    my $dbh      = shift;
-    my $targetid = shift;
-
-    my $sql = qq|SELECT * FROM $baTbls{ lun } WHERE targetid = '$targetid' |;
-    my $sth;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    return $sth->fetchrow_hashref();
-}
-
-#
-# get_db_lun_uri($dbh, $targetid)
-#
 
 sub get_db_lun_uri
 {

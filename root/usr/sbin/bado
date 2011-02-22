@@ -337,7 +337,7 @@ sub build
     # now get any existing action db entry
 
     # lookup by MAC
-    $chkref = &get_db_action( $dbh, $entry{mac} );
+    $chkref = &get_db_data( $dbh, 'action', $entry{mac} );
     if ( defined $chkref
          and $chkref->{hostname}
          and $entry{hostname} ne ''
@@ -347,7 +347,7 @@ sub build
     }
     if ( $entry{hostname} ne '' ) {
         # lookup by hostname
-        $actref = get_db_action_by_hostname( $dbh, $entry{hostname} );
+        $actref = get_db_data_by( $dbh, 'action', $entry{hostname}, 'hostname' );
         if ( defined $actref
              and defined $actref->{mac}
              and $entry{mac} ne $actref->{mac} ) {
@@ -710,18 +710,19 @@ sub build
     $actref->{disk} = $disk;
     $actref->{partition} = $partition;
 
-    $macref = get_db_mac( $dbh, $actref->{mac} );
+    $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
     unless ( defined $macref ) {
-        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED);
-        $macref = get_db_mac( $dbh, $actref->{mac} );
+        $macref->{mac} = $actref->{mac};
+        $macref->{state} = BA_ADMIN_ADDED;
+        $macref->{$baState{ $macref->{state} }} = "now()";
+        &add_db_data( $dbh, 'mac', $macref );
+        $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
     }
 
-    $hostref = &get_db_host( $dbh, $entry{hostname} );
+    $hostref = &get_db_data( $dbh, 'host', $entry{hostname} );
     unless ( defined $hostref ) {
-        &add_db_host( $dbh, $actref );
-#        $hostref = get_db_host( $dbh, $entry{hostname} );
+        &add_db_data( $dbh, 'host', $actref );
     }
-#    &update_db_host( $opts, $dbh, $actref );
 
     # reset action_module join table list
     # now that modules have been checked and loaded
@@ -733,7 +734,7 @@ sub build
 
     # find existing action relation and update it or create if not found
     # avoid overwrite of the carefully constructed $actref hash
-    my $tmpref = get_db_action( $dbh, $actref->{mac} );
+    my $tmpref = &get_db_data( $dbh, 'action', $actref->{mac} );
     if ( defined $tmpref ) {
         # here's a rather involved check
         # to make sure we're not updating a dup
@@ -772,13 +773,14 @@ sub build
 	    }
         }
         if ( $gotdiff != 0 ) {
-            &update_db_action( $dbh, $actref);
+            $actref->{change} = "now()";
+            &update_db_data( $dbh, 'action', $actref);
         }
     } else {
-        &add_db_action( $dbh, $actref);
+        &add_db_data( $dbh, 'action', $actref);
     }
 
-    return 1 if ( &remove_action_modules( $dbh, $actref->{mac} ) );
+    return 1 if ( &remove_db_data_by( $dbh, 'actmod', $actref->{mac}, 'mac' ) );
 
     # prep action_module entry
     my $actmodref->{mac} = $actref->{mac};
@@ -794,7 +796,7 @@ sub build
         }
     }
 
-    return 1 if ( &remove_action_autobuild( $dbh, $actref->{mac} ) );
+    return 1 if ( &remove_db_data( $dbh, 'actabld', $actref->{mac} ) );
 
     unless ( $actref->{'autobuild'} eq "none" ) {
         # get_autobuild_expanded here is to make sure we have all
@@ -897,7 +899,7 @@ sub image
     }
 
     # get and check for image based on id
-    my $imgref = &get_db_lun( $dbh, $entry{imageid} );
+    my $imgref = &get_db_data( $dbh, 'lun', $entry{imageid} );
     if ( ! defined $imgref ) {
         $opts->{LASTERROR} = "imageid: $entry{imageid} does not exist\n";
         return 1;
@@ -935,7 +937,7 @@ sub image
     # now get any existing action db entry
 
     # lookup by MAC
-    $chkref = &get_db_action( $dbh, $entry{mac} );
+    $chkref = &get_db_data( $dbh, 'action', $entry{mac} );
     if ( defined $chkref
          and $chkref->{hostname}
          and $entry{hostname} ne ''
@@ -945,7 +947,7 @@ sub image
     }
     if ( $entry{hostname} ne '' ) {
         # lookup by hostname
-        $actref = get_db_action_by_hostname( $dbh, $entry{hostname} );
+        $actref = get_db_data_by( $dbh, 'action', $entry{hostname}, 'hostname' );
         if ( defined $actref
              and defined $actref->{mac}
              and $entry{mac} ne $actref->{mac} ) {
@@ -1020,18 +1022,19 @@ sub image
                 defined $actref->{$key} ? $actref->{$key} : "";
         }
     }
-    $macref = get_db_mac( $dbh, $actref->{mac} );
+    $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
     unless ( defined $macref ) {
-        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED);
-        $macref = get_db_mac( $dbh, $actref->{mac} );
+        $macref->{mac} = $actref->{mac};
+        $macref->{state} = BA_ADMIN_ADDED;
+        $macref->{$baState{ $macref->{state} }} = "now()";
+        &add_db_data( $dbh, 'mac', $macref );
+        $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
     }
 
-    $hostref = &get_db_host_by_mac( $dbh, $actref->{mac} );
+    $hostref = &get_db_data_by( $dbh, 'host', $actref->{mac}, 'mac' );
     unless ( defined $hostref ) {
-        &add_db_host( $dbh, $actref );
-#        $hostref = get_db_host( $dbh, $entry{hostname} );
+        &add_db_data( $dbh, 'host', $actref );
     }
-#    &update_db_host( $opts, $dbh, $actref );
 
     # reset action_module join table list
     # now that modules have been checked and loaded
@@ -1045,7 +1048,7 @@ sub image
 
     # find existing action relation and update it or create if not found
     # avoid overwrite of the carefully constructed $actref hash
-    my $tmpref = get_db_action( $dbh, $actref->{mac} );
+    my $tmpref = get_db_data( $dbh, 'action', $actref->{mac} );
     if ( defined $tmpref ) {
         # here's a rather involved check
         # to make sure we're not updating a dup
@@ -1084,10 +1087,11 @@ sub image
 	    }
         }
         if ( $gotdiff != 0 ) {
-            &update_db_action( $dbh, $actref);
+            $actref->{change} = "now()";
+            &update_db_data( $dbh, 'action', $actref);
         }
     } else {
-        &add_db_action( $dbh, $actref);
+        &add_db_data( $dbh, 'action', $actref);
     }
 
     if ( $opts->{verbose} ) {
@@ -1181,7 +1185,7 @@ sub clone
     # now get any existing action db entry
 
     # lookup by MAC
-    $chkref = &get_db_action( $dbh, $entry{mac} );
+    $chkref = &get_db_data( $dbh, 'action', $entry{mac} );
     if ( defined $chkref
          and $chkref->{hostname}
          and $entry{hostname} ne ''
@@ -1191,7 +1195,7 @@ sub clone
     }
     if ( $entry{hostname} ne '' ) {
         # lookup by hostname
-        $actref = get_db_action_by_hostname( $dbh, $entry{hostname} );
+        $actref = get_db_data_by( $dbh, 'action', $entry{hostname}, 'hostname' );
         if ( defined $actref
              and defined $actref->{mac}
              and $entry{mac} ne $actref->{mac} ) {
@@ -1255,18 +1259,19 @@ sub clone
                 defined $actref->{$key} ? $actref->{$key} : "";
         }
     }
-    $macref = get_db_mac( $dbh, $actref->{mac} );
+    $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
     unless ( defined $macref ) {
-        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED);
-        $macref = get_db_mac( $dbh, $actref->{mac} );
+        $macref->{mac} = $actref->{mac};
+        $macref->{state} = BA_ADMIN_ADDED;
+        $macref->{$baState{ $macref->{state} }} = "now()";
+        &add_db_data( $dbh, 'mac', $macref );
+        $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
     }
 
-    $hostref = &get_db_host_by_mac( $dbh, $actref->{mac} );
+    $hostref = &get_db_data_by( $dbh, 'host', $actref->{mac}, 'mac' );
     unless ( defined $hostref ) {
-        &add_db_host( $dbh, $actref );
-#        $hostref = get_db_host( $dbh, $entry{hostname} );
+        &add_db_data( $dbh, 'host', $actref );
     }
-#    &update_db_host( $opts, $dbh, $actref );
 
     # reset action_module join table list
     # now that modules have been checked and loaded
@@ -1278,7 +1283,7 @@ sub clone
 
     # find existing action relation and update it or create if not found
     # avoid overwrite of the carefully constructed $actref hash
-    my $tmpref = get_db_action( $dbh, $actref->{mac} );
+    my $tmpref = &get_db_data( $dbh, 'action', $actref->{mac} );
     if ( defined $tmpref ) {
         # here's a rather involved check
         # to make sure we're not updating a dup
@@ -1317,10 +1322,11 @@ sub clone
 	    }
         }
         if ( $gotdiff != 0 ) {
-            &update_db_action( $dbh, $actref);
+            $actref->{change} = "now()";
+            &update_db_data( $dbh, 'action', $actref);
         }
     } else {
-        &add_db_action( $dbh, $actref);
+        &add_db_data( $dbh, 'action', $actref);
     }
 
     if ( $opts->{verbose} ) {
@@ -1378,9 +1384,12 @@ sub empty
         return 1;
     }
 
-    $macref = &get_db_mac( $dbh, $mac );
+    $macref = &get_db_data( $dbh, 'mac', $mac );
     unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
+        $macref->{mac} = $mac;
+        $macref->{state} = BA_ADMIN_ADDED;
+        $macref->{$baState{ $macref->{state} }} = "now()";
+        &add_db_data( $dbh, 'mac', $macref );
     }
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
@@ -1388,7 +1397,7 @@ sub empty
         }
     }
 
-    $chkref = &get_db_action( $dbh, $mac );
+    $chkref = &get_db_data( $dbh, 'action', $mac );
     if ( defined $chkref ) {
         if ( $opts->{debug} > 1 ) {
             while ( my ($key, $val) = each %{$chkref} ) {
@@ -1400,7 +1409,7 @@ sub empty
     }
 
     if ( defined $chkref and
-         $chkref->{pxenext} eq BA_ACTION_NONE ) {
+        $chkref->{pxenext} eq BA_ACTION_NONE ) {
         $opts->{LASTERROR} = "baracus already cleared of host info.\n";
         return 1;
     }
@@ -1417,17 +1426,17 @@ sub empty
     &update_db_mac_state( $dbh, $mac, BA_ACTION_NONE );
 
     # for proper command history update we update
-#    &remove_autobuild( $opts, $actref );
     if ( defined $chkref ) {
-        &update_db_action( $dbh, $actref );
+        $actref->{change} = "now()";
+        &update_db_data( $dbh, 'action', $actref );
     }
     else {
-        &add_db_action( $dbh, $actref );
+        &add_db_data( $dbh, 'action', $actref );
     }
 
     # delete the host and action entries
-    &remove_db_action( $dbh, $mac );
-    &remove_db_host_by_mac( $dbh, $mac );
+    &remove_db_data( $dbh, 'action', $mac );
+    &remove_db_data_by($dbh, 'host', $mac, 'mac' );
 
     if ( $opts->{verbose} )
     {
@@ -1485,9 +1494,12 @@ sub inventory
         return 1;
     }
 
-    $macref = &get_db_mac( $dbh, $mac );
+    $macref = &get_db_data( $dbh, 'mac', $mac );
     unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
+        $macref->{mac} = $mac;
+        $macref->{state} = BA_ADMIN_ADDED;
+        $macref->{$baState{ $macref->{state} }} = "now()";
+        &add_db_data( $dbh, 'mac', $macref );
     }
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
@@ -1495,7 +1507,7 @@ sub inventory
         }
     }
 
-    $chkref = &get_db_action( $dbh, $mac );
+    $chkref = &get_db_data( $dbh, 'action', $mac );
     if ( defined $chkref ) {
         if ( $opts->{debug} > 1 ) {
             while ( my ($key, $val) = each %{$chkref} ) {
@@ -1521,8 +1533,8 @@ sub inventory
     # if passed both mac and hostname create a host table entry
     if ( $hostname ne "" ) {
         $actref->{hostname} = $hostname;
-        unless ( &get_db_host( $dbh, $hostname ) ) {
-            &add_db_host( $dbh, $actref );
+        unless ( &get_db_data( $dbh, 'host', $hostname ) ) {
+            &add_db_data( $dbh, 'host', $actref );
         }
     }
 
@@ -1532,9 +1544,10 @@ sub inventory
 
     # for proper command history update we update
     if ( defined $chkref ) {
-        &update_db_action( $dbh, $actref );
+        $actref->{change} = "now()";
+        &update_db_data( $dbh, 'action', $actref );
     } else {
-        &add_db_action( $dbh, $actref );
+        &add_db_data( $dbh, 'action', $actref );
     }
 
     if ( $opts->{verbose} )
@@ -1615,9 +1628,12 @@ sub wipe
         return 1;
     }
 
-    $macref = &get_db_mac( $dbh, $mac );
+    $macref = &get_db_data( $dbh, 'mac', $mac );
     unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
+        $macref->{mac} = $mac;
+        $macref->{state} = BA_ADMIN_ADDED;
+        $macref->{$baState{ $macref->{state} }} = "now()";
+        &add_db_data( $dbh, 'mac', $macref );
     }
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
@@ -1625,7 +1641,7 @@ sub wipe
         }
     }
 
-    $chkref = &get_db_action( $dbh, $mac );
+    $chkref = &get_db_data( $dbh, 'action', $mac );
     if ( defined $chkref ) {
         if ( $opts->{debug} > 1 ) {
             while ( my ($key, $val) = each %{$chkref} ) {
@@ -1657,8 +1673,8 @@ sub wipe
     # if passed both mac and hostname create a host table entry
     if ( $hostname ne "" ) {
         $actref->{hostname} = $hostname;
-        unless ( &get_db_host( $dbh, $hostname ) ) {
-            &add_db_host( $dbh, $actref );
+        unless ( &get_db_data( $dbh, 'host', $hostname ) ) {
+            &add_db_data( $dbh, 'host', $actref );
         }
     }
 
@@ -1668,9 +1684,10 @@ sub wipe
 
     # for proper command history update we update
     if ( defined $chkref ) {
-        &update_db_action( $dbh, $actref );
+        $actref->{change} = "now()";
+        &update_db_data( $dbh, 'action', $actref );
     } else {
-        &add_db_action( $dbh, $actref );
+        &add_db_data( $dbh, 'action', $actref );
     }
 
 
@@ -1750,9 +1767,12 @@ sub localboot
         return 1;
     }
 
-    $macref = &get_db_mac( $dbh, $mac );
+    $macref = &get_db_data( $dbh, 'mac', $mac );
     unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
+        $macref->{mac} = $mac;
+        $macref->{state} = BA_ADMIN_ADDED;
+        $macref->{$baState{ $macref->{state} }} = "now()";
+        &add_db_data( $dbh, 'mac', $macref );
     }
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
@@ -1760,7 +1780,7 @@ sub localboot
         }
     }
 
-    $chkref = &get_db_action( $dbh, $mac );
+    $chkref = &get_db_data( $dbh, 'action', $mac );
     if ( defined $chkref ) {
         if ( $opts->{debug} > 1 ) {
             while ( my ($key, $val) = each %{$chkref} ) {
@@ -1791,8 +1811,8 @@ sub localboot
     # if passed both mac and hostname create a host table entry
     if ( $hostname ne "" ) {
         $actref->{hostname} = $hostname;
-        unless ( &get_db_host( $dbh, $hostname ) ) {
-            &add_db_host( $dbh, $actref );
+        unless ( &get_db_data( $dbh, 'host', $hostname ) ) {
+            &add_db_data( $dbh, 'host', $actref );
         }
     }
     &action_state_change( $dbh, BA_ACTION_LOCALBOOT, $macref, $actref );
@@ -1801,9 +1821,10 @@ sub localboot
 
     # for proper command history update we update
     if ( defined $chkref ) {
-        &update_db_action( $dbh, $actref );
+        $actref->{change} = "now()";
+        &update_db_data( $dbh, 'action', $actref );
     } else {
-        &add_db_action( $dbh, $actref );
+        &add_db_data( $dbh, 'action', $actref );
     }
 
     if ( $opts->{verbose} ) {
@@ -1871,9 +1892,12 @@ sub netboot
         return 1;
     }
 
-    $macref = &get_db_mac( $dbh, $mac );
+    $macref = &get_db_data( $dbh, 'mac', $mac );
     unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
+        $macref->{mac} = $mac;
+        $macref->{state} = BA_ADMIN_ADDED;
+        $macref->{$baState{ $macref->{state} }} = "now()";
+        &add_db_data( $dbh, 'mac', $macref );
     }
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each( %$macref ) ) {
@@ -1881,7 +1905,7 @@ sub netboot
         }
     }
 
-    $chkref = &get_db_action( $dbh, $mac );
+    $chkref = &get_db_data( $dbh, 'action', $mac );
     if ( defined $chkref ) {
         if ( $opts->{debug} > 1 ) {
             while ( my ($key, $val) = each( %$chkref ) ) {
@@ -1912,8 +1936,8 @@ sub netboot
     # if passed both mac and hostname create a host table entry
     if ( $hostname ne "" ) {
         $actref->{hostname} = $hostname;
-        unless ( &get_db_host( $dbh, $hostname ) ) {
-            &add_db_host( $dbh, $actref );
+        unless ( &get_db_data( $dbh, 'host', $hostname ) ) {
+            &add_db_data( $dbh, 'host', $actref );
         }
     }
 
@@ -1923,9 +1947,10 @@ sub netboot
 
     # for proper command history update we update
     if ( defined $chkref ) {
-        &update_db_action( $dbh, $actref );
+        $actref->{change} = "now()";
+        &update_db_data( $dbh, 'action', $actref );
     } else {
-        &add_db_action( $dbh, $actref );
+        &add_db_data( $dbh, 'action', $actref );
     }
 
     if ( $opts->{verbose} ) {
@@ -2058,7 +2083,7 @@ sub rescue
     # now, if both passed, get any existing action db entry and check reuse
 
     # lookup by MAC
-    $chkref = &get_db_action( $dbh, $entry{mac} );
+    $chkref = &get_db_data( $dbh, 'action', $entry{mac} );
     if ( defined $chkref
          and $chkref->{hostname}
          and $entry{hostname} ne ''
@@ -2068,7 +2093,7 @@ sub rescue
     }
     if ( $entry{hostname} ne '' ) {
         # lookup by hostname
-        $actref = get_db_action_by_hostname( $dbh, $entry{hostname} );
+        $actref = get_db_data_by( $dbh, 'action', $entry{hostname}, 'hostname' );
         if ( defined $actref
              and defined $actref->{mac}
              and $entry{mac} ne $actref->{mac} ) {
@@ -2286,15 +2311,18 @@ sub rescue
         }
     }
 
-    $macref = get_db_mac( $dbh, $actref->{mac} );
+    $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
     unless ( defined $macref ) {
-        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED);
-        $macref = get_db_mac( $dbh, $actref->{mac} );
+        $macref->{mac} = $actref->{mac};
+        $macref->{state} = BA_ADMIN_ADDED;
+        $macref->{$baState{ $macref->{state} }} = "now()";
+        &add_db_data( $dbh, 'mac', $macref );
+        $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
     }
 
-    $hostref = &get_db_host( $dbh, $actref->{hostname} );
+    $hostref = &get_db_data( $dbh, 'host', $actref->{hostname} );
     unless ( defined $hostref ) {
-        &add_db_host( $dbh, $actref );
+        &add_db_data( $dbh, 'host', $actref );
     }
 
     &action_state_change( $dbh, BA_ACTION_RESCUE, $macref, $actref );
@@ -2303,7 +2331,7 @@ sub rescue
 
     # find existing action relation and update it or create if not found
     # avoid overwrite of the carefully constructed $actref hash
-    my $tmpref = get_db_action( $dbh, $actref->{mac} );
+    my $tmpref = get_db_data( $dbh, 'action', $actref->{mac} );
     if ( defined $tmpref ) {
         # here's a rather involved check
         # to make sure we're not updating a dup
@@ -2342,10 +2370,11 @@ sub rescue
 	    }
         }
         if ( $gotdiff != 0 ) {
-            &update_db_action( $dbh, $actref);
+            $actref->{change} = "now()";
+            &update_db_data( $dbh, 'action', $actref);
         }
     } else {
-        &add_db_action( $dbh, $actref);
+        &add_db_data( $dbh, 'action', $actref);
     }
 
     if ( $opts->{verbose} ) {
@@ -2471,8 +2500,6 @@ sub list_start
 
     my $cols = lc get_cols( 'action' );
     $cols =~ s/[ \t]*//g;
-#    my $maccols = lc get_cols( 'mac' );
-#    $maccols =~ s/[ \t]*//g;
 
     $cols = join(',', (map { "action." . $_ } split(',', $cols)));
     my $maccols = join(',', (map { "mac." . $_ } ( 'mac', 'state' ) ));

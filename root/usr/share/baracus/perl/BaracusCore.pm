@@ -66,6 +66,7 @@ BEGIN {
                 macback
                 bootmac
                 automac
+                whocalled
             )],
          );
     Exporter::export_ok_tags('subs');
@@ -311,6 +312,8 @@ sub get_md5sum
     return $md5;
     
 }
+
+sub whocalled { ( caller(2) )[3] }
 
 
 1;

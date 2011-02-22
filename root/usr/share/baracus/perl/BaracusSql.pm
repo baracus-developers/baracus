@@ -126,7 +126,7 @@ use vars qw ( %baTbls %baTblCert %baTblId );
 
 %baTblId =
     (
-     'tftp'      => 'name',         # to get all chunks (key is SERIAL)
+     'file'      => 'name',         # to get all chunks (key is SERIAL)
 
      'mac'       => 'mac',          # unique id
      'host'      => 'hostname',     # unique id
@@ -142,6 +142,7 @@ use vars qw ( %baTbls %baTblCert %baTblId );
      'action'    => 'mac',          # unique id
      'history'   => 'mac',          # to get all action hist for given mac
      'actmod'    => 'mac',          # to get all modules for given action/mac
+     'actabld'   => 'mac',          # unique id
      'power'     => 'mac',          # unique id
      'lun'       => 'targetid',     # unique id
      'mchannel'  => 'mcastid',      # unique id
@@ -493,7 +494,7 @@ sub get_baracus_tables
     my $tbl_action_autobuild = "action_autobuild";
     my %tbl_action_autobuild_columns =
         (
-         'mac'           => 'VARCHAR(17)  PRIMARY KEY REFERENCES action(mac) ON DELETE CASCADE',
+         'mac'           => 'VARCHAR(17) PRIMARY KEY REFERENCES action(mac) ON DELETE CASCADE',
          'autobuild'     => 'VARCHAR(32)',
          'autobuild_ver' => 'INTEGER',
          'FOREIGN KEY' => '(autobuild, autobuild_ver) REFERENCES autobuild(autobuildid,version)   ',

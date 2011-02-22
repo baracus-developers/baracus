@@ -37,6 +37,7 @@ use SqlFS;
 use BaracusDB;
 use BaracusCore qw( :subs  );
 use BaracusConfig qw( :vars :subs );
+use BaracusAux qw( :subs  );
 use BaracusLUN qw( :vars :subs );
 
 
@@ -80,6 +81,7 @@ This tool allows for the identification of disserperate network storage (Network
 
 my $man      = 0;
 my $help     = 0;
+my $tbl      = "lun";
 
 # no add / remove here - all cmds add or update as needed
 # to 'mac', 'build', and 'templateid' tables
@@ -224,7 +226,7 @@ sub add
     &check_ip( $lunref->{targetip} ) if ( $lunref->{targetip} ne "" );  # exits on error
 
     # check for pre-exsisting id
-    $chkref = &get_db_lun( $dbh, $lunref->{targetid} );
+    $chkref = &get_db_data( $dbh, $tbl, $lunref->{targetid} );
     if ( defined $chkref ) {
         $opts->{LASTERROR} = "id: $lunref->{targetid} already exists\n";
         return 1;
@@ -246,7 +248,7 @@ sub add
 
     $lunref->{name} = $lunref->{id} unless ( defined $lunref->{name} );
 
-    &add_db_lun( $dbh, $lunref );
+    &add_db_data( $dbh, $tbl, $lunref );
 
     if ( $opts->{verbose} )
     {
@@ -288,9 +290,9 @@ sub remove
         return 1;
     }
 
-    $chkref = &get_db_lun( $dbh, $id );
+    $chkref = &get_db_data( $dbh, $tbl, $id );
     if ( defined $chkref ) {
-        &remove_db_lun( $dbh, $id );
+        &remove_db_data( $dbh, $tbl, $id );
     }
 
     return 0;
@@ -394,7 +396,7 @@ sub detail
         return 1;
     }
 
-    $lunref = &get_db_lun( $dbh, $id );
+    $lunref = &get_db_data( $dbh, $tbl, $id );
     unless ( defined $lunref ) {
         $opts->{LASTERROR} = "No storage found with id: $id\n";
         return 1;

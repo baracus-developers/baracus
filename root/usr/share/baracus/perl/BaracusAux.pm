@@ -36,6 +36,7 @@ use BaracusState  qw( :vars :subs :states );
 use BaracusCore   qw( :subs );
 use BaracusConfig qw( :vars );
 use BaracusLUN    qw( :subs );
+use BaracusAux    qw( :subs );
 
 =pod
 
@@ -95,6 +96,13 @@ BEGIN {
                 get_versions
                 redundant_data
                 find_helper
+
+                add_db_data
+                remove_db_data
+                remove_db_data_by
+                update_db_data
+                get_db_data
+                get_db_data_by
 
 		check_broadcast
             )],
@@ -318,7 +326,7 @@ sub load_storage
     my $dbh  = shift;
     my $aref = shift;
 
-    my $found = &get_db_lun( $dbh, $aref->{netroot} );
+    my $found = &get_db_data( $dbh, 'lun', $aref->{netroot} );
     unless ( defined $found ) {
         $opts->{LASTERROR} = "Unable to find storage entry for $aref->{netroot}\n";
         return 1;
@@ -659,24 +667,6 @@ sub get_autobuild_expanded
 
     return $abfile;
 }
-
-# sub remove_autobuild
-# {
-#
-#     my $opts    = shift;
-#     my $hostref = shift;
-#     my $dbtftp  = "sqltftp";
-#
-#     my $deepdebug = $opts->{debug} > 2 ? 1 : 0;
-#     my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp;port=5162",
-#                                'User' => "baracus",
-#                                'debug' => $deepdebug )
-#         or die "Unable to create new instance of SqlFS\n";
-#
-#     my $automac = &automac( $hostref->{'mac'} );
-#
-#     $sqlfsOBJ->remove( $automac );
-# }
 
 sub remove_sqlFS_files
 {
@@ -1110,6 +1100,145 @@ sub get_versions
                  defined $enabled_href );
 
     return ( $version_href, $highest_href, $enabled_href );
+}
+
+#
+# add_db_data( $dbh, $tbl, $hashref )
+#
+
+sub add_db_data
+{
+    my $dbh     = shift;
+    my $tbl     = shift;
+    my $hashref = shift;
+    my %Hash    = %{$hashref};
+
+    my $fields = lc get_cols( $baTbls{ $tbl  } );
+    $fields =~ s/[ \t]*//g;
+    my @fields = split( /,/, $fields );
+    my $values = join(', ', (map { $dbh->quote($_) } @Hash{@fields}));
+
+    my $sql = qq|INSERT INTO $baTbls{ $tbl } ( $fields ) VALUES ( $values )|;
+    my $sth;
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
+    $sth->finish;
+    undef $sth;
+}
+
+#
+# remove_db_data( $dbh, $tbl, $id )
+#
+
+sub remove_db_data
+{
+    my $dbh = shift;
+    my $tbl = shift;
+    my $id = shift;
+
+    my $index;
+    my $caller = &whocalled;
+    if ( $caller =~ m/remove_db_data_by/ ) {
+        $index = shift;
+    } else {
+        $index = $baTblId{ $tbl };
+    }
+
+    my $sql = qq|DELETE FROM $baTbls{ $tbl } WHERE $index = '$id'|;
+    my $sth;
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
+    $sth->finish();
+    undef $sth;
+}
+
+#
+# update_db_data( $dbh, $tbl, $hashref )
+#
+
+sub update_db_data
+{
+    my $dbh     = shift;
+    my $tbl     = shift;
+    my $hashref = shift;
+    my %Hash    = %{$hashref};
+
+    my $fields = lc get_cols( $baTbls{ $tbl } );
+    $fields =~ s/[ \t]*//g;
+    my @fields;
+
+    foreach my $field ( split( /,/, $fields ) ) {
+        next if ( $field eq $baTblId{ $tbl } );  # skip key
+        next if ( $field eq "creation" );  # skip creation col
+        push @fields, $field;
+    }
+    $fields = join(', ', @fields);
+    my $values = join(', ', (map { $dbh->quote($_) } @Hash{@fields}));
+
+    my $sql = qq|UPDATE $baTbls{ $tbl }
+                SET ( $fields ) = ( $values )
+                WHERE $baTblId{ $tbl } = '$hashref->{ $baTblId{ $tbl } }' |;
+
+    my $sth;
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
+}
+
+#
+# get_db_data( $dbh, $tbl, $id );
+#
+
+sub get_db_data
+{
+    my $dbh = shift;
+    my $tbl = shift;
+    my $id  = shift;
+
+    my $index;
+    my $caller = &whocalled;
+    if ( $caller =~ m/get_db_data_by/ ) {
+        $index = shift;
+    } else {
+        $index = $baTblId{ $tbl };
+    }
+
+   # my $sql = qq|SELECT * FROM $baTbls{ $tbl } WHERE $baTblId{ $tbl } = '$id' |;
+    my $sql = qq|SELECT * FROM $baTbls{ $tbl } WHERE $index = '$id' |;
+    my $sth;
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
+
+    return $sth->fetchrow_hashref();
+}
+
+#
+# get_db_data_by( $dbh, $tbl, $id, $index );
+#
+
+sub get_db_data_by
+{
+    my $dbh   = shift;
+    my $tbl   = shift;
+    my $id    = shift;
+    my $index = shift;
+    
+    my $href = &get_db_data( $dbh, $tbl, $id, $index);
+
+    return $href;
+}
+
+#
+# remove_db_data_by( $dbh, $tbl, $id, $index );
+#
+
+sub remove_db_data_by
+{
+    my $dbh   = shift;
+    my $tbl   = shift;
+    my $id    = shift;
+    my $index = shift;
+
+    &remove_db_data( $dbh, $tbl, $id, $index );
 }
 
 
