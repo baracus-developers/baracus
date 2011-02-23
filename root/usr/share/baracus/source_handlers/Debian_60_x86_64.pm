@@ -113,7 +113,7 @@ sub external_source_handler() {
                         $status = 1 if ( $ret > 0 );
 
                         # create symlink
-                        $ret = system("ln -s $basepath/mirror/dists/squeeze/$basepath/mirror/dists/stable");
+                        $ret = system("ln -s $basepath/mirror/dists/squeeze/ $basepath/mirror/dists/stable");
                         $status = 1 if ( $ret > 0 );
  
                         last SWITCH;
