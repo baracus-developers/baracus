@@ -1114,10 +1114,18 @@ sub add_db_data
 
     my $fields = lc get_cols( $baTbls{ $tbl  } );
     $fields =~ s/[ \t]*//g;
-    my @fields = split( /,/, $fields );
+    my @fields;
+
+    foreach my $field ( split( /,/, $fields ) ) {
+        next if ( $field eq "change" );  # skip change col
+        $Hash{ $field } = "now()" if ( $field eq "creation" ); # add creation time
+        push @fields, $field;
+    }
+    $fields = join(', ', @fields);
     my $values = join(', ', (map { $dbh->quote($_) } @Hash{@fields}));
 
     my $sql = qq|INSERT INTO $baTbls{ $tbl } ( $fields ) VALUES ( $values )|;
+
     my $sth;
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
     die "$!$sth->err\n" unless ( $sth->execute( ) );
