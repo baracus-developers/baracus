@@ -325,6 +325,10 @@ sub load_storage
     my $dbh  = shift;
     my $aref = shift;
 
+    unless ( $aref->{storageid} ) {
+        return 0;
+    }
+
     my $found = &get_db_data( $dbh, 'storage', $aref->{storageid} );
     unless ( defined $found ) {
         $opts->{LASTERROR} = "Unable to find storage entry for $aref->{storageid}\n";
