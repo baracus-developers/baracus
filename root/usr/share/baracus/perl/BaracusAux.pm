@@ -1145,15 +1145,10 @@ sub remove_db_data
 {
     my $dbh = shift;
     my $tbl = shift;
-    my $id = shift;
+    my $id  = shift;
+    my $index = shift;
 
-    my $index;
-    my $caller = &whocalled;
-    if ( $caller =~ m/remove_db_data_by/ ) {
-        $index = shift;
-    } else {
-        $index = $baTblId{ $tbl };
-    }
+    $index = $baTblId{ $tbl } unless (defined $index);
 
     my $sql = qq|DELETE FROM $baTbls{ $tbl } WHERE $index = '$id'|;
     my $sth;
@@ -1174,18 +1169,25 @@ sub update_db_data
     my $hashref = shift;
     my %Hash    = %{$hashref};
 
-    my $fields = lc get_cols( $baTbls{ $tbl } );
-    $fields =~ s/[ \t]*//g;
+    # limit to table defined columns
+    my $valid = get_cols( $baTbls{ $tbl  } );
+    $valid =~ s/[ \t]*//g;
     my @fields;
 
-    foreach my $field ( split( /,/, $fields ) ) {
+    foreach my $field ( split(/,/, $valid ) ) {
+        next unless ( defined $Hash{ $field } ); # skip all but fields passed
         next if ( $field eq $baTblId{ $tbl } );  # skip key
         next if ( $field eq "creation" );  # skip creation col
-        $Hash{ $field } = "now()" if ( $field eq "change" ); # add update time
+        next if ( $field eq "change" );  # skip change col - will get below
         push @fields, $field;
     }
-    $fields = join(', ', @fields);
+    my $fields = join(', ', @fields);
     my $values = join(', ', (map { $dbh->quote($_) } @Hash{@fields}));
+
+    if ( $valid =~ /\bchange\b/ ) {
+        $fields .= ", change";
+        $values .= ", CURRENT_TIMESTAMP";
+    }
 
     my $sql = qq|UPDATE $baTbls{ $tbl }
                 SET ( $fields ) = ( $values )
@@ -1205,16 +1207,10 @@ sub get_db_data
     my $dbh = shift;
     my $tbl = shift;
     my $id  = shift;
+    my $index = shift;
 
-    my $index;
-    my $caller = &whocalled;
-    if ( $caller =~ m/get_db_data_by/ ) {
-        $index = shift;
-    } else {
-        $index = $baTblId{ $tbl };
-    }
+    $index = $baTblId{ $tbl } unless (defined $index);
 
-   # my $sql = qq|SELECT * FROM $baTbls{ $tbl } WHERE $baTblId{ $tbl } = '$id' |;
     my $sql = qq|SELECT * FROM $baTbls{ $tbl } WHERE $index = '$id' |;
     my $sth;
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
@@ -1233,7 +1229,7 @@ sub get_db_data_by
     my $tbl   = shift;
     my $id    = shift;
     my $index = shift;
-    
+
     my $href = &get_db_data( $dbh, $tbl, $id, $index);
 
     return $href;
