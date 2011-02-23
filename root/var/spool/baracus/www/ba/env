@@ -51,9 +51,9 @@ BEGIN {
 
     open(LOG, ">>$baDir{logs}/baracusd") or
         die("Unable to open $baDir{logs}/baracusd: $!");
-    my $oldfh = select(LOG); $| = 1; select($sub);
+    my $oldfh = select(LOG); $| = 1; select($oldfh);
 
-    oldfh printlog {
+    sub printlog {
         my $msg = shift;
         print LOG "[" . ctime() . "] $ENV{ REMOTE_ADDR } $msg";
     }
