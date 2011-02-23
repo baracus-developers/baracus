@@ -602,18 +602,18 @@ sub detail
             print "\n";
             print "\n";
 
-            if ( $dbref->{netroot} ) {
-                print "Netboot\n";
+            if ( $dbref->{storageid} ) {
+                print "Storage\n";
                 print "-------\n";
-                printf "%-18s", "NetRoot StorageID:"; print " $dbref->{netroot}";
+                printf "%-18s", "StorageID:"; print " $dbref->{storageid}";
                 print "\n";
                 print "\n";
             }
 
-            if ( $dbref->{imageid} ) {
-                print "Image\n";
+            if ( $dbref->{mcastid} ) {
+                print "MCast\n";
                 print "-----\n";
-                printf "%-18s", "Image StorageID:"; print " $dbref->{imageid}";
+                printf "%-18s", "MultiCastID:"; print " $dbref->{mcastid}";
                 print "\n";
                 print "\n";
             }

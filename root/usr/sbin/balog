@@ -269,7 +269,7 @@ sub export
     my $header = "";
     if ( $opts->{verbose} ) { $header = "timestamp,"; }
     $header .= "mac,hostname,ip,pxecurr,pxenext,state,active";
-    if ( $long ) { $header .= ",hardwareid,profileid,distroid,modules,addons,netroot,loghost,raccess,autonuke"; }
+    if ( $long ) { $header .= ",hardwareid,profileid,distroid,modules,addons,storageid,loghost,raccess,autonuke"; }
     $header .= "\n";
     print FILE $header;
 
@@ -288,7 +288,7 @@ sub export
             if ( $dbref->{'distroid'} and $long )   { $csv .= $dbref->{'distroid'} . ","; }   elsif ( $long ) { $csv .= ","; }
             if ( $dbref->{'modules'} and $long )    { $csv .= $dbref->{'modules'} . ","; }    elsif ( $long ) { $csv .= ","; }
             if ( $dbref->{'addons'} and $long )     { $csv .= $dbref->{'addons'} . ","; }     elsif ( $long ) { $csv .= ","; }
-            if ( $dbref->{'netroot'} and $long )    { $csv .= $dbref->{'netroot'} . ","; }    elsif ( $long ) { $csv .= ","; }
+            if ( $dbref->{'storageid'} and $long )  { $csv .= $dbref->{'storageid'} . ","; }  elsif ( $long ) { $csv .= ","; }
             if ( $dbref->{'loghost'} and $long )    { $csv .= $dbref->{'loghost'} . ","; }    elsif ( $long ) { $csv .= ","; }
             if ( $dbref->{'raccess'} and $long )    { $csv .= $dbref->{'raccess'} . ","; }    elsif ( $long ) { $csv .= ","; }
             if ( $dbref->{'autonuke'} and $long )   { $csv .= $dbref->{'autonuke'} . ","; }   elsif ( $long ) { $csv .= ","; }
@@ -342,7 +342,7 @@ sub list
             if ( $opts->{verbose} ) { printf "%-21s", "timestamp"; }
             printf "%-17s %-17s %-15s %-9s %-9s %-9s %-9s", "mac", "hostname", "ip", "pxecurr", "pxenext", "state", "active";
             if ( $long ) { printf "%-12s %-12s %-12s %-9s %-9s %-16s %-16s %-2s %-2s", "hardwareid", "profileid", "distroid", "modules",
-                                  "addons", "netroot", "loghost", "raccess", "autonuke", "autopxe"; }
+                                  "addons", "storageid", "loghost", "raccess", "autonuke", "autopxe"; }
             print "\n";
             print $line . "\n"; 
         }
@@ -359,13 +359,13 @@ sub list
             if ( $dbref->{'hardwareid'} and $long )  { printf "%-16s ", $dbref->{'hardwareid'} } elsif ($long) { printf "%-16s ", " "; }
             if ( $dbref->{'profileid'} and $long )   { printf "%-16s ", $dbref->{'profileid'} }  elsif ($long) { printf "%-16s ", " "; }
             if ( $dbref->{'distroid'} and $long )    { printf "%-16s ", $dbref->{'distroid'} }   elsif ($long) { printf "%-16s ", " "; }
-            if ( $dbref->{'modules'} and $long )     { printf "%-9s ", $dbref->{'modules'} }    elsif ($long) { printf "%-16s ", " "; }
-            if ( $dbref->{'addons'} and $long )      { printf "%-9s ", $dbref->{'addons'} }     elsif ($long) { printf "%-16s ", " "; }
-            if ( $dbref->{'netroot'} and $long )     { printf "%-9s ", $dbref->{'netroot'} }    elsif ($long) { printf "%-24s ", " "; }
-            if ( $dbref->{'loghost'} and $long )     { printf "%-16s ", $dbref->{'loghost'} }   elsif ($long) { printf "%-15s ", " "; }
-            if ( $dbref->{'raccess'} and $long )     { printf "%-16s ", $dbref->{'raccess'} }   elsif ($long) { printf "%-36s ", " "; }
-            if ( $dbref->{'autonuke'} and $long )    { printf "%-10s ", $dbref->{'autonuke'} }  elsif ($long) { printf "%-10s ", " "; }
-            if ( $dbref->{'autopxe'} and $long )     { printf "%-10s ", $dbref->{'autopxe'} }   elsif ($long) { printf "%-10s ", " "; }
+            if ( $dbref->{'modules'} and $long )     { printf "%-9s ", $dbref->{'modules'} }     elsif ($long) { printf "%-16s ", " "; }
+            if ( $dbref->{'addons'} and $long )      { printf "%-9s ", $dbref->{'addons'} }      elsif ($long) { printf "%-16s ", " "; }
+            if ( $dbref->{'storageid'} and $long )   { printf "%-9s ", $dbref->{'storageid'} }   elsif ($long) { printf "%-24s ", " "; }
+            if ( $dbref->{'loghost'} and $long )     { printf "%-16s ", $dbref->{'loghost'} }    elsif ($long) { printf "%-15s ", " "; }
+            if ( $dbref->{'raccess'} and $long )     { printf "%-16s ", $dbref->{'raccess'} }    elsif ($long) { printf "%-36s ", " "; }
+            if ( $dbref->{'autonuke'} and $long )    { printf "%-10s ", $dbref->{'autonuke'} }   elsif ($long) { printf "%-10s ", " "; }
+            if ( $dbref->{'autopxe'} and $long )     { printf "%-10s ", $dbref->{'autopxe'} }    elsif ($long) { printf "%-10s ", " "; }
             printf "\n";
         }
     }
