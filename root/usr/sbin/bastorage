@@ -334,6 +334,25 @@ sub list
         return 1;
     }
 
+    # manipulate filter before calling list_start_data
+    if ( $filter =~ m|::| ) {
+        my ( $fkey, $fval ) = split( /::/, $filter, 2 );
+        if ( $fkey eq "name" ) {
+            $fkey = "storageid";
+        }
+        elsif( $fkey eq "ip" ) {
+            $fkey = "storageip";
+        }
+        elsif ( $fkey eq "type" ) {
+            unless ( $baStorageType{ $fval } ) {
+                $opts->{LASTERROR} = "Invalid type: $fval";
+                return 1;
+            }
+            $fval = $baStorageType{ $fval };
+        }
+        $filter = "${fkey}::${fval}";
+    }
+
     my $sth = &list_start_data ( $opts, $dbh, 'storage', $filter );
 
     unless( defined $sth ) {
@@ -358,7 +377,7 @@ sub list
     } else {
         unless ($opts->{quiet}) {
         print "----------------------------------------------------------------------------------------------\n";
-        printf "%-26s %-7s %-18s %-30s\n", "name", "type", "storageip", "storage";
+        printf "%-26s %-7s %-18s %-30s\n", "name", "type", "ip", "storage";
         print "----------------------------------------------------------------------------------------------\n";
         }
 

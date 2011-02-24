@@ -1286,7 +1286,7 @@ sub list_start_data
         $filter =~ s|\?|_|g;  # one char of anything
     }
 
-    my $sql = qq|SELECT * FROM $tbl WHERE $fkey LIKE '$filter' ORDER BY $baTblId{ $tbl }|;
+    my $sql = qq|SELECT * FROM $tbl WHERE CAST($fkey as TEXT) LIKE '$filter' ORDER BY $baTblId{ $tbl }|;
 
     my $sth;
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
