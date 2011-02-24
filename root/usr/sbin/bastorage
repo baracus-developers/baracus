@@ -345,7 +345,7 @@ sub list
         }
         elsif ( $fkey eq "type" ) {
             unless ( $baStorageType{ $fval } ) {
-                $opts->{LASTERROR} = "Invalid type: $fval";
+                $opts->{LASTERROR} = "Invalid type: $fval\n";
                 return 1;
             }
             $fval = $baStorageType{ $fval };

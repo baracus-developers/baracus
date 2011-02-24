@@ -315,7 +315,7 @@ sub list_stub() {
         return 1;
     }
 
-    my $opts = { 'LASTERROR' => "", 'debug' = $debug };
+    my $opts = { 'LASTERROR' => "", 'debug' => $debug };
     my $sth = &list_start_data( $opts, $dbh, 'power', $filter );
 
     unless( defined $sth ) {
