@@ -334,7 +334,10 @@ sub list
         return 1;
     }
 
-    my $sth = list_start_storage ( $dbh, $filter );
+    my $sth = &list_start_data ( $dbh, 'storage', $filter );
+    if ( $sth == 0 ) {
+        return 1;
+    }
 
     unless( defined $sth ) {
         # well - we've likely died in list_start if logic would get here
@@ -350,7 +353,7 @@ sub list
 
         my $dbref;
         my $curi;
-        while ( $dbref = &list_next_storage( $sth ) ) {
+        while ( $dbref = &list_next_data( $sth ) ) {
             $curi = &get_db_storage_uri( $dbh, $dbref->{storageid} );
             printf "%-26s %-56s\n",
                 $dbref->{storageid}, $curi;
@@ -363,7 +366,7 @@ sub list
         }
 
         my $dbref;
-        while ( $dbref = &list_next_storage( $sth ) ) {
+        while ( $dbref = &list_next_data( $sth ) ) {
             printf "%-26s %-7s %-18s %-30s\n",
                 $dbref->{storageid}, $baStorageType{ $dbref->{type} }, $dbref->{storageip}, $dbref->{storage};
         }

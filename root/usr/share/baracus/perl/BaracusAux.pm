@@ -1265,7 +1265,7 @@ sub list_start_data
 
     my $fkey;
 
-    if ( defined $filter ) {
+    if ( $filter eq "" ) {
         $fkey = $baTblId{ $tbl };
         $filter = "%";
     } else {
@@ -1281,8 +1281,8 @@ sub list_start_data
     }
 
     unless ( $is_valid ) {
-        print "Filter key: $filter not valid\n";
-        return 1;
+        print "storage key: $fkey is not valid\n";
+        return $is_valid;
     }
 
     my $sql = qq|SELECT * FROM $tbl WHERE $fkey LIKE '$filter' ORDER BY $baTblId{ $tbl }|;

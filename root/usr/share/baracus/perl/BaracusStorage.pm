@@ -65,8 +65,6 @@ BEGIN {
             )],
          subs   =>
          [qw(
-                list_start_storage
-                list_next_storage
                 get_db_storage_uri
             )],
          );
@@ -138,57 +136,6 @@ sub get_db_storage_uri
         $uri = "null";
     }
     return $uri;
-}
-
-#
-# list_start_storage($dbh, storageid)
-#
-
-sub list_start_storage
-{
-    my $dbh = shift;
-    my $filter = shift;
-    my $fkey;
-
-    if ( $filter eq "" ) {
-        $fkey = "name";
-        $filter = "%";
-    } else {
-        ( $fkey, $filter ) = split ( /::/, $filter, 2 );
-        $filter =~ s/\*/\%/g;
-    }
-
-    unless ( $fkey eq "storage" or $fkey eq "name" ) {
-        print "Filter key not valid.\n";
-        exit 1;
-    }
-
-    $fkey = "storageid" if $fkey eq "name";
-
-    my $sql = qq|SELECT * FROM storage WHERE $fkey LIKE '$filter' ORDER BY storageid|;
-
-    my $sth;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    return $sth;
-}
-
-sub list_next_storage
-{
-
-    my $sth = shift;
-    my $href;
-
-    $href = $sth->fetchrow_hashref();
-
-    unless ($href) {
-        $sth->finish;
-        undef $sth;
-        undef $href;
-    }
-
-    return $href;
 }
 
 1;

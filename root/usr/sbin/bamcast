@@ -438,6 +438,9 @@ sub list
     }
 
     my $sth = list_start_data ( $dbh, $tbl, $filter );
+    if ( $sth == 0 ) {
+        return 1;
+    }
 
     unless( defined $sth ) {
         # well - we've likely died in list_start if logic would get here

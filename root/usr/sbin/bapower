@@ -36,6 +36,7 @@ use BaracusPower qw( :subs );
 use BaracusDB;
 use BaracusSql;
 use BaracusCore qw( :subs );
+use BaracusAux  qw( :subs );
 
 =pod
 
@@ -302,10 +303,11 @@ sub list_stub() {
 
     my $bmcref = shift;
 
+    my $filter = "";
+
     @ARGV = @_;
     GetOptions(
-               'mac=s'         => \$bmcref->{'mac'},
-               'hostname=s'    => \$bmcref->{'hostname'},
+               'filter=s'  => $filter,
                );
 
     if ( scalar @ARGV ) {
@@ -313,10 +315,8 @@ sub list_stub() {
         return 1;
     }
 
-    my $sth = &list_start( $bmcref );
-    my $href = $sth->fetchrow_hashref();
-    unless ( defined $href ) {
-        $LASTERROR = sprintf "No entries found.\n";
+    my $sth = &list_start_data( $dbh, 'power', $filter );
+    if ( $sth == 1) { 
         return 1;
     }
 
@@ -327,12 +327,13 @@ sub list_stub() {
     print "--------------------------------------------------------------------------------------\n";
     }
 
-    while  ($href ne "null") { 
-        $href->{'node'} =~ s/NULL//g;
-        $href->{'other'} =~ s/NULL//g;
-        printf "%-8s %-16s %-18s %-18s %-16s %-16s ", "$href->{'ctype'}", "$href->{'bmcaddr'}", "$href->{'mac'}", "$href->{'hostname'}", "$href->{'node'}", "$href->{'other'}";
+    my $dbref;
+    while ( $dbref = &list_next_data( $sth ) ) {
+        $dbref->{'node'} =~ s/NULL//g;
+        $dbref->{'other'} =~ s/NULL//g;
+        printf "%-8s %-16s %-18s %-18s %-16s %-16s ", "$dbref->{'ctype'}", "$dbref->{'bmcaddr'}", "$dbref->{'mac'}",
+                                                      "$dbref->{'hostname'}", "$dbref->{'node'}", "$dbref->{'other'}";
         print "\n";
-        $href = &list_next( $sth );
     }
 
     return 0;
