@@ -246,6 +246,8 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             &add_db_mac( $dbh, $input->{mac}, BA_EVENT_FOUND );
             $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
         }
+        my $chkref = &get_db_data( $dbh, 'action', $input->{mac} );
+        $actref = $chkref if ( defined $chkref );
 
         my $hook = "";
 
@@ -277,6 +279,9 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             if ($input->{status} eq "pass") {
                 $state = BA_EVENT_CLONED;
                 $hook = $clonedone;
+                my $sref = &get_db_data( $dbh, 'storage', $actref->{storageid});
+                $sref->{type} = BA_STORAGE_IMAGE;
+                &update_db_data( $dbh, 'storage', $sref);
             } else {
                 $state = BA_EVENT_CLONEFAIL;
                 $hook = $clonefail;
@@ -332,8 +337,6 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
             $output .= `$cmd`;
         }
 
-        my $chkref = &get_db_data( $dbh, 'action', $input->{mac} );
-        $actref = $chkref if ( defined $chkref );
         $actref->{cmdline} = "# $action completion log received ($input->{status})";
         &event_state_change( $dbh, $state, $macref, $actref );
         &update_db_mac_state( $dbh, $input->{mac}, $state );
@@ -880,16 +883,18 @@ chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
                 $args .= "$hardref->{bootargs} " if (defined $hardref->{bootargs});
             }
 
-            $imgref = &get_db_data( $dbh, 'storage', $actref->{storageid} );
-
             my $lcmac = lc $input->{mac};
-	    my $linux_img=get_arch_linux($input);
-	    my $initrd_img=get_arch_initrd($input);
 
             if ($pxenext eq BA_ACTION_IMAGE) {
                 printlog "$input->{mac} - serving imaging workload\n";
                 $state = BA_EVENT_IMAGING;
                 $actref->{cmdline} = "# pxeboot directing to image disk";
+
+                my $linux_img=get_arch_linux($input);
+                my $initrd_img=get_arch_initrd($input);
+
+                $imgref = &get_db_data( $dbh, 'storage', $actref->{storageid} );
+
                 $output =
                     qq|DEFAULT image
 PROMPT 0
@@ -902,8 +907,10 @@ LABEL image
                 printlog "$input->{mac} - serving mcasting workload\n";
                 $state = BA_EVENT_MCASTING;
                 $actref->{cmdline} = "# pxeboot directing to multicast image disk";
-	    	my $linux_mcst=get_arch_linux($input);
-	    	my $initrd_mcst=get_arch_initrd($input);
+                my $linux_mcst=get_arch_linux($input);
+                my $initrd_mcst=get_arch_initrd($input);
+
+                $imgref = &get_db_data( $dbh, 'mcast', $actref->{mcastid} );
 
                 # here iamgeid is in IP format (validated in bado image)
                 # so we're handling a multicast rendez-vous address
@@ -913,15 +920,18 @@ PROMPT 0
 TIMEOUT 0
 LABEL mcast
         kernel http://$baVar{serverip}/ba/$linux_mcst
-        append initrd=http://$baVar{serverip}/ba/$initrd_mcst root=/dev/ram0 install=exec:/usr/bin/baracus.mcast baimagedst="$hardref->{rootdisk}" bardvaddr="$imgref->{storage}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        append initrd=http://$baVar{serverip}/ba/$initrd_mcst root=/dev/ram0 install=exec:/usr/bin/baracus.mcast baimagedst="$hardref->{rootdisk}" bardvaddr="$imgref->{rdvip}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
-            } else {
+            } elsif ( $pxenext eq BA_ACTION_CLONE ) {
                 printlog "$input->{mac} - serving cloning workload\n";
                 $state = BA_EVENT_CLONING;
                 $actref->{cmdline} = "# pxeboot directing clone disk image";
 
-	    	my $linux_cln=get_arch_linux($input);
-	    	my $initrd_cln=get_arch_initrd($input);
+                my $linux_cln=get_arch_linux($input);
+                my $initrd_cln=get_arch_initrd($input);
+
+                $imgref = &get_db_data( $dbh, 'storage', $actref->{storageid} );
+                $imgref->{storage} =~ s|\.gz$||;
 
                 $output =
                     qq|DEFAULT clone

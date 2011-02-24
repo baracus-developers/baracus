@@ -165,7 +165,7 @@ With arguments
   --type <sharetype>       Storage protocol [iscsi|nfs|aoe|image]
   --storage <path_or_uri>  Path, unique resource id, or iqn identifier.
 
-For --type other than 'image'
+For --type other than 'image' or 'clone'
 
   --ip <server>            Address of network storage server.
 
@@ -227,7 +227,8 @@ sub add
         return 1;
     }
     if ( ( $sref->{storageip} eq "" ) and
-         ( $sref->{type} != BA_STORAGE_IMAGE ) ) {
+         ( $sref->{type} != BA_STORAGE_IMAGE ) and
+         ( $sref->{type} != BA_STORAGE_CLONE ) ) {
         $opts->{LASTERROR} = "Missing  --ip\n";
         return 1;
     }
@@ -246,13 +247,36 @@ sub add
         return 1;
     }
 
-    # if image, generate md5sum and load into ~/images if not already
     if ( $sref->{type} eq BA_STORAGE_IMAGE ) {
-        if ( -e "$baDir{images}/$sref->{storage}" ) {
-             print "Calcuating image md5sum ...\n" if $opts->{verbose};
-             $sref->{md5sum} = &get_md5sum( "$baDir{images}/$sref->{storage}" );
+        # make sure either storage or storage.gz exists
+        # and generate md5sum for tamper checking
+        if ( -f "$baDir{images}/$sref->{storage}" ) {
+            ; # no-op
+        } elsif ( $sref->{storage} !~ m/^.*\.gz$/ and
+                  -f "$baDir{images}/$sref->{storage}.gz" ) {
+            # user didn't spec .gz but it's there so use it
+            $sref->{storage} = "$sref->{storage}.gz";
         } else {
-            $opts->{LASTERROR} = "file not found in ~baracus/image/ dir: $sref->{storage}\n";
+            $opts->{LASTERROR} = "file not found in $baDir{images}: $sref->{storage}\n";
+            return 1;
+        }
+        print "md5sum $sref->{storage} ...\n" if $opts->{verbose};
+        $sref->{md5sum} = &get_md5sum( "$baDir{images}/$sref->{storage}" );
+
+    } elsif ( $sref->{type} eq BA_STORAGE_CLONE ) {
+        # make sure neither storage nor storage.gz exists
+        if ( -f "$baDir{images}/$sref->{storage}" ) {
+            $opts->{LASTERROR} = "\t$baDir{images}/$sref->{storage}\n";
+        }
+        if ( $sref->{storage} !~ m/^.*\.gz$/ ) {
+            # clone generated .gz images so use the extension
+            $sref->{storage} = "$sref->{storage}.gz";
+            if ( -f "$baDir{images}/$sref->{storage}" ) {
+                $opts->{LASTERROR} .= "\t$baDir{images}/$sref->{storage}\n";
+            }
+        }
+        if ( $opts->{LASTERROR} ne "" ) {
+            $opts->{LASTERROR} = "file(s) already found in $baDir{images}:\n" . $opts->{LASTERROR};
             return 1;
         }
     }

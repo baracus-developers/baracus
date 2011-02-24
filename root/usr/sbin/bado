@@ -1107,9 +1107,10 @@ Arguments
                              > baconfig list hardware
                            The rootdisk will be cloned.
 
-  --image <file>           Image file (raw dd) to be created by this clone.
-                           Creates the file in ~baracus/images/,
-                           but is specified here without that pathing.
+  --storageid <store>      Image file bastorage reference of type 'clone'.
+
+                           Related file to be created by the clone workload.
+                           will store in ~baracus/images/.
 
 =cut
 
@@ -1126,6 +1127,7 @@ sub clone
     my $macref;
     my $hostref;
     my $actref;
+    my $sref;
 
     my %entry;
     my $cols = lc get_cols( $baTbls{ action });
@@ -1144,7 +1146,7 @@ sub clone
         (
          'mac=s'        => \$entry{mac},
          'hostname=s'   => \$entry{hostname},
-         'image=s'      => \$entry{imageid},
+         'storageid=s'  => \$entry{storageid},
          'hardware=s'   => \$entry{hardware},
          'autoclone!'   => \$entry{autoclone},
          );
@@ -1154,12 +1156,25 @@ sub clone
         return 1;
     }
 
-    if ( -f "$baDir{images}/$entry{imageid}" ) {
-        $opts->{LASTERROR} = "\nSpecified image intermediate already present - refusing to overwrite:  $baDir{images}/$entry{imageid}\n";
+    if ( $entry{storageid} eq "" ) {
+        $opts->{LASTERROR} = "Missing --storageid\n";
         return 1;
     }
-    if ( -f "$baDir{images}/$entry{imageid}.gz" ) {
-        $opts->{LASTERROR} = "\nSpecified image already present - refusing to overwrite:  $baDir{images}/$entry{imageid}.gz\n";
+
+    # get and check for image based on id
+    $sref = &get_db_data( $dbh, 'storage', $entry{storageid} );
+    unless ( defined $sref ) {
+        $opts->{LASTERROR} = "storageid does not exist: $entry{storageid}\n";
+        return 1;
+    }
+    if ( $sref->{type} != BA_STORAGE_CLONE ) {
+        $opts->{LASTERROR} = "Storage specified has non-clone type: $baStorageType{ $sref->{type} }\n";
+        return 1;
+    }
+    my $file = "$baDir{images}/$sref->{storage}";
+    $file =~ s|\.gz$||;
+    if ( -f $file or -f "${file}.gz" ) {
+        $opts->{LASTERROR} = "Clone placeholder and/or worker already filled. Make sure you want to replace this image and then remove to continue\n\t$file\n\t${file}.gz\n";
         return 1;
     }
 
@@ -1241,7 +1256,7 @@ sub clone
     $actref->{'ip'} = $entry{ip};
     $actref->{'mac'} = $entry{mac};
     $actref->{'uuid'} = &get_uuid;
-    $actref->{'imageid'} = $entry{imageid};
+    $actref->{'storageid'} = $entry{storageid};
 
     if ($opts->{debug}) {
         print "settings to use:\n";

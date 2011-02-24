@@ -62,6 +62,7 @@ BEGIN {
                 BA_STORAGE_NFS
                 BA_STORAGE_AOE
                 BA_STORAGE_IMAGE
+                BA_STORAGE_CLONE
             )],
          subs   =>
          [qw(
@@ -81,6 +82,7 @@ use constant BA_STORAGE_ISCSI   => 1  ;
 use constant BA_STORAGE_NFS     => 2  ;
 use constant BA_STORAGE_AOE     => 3  ;
 use constant BA_STORAGE_IMAGE   => 4  ;
+use constant BA_STORAGE_CLONE   => 5  ;
 
 =item hash baState
 
@@ -94,16 +96,19 @@ here we define a hash to make easy using the state constants easier
      2              => 'nfs'   ,
      3              => 'aoe'   ,
      4              => 'image' ,
+     5              => 'clone' ,
 
      'iscsi'        => BA_STORAGE_ISCSI ,
      'nfs'          => BA_STORAGE_NFS   ,
      'aoe'          => BA_STORAGE_AOE   ,
      'image'        => BA_STORAGE_IMAGE ,
+     'clone'        => BA_STORAGE_CLONE ,
 
      BA_STORAGE_ISCSI   => 'iscsi' ,
      BA_STORAGE_NFS     => 'nfs'   ,
      BA_STORAGE_AOE     => 'aoe'   ,
      BA_STORAGE_IMAGE   => 'image' ,
+     BA_STORAGE_CLONE   => 'clone' ,
      );
 
 # Subs
