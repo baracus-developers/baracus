@@ -228,7 +228,7 @@ sub add()
     # returns undef on error (e.g., unable to find hostname)
     $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
     unless ( defined $mac ) {
-        # $opt->{LASTERROR} set in subroutine
+        # $opts->{LASTERROR} set in subroutine
         return 1;
     }
 
@@ -542,7 +542,7 @@ sub detail
     # returns undef on error (e.g., unable to find hostname)
     $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
     unless ( defined $mac ) {
-        # $opt->{LASTERROR} set in subroutine
+        # $opts->{LASTERROR} set in subroutine
         return 1;
     }
 
@@ -778,7 +778,7 @@ sub db_list_start
     }
 
     unless ( $fkey eq "mac" or $fkey eq "hostname" ) {
-        print print "Filter key not valid.\n";
+        print "Filter key not valid.\n";
         exit 1;
     }
 

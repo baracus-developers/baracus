@@ -437,13 +437,10 @@ sub list
         return 1;
     }
 
-    my $sth = list_start_data ( $dbh, $tbl, $filter );
-    if ( $sth == 0 ) {
-        return 1;
-    }
+    my $sth = list_start_data ( $opts, $dbh, $tbl, $filter );
 
     unless( defined $sth ) {
-        # well - we've likely died in list_start if logic would get here
+        # list_start error
         return 1;
     }
 
@@ -510,7 +507,7 @@ sub detail
 }
 
 sub init {
-    my $sth = &list_start_data ( $dbh, $tbl, "" );
+    my $sth = &list_start_data ( $opts, $dbh, $tbl, "" );
     while ( my $dbref = &list_next_data( $sth ) ) {
         if ( $dbref->{status} ) {
             ## start the mchannel
@@ -527,7 +524,7 @@ sub init {
 }
 
 sub destroy {
-    my $sth = &list_start_data ( $dbh, $tbl, "" );
+    my $sth = &list_start_data ( $opts, $dbh, $tbl, "" );
     while ( my $dbref = &list_next_data( $sth ) ) {
         if ( $dbref->{status} ) {
             ## start the mchannel

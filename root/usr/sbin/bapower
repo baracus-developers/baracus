@@ -315,8 +315,13 @@ sub list_stub() {
         return 1;
     }
 
-    my $sth = &list_start_data( $dbh, 'power', $filter );
-    if ( $sth == 1) { 
+    my $opts = { 'LASTERROR' => "", 'debug' = $debug };
+    my $sth = &list_start_data( $opts, $dbh, 'power', $filter );
+
+    unless( defined $sth ) {
+        # bapower needs to get in line with the other commands
+        # for main, help, and opts/debug handling
+        $LASTERROR = $opts->{LASTERROR};
         return 1;
     }
 
@@ -331,8 +336,9 @@ sub list_stub() {
     while ( $dbref = &list_next_data( $sth ) ) {
         $dbref->{'node'} =~ s/NULL//g;
         $dbref->{'other'} =~ s/NULL//g;
-        printf "%-8s %-16s %-18s %-18s %-16s %-16s ", "$dbref->{'ctype'}", "$dbref->{'bmcaddr'}", "$dbref->{'mac'}",
-                                                      "$dbref->{'hostname'}", "$dbref->{'node'}", "$dbref->{'other'}";
+        printf "%-8s %-16s %-18s %-18s %-16s %-16s ",
+            "$dbref->{'ctype'}", "$dbref->{'bmcaddr'}", "$dbref->{'mac'}",
+                "$dbref->{'hostname'}", "$dbref->{'node'}", "$dbref->{'other'}";
         print "\n";
     }
 

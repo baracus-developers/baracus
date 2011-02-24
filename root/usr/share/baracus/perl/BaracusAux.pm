@@ -1254,35 +1254,36 @@ sub remove_db_data_by
 }
 
 #
-# list_start_data ( $dbh, $filter, $fkey )
+# list_start_data ( $opts, $dbh, $filter, $fkey )
 #
 
 sub list_start_data
 {
-    my $dbh = shift;
-    my $tbl = shift;
+    my $opts = shift;
+    my $dbh  = shift;
+    my $tbl  = shift;
     my $filter = shift;
 
-    my $fkey;
+    # default table key
+    my $fkey = $baTblId{ $tbl };
 
     if ( $filter eq "" ) {
-        $fkey = $baTblId{ $tbl };
-        $filter = "%";
+        $filter = "%";  # everything
     } else {
-        ( $fkey, $filter ) = split ( /::/, $filter, 2 );
-        $filter =~ s/\*/\%/g;
-    }
+        if ( $filter =~ m/::/ ) {
+            ( $fkey, $filter ) = split ( /::/, $filter, 2 );
 
-    my $is_valid = 0;
-    my $valid = get_cols( $baTbls{ $tbl  } );
-    foreach my $field ( split(/,/, $valid ) ) {
-        $field =~ s/ //g;
-        if ( $fkey eq $field ) { $is_valid = 1; }
-    }
+            # check for valid fkey if 'split' syntax used
+            my $valid = get_cols( $baTbls{ $tbl } );
+            unless ( $valid =~ m/\b${fkey}\b/ ) {
+                $opts->{LASTERROR} = "filter key not valid: $fkey\n";
+                return undef;
+            }
+        } # else no 'split' syntax so use filter with default table key
 
-    unless ( $is_valid ) {
-        print "storage key: $fkey is not valid\n";
-        return $is_valid;
+        # shell wildcard to postgres expression handling
+        $filter =~ s|\*|%|g;  # any number chars of anything
+        $filter =~ s|\?|_|g;  # one char of anything
     }
 
     my $sql = qq|SELECT * FROM $tbl WHERE $fkey LIKE '$filter' ORDER BY $baTblId{ $tbl }|;
@@ -1305,10 +1306,8 @@ sub list_next_data
 
     $href = $sth->fetchrow_hashref();
 
-    unless ($href) {
-        $sth->finish;
-        undef $sth;
-        undef $href;
+    unless ( defined $href ) {
+        &list_finish_data( $sth );
     }
 
     return $href;
