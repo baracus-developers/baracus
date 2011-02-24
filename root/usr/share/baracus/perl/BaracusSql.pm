@@ -549,6 +549,7 @@ sub get_baracus_tables
          'ratemx'      => 'INTEGER',
          'mrecv'       => 'INTEGER',
          'status'      => 'BOOLEAN',
+         'pid'         => 'INTEGER',
          );
 
     my $tbl_auth = "auth";

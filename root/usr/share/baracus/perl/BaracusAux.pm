@@ -103,6 +103,10 @@ BEGIN {
                 get_db_data
                 get_db_data_by
 
+                list_start_data
+                list_next_data
+                list_finish_data
+
                 check_broadcast
             )],
          );
@@ -1199,7 +1203,7 @@ sub update_db_data
 }
 
 #
-# get_db_data( $dbh, $tbl, $id );
+# get_db_data( $dbh, $tbl, $id )
 #
 
 sub get_db_data
@@ -1220,7 +1224,7 @@ sub get_db_data
 }
 
 #
-# get_db_data_by( $dbh, $tbl, $id, $index );
+# get_db_data_by( $dbh, $tbl, $id, $index )
 #
 
 sub get_db_data_by
@@ -1236,7 +1240,7 @@ sub get_db_data_by
 }
 
 #
-# remove_db_data_by( $dbh, $tbl, $id, $index );
+# remove_db_data_by( $dbh, $tbl, $id, $index )
 #
 
 sub remove_db_data_by
@@ -1247,6 +1251,79 @@ sub remove_db_data_by
     my $index = shift;
 
     &remove_db_data( $dbh, $tbl, $id, $index );
+}
+
+#
+# list_start_data ( $dbh, $filter, $fkey )
+#
+
+sub list_start_data
+{
+    my $dbh = shift;
+    my $tbl = shift;
+    my $filter = shift;
+
+    my $fkey;
+
+    if ( defined $filter ) {
+        $fkey = $baTblId{ $tbl };
+        $filter = "%";
+    } else {
+        ( $fkey, $filter ) = split ( /::/, $filter, 2 );
+        $filter =~ s/\*/\%/g;
+    }
+
+    my $is_valid = 0;
+    my $valid = get_cols( $baTbls{ $tbl  } );
+    foreach my $field ( split(/,/, $valid ) ) {
+        $field =~ s/ //g;
+        if ( $fkey eq $field ) { $is_valid = 1; }
+    }
+
+    unless ( $is_valid ) {
+        print "Filter key: $filter not valid\n";
+        return 1;
+    }
+
+    my $sql = qq|SELECT * FROM $tbl WHERE $fkey LIKE '$filter' ORDER BY $baTblId{ $tbl }|;
+
+    my $sth;
+    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
+    die "$!$sth->err\n" unless ( $sth->execute( ) );
+
+    return $sth;
+}
+
+#
+# list_next_data ( $sth )
+#
+
+sub list_next_data
+{
+    my $sth = shift;
+    my $href;
+
+    $href = $sth->fetchrow_hashref();
+
+    unless ($href) {
+        $sth->finish;
+        undef $sth;
+        undef $href;
+    }
+
+    return $href;
+}
+
+#
+# list_finish_data ( $sth )
+#
+
+sub list_finish_data
+{
+    my $sth  = shift;
+
+    $sth->finish;
+    undef $sth;
 }
 
 
