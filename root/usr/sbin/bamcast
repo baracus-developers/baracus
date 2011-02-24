@@ -154,11 +154,11 @@ die "DOES NOT EXECUTE";
 
 =head1 COMMANDS
 
-=head2 add --mcastid <channel id> --storageid <storage id> --dataip <dataip> --rdvip <rdvip> --interface <interface> --ratemx <max rate> --mrecv <min recievers>
+=head2 add --name <channel id> --storageid <storage id> --dataip <dataip> --rdvip <rdvip> --interface <interface> --ratemx <max rate> --mrecv <min recievers>
 
 Where
 
-  --mcastid <unique channel id>    globally unique share locator URI.
+  --name <unique channel id>    globally unique share locator URI.
   --storageid <storage id>         storage id of storage image to use.
   --dataip <ip>
   --rdvip <ip>
@@ -182,7 +182,7 @@ sub add
     @ARGV = @_;
 
     GetOptions(
-               'mcastid=s'     => \$mcastref->{'mcastid'},
+               'name=s'        => \$mcastref->{'mcastid'},
                'storageid=s'   => \$mcastref->{'storageid'},
                'dataip=s'      => \$mcastref->{'dataip'},
                'rdvip=s'       => \$mcastref->{'rdvip'},
@@ -275,7 +275,7 @@ sub remove
     @ARGV = @_;
 
     GetOptions(
-               'mcastid=s' => \$mcastid,
+               'name=s' => \$mcastid,
                );
 
     if ( scalar @ARGV ) {
@@ -319,7 +319,7 @@ sub enable
     @ARGV = @_;
 
     GetOptions(
-               'mcastid=s' => \$mcastid,
+               'name=s' => \$mcastid,
                );
 
     if ( scalar @ARGV ) {
@@ -373,7 +373,7 @@ sub disable
     @ARGV = @_;
 
     GetOptions(
-               'mcastid=s' => \$mcastid,
+               'name=s' => \$mcastid,
                );
 
     if ( scalar @ARGV ) {
@@ -479,7 +479,7 @@ sub detail
     @ARGV = @_;
 
     GetOptions(
-               'mcastid=s' => \$mcastid,
+               'name=s' => \$mcastid,
                );
 
     if ( scalar @ARGV ) {
