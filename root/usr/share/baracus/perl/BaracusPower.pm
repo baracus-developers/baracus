@@ -41,8 +41,6 @@ BEGIN {
         add
         add_powerdb_entry
         remove
-        list_start
-        list_next
         off
         on
         cycle
@@ -138,62 +136,6 @@ sub status() {
     my $result = $cmds{ $bmc->{'ctype'} }($bmc, "status");
 
     return $result;
-}
-
-sub list_start() {
-
-    my $bmcref = shift;
-    my $dbh = $bmcref->{ 'dbh' };
-    my $deviceid;
-
-    my $type = "mac";
-    if ( $bmcref->{'mac'} ) {
-        $deviceid = $bmcref->{ 'mac' };
-    } elsif ( $bmcref->{'hostname'} ) {
-        $deviceid = $bmcref->{ 'hostname' };
-        $type = "hostname";
-    } else {
-        $deviceid = "%";
-    }
-
-    $deviceid =~ s/\*/\%/g;
-
-    ## lookup bmc info for device
-    my $sth;
-
-    my $sql = qq|SELECT ctype,
-                         mac,
-                         hostname,
-                         bmcaddr,
-                         login,
-                         node,
-                         other
-                  FROM power
-                  WHERE $type LIKE '$deviceid'
-                |;
-
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    return $sth;
-
-}
-
-sub list_next() {
-
-    my $sth = shift;
-    my $href;
-
-    $href = $sth->fetchrow_hashref();
-
-    unless ($href) {
-        $sth->finish;
-        undef $sth;
-        $href = "null";
-    }
-
-    return $href;
-
 }
 
 sub ipmi() {
