@@ -53,7 +53,7 @@ type 'base' is used to mark the 'product' that has an iso entry
 with 'kernel' and 'initrd' attributes to use. the suffix for
 for kernel and initrd files is 'distro' when adding to the  db
 
-the attribute 'includes' can be added to 'base' types to 
+the attribute 'include' can be added to 'base' types to 
 automatically pull in other non-base products.  the example is
 that sles base products automatically 'include' their associated
 sdk to make the source most useful.

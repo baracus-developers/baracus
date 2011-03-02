@@ -109,7 +109,7 @@ BEGIN {
                 get_mntcheck
                 get_distro_includes
                 get_distro_share
-                list_installed_addons
+                list_installed_extras
                 check_either
                 check_distro
                 check_extras
@@ -2235,7 +2235,7 @@ sub get_distro_share
     return (\@shares, $name);
 }
 
-sub list_installed_addons
+sub list_installed_extras
 {
     my $opts   = shift;
     my $distro = shift;
