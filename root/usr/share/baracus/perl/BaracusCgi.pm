@@ -59,6 +59,7 @@ BEGIN {
               do_netboot
               do_netboot_nfs
               do_rescue
+	      read_grubconf
           )]
        );
   Exporter::export_ok_tags('subs');
@@ -172,9 +173,6 @@ LABEL netboot
     exit 0;
 }
 
-#?nfs:$actref->{storageip}/$actref->{storage}
-#mac=$actref->{mac}
-
 sub do_netboot_nfs() {
     my $cgi = shift;
     my $actref = shift;
@@ -190,6 +188,60 @@ LABEL netboot_nfs
 |;
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
     exit 0;
+}
+
+sub read_grubconf() {
+
+    my $cgi=shift;
+    my $nfsroot=shift;
+    my $reqfile=shift;
+    my $req_kernel = "linux_net";
+    my $req_initrd = "initrd_net";
+    my $fd;
+    my $line = 0;
+    my $nfspath="/net/$nfsroot/";
+    my $grubmenu="$nfspath/boot/grub/menu.lst";
+    my $g_default = 0;
+    my $titleno = -1;
+    my $g_name = undef;
+
+    open ($fd, "<", "$grubmenu");
+	while(<$fd>) {
+	    $line++;
+#           if ($titleno != $g_default && m,^\s*title\s+(.*),i ) {
+            if ( m,^\s*default\s+(.*),i ) {
+		if ( defined $g_default ) {
+#                  printlog "$input->{mac} - ignoring default $_\n";
+		} else {
+                    $g_default = $1;
+#                    printlog "$input->{mac} - default boot: $g_default \n";
+		}
+		next;
+	    }
+	    if ( m,^\s*title\s+(.*),i ) {
+		$titleno++;
+#               printlog "$input->{mac} - title: $titleno: $1 \n";
+	    }
+	    if ( $titleno != $g_default ) {
+		next;
+	    }
+	    if ( m,^\s*kernel\s+\(.*\)(\S*),i && (not defined $g_name) &&
+		 ($reqfile eq "linux_net")) {
+		    $g_name = "$nfspath/$1";
+#               printlog "$input->{mac} - kernel $g_default -- $g_kernelname\n";
+		last;
+	        
+	    }
+	    if ( m,^\s*initrd\s+\(.*\)(\S*),i && (not defined $g_name) && 
+		($reqfile eq "initrd_net")) {
+		$g_name = "$nfspath/$1";
+#               printlog "$input->{mac} - initrd $g_default -- $g_rdname\n";
+		last;
+	    }
+	}
+    close $fd;
+
+    return $g_name;
 }
 
 sub do_rescue() {

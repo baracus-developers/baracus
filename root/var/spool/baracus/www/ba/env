@@ -599,7 +599,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             }
             &load_storage( $opts, $dbh, $actref );
             if ($actref->{type} == BA_STORAGE_NFS ) {
-                printlog "$input->{mac} - nfs://$actref->{storageip}$actref->{storage}\n";
+#                printlog "$input->{mac} - nfs://$actref->{storageip}$actref->{storage}\n";
             	&do_netboot_nfs( $cgi, $actref, $baVar{serverip} );
             } else {
                 &do_netboot( $cgi, $actref, $baVar{serverip} );
@@ -1516,74 +1516,22 @@ Address 'CMS' 'PURGE RDR ALL'
 
     elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/($linux_net|$initrd_net)\?.*\s*$} )
     {
-#	parse_grub_conif();
 	my $fd;
-
-	# Keep this sort of configurable for the future.
-	
-	my $title_name;
-	my $title=0;
-	my $grubdir="/boot/grub";
-	my $fn = "/net/$input->{nfsroot}";
-	my $fnmenu = "$fn/$grubdir/menu.lst";
-
+	my $fdata;
 	$input->{mac} = &check_mac($input->{mac});
 
-        printlog "$input->{mac} - NFS boot $1 @ $input->{nfsroot}\n";
+	my $fn = &read_grubconf($cgi, $input->{nfsroot}, $1);
+        printlog "$input->{mac} - NFS boot $1 @ $fn\n";
 
-	my $g_default = 0;
-#	my $g_default = undef;
-	my $g_kernelname = undef;
-	my $g_rdname = undef;
-	my $titleno = -1;
-	my $line = 0;
-	open ($fd, "<", "$fnmenu") || printlog "Error opening $fnmenu";
-	printlog "$input->{mac} - reading $fnmenu\n";
-	while(<$fd>) {
-#	  printlog "line: $line: $_ \n";
-	  $line++;
-#	  if ($titleno != $g_default && m,^\s*title\s+(.*),i ) {
-	  if ( m,^\s*default\s+(.*),i ) {
-	      if ( defined $g_default ) {
-	  	  printlog "$input->{mac} - ignoring default $_\n";
-	      } else {
-	          $g_default = $1;
-	          printlog "$input->{mac} - default boot: $g_default \n";
-	      }
-	      next;
-	  }
-	  if ( m,^\s*title\s+(.*),i ) {
-	      $titleno++;
-	      printlog "$input->{mac} - title: $titleno: $1 \n";
-	  }
-	  if ( $titleno != $g_default ) {
-	      next;
-	  }
-	  if ( m,^\s*kernel\s+\(.*\)(\S*),i && not defined $g_kernelname ) {
-	     $g_kernelname = $1;
-	     printlog "$input->{mac} - kernel $g_default -- $g_kernelname\n";
-	     next;
-	  }
-	  if ( m,^\s*initrd\s+\(.*\)(\S*),i && not defined $g_rdname ) {
-	     $g_rdname = $1;
-	     printlog "$input->{mac} - initrd $g_default -- $g_rdname\n";
-	     last;
-	  }
-	}
-	close $fd;
-
-	if ($1 eq $linux_net) {
-		$fn .= $g_kernelname;
-	} else {
-		$fn .= $g_rdname;
-	}
 	open ($fd, "<", $fn) || printlog "Error opening $fn";
+	{
 	binmode($fd);
 	undef $/;
-	my $fdata=<$fd>;
+	$fdata=<$fd>;
 	$/ = "\n";
+	}
 	close $fd;
-	
+
 	my $flength = length( $fdata );
 	printlog "$input->{mac} - read $fn length $flength bytes\n";
         $output .= $fdata;
