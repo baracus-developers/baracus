@@ -1,13 +1,13 @@
 <?xml version='1.0'?>
 <config>
 
-  <!-- Debian 5.06 -->
+  <!-- Debian 5.0.6 -->
 
   <distro name="debian-5.06-x86_64">
     <os>debian</os>
     <release>5.06</release>
     <arch>x86_64</arch>
-    <description>Debian 5.06 64bit</description>
+    <description>Debian Lenny 5.0.6 64bit</description>
     <type>base</type>
     <autodownload>no</autodownload>
     <sharetype>http</sharetype>
@@ -65,7 +65,7 @@
     <os>debian</os>
     <release>5.06</release>
     <arch>x86</arch>
-    <description>Debian 5.06 32bit</description>
+    <description>Debian Lenny 5.0.6 32bit</description>
     <type>base</type>
     <autodownload>no</autodownload>
     <sharetype>http</sharetype>

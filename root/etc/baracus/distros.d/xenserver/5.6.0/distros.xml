@@ -1,13 +1,13 @@
 <?xml version='1.0'?>
 <config>
 
-  <!-- VMware ESX -->
+  <!-- XenServer 5.6.0 -->
 
-  <distro name="xenserver-5.6-x86">
+  <distro name="xenserver-5.6.0-x86">
     <os>xenserver</os>
-    <release>5.6</release>
+    <release>5.6.0</release>
     <arch>x86</arch>
-    <description>Xen Server 5.6 32bit</description>
+    <description>Xen Server 5.6.0 32bit</description>
     <type>base</type>
     <autodownload>no</autodownload>
 
