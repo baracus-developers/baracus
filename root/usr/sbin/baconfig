@@ -354,8 +354,9 @@ Where <options and args> are
     --rootdisk disk                  Disk device to install. [default /dev/sda]
     --rootpart part                  Root partition. [ default <rootdisk> ]
 
-    --hwdriver "pkg1 pkg2 etc..."    Additional pkgs install for hardware.
-                                     May be spcified multiple times.
+    --driverupdate "dudname"         Additional pkgs on driver update disk
+                                     Typically specific to one class of hardware
+                                     and DUD provided by vendor to support distro.
 
     --cert "distro1 distro2 etc..."  A list of supported distros, for this
                                      hardware. May be spcified multiple times.
@@ -374,7 +375,7 @@ sub add_hardware
          'rootdisk'     => "/dev/sda",
          'rootpart'     => "",
          'description'  => "",
-         'hwdriver'     => "",
+         'driverupdate' => "",
          'cert'         => "",
          'status'       => "t",
          'version'      => 1,
@@ -390,7 +391,7 @@ sub add_hardware
          'rootpart=s'     => \$entry{'rootpart'},
          'enable!'        => \$entry{'status'},
          'disable'        => sub { $entry{'status'} = 0 },
-         'hwdriver=s'     => \&multiarg_handler,
+         'driverupdate=s' => \$entry{'driverupdate'},
          'cert=s'         => \&multiarg_handler,
          );
 
@@ -402,9 +403,6 @@ sub add_hardware
     &help( $opts, $cmds, $command, $type) unless ( $entry{'hardwareid'} );
 
     # multiarg creates hash entry with a space seperated list of unique values
-
-    $entry{'hwdriver'} =
-        $multiarg{ 'hwdriver' } if (defined $multiarg{ 'hwdriver' });
 
     $entry{'cert'}     =
         $multiarg{ 'cert'     } if (defined $multiarg{ 'cert'     });
@@ -429,6 +427,19 @@ sub add_hardware
     }
 
     $entry{'rootpart'} = $entry{'rootdisk'} unless ( $entry{'rootpart'} );
+
+    unless ( $entry{'driverupdate'} eq "" ) {
+        my $dist = { distro => $entry{'driverupdate'} };
+        $dref = get_distro( $opts, $dbh, $dist );
+        unless ( defined $dref ) {
+            $opts->{LASTERROR} = "Unable to find driverupdate: $entry{'driverupdate'}\n";
+            return 1;
+        }
+        if ( $dref->{type} != BA_SOURCE_DUD ) {
+            $opts->{LASTERROR} = "Specified driverupdate not DUD type: $dref->{addon}\n";
+            return 1;
+        }
+    }
 
     unless ( $entry{'cert'} eq "" ) {
         print "checking certs: $entry{'cert'}\n" if $opts->{debug};
@@ -1104,8 +1115,7 @@ based on the enabled version, if found, else based on highest version.
     --bootArgs string      Quoted line of kernel boot arguments.
     --rootdisk disk        Disk device to install.
     --rootpart part        Root partition.
-    --hwdriver pkg         Additional pkgs install for hardware.
-                           May be spcified multiple times.
+    --driverupdate dud     Driver update disk as added using basource.
 
 =cut
 
@@ -1125,7 +1135,7 @@ sub update_hardware
          'bootargs'    => "",
          'rootdisk'    => "",
          'rootpart'    => "",
-         'hwdriver'    => "",
+         'driverupdate'   => "",
          );
 
     @ARGV = @_;
@@ -1137,7 +1147,7 @@ sub update_hardware
          'rmcert=s'       => \&multiarg_handler,
          'enable!'        => \$entry{'status'},
          'disable'        => sub { $entry{'status'} = 0 },
-         'hwdriver=s'     => \&multiarg_handler,
+         'driverupdate=s' => \$entry{'driverupdate'},
          'bootargs=s'     => \$entry{'bootargs'},
          'rootdisk=s'     => \$entry{'rootdisk'},
          'rootpart=s'     => \$entry{'rootpart'},
@@ -1174,15 +1184,13 @@ sub update_hardware
 
     # multiarg creates hash entry with a space seperated list of unique values
 
-    $entry{'hwdriver'} =
-        $multiarg{ 'hwdriver' } if (defined $multiarg{ 'hwdriver' });
     $entry{'addcert'} =
         $multiarg{ 'addcert' } if (defined $multiarg{ 'addcert' });
     $entry{'rmcert'}  =
         $multiarg{ 'rmcert'  } if (defined $multiarg{ 'rmcert'  });
 
     if ( $entry{'version'} != 0 ) {
-        if ( $entry{'hwdriver'} or
+        if ( $entry{'driverupdate'} or
              $entry{'bootargs'} or
              $entry{'rootdisk'} or
              $entry{'rootpart'}
@@ -1194,7 +1202,7 @@ sub update_hardware
             $opts->{LASTERROR} = "Specified version was not found.\n";
             return 1;
         }
-    } elsif ( $entry{'hwdriver'} eq "" and
+    } elsif ( $entry{'driverupdate'} eq "" and
               $entry{'bootargs'} eq "" and
               $entry{'rootdisk'} eq "" and
               $entry{'rootpart'} eq ""
@@ -1204,6 +1212,19 @@ sub update_hardware
             $entry{'version'} = $enabled_href->{version};
         } else {
             $opts->{LASTERROR} = "Need param(s) or specified --version for update.\n";
+            return 1;
+        }
+    }
+
+    unless ( $entry{'driverupdate'} eq "" ) {
+        my $dist = { distro => $entry{'driverupdate'} };
+        $dref = get_distro( $opts, $dbh, $dist );
+        unless ( defined $dref ) {
+            $opts->{LASTERROR} = "Unable to find driverupdate: $entry{'driverupdate'}\n";
+            return 1;
+        }
+        if ( $dref->{type} != BA_SOURCE_DUD ) {
+            $opts->{LASTERROR} = "Specified driverupdate not DUD type: $dref->{addon}\n";
             return 1;
         }
     }
@@ -2653,7 +2674,7 @@ sub detail
                 printf "bootArgs=%s\n",     $href->{'bootargs'};
                 printf "rootDisk=%s\n",     $href->{'rootdisk'};
                 printf "rootPart=%s\n",     $href->{'rootpart'};
-                printf "hwdriver=%s\n",     $href->{'hwdriver'};
+                printf "driverupdate=%s\n", $href->{'driverupdate'};
                 $printcount += 1;
             }
         } elsif ( $type eq "module" ) {

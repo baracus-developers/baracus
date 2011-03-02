@@ -378,7 +378,7 @@ sub get_baracus_tables
          'bootArgs'     => 'VARCHAR(4096)',
          'rootDisk'     => 'VARCHAR(32)',
          'rootPart'     => 'VARCHAR(32)',
-         'hwdriver'     => 'VARCHAR(32)',
+         'driverupdate' => 'VARCHAR(128)', # distroid reference for addon = DUD
          'CONSTRAINT'   => 'hardware_pk PRIMARY KEY (hardwareid, version)',
          );
 
