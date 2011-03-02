@@ -1,7 +1,7 @@
-  <?xml version='1.0'?>
+<?xml version='1.0'?>
 <config>
 
-<!-- Ubuntu Server 10.4 -->
+  <!-- Ubuntu Server 10.4 -->
 
   <distro name="ubuntu-10.4-x86">
     <os>ubuntu</os>

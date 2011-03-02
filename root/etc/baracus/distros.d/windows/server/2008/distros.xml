@@ -1,13 +1,13 @@
 <?xml version='1.0'?>
 <config>
 
-  <!-- Windows 2008 -->
+  <!-- Windows Server 2008 -->
 
-  <distro name="windows_ent-2008-x86_64">
-    <os>windows_ent</os>
+  <distro name="windows_server-2008-x86_64">
+    <os>windows_server</os>
     <release>2008</release>
     <arch>x86_64</arch>
-    <description>Windows Enterprise 2008 64bit</description>
+    <description>Windows Server 2008 64bit</description>
     <type>base</type>
     <autodownload>no</autodownload>
     <sharetype>cifs</sharetype>

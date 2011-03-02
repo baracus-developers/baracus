@@ -4,3 +4,4 @@ get_baracus_file_list.sh
 list_svn_at_root.sh
 meld_list
 symlink_baracus_svn_files.sh
+.stgit-*
