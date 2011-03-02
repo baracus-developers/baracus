@@ -848,7 +848,7 @@ sub baxml_load
         # but we also set this flag for addon that 'requires' a base
         # because it should be found thru that product.
         my $basefound = 0;
-        $basefound = 1 if ( $dh->{type} eq "base" ); # spoof check for addons
+        $basefound = 1 if ( $dh->{type} eq $badistroType{ BA_SOURCE_BASE } ); # spoof check for addons
 
         # a distro with base product needs one iso with "kernel" and "initrd"
         # the loaderfound flag indicates that these files have been found
@@ -884,7 +884,7 @@ sub baxml_load
                 $ih->{isopath} = join "/", $ih->{isopath}, $ih->{'path'}
                     if ( defined $ih->{'path'} );
                 print "XML iso path $ih->{isopath}\n" if ($opts->{debug} > 2);
-                if ( ( $dh->{type} eq "base" ) and ( defined $ih->{sharefiles} ) ) {
+                if ( ( $dh->{type} eq $badistroType{ BA_SOURCE_BASE } ) and ( defined $ih->{sharefiles} ) ) {
                     if ( $loaderfound ) {
                         die "Malformed $xmlfile\nDistro $distro product $product has more than one iso with <kernel> and <initrd>\n";
                     }
@@ -939,7 +939,7 @@ sub baxml_load
                     }
                 }
             }
-            if ( $dh->{type} eq "base" ) {
+            if ( $dh->{type} eq $badistroType{ BA_SOURCE_BASE } ) {
                 unless ( $loaderfound ) {
                     die "Malformed $xmlfile\nEntry $distro is missing an iso containing both <kernel> and <initrd>\n";
                 }
@@ -2275,7 +2275,7 @@ sub check_either
         print "Please use one of the following:\n";
         foreach my $dist ( reverse sort &baxml_distros_getlist( $opts ) ) {
             my $href = &baxml_distro_gethash( $opts, $dist );
-            print "\t" . $dist . "\n" if ( $href->{type} eq "base" );
+            print "\t" . $dist . "\n" if ( $href->{type} eq $badistroType{ BA_SOURCE_BASE } );
         }
         exit 1;
     }
@@ -2298,12 +2298,12 @@ sub check_distro
         print "Please use one of the following:\n";
         foreach my $dist ( reverse sort &baxml_distros_getlist( $opts ) ) {
             my $href = &baxml_distro_gethash( $opts, $dist );
-            print "\t" . $dist . "\n" if ( $href->{type} eq "base" );
+            print "\t" . $dist . "\n" if ( $href->{type} eq $badistroType{ BA_SOURCE_BASE } );
         }
         exit 1;
     }
 
-    if ( $dh->{type} ne "base" ) {
+    if ( $dh->{type} ne $badistroType{ BA_SOURCE_BASE } ) {
         print "Non-base distribution passed as base $distro\n";
         print "Perhaps try:\n\t\t--distro $dh->{basedist} --$dh->{type} $distro\n";
         exit 1;
@@ -2351,7 +2351,7 @@ sub check_extra
         exit 1;
     }
 
-    if ( $dh->{type} eq "base" ) {
+    if ( $dh->{type} eq $badistroType{ BA_SOURCE_BASE } ) {
         print "Base distro passed as value for --addon/--sdk/--dud $extra\n";
         exit 1;
     }
@@ -2368,7 +2368,7 @@ sub is_extra_dependant
     foreach my $dist ( &baxml_distros_getlist( $opts ) ) {
         my $dh = &baxml_distro_gethash( $opts, $dist );
 
-        if ( ( $dh->{type} eq "base" ) and
+        if ( ( $dh->{type} eq $badistroType{ BA_SOURCE_BASE } ) and
              ( defined $dh->{include} ) and
              ( $dh->{include} eq $extra ) and
              ( $dist ne $distro ) ) {
