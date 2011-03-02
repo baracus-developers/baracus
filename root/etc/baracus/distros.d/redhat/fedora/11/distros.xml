@@ -1,0 +1,48 @@
+<?xml version='1.0'?>
+<config>
+
+  <!-- fedora 11 -->
+
+  <distro name="fedora-11-x86_64">
+    <os>fedora</os>
+    <release>11</release>
+    <arch>x86_64</arch>
+    <description>Fedora 11 64bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+
+    <product name="dvd">
+      <iso name="Fedora-11-x86_64-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>9d419844adeb93120215fe7505c9bce8</md5>
+        <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/11/Fedora/x86_64/iso/Fedora-11-x86_64-DVD.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="fedora-11-x86">
+    <os>fedora</os>
+    <release>11</release>
+    <arch>x86</arch>
+    <description>Fedora 11 32bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+
+    <product name="dvd">
+      <iso name="Fedora-11-i386-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>2c2440df98f1673803d10f17a5a71954</md5>
+        <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/11/Fedora/i386/iso/Fedora-11-i386-DVD.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

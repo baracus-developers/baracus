@@ -1,0 +1,96 @@
+  <?xml version='1.0'?>
+<config>
+
+<!-- Ubuntu Server 10.4 -->
+
+  <distro name="ubuntu-10.4-x86">
+    <os>ubuntu</os>
+    <release>10.4</release>
+    <arch>x86</arch>
+    <description>Ubuntu Server Edition 10.4 32bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+    <sharetype>http</sharetype>
+
+    <product name="dvd">
+      <iso name="ubuntu-10.04-server-i386.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='install/netboot/ubuntu-installer/i386/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='install/netboot/ubuntu-installer/i386/initrd.gz'/>
+        </sharefiles>
+        <md5>15342636441181f7a19c65984b44e24c</md5>
+        <url><![CDATA[http://ubuntu.media.mit.edu/ubuntu-releases/10.04/ubuntu-10.04-server-i386.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="ubuntu-10.4-x86_64">
+    <os>ubuntu</os>
+    <release>10.4</release>
+    <arch>x86_64</arch>
+    <description>Ubuntu Server Edition 10.4 64bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+    <sharetype>http</sharetype>
+
+    <product name="dvd">
+      <iso name="ubuntu-10.04-server-amd64.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='install/netboot/ubuntu-installer/amd64/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='install/netboot/ubuntu-installer/amd64/initrd.gz'/>
+        </sharefiles>
+        <md5>8ee25c78f4c66610b6872a05ee9ad81b</md5>
+        <url><![CDATA[http://http://ubuntu.media.mit.edu/ubuntu-releases/10.04/ubuntu-10.04-server-amd64.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <!-- Ubuntu Desktop 10.4 -->
+
+  <distro name="ubuntu_desktop-10.4-x86">
+    <os>ubuntu_desktop</os>
+    <release>10.4</release>
+    <arch>x86</arch>
+    <description>Ubuntu Desktop Edition 10.4 32bit</description>
+    <autodownload>open</autodownload>
+    <type>base</type>
+    <sharetype>http</sharetype>
+
+    <product name="dvd">
+      <iso name="ubuntu-10.04-alternate-i386.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='install/netboot/ubuntu-installer/i386/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='install/netboot/ubuntu-installer/i386/initrd.gz'/>
+        </sharefiles>
+        <md5>5b2dadacfd692b4f2d5c7cf034539262</md5>
+        <url><![CDATA[http://ubuntu.media.mit.edu/ubuntu-releases/10.04/ubuntu-10.04-alternate-i386.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="ubuntu_desktop-10.4-x86_64">
+    <os>ubuntu_desktop</os>
+    <release>10.4</release>
+    <arch>x86_64</arch>
+    <description>Ubuntu Desktop Edition 10.4 64bit</description>
+    <autodownload>open</autodownload>
+    <type>base</type>
+    <sharetype>http</sharetype>
+
+    <product name="dvd">
+      <iso name="ubuntu-10.04-alternate-amd64.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='install/netboot/ubuntu-installer/amd64/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='install/netboot/ubuntu-installer/amd64/initrd.gz'/>
+        </sharefiles>
+        <md5>a54366aa72d6b576ee8fc0215f8a13b9</md5>
+        <url><![CDATA[http://ubuntu.media.mit.edu/ubuntu-releases/10.04/ubuntu-10.04-alternate-amd64.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

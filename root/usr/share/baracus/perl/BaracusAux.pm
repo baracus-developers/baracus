@@ -1216,6 +1216,7 @@ sub get_db_data
     $index = $baTblId{ $tbl } unless (defined $index);
 
     my $sql = qq|SELECT * FROM $baTbls{ $tbl } WHERE $index = '$id' |;
+
     my $sth;
     die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
     die "$!$sth->err\n" unless ( $sth->execute( ) );

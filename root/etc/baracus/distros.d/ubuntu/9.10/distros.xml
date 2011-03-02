@@ -1,0 +1,50 @@
+<?xml version='1.0'?>
+<config>
+
+  <!-- Ubuntu Server 9.10 -->
+
+  <distro name="ubuntu-9.10-x86">
+    <os>ubuntu</os>
+    <release>9.10</release>
+    <arch>x86</arch>
+    <description>Ubuntu Server Edition 9.10 32bit</description>
+    <autodownload>open</autodownload>
+    <type>base</type>
+    <sharetype>http</sharetype>
+
+    <product name="dvd">
+      <iso name="ubuntu-9.10-server-i386.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='install/netboot/ubuntu-installer/i386/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='install/netboot/ubuntu-installer/i386/initrd.gz'/>
+        </sharefiles>
+        <md5>55618ad5f180692f9dac20cbff352634</md5>
+        <url><![CDATA[http://ubuntu.media.mit.edu/ubuntu-releases/9.10/ubuntu-9.10-server-i386.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="ubuntu-9.10-x86_64">
+    <os>ubuntu</os>
+    <release>9.10</release>
+    <arch>x86_64</arch>
+    <description>Ubuntu Server Edition 9.10 64bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+    <sharetype>http</sharetype>
+
+    <product name="dvd">
+      <iso name="ubuntu-9.10-server-amd64.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='install/netboot/ubuntu-installer/amd64/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='install/netboot/ubuntu-installer/amd64/initrd.gz'/>
+        </sharefiles>
+        <md5>14707e8847b9c9ba2dd1869fb5086e4f</md5>
+        <url><![CDATA[http://ubuntu.media.mit.edu/ubuntu-releases/9.10/ubuntu-9.10-server-amd64.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

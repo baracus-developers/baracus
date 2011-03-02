@@ -1,0 +1,33 @@
+<?xml version='1.0'?>
+<config>
+
+  <!-- Windows 2008 -->
+
+  <distro name="windows_ent-2008-x86_64">
+    <os>windows_ent</os>
+    <release>2008</release>
+    <arch>x86_64</arch>
+    <description>Windows Enterprise 2008 64bit</description>
+    <type>base</type>
+    <autodownload>no</autodownload>
+    <sharetype>cifs</sharetype>
+
+    <product name="dvd">
+      <iso name="en_windows_server_2008_r2_standard_enterprise_datacenter_web_x64_dvd_x15-50365.iso">
+        <path/>
+        <sharefiles>
+          <!-- the leading '/' in the file= indicates the path
+               is relative to the 'builds' directory -->
+          <sharefile sharetype='tftp' name='startrom.0'  file='/winstall/import/amd64/startrom.0'/>
+          <sharefile sharetype='tftp' name='BCD'         file='/winstall/import/amd64/BCD'/>
+          <sharefile sharetype='tftp' name='bootmgr.exe' file='/winstall/import/amd64/bootmgr.exe'/>
+          <sharefile sharetype='tftp' name='boot.sdi'    file='/winstall/import/amd64/boot.sdi'/>
+          <sharefile sharetype='tftp' name='boot.wim'    file='/winstall/import/amd64/boot.wim'/>
+        </sharefiles>
+        <md5>0ffbae83327f0ad8c2ab4d5dfa754c09</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

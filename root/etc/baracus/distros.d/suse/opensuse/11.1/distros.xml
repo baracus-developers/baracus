@@ -1,0 +1,128 @@
+  <?xml version='1.0'?>
+<config>
+
+  <!-- openSuSE 11.1 -->
+
+  <distro name="opensuse-11.1-x86_64">
+    <os>opensuse</os>
+    <release>11.1</release>
+    <arch>x86_64</arch>
+    <description>openSUSE 11.1 64bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+
+    <product name="dvd">
+      <iso name="openSUSE-11.1-DVD-x86_64.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>2afee1b8a87175e6dee2b8dbbd1ad8e8</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-DVD-x86_64.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="opensuse-11.1-nonoss-x86_64">
+    <os>opensuse</os>
+    <release>11.1</release>
+    <addos>nonoss</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>opensuse-11.1-x86_64</requires> <!-- flag! content ignored -->
+    <description>openSUSE 11.1 non-OSS 64bit</description>
+    <type>addon</type>
+    <autodownload>open</autodownload>
+
+    <product name="dvd">
+      <iso name="openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso">
+        <path/>
+        <md5>8d89efb626b510c2adb3ccd8e407dcc4</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="opensuse-11.1-lang-x86_64">
+    <os>opensuse</os>
+    <release>11.1</release>
+    <addos>lang</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>opensuse-11.1-x86_64</requires> <!-- flag! content ignored -->
+    <description>openSUSE 11.1 Languages 64bit</description>
+    <type>addon</type>
+    <autodownload>open</autodownload>
+
+    <product name="dvd">
+      <iso name="openSUSE-11.1-Addon-Lang-x86_64.iso">
+        <path/>
+        <md5>dc53defad6bd08ea120376cc9e412f1c</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-Lang-x86_64.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="opensuse-11.1-x86">
+    <os>opensuse</os>
+    <release>11.1</release>
+    <arch>x86</arch>
+    <description>openSUSE 11.1 32bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+
+    <product name="dvd">
+      <iso name="openSUSE-11.1-DVD-i586.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+        </sharefiles>
+        <md5>8f51b278c0415be28c5699e465444bd3</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-DVD-i586.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="opensuse-11.1-nonoss-x86">
+    <os>opensuse</os>
+    <release>11.1</release>
+    <addos>nonoss</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>opensuse-11.1-x86</requires> <!-- flag! content ignored -->
+    <description>openSUSE 11.1 non-OSS 32bit</description>
+    <type>addon</type>
+    <autodownload>open</autodownload>
+
+    <product name="dvd">
+      <iso name="openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso">
+        <path/>
+        <md5>8d89efb626b510c2adb3ccd8e407dcc4</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-NonOss-BiArch-i586-x86_64.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="opensuse-11.1-lang-x86">
+    <os>opensuse</os>
+    <release>11.1</release>
+    <addos>lang</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>opensuse-11.1-x86</requires> <!-- flag! content ignored -->
+    <description>openSUSE 11.1 Languages 32bit</description>
+    <type>addon</type>
+    <autodownload>open</autodownload>
+
+    <product name="dvd">
+      <iso name="openSUSE-11.1-Addon-Lang-i586.iso">
+        <path/>
+        <md5>7b61aaec0bdd3b959ce075b08299ccc9</md5>
+        <url><![CDATA[http://download.opensuse.org/distribution/11.1/iso/openSUSE-11.1-Addon-Lang-i586.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

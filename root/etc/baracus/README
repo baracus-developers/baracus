@@ -1,2 +1,81 @@
-This is the Baracus config dir as defined in 
-/usr/share/baracus/perl/BaracusConfig.pm
+___________________________________________________________________
+Baracus build and boot management framework
+   
+Copyright (C) 2010 Novell, Inc, 404 Wyman Street, Waltham, MA 02451, USA.
+   
+This program is free software; you can redistribute it and/or
+modify it under the terms of the Artistic License 2.0, as published
+by the Perl Foundation, or the GNU General Public License 2.0
+as published by the Free Software Foundation; your choice.
+  
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  Both the Artistic
+Licesnse and the GPL License referenced have clauses with more details.
+   
+You should have received a copy of the licenses mentioned
+along with this program; if not, write to:
+ 
+FSF, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110, USA.
+The Perl Foundation, 6832 Mulderstraat, Grand Ledge, MI 48837, USA.
+____________________________________________________________________
+
+                   2009-08-26               PLEASE READ 
+
+the unique ID of an installable distribution is 'distro'.
+
+'distro' is composed like so:
+      
+    'os'-'release'-'arch' 
+
+where 'release'itself is composed of major.minor but we don't
+bother to break down major and minor here. also note no text
+like SP or GA is part of release numbers.
+
+GA has no .# and SP# maps to .# to keep it clean and easy
+
+the 'distro' name for an addon, sdk and dud has format:
+
+    'os'-'release'-'addos'['-addrel']-'arch'
+
+where non-'base' extra types have attribs 'addos', maybe 'addrel,'
+
+for creation of network install sources the isos are dropped in
+basepath followed by 'product' name and then adds any per-iso
+'path'
+
+    os/release/arch/product[/per-iso path]
+
+basepath can be overridden with 'sharepath' and is used for
+multi-dvd unionfs paths.  (ie. debian)
+
+type 'base' is used to mark the 'product' that has an iso entry
+with 'kernel' and 'initrd' attributes to use. the suffix for
+for kernel and initrd files is 'distro' when adding to the  db
+
+the attribute 'includes' can be added to 'base' types to 
+automatically pull in other non-base products.  the example is
+that sles base products automatically 'include' their associated
+sdk to make the source most useful.
+
+all other true, non-'base', types do not have related 'kernel' or
+'initrd' attribs.
+
+further, true add-ons are like a non-base 'product' in that
+they have a subdir in their related basepath area.
+
+    os/release/arch/addos[/addrel]/product[/per-iso path]
+
+example autoinstall templates  follow 'distro' naming
+for their directory structures thus they look like so:
+
+    ~baracus/templates/os-release-arch
+
+and
+
+    ~baracus/templates/os-release-addos[-addrel]-arch
+
+these templates are loaded into db on start-up as base examples
+for users to build custom one off of.
+
+                      2010-03-02

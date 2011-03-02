@@ -1,0 +1,89 @@
+<?xml version='1.0'?>
+<config>
+
+  <distro name="sles-9.3-x86_64">
+    <os>sles</os>
+    <release>9.3</release>
+    <arch>x86_64</arch>
+    <description>SUSE Linux Enterprise Server 9 SP3 64bit</description>
+    <autodownload>auth</autodownload>
+    <type>base</type>
+
+    <product name="SUSE-SLES-Version-9">
+      <iso name="SLES-9-x86-64-RC5-CD1.iso">
+        <path>CD1</path>
+        <md5>1fb270a7123895abc846a377c3d1dfdd</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD1.iso&buildid=1HYSkGYIYow~&fileid=ZNNOE1Oc9tM~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-Version-9</product> -->
+        <!--        <order>2</order> -->
+      </iso>
+    </product>
+
+    <product name="SUSE-CORE-Version-9">
+      <iso name="SLES-9-x86-64-RC5-CD2.iso">
+        <path>CD1</path>
+        <md5>1579c82c85fe71b4cc68685d638c883d</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD2.iso&buildid=1HYSkGYIYow~&fileid=vaOYguJ9wKM~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
+      <iso name="SLES-9-x86-64-RC5-CD3.iso">
+        <path>CD2</path>
+        <md5>5330a150eb51542d378dbe281f2315a2</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD3.iso&buildid=1HYSkGYIYow~&fileid=KAKtiXWbing~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
+      <iso name="SLES-9-x86-64-RC5-CD4.iso">
+        <path>CD3</path>
+        <md5>a9d5b0dddd45f378f97ea9bca2b12b11</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD4.iso&buildid=1HYSkGYIYow~&fileid=IXHQ1ksNFjE~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
+      <iso name="SLES-9-x86-64-RC5-CD5.iso">
+        <path>CD4</path>
+        <md5>dc6de0d488e4dbf6aef322f7aadba7dd</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD5.iso&buildid=1HYSkGYIYow~&fileid=yo-bi-8mYWg~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
+      <iso name="SLES-9-x86-64-RC5-CD6.iso">
+        <path>CD5</path>
+        <md5>2324e164faab72df89e4078b6a7c1aec</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F1HYSkGYIYow%7E%2FSLES-9-x86-64-RC5-CD6.iso&buildid=1HYSkGYIYow~&fileid=hqLUkaIVhVw~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-CORE-Version-9</product> -->
+        <!--        <order>3</order> -->
+      </iso>
+    </product>
+
+    <product name="SUSE-SLES-9-Service-Pack-Version-3">
+      <iso name="SLES-9-SP-3-x86-64-GM-CD1.iso">
+        <path>CD1</path>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/loader/initrd'/>
+        </sharefiles>
+        <md5>3ab71f468d07af85b01f79c1b9a31faa</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Frest%2FZKWL10AUzpU%7E%2FSLES-9-SP-3-x86-64-GM-CD1.iso&buildid=ZKWL10AUzpU~&fileid=3kvy000S2gU~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-9-Service-Pack-Version-3</product> -->
+        <!--        <order>1</order> -->
+      </iso>
+      <iso name="SLES-9-SP-3-x86-64-GM-CD2.iso">
+        <path>CD2</path>
+        <md5>5a67040fc4777a85b9806dc0a63aabbd</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Frest%2FZKWL10AUzpU%7E%2FSLES-9-SP-3-x86-64-GM-CD2.iso&buildid=ZKWL10AUzpU~&fileid=aFhj69QXnQ4~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-9-Service-Pack-Version-3</product> -->
+        <!--        <order>1</order> -->
+      </iso>
+      <iso name="SLES-9-SP4-CD-x86_64-GM-CD3.iso">
+        <path>CD3</path>
+        <md5>a07e40914b77cca795caf7fb36478540</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Frest%2FZKWL10AUzpU%7E%2FSLES-9-SP-3-x86-64-GM-CD3.iso&buildid=ZKWL10AUzpU~&fileid=yVyQvF1R6tI~&mirror=AkamaiHost&nohost=false]]></url>
+        <!--        <product>SUSE-SLES-9-Service-Pack-Version-3</product> -->
+        <!--        <order>1</order> -->
+      </iso>
+    </product>
+  </distro>
+
+</config>

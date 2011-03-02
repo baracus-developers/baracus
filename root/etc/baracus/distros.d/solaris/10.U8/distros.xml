@@ -1,0 +1,29 @@
+<?xml version='1.0'?>
+<config>
+
+  <!-- Solaris 10 U8 -->
+
+  <distro name="solaris-10.8-x86_64">
+    <os>solaris</os>
+    <release>10.8</release>
+    <arch>x86_64</arch>
+    <description>Solaris 10 U8 64bit</description>
+    <type>base</type>
+    <autodownload>no</autodownload>
+    <sharetype>nfs</sharetype>
+
+    <product name="dvd">
+      <iso name="sol-10-u8-ga-x86-dvd.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='pxegrub'      file='boot/grub/pxegrub'/>
+          <sharefile sharetype='tftp' name='multiboot'    file='boot/multiboot'/>
+          <sharefile sharetype='tftp' name='x86.miniroot' file='boot/amd64/x86.miniroot'/>
+        </sharefiles>
+        <md5>9df7fd02d82976fd3ec38a18d1a57335</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

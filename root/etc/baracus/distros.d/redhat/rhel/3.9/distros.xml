@@ -1,0 +1,78 @@
+<?xml version='1.0'?>
+<config>
+
+  <!-- RHEL 3.9 -->
+
+  <distro name="rhel-3.9-x86_64">
+    <os>rhel</os>
+    <release>3.9</release>
+    <arch>x86_64</arch>
+    <description>RedHat Enterprise Linux 3.9 64bit</description>
+    <type>base</type>
+    <autodownload>no</autodownload>
+
+    <product name="cds">
+      <iso name="rhel-3-u9-x86_64-as-disc1.iso">
+        <path>CD1</path>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>eeb477cb3545461e54ed5d4c3ecc4952</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+      <iso name="rhel-3-u9-x86_64-as-disc2.iso">
+        <path>CD2</path>
+        <md5>6d4730305682a172eeeb55ba10dbd7dc</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+      <iso name="rhel-3-u9-x86_64-as-disc3.iso">
+        <path>CD3</path>
+        <md5>0c0b86b395ddeffd1dd66b3203a590a9</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+      <iso name="rhel-3-u9-x86_64-as-disc4.iso">
+        <path/>
+        <md5>6ef64530a9c2cc8ec0df2f1e1bd5b582</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="rhel-3.9-x86">
+    <os>rhel</os>
+    <release>3.9</release>
+    <arch>x86</arch>
+    <description>RedHat Enterprise Linux 3.9 32bit</description>
+    <type>base</type>
+    <autodownload>no</autodownload>
+
+    <product name="cds">
+      <iso name="rhel-3-u9-i386-as-disc1.iso">
+        <path>CD1</path>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>e09c011ed762a4697c026184ac9e4630</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+      <iso name="rhel-3-u9-i386-as-disc2.iso">
+        <path>CD2</path>
+        <md5>028a621b32c57eb90c5c3cb6caa7536d</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+      <iso name="rhel-3-u9-i386-as-disc3.iso">
+        <path>CD3</path>
+        <md5>902423a86d98e6d457d1fb878db238a3</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+      <iso name="rhel-3-u9-i386-as-disc4.iso">
+        <path/>
+        <md5>d475714c91b8761f39132abc019e5bf1</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

@@ -1,0 +1,425 @@
+<?xml version='1.0'?>
+<config>
+
+  <distro name="sles-10.3-s390x">
+    <os>sles</os>
+    <release>10.3</release>
+    <arch>s390x</arch>
+    <description>SUSE Linux Enterprise Server 10 SP3 s390x</description>
+    <type>base</type>
+    <include>sles-10.3-sdk-s390x</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP3-DVD-s390x-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/s390x/vmrdr.ikr'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/s390x/initrd'/>
+        </sharefiles>
+        <md5>12be536b4d3e81f48e77287c8d6a4088</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FTUSxhcEcFiI%7E%2FSLES-10-SP3-DVD-s390x-GM-DVD1.iso&buildid=TUSxhcEcFiI~&fileid=qfz5dUTFuDE~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-sdk-s390x">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>s390x</arch>
+    <requires>sles-10.3-s390x</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP3 Software Development Kit s390x</description>
+    <type>sdk</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLE-10-SP3-SDK-DVD-s390x-GM-DVD1.iso">
+        <path/>
+        <md5>fdf61e060cebb6df6957a7bc4839b569</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP3-SDK-DVD-s390x-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=vmnSmmlmzg8~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-x86_64">
+    <os>sles</os>
+    <release>10.3</release>
+    <arch>x86_64</arch>
+    <description>SUSE Linux Enterprise Server 10 SP3 64bit</description>
+    <type>base</type>
+    <include>sles-10.3-sdk-x86_64</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP3-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>80ef92a51de722ee79899ae9bda5f7f0</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP3-DVD-x86_64-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=2xpO5QouT84~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-sdk-x86_64">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP3 Software Development Kit 64bit</description>
+    <type>sdk</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLE-10-SP3-SDK-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <md5>7f3bc894b03daa2b3672c6740ae3aba1</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP3-SDK-DVD-x86_64-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=KiIGteX_M54~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-x86_64_xen">
+    <os>sles</os>
+    <release>10.3</release>
+    <arch>x86_64_xen</arch>
+    <description>SUSE Linux Enterprise Server 10 SP3 64bit Xen</description>
+    <type>base</type>
+    <include>sles-10.3-sdk-x86_64_xen</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP3-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/vmlinuz-xen'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/initrd-xen'/>
+        </sharefiles>
+        <md5>80ef92a51de722ee79899ae9bda5f7f0</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP3-DVD-x86_64-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=2xpO5QouT84~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-sdk-x86_64_xen">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>x86_64_xen</arch>
+    <requires>sles-10.3-x86_64_xen</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP3 Software Development Kit 64bit Xen</description>
+    <type>sdk</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLE-10-SP3-SDK-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <md5>7f3bc894b03daa2b3672c6740ae3aba1</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP3-SDK-DVD-x86_64-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=KiIGteX_M54~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-x86">
+    <os>sles</os>
+    <release>10.3</release>
+    <arch>x86</arch>
+    <description>SUSE Linux Enterprise Server 10 SP3 32bit</description>
+    <type>base</type>
+    <include>sles-10.3-sdk-x86</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP3-DVD-i386-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+        </sharefiles>
+        <md5>cc03499d8141d2276713ba0ef760aec8</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP3-DVD-i386-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=AdQfSs70M8E~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-sdk-x86">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>sles-10.3-x86</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP3 Software Development Kit 32bit</description>
+    <type>sdk</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLE-10-SP3-SDK-DVD-i386-GM-DVD1.iso">
+        <path/>
+        <md5>e51e6cf5fc29ceed198d5987c76c2afa</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP3-SDK-DVD-i386-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=GNm-ml762fw~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-x86_xen">
+    <os>sles</os>
+    <release>10.3</release>
+    <arch>x86_xen</arch>
+    <description>SUSE Linux Enterprise Server 10 SP3 32bit Xen</description>
+    <type>base</type>
+    <include>sles-10.3-sdk-x86_xen</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP3-DVD-i386-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/vmlinuz-xen'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/initrd-xen'/>
+        </sharefiles>
+        <md5>cc03499d8141d2276713ba0ef760aec8</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP3-DVD-i386-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=AdQfSs70M8E~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-sdk-x86_xen">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>x86_xen</arch>
+    <requires>sles-10.3-x86_xen</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP3 Software Development Kit 32bit Xen</description>
+    <type>sdk</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLE-10-SP3-SDK-DVD-i386-GM-DVD1.iso">
+        <path/>
+        <md5>e51e6cf5fc29ceed198d5987c76c2afa</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP3-SDK-DVD-i386-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=GNm-ml762fw~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sled-10.3-x86_64">
+    <os>sled</os>
+    <release>10.3</release>
+    <arch>x86_64</arch>
+    <description>SUSE Linux Enterprise Desktop 10 SP3 64bit</description>
+    <type>base</type>
+    <include>sles-10.3-sdk-x86_64</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLED-10-SP3-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>06d9766a28911c7ce67ffe1234808549</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzZOX5rRmXMA%7E%2FSLED-10-SP3-DVD-x86_64-GM-DVD1.iso&buildid=zZOX5rRmXMA~&fileid=vswdFCNqOTo~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sled-10.3-x86">
+    <os>sled</os>
+    <release>10.3</release>
+    <arch>x86</arch>
+    <description>SUSE Linux Enterprise Desktop 10 SP3 32bit</description>
+    <type>base</type>
+    <include>sles-10.3-sdk-x86</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLED-10-SP3-DVD-i386-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+        </sharefiles>
+        <md5>8d6d7248f0dff367c854d08f7e120660</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzZOX5rRmXMA%7E%2FSLED-10-SP3-DVD-i386-GM-DVD1.iso&buildid=zZOX5rRmXMA~&fileid=M6Yc3wxAXuk~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <!-- SLES 10.3 RT -->
+
+  <distro name="sles-10.3-rt-x86_64">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>rt</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP3 Real-Time Add-On 64bit</description>
+    <type>addon</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP3-RT-CD-BiArch-GM.iso">
+        <path/>
+        <md5>567acac65aebf0c0565d7635b3f61e07</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F4iXTW8yWAwY%7E%2FSLES-10-SP3-RT-CD-BiArch-GM.iso&buildid=4iXTW8yWAwY~&fileid=YNcKOlpeTBI~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-rt-x86">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>rt</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>sles-10.3-x86</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP3 Real-Time Add-On 32bit</description>
+    <type>addon</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP3-RT-CD-BiArch-GM.iso">
+        <path/>
+        <md5>567acac65aebf0c0565d7635b3f61e07</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F4iXTW8yWAwY%7E%2FSLES-10-SP3-RT-CD-BiArch-GM.iso&buildid=4iXTW8yWAwY~&fileid=YNcKOlpeTBI~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <!-- SLES 10.3 OES -->
+
+  <distro name="sles-10.3-oes-x86_64">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>oes</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP3 Open Enterprise Server Add-On 64bit</description>
+    <type>addon</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="oes2sp3-x86_64-CD1.iso">
+        <path/>
+        <md5>fb78d23b0dfed36658d155f83f39399d</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FvU8lidWAgvY%7E%2Foes2sp3-x86_64-CD1.iso&buildid=vU8lidWAgvY~&fileid=P4gvzspt8VQ~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-oes-x86">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>oes</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>sles-10.3-x86</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP3 Open Enterprise Server Add-On 32bit</description>
+    <type>addon</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="oes2sp3-i386-CD1.iso">
+        <path/>
+        <md5>6db50d38e08045744fa823f85bbe13a9</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FvU8lidWAgvY%7E%2Foes2sp3-i386-CD1.iso&buildid=vU8lidWAgvY~&fileid=taYVsJGSbkw~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+
+  <distro name="sles-10.3-oes-x86_64_xen">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>oes</addos>
+    <addrel/>
+    <arch>x86_64_xen</arch>
+    <requires>sles-10.3-x86_64_xen</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP3 Open Enterprise Server Add-On 64bit Xen</description>
+    <type>addon</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="oes2sp3-x86_64-CD1.iso">
+        <path/>
+        <md5>fb78d23b0dfed36658d155f83f39399d</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FvU8lidWAgvY%7E%2Foes2sp3-x86_64-CD1.iso&buildid=vU8lidWAgvY~&fileid=P4gvzspt8VQ~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-oes-x86_xen">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>oes</addos>
+    <addrel/>
+    <arch>x86_xen</arch>
+    <requires>sles-10.3-x86_xen</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP3 Open Enterprise Server Add-On 32bit Xen</description>
+    <type>addon</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="oes2sp3-i386-CD1.iso">
+        <path/>
+        <md5>6db50d38e08045744fa823f85bbe13a9</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FvU8lidWAgvY%7E%2Foes2sp3-i386-CD1.iso&buildid=vU8lidWAgvY~&fileid=taYVsJGSbkw~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <!-- SLES 10.3 SMT -->
+
+  <distro name="sles-10.3-smt-x86_64">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>smt</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP3 Subscription Mgmt Tool Add-On 64bit</description>
+    <type>addon</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP3-SMT-BiArch-GM-CD1.iso">
+        <path/>
+        <md5>6d0b3e22a102f560737a4d7cee1e50b5</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FBuDsKIXgkz4%7E%2FSLES-10-SP3-SMT-BiArch-GM-CD1.iso&buildid=BuDsKIXgkz4~&fileid=R3VYRPn6ncI~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-smt-x86">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>smt</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>sles-10.3-x86</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP3 Subscription Mgmt Tool Add-On 32bit</description>
+    <type>addon</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP3-SMT-BiArch-GM-CD1.iso">
+        <path/>
+        <md5>567acac65aebf0c0565d7635b3f61e07</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FBuDsKIXgkz4%7E%2FSLES-10-SP3-SMT-BiArch-GM-CD1.iso&buildid=BuDsKIXgkz4~&fileid=R3VYRPn6ncI~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

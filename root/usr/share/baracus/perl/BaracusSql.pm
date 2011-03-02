@@ -342,7 +342,7 @@ sub get_baracus_tables
          'arch'        => 'VARCHAR(16)',
 
          'description' => 'VARCHAR(64)',
-         'addon'       => 'BOOLEAN',
+         'type'        => 'INTEGER',        # 1-BASE, 2-ADDON, 3-DUD
          'shareip'     => 'VARCHAR(15)',
          'sharetype'   => 'VARCHAR(8)',
          'basepath'    => 'VARCHAR(128)',

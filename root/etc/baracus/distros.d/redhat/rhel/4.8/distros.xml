@@ -1,0 +1,48 @@
+<?xml version='1.0'?>
+<config>
+
+  <!-- RHEL 4.8 -->
+
+  <distro name="rhel-4.8-x86_64">
+    <os>rhel</os>
+    <release>4.8</release>
+    <arch>x86_64</arch>
+    <description>RedHat Enterprise Linux 4.8 64bit</description>
+    <type>base</type>
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <iso name="RHEL4.8-x86_64-AS-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>35629ed4e21bcaaee599830f59cb009d</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="rhel-4.8-x86">
+    <os>rhel</os>
+    <release>4.8</release>
+    <arch>x86</arch>
+    <description>RedHat Enterprise Linux 4.8 32bit</description>
+    <type>base</type>
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <iso name="RHEL4.8-i386-AS-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>f9518f55a0a9d26e2a321a96dfb335f3</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

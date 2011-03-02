@@ -1,0 +1,60 @@
+<?xml version='1.0'?>
+<config>
+
+  <!-- Windows 7 -->
+
+  <distro name="windows_ent-7-x86_64">
+    <os>windows_ent</os>
+    <release>7</release>
+    <arch>x86_64</arch>
+    <description>Windows Enterprise 7 64bit</description>
+    <type>base</type>
+    <autodownload>no</autodownload>
+    <sharetype>cifs</sharetype>
+
+    <product name="dvd">
+      <iso name="en_windows_7_enterprise_x64_dvd_x15-70749.iso">
+        <path/>
+        <sharefiles>
+          <!-- the leading '/' in the file= indicates the path
+               is relative to the 'builds' directory -->
+          <sharefile sharetype='tftp' name='startrom.0'  file='/winstall/import/amd64/startrom.0'/>
+          <sharefile sharetype='tftp' name='BCD'         file='/winstall/import/amd64/BCD'/>
+          <sharefile sharetype='tftp' name='bootmgr.exe' file='/winstall/import/amd64/bootmgr.exe'/>
+          <sharefile sharetype='tftp' name='boot.sdi'    file='/winstall/import/amd64/boot.sdi'/>
+          <sharefile sharetype='tftp' name='boot.wim'    file='/winstall/import/amd64/boot.wim'/>
+        </sharefiles>
+        <md5>45d3a80e3c73a4b064ff6fedb4e2dc5b</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="windows_ent-7-x86">
+    <os>windows_ent</os>
+    <release>7</release>
+    <arch>x86</arch>
+    <description>Windows Enterprise 7 32bit</description>
+    <type>base</type>
+    <autodownload>no</autodownload>
+    <sharetype>cifs</sharetype>
+
+    <product name="dvd">
+      <iso name="en_windows_7_enterprise_n_x86_dvd_x16-11935.iso">
+        <path/>
+        <sharefiles>
+          <!-- the leading '/' in the file= indicates the path
+               is relative to the 'builds' directory -->
+          <sharefile sharetype='tftp' name='startrom.0'  file='/winstall/import/x86/startrom.0'/>
+          <sharefile sharetype='tftp' name='BCD'         file='/winstall/import/x86/BCD'/>
+          <sharefile sharetype='tftp' name='bootmgr.exe' file='/winstall/import/x86/bootmgr.exe'/>
+          <sharefile sharetype='tftp' name='boot.sdi'    file='/winstall/import/x86/boot.sdi'/>
+          <sharefile sharetype='tftp' name='boot.wim'    file='/winstall/import/x86/boot.wim'/>
+        </sharefiles>
+        <md5>c2a251ab154ec074289684432a67b343</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

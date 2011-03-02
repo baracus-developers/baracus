@@ -1,0 +1,166 @@
+<?xml version='1.0'?>
+<config>
+
+  <!-- Debian 6.00 -->
+
+  <distro name="debian-6.0-x86_64">
+    <os>debian</os>
+    <release>6.0</release>
+    <arch>x86_64</arch>
+    <description>Debian 6.0 64bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+    <sharetype>http</sharetype>
+    <sharepath>mirror</sharepath>
+
+    <product name="dvds">
+      <iso name="mini.iso">
+        <path>mini</path>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='initrd.gz'/>
+        </sharefiles>
+        <md5>6d4bff617ee6157406c110edbc22a994</md5>
+        <url><![CDATA[http://ftp.nl.debian.org/debian/dists/squeeze/main/installer-amd64/current/images/netboot/mini.iso]]></url>
+      </iso>
+
+      <iso name="debian-6.0.0-amd64-DVD-1.iso">
+        <path>dvd1</path>
+        <sharefiles/>
+        <md5>0a7481af947b257f0cbe18c51721e87a</md5>
+        <url><![CDATA[http://141.30.13.20/debian-cd/6.0.0/amd64/iso-dvd/debian-6.0.0-amd64-DVD-1.iso]]></url>
+      </iso>
+
+      <iso name="debian-6.0.0-amd64-DVD-2.iso">
+        <path>dvd2</path>
+        <sharefiles/>
+        <md5>f08c4369ead2d13c35c5c00bf610992d</md5>
+        <url><![CDATA[http://141.30.13.20/debian-cd/6.0.0/amd64/iso-dvd/debian-6.0.0-amd64-DVD-2.iso]]></url>
+      </iso>
+
+      <iso name="debian-6.0.0-amd64-DVD-3.iso">
+        <path>dvd3</path>
+        <sharefiles/>
+        <md5>58d58285a8fccc1a894415001d4940c2</md5>
+        <url><![CDATA[http://141.30.13.20/debian-cd/6.0.0/amd64/iso-dvd/debian-6.0.0-amd64-DVD-3.iso]]></url>
+      </iso>
+
+      <iso name="debian-6.0.0-amd64-DVD-4.iso">
+        <path>dvd4</path>
+        <sharefiles/>
+        <md5>976ac7c153adc89ea73ad32547cacaee</md5>
+        <url><![CDATA[http://141.30.13.20/debian-cd/6.0.0/amd64/iso-dvd/debian-6.0.0-amd64-DVD-4.iso]]></url>
+      </iso>
+
+      <iso name="debian-6.0.0-amd64-DVD-5.iso">
+        <path>dvd5</path>
+        <sharefiles/>
+        <md5>1eb00503dee0ae3f73ccafdca3c9b988</md5>
+        <url><![CDATA[http://141.30.13.20/debian-cd/6.0.0/amd64/iso-dvd/debian-6.0.0-amd64-DVD-5.iso]]></url>
+      </iso>
+
+      <iso name="debian-6.0.0-amd64-DVD-6.iso">
+        <path>dvd6</path>
+        <sharefiles/>
+        <md5>33b9865306bffbce96249133edb55f06</md5>
+        <url><![CDATA[http://141.30.13.20/debian-cd/6.0.0/amd64/iso-dvd/debian-6.0.0-amd64-DVD-6.iso]]></url>
+      </iso>
+
+      <iso name="debian-6.0.0-amd64-DVD-7.iso">
+        <path>dvd7</path>
+        <sharefiles/>
+        <md5>ac809a05920361c8ac6c265b426baeef</md5>
+        <url><![CDATA[http://141.30.13.20/debian-cd/6.0.0/amd64/iso-dvd/debian-6.0.0-amd64-DVD-7.iso]]></url>
+      </iso>
+
+      <iso name="debian-6.0.0-amd64-DVD-8.iso">
+        <path>dvd8</path>
+        <sharefiles/>
+        <md5>aa51bf6ffde9e0995974bc2c3742f517</md5>
+        <url><![CDATA[http://141.30.13.20/debian-cd/6.0.0/amd64/iso-dvd/debian-6.0.0-amd64-DVD-8.iso]]></url>
+      </iso>
+
+    </product>
+  </distro>
+
+  <distro name="debian-6.0-x86">
+    <os>debian</os>
+    <release>6.0</release>
+    <arch>x86</arch>
+    <description>Debian 6.0 32bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+    <sharetype>http</sharetype>
+    <sharepath>mirror</sharepath>
+
+    <product name="dvds">
+      <iso name="mini.iso">
+        <path>mini</path>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='initrd.gz'/>
+        </sharefiles>
+        <md5></md5>
+        <url><![CDATA[http://ftp.nl.debian.org/debian/dists/squeeze/main/installer-i386/current/images/netboot/mini.iso]]></url>
+      </iso>
+
+      <iso name="debian-6.0.0-i386-DVD-1.iso">
+        <path>dvd1</path>
+        <sharefiles/>
+        <md5>f0e9991b6552419690335231746b7213</md5>
+        <url><![CDATA[http://ftp2.de.debian.org/debian-cd/6.0.0/i386/iso-dvd/debian-6.0.0-i386-DVD-1.iso]]></url>
+      </iso>
+
+      <iso name="debian-6.0.0-i386-DVD-2.iso">
+        <path>dvd2</path>
+        <sharefiles/>
+        <md5>b01fdc0eca3050ca1e578cf79a67b0c1</md5>
+        <url><![CDATA[http://ftp2.de.debian.org/debian-cd/6.0.0/i386/iso-dvd/debian-6.0.0-i386-DVD-2.iso]]></url>
+      </iso>
+
+      <iso name="debian-6.0.0-i386-DVD-3.iso">
+        <path>dvd3</path>
+        <sharefiles/>
+        <md5>d2bafed6abe100848df47fad893b0a5d</md5>
+        <url><![CDATA[http://ftp2.de.debian.org/debian-cd/6.0.0/i386/iso-dvd/debian-6.0.0-i386-DVD-3.iso]]></url>
+      </iso>
+
+      <iso name="debian-6.0.0-i386-DVD-4.iso">
+        <path>dvd4</path>
+        <sharefiles/>
+        <md5>68cc36c39b2d053740a3a5f589b5d226</md5>
+        <url><![CDATA[http://ftp2.de.debian.org/debian-cd/6.0.0/i386/iso-dvd/debian-6.0.0-i386-DVD-4.iso]]></url>
+      </iso>
+
+      <iso name="debian-6.0.0-i386-DVD-5.iso">
+        <path>dvd5</path>
+        <sharefiles/>
+        <md5>f06741e75baf81832566664bcc59de22</md5>
+        <url><![CDATA[http://ftp2.de.debian.org/debian-cd/6.0.0/i386/iso-dvd/debian-6.0.0-i386-DVD-5.iso]]></url>
+      </iso>
+
+      <iso name="debian-6.0.0-i386-DVD6.iso">
+        <path>dvd6</path>
+        <sharefiles/>
+        <md5>8ed010a6b3250f2ee38a2235cf113e50</md5>
+        <url><![CDATA[http://ftp2.de.debian.org/debian-cd/6.0.0/i386/iso-dvd/debian-6.0.0-i386-DVD-6.iso]]></url>
+      </iso>
+
+      <iso name="debian-6.0.0-i386-DVD-7.iso">
+        <path>dvd7</path>
+        <sharefiles/>
+        <md5>a7dcbcac34de4c92856a9c619c83e38f</md5>
+        <url><![CDATA[http://ftp2.de.debian.org/debian-cd/6.0.0/i386/iso-dvd/debian-6.0.0-i386-DVD-7.iso]]></url>
+      </iso>
+
+      <iso name="debian-6.0.0-i386-DVD-8.iso">
+        <path>dvd8</path>
+        <sharefiles/>
+        <md5>395f5deac322e594bbf5a4091c533b2b</md5>
+        <url><![CDATA[http://ftp2.de.debian.org/debian-cd/6.0.0/i386/iso-dvd/debian-6.0.0-i386-DVD-8.iso]]></url>
+      </iso>
+
+    </product>
+  </distro>
+
+</config>

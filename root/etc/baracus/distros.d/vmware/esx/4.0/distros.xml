@@ -1,0 +1,27 @@
+<?xml version='1.0'?>
+<config>
+
+  <!-- VMware ESX -->
+
+  <distro name="esx-4.0-x86_64">
+    <os>esx</os>
+    <release>4.0</release>
+    <arch>x86_64</arch>
+    <description>VMware ESX 4.0 Update01-208167</description>
+    <type>base</type>
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <iso name="ESX-4.0.0-update01-208167.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>01130d1504dbeb13ff77aaa41be63a60</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

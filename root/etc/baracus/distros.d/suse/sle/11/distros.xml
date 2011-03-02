@@ -1,0 +1,240 @@
+<?xml version='1.0'?>
+<config>
+
+  <distro name="sles-11-x86_64">
+    <os>sles</os>
+    <release>11</release>
+    <arch>x86_64</arch>
+    <description>SUSE Linux Enterprise Server 11 64bit</description>
+    <type>base</type>
+    <include>sles-11-sdk-x86_64</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-11-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>50a2bd45cd12c3808c3ee48208e2586b</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-x86_64-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=X8FFufxq0nU~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-11-sdk-x86_64">
+    <os>sles</os>
+    <release>11</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 11 Software Development Kit 64bit</description>
+    <type>sdk</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLE-11-SDK-DVD-x86_64-GM-Media1.iso">
+        <path/>
+        <md5>d36ec61c33f3c2771835eb16e16a6097</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FfQKpDcAhPVY%7E%2FSLE-11-SDK-DVD-x86_64-GM-Media1.iso&buildid=fQKpDcAhPVY~&fileid=ypy97U_hIsk~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-11-x86">
+    <os>sles</os>
+    <release>11</release>
+    <arch>x86</arch>
+    <description>SUSE Linux Enterprise Server 11 32bit</description>
+    <type>base</type>
+    <include>sles-11-sdk-x86_64</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-11-DVD-i586-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+        </sharefiles>
+        <md5>4958d4dde2575666355c8a1c5858bab0</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FhwRS9NNA004%7E%2FSLES-11-DVD-i586-GM-DVD1.iso&buildid=hwRS9NNA004~&fileid=-lJMHbIN6s8~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-11-sdk-x86">
+    <os>sles</os>
+    <release>11</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>sles-11-x86</requires> <!-- flag! content ignored -->
+    <description>SLES 11 Software Development Kit 32bit</description>
+    <type>sdk</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLE-11-SDK-DVD-i586-GM-Media1.iso">
+        <path/>
+        <md5>00493a6e1b410f82cb55bee7f4bbcdf7</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FfQKpDcAhPVY%7E%2FSLE-11-SDK-DVD-i586-GM-Media1.iso&buildid=fQKpDcAhPVY~&fileid=rGCeRIQi57g~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <!-- SLED-11 -->
+
+  <distro name="sled-11-x86_64">
+    <os>sled</os>
+    <release>11</release>
+    <arch>x86_64</arch>
+    <description>SUSE Linux Enterprise Desktop 11 64bit</description>
+    <type>base</type>
+    <include>sles-11-sdk-x86_64</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLED-11-DVD-x86_64-GM-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>c120e9605a87d77f58402ec15cfeee51</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F31O5iweTHlg%7E%2FSLED-11-DVD-x86_64-GM-DVD.iso&buildid=31O5iweTHlg~&fileid=POmHrC52QQw~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sled-11-x86">
+    <os>sled</os>
+    <release>11</release>
+    <arch>x86</arch>
+    <description>SUSE Linux Enterprise Desktop 11 32bit</description>
+    <type>base</type>
+    <include>sles-11-sdk-x86</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLED-11-DVD-i586-GM-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+        </sharefiles>
+        <md5>f581602b4547cb45e715f3ea1cb0c4e4</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F31O5iweTHlg%7E%2FSLED-11-DVD-i586-GM-DVD.iso&buildid=31O5iweTHlg~&fileid=BmoyRdppYOw~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <!-- SLES 11 MONO -->
+
+  <distro name="sles-11-mono-x86_64">
+    <os>sles</os>
+    <release>11</release>
+    <addos>mono</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 11 Mono Add-On 64bit</description>
+    <type>addon</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-11-Mono-GM-DVD1.iso">
+        <path/>
+        <md5>8d9907df21cb781fd97848aafedd6838</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2Fi25FHB-8OPg%7E%2FSLES-11-Mono-GM-DVD1.iso&buildid=i25FHB-8OPg~&fileid=RZlSORQK3yE~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-11-mono-x86">
+    <os>sles</os>
+    <release>11</release>
+    <addos>mono</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>sles-11-x86</requires> <!-- flag! content ignored -->
+    <description>SLES 11 Mono Add-On 32bit</description>
+    <type>addon</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-11-Mono-GM-DVD1.iso">
+        <path/>
+        <md5>8d9907df21cb781fd97848aafedd6838</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2Fi25FHB-8OPg%7E%2FSLES-11-Mono-GM-DVD1.iso&buildid=i25FHB-8OPg~&fileid=RZlSORQK3yE~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <!-- SLES 11 HAE -->
+
+  <distro name="sles-11-hae-x86_64">
+    <os>sles</os>
+    <release>11</release>
+    <addos>hae</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 11 High Availability Extension 64bit</description>
+    <type>addon</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLE-11-HAE-x86_64-GM-DVD1.iso">
+        <path/>
+        <md5>2af67dcd5ef29bf3faf3cb6fc1bea371</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FjC1wpkedb7A%7E%2FSLE-11-HAE-x86_64-GM-DVD1.iso&buildid=jC1wpkedb7A~&fileid=uovFxax5D4k~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-11-ha-x86">
+    <os>sles</os>
+    <release>11</release>
+    <addos>ha</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>sles-11-x86</requires> <!-- flag! content ignored -->
+    <description>SLES 11 High Availability Extension 32bit</description>
+    <type>addon</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLE-11-HAE-i586-GM-DVD1.iso">
+        <path/>
+        <md5>3ce1a860336aac4174daab3d9796ca31</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FjC1wpkedb7A%7E%2FSLE-11-HAE-i586-GM-DVD1.iso&buildid=jC1wpkedb7A~&fileid=AxNQl3SmqPU~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+<!-- SLES 11 NCM -->
+
+  <distro name="sles-11-ncm-x86_64">
+    <os>sles</os>
+    <release>11</release>
+    <addos>ncm</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 11 Novell Cloud Manger 64bit</description>
+    <type>addon</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="Novell_Cloud_Manager-1.0.0-SLE11.x86_64.iso">
+        <path/>
+        <md5>2801DB77983900D17A6D249D85D07DAD</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

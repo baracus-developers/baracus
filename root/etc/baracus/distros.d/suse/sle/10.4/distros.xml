@@ -1,0 +1,172 @@
+<?xml version='1.0'?>
+<config>
+
+  <distro name="sles-10.4-x86_64">
+    <os>sles</os>
+    <release>10.4</release>
+    <arch>x86_64</arch>
+    <description>SUSE Linux Enterprise Server 10 SP4 64bit</description>
+    <type>base</type>
+    <include>sles-10.4-sdk-x86_64</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP4-DVD-x86_64-RC2-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>80ef92a51de722ee79899ae9bda5f7f0</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP4-DVD-x86_64-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=2xpO5QouT84~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.4-sdk-x86_64">
+    <os>sles</os>
+    <release>10.4</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-10.4-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP4 Software Development Kit 64bit</description>
+    <type>sdk</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLE-10-SP4-SDK-DVD-x86_64-RC2-DVD1.iso">
+        <path/>
+        <md5>7f3bc894b03daa2b3672c6740ae3aba1</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP4-SDK-DVD-x86_64-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=KiIGteX_M54~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.4-x86_64_xen">
+    <os>sles</os>
+    <release>10.4</release>
+    <arch>x86_64_xen</arch>
+    <description>SUSE Linux Enterprise Server 10 SP4 64bit Xen</description>
+    <type>base</type>
+    <include>sles-10.4-sdk-x86_64_xen</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP4-DVD-x86_64-RC2-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/vmlinuz-xen'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/initrd-xen'/>
+        </sharefiles>
+        <md5>80ef92a51de722ee79899ae9bda5f7f0</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP4-DVD-x86_64-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=2xpO5QouT84~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.4-sdk-x86_64_xen">
+    <os>sles</os>
+    <release>10.4</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>x86_64_xen</arch>
+    <requires>sles-10.4-x86_64_xen</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP4 Software Development Kit 64bit Xen</description>
+    <type>sdk</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLE-10-SP4-SDK-DVD-x86_64-RC2-DVD1.iso">
+        <path/>
+        <md5>7f3bc894b03daa2b3672c6740ae3aba1</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP4-SDK-DVD-x86_64-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=KiIGteX_M54~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.4-x86">
+    <os>sles</os>
+    <release>10.4</release>
+    <arch>x86</arch>
+    <description>SUSE Linux Enterprise Server 10 SP4 32bit</description>
+    <type>base</type>
+    <include>sles-10.4-sdk-x86</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP4-DVD-i386-RC2-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+        </sharefiles>
+        <md5>cc03499d8141d2276713ba0ef760aec8</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP4-DVD-i386-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=AdQfSs70M8E~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.4-sdk-x86">
+    <os>sles</os>
+    <release>10.4</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>sles-10.4-x86</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP4 Software Development Kit 32bit</description>
+    <type>sdk</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLE-10-SP4-SDK-DVD-i386-RC2-DVD1.iso">
+        <path/>
+        <md5>e51e6cf5fc29ceed198d5987c76c2afa</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP3-SDK-DVD-i386-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=GNm-ml762fw~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.4-x86_xen">
+    <os>sles</os>
+    <release>10.4</release>
+    <arch>x86_xen</arch>
+    <description>SUSE Linux Enterprise Server 10 SP4 32bit Xen</description>
+    <type>base</type>
+    <include>sles-10.4-sdk-x86_xen</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP4-DVD-i386-RC2-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/vmlinuz-xenpae'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/initrd-xenpae'/>
+        </sharefiles>
+        <md5>cc03499d8141d2276713ba0ef760aec8</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP4-DVD-i386-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=AdQfSs70M8E~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.4-sdk-x86_xen">
+    <os>sles</os>
+    <release>10.4</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>x86_xen</arch>
+    <requires>sles-10.4-x86_xen</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP4 Software Development Kit 32bit Xen</description>
+    <type>sdk</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLE-10-SP4-SDK-DVD-i386-RC2-DVD1.iso">
+        <path/>
+        <md5>e51e6cf5fc29ceed198d5987c76c2afa</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP3-SDK-DVD-i386-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=GNm-ml762fw~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

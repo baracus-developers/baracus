@@ -1,0 +1,96 @@
+  <?xml version='1.0'?>
+<config>
+
+  <!-- Ubuntu Server 10.10 -->
+
+  <distro name="ubuntu-10.10-x86">
+    <os>ubuntu</os>
+    <release>10.10</release>
+    <arch>x86</arch>
+    <description>Ubuntu Server Edition 10.10 32bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+    <sharetype>http</sharetype>
+
+    <product name="dvd">
+      <iso name="ubuntu-10.10-server-i386.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='install/netboot/ubuntu-installer/i386/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='install/netboot/ubuntu-installer/i386/initrd.gz'/>
+        </sharefiles>
+        <md5>ce1cee108de737d7492e37069eed538e</md5>
+        <url><![CDATA[http://mirror.ox.ac.uk/sites/releases.ubuntu.com/releases//maverick/ubuntu-10.10-server-i386.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="ubuntu-10.10-x86_64">
+    <os>ubuntu</os>
+    <release>10.10</release>
+    <arch>x86_64</arch>
+    <description>Ubuntu Server Edition 10.10 64bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+    <sharetype>http</sharetype>
+
+    <product name="dvd">
+      <iso name="ubuntu-10.10-server-amd64.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='install/netboot/ubuntu-installer/amd64/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='install/netboot/ubuntu-installer/amd64/initrd.gz'/>
+        </sharefiles>
+        <md5>ab66a1d59a8d78e9ea8ef9b021d6574a</md5>
+        <url><![CDATA[http://mirror.hmc.edu/ubuntu-releases//maverick/ubuntu-10.10-server-amd64.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+ <!-- Ubuntu Desktop 10.10 -->
+
+  <distro name="ubuntu_desktop-10.10-x86">
+    <os>ubuntu_desktop</os>
+    <release>10.10</release>
+    <arch>x86</arch>
+    <description>Ubuntu Desktop Edition 10.10 32bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+    <sharetype>http</sharetype>
+
+    <product name="dvd">
+      <iso name="ubuntu-10.10-alternate-i386.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='install/netboot/ubuntu-installer/i386/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='install/netboot/ubuntu-installer/i386/initrd.gz'/>
+        </sharefiles>
+        <md5>419ad8ee1bb76a49490f4a08b5be43f0</md5>
+        <url><![CDATA[http://mirror01.th.ifl.net/releases//10.10/ubuntu-10.10-alternate-i386.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="ubuntu_desktop-10.10-x86_64">
+    <os>ubuntu_desktop</os>
+    <release>10.10</release>
+    <arch>x86_64</arch>
+    <description>Ubuntu Desktop Edition 10.10 64bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+    <sharetype>http</sharetype>
+
+    <product name="dvd">
+      <iso name="ubuntu-10.10-alternate-amd64.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='install/netboot/ubuntu-installer/amd64/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='install/netboot/ubuntu-installer/amd64/initrd.gz'/>
+        </sharefiles>
+        <md5>a8d8e24bf8b82b4302d074fcac380d65</md5>
+        <url><![CDATA[http://mirror01.th.ifl.net/releases//10.10/ubuntu-10.10-alternate-amd64.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

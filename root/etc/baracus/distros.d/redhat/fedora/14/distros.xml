@@ -1,0 +1,48 @@
+<?xml version='1.0'?>
+<config>
+
+  <!-- fedora 14 -->
+
+  <distro name="fedora-14-x86_64">
+    <os>fedora</os>
+    <release>14</release>
+    <arch>x86_64</arch>
+    <description>Fedora 14 64bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+
+    <product name="dvd">
+      <iso name="Fedora-14-x86_64-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>381d7336c6d1685cbb4eae49cdef2247</md5>
+        <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/14/Fedora/x86_64/iso/Fedora-14-x86_64-DVD.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="fedora-14-x86">
+    <os>fedora</os>
+    <release>14</release>
+    <arch>x86</arch>
+    <description>Fedora 14 32bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+
+    <product name="dvd">
+      <iso name="Fedora-14-i386-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>a7543221d1dce58691aa74188cb92271</md5>
+        <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/14/Fedora/i386/iso/Fedora-14-i386-DVD.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

@@ -1,0 +1,124 @@
+  <?xml version='1.0'?>
+<config>
+
+  <!-- Debian 5.07 -->
+
+  <distro name="debian-5.07-x86_64">
+    <os>debian</os>
+    <release>5.07</release>
+    <arch>x86_64</arch>
+    <description>Debian 5.07 64bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+    <sharetype>http</sharetype>
+    <sharepath>mirror</sharepath>
+
+    <product name="dvds">
+      <iso name="mini.iso">
+        <map>mini-5.0.7-amd64.iso</map>
+        <path>mini</path>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='initrd.gz'/>
+        </sharefiles>
+        <md5>f82a03fca8f28492cdfda09ca0f8f4e3</md5>
+        <url><![CDATA[http://ftp.nl.debian.org/debian/dists/lenny/main/installer-amd64/current/images/netboot/mini.iso]]></url>
+      </iso>
+
+      <iso name="debian-507-amd64-DVD-1.iso">
+        <path>dvd1</path>
+        <sharefiles/>
+        <md5>c433cb4a4b65fa192754c9778921c3b0</md5>
+        <url><![CDATA[http://mirrors.kernel.org/debian-cd/5.0.7/amd64/iso-dvd/debian-507-amd64-DVD-1.iso]]></url>
+      </iso>
+
+      <iso name="debian-507-amd64-DVD-2.iso">
+        <path>dvd2</path>
+        <sharefiles/>
+        <md5>761070eabb2fb1595c7f76ae38a19f31</md5>
+        <url><![CDATA[http://mirrors.kernel.org/debian-cd/5.0.7/amd64/iso-dvd/debian-507-amd64-DVD-2.iso]]></url>
+      </iso>
+
+      <iso name="debian-507-amd64-DVD-3.iso">
+        <path>dvd3</path>
+        <sharefiles/>
+        <md5>a637c2e38028c9f9a4bb9ef85da138ad</md5>
+        <url><![CDATA[http://mirrors.kernel.org/debian-cd/5.0.7/amd64/iso-dvd/debian-507-amd64-DVD-3.iso]]></url>
+      </iso>
+
+      <iso name="debian-507-amd64-DVD-4.iso">
+        <path>dvd4</path>
+        <sharefiles/>
+        <md5>4230e224aaba5dd34ee5413abd59e7ab</md5>
+        <url><![CDATA[http://mirrors.kernel.org/debian-cd/5.0.7/amd64/iso-dvd/debian-507-amd64-DVD-4.iso]]></url>
+      </iso>
+
+      <iso name="debian-507-amd64-DVD-5.iso">
+        <path>dvd5</path>
+        <sharefiles/>
+        <md5>1f4ef5ca4dbff7a0bed764b179601ed8</md5>
+        <url><![CDATA[http://mirrors.kernel.org/debian-cd/5.0.7/amd64/iso-dvd/debian-507-amd64-DVD-5.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="debian-5.07-x86">
+    <os>debian</os>
+    <release>5.07</release>
+    <arch>x86</arch>
+    <description>Debian 5.07 32bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+    <sharetype>http</sharetype>
+    <sharepath>mirror</sharepath>
+
+    <product name="dvds">
+      <iso name="mini.iso">
+        <map>mini-5.0.7-i386.iso</map>
+        <path>mini</path>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='initrd.gz'/>
+        </sharefiles>
+        <md5>1f497d52bb97c03810d3e87d8ecf5d94</md5>
+        <url><![CDATA[http://ftp.nl.debian.org/debian/dists/lenny/main/installer-i386/current/images/netboot/mini.iso]]></url>
+      </iso>
+
+      <iso name="debian-507-i386-DVD-1.iso">
+        <path>dvd1</path>
+        <sharefiles/>
+        <md5>942633a074cdf2fbd584ce664afe4f2e</md5>
+        <url><![CDATA[http://mirrors.kernel.org/debian-cd/5.0.7/i386/iso-dvd/debian-507-i386-DVD-1.iso]]></url>
+      </iso>
+
+      <iso name="debian-507-i386-DVD-2.iso">
+        <path>dvd2</path>
+        <sharefiles/>
+        <md5>9bfaa95d1107a9963bf1159bd255f1f4</md5>
+        <url><![CDATA[http://mirrors.kernel.org/debian-cd/5.0.7/i386/iso-dvd/debian-507-i386-DVD-2.iso]]></url>
+      </iso>
+
+      <iso name="debian-507-i386-DVD-3.iso">
+        <path>dvd3</path>
+        <sharefiles/>
+        <md5>f090401c5cc41d3eca4fe8e7d609639f</md5>
+        <url><![CDATA[http://mirrors.kernel.org/debian-cd/5.0.7/i386/iso-dvd/debian-507-i386-DVD-3.iso]]></url>
+      </iso>
+
+      <iso name="debian-507-i386-DVD-4.iso">
+        <path>dvd4</path>
+        <sharefiles/>
+        <md5>bfc110cfb2d9b6eed3b7fa15f8ae3a10</md5>
+        <url><![CDATA[http://mirrors.kernel.org/debian-cd/5.0.7/i386/iso-dvd/debian-507-i386-DVD-4.iso]]></url>
+      </iso>
+
+      <iso name="debian-507-i386-DVD-5.iso">
+        <path>dvd5</path>
+        <sharefiles/>
+        <md5>780a65d2fe7e4bb1ec69c2fdbe7a8a2e</md5>
+        <url><![CDATA[http://mirrors.kernel.org/debian-cd/5.0.7/i386/iso-dvd/debian-507-i386-DVD-5.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

@@ -1,0 +1,218 @@
+<?xml version='1.0'?>
+<config>
+
+  <distro name="sles-10.2-x86_64">
+    <os>sles</os>
+    <release>10.2</release>
+    <arch>x86_64</arch>
+    <description>SUSE Linux Enterprise Server 10 SP2 64bit</description>
+    <type>base</type>
+    <include>sles-10.2-sdk-x86_64</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP2-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>dab2c4b8fc9939b33535ab2d321f3f2e</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FxWohTS2zkSs%7E%2FSLES-10-SP2-DVD-x86_64-GM-DVD1.iso&buildid=xWohTS2zkSs~&fileid=ymcKKUqgjzY~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.2-sdk-x86_64">
+    <os>sles</os>
+    <release>10.2</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-10.2-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP2 Software Development Kit 64bit</description>
+    <type>sdk</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLE-10-SP2-SDK-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <md5>b94f022deb50d6aa79d4fcba0caf6de9</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FeRAdQttrkeA%7E%2FSLE-10-SP2-SDK-DVD-x86_64-GM-DVD1.iso&buildid=eRAdQttrkeA~&fileid=MHiLlQ3CVls~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.2-x86">
+    <os>sles</os>
+    <release>10.2</release>
+    <arch>x86</arch>
+    <description>SUSE Linux Enterprise Server 10 SP2 32bit</description>
+    <type>base</type>
+    <include>sles-10.2-sdk-x86</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP2-DVD-i386-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+        </sharefiles>
+        <md5>2b91efeb8a62e2824302bf9269080252</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FxWohTS2zkSs%7E%2FSLES-10-SP2-DVD-i386-GM-DVD1.iso&buildid=xWohTS2zkSs~&fileid=6Hjh1FLHxbI~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.2-sdk-x86">
+    <os>sles</os>
+    <release>10.2</release>
+    <addos>sdk</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>sles-10.2-x86</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP2 Software Development Kit 32bit</description>
+    <type>sdk</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLE-10-SP2-SDK-DVD-i386-GM-DVD1.iso">
+        <path/>
+        <md5>24ff4387f1f2f6c830e48f2bf04c69f3</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FeRAdQttrkeA%7E%2FSLE-10-SP2-SDK-DVD-i386-GM-DVD1.iso&buildid=eRAdQttrkeA~&fileid=QGCEXAwuCIE~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <!-- SLED 10.2 -->
+
+  <distro name="sled-10.2-x86_64">
+    <os>sled</os>
+    <release>10.2</release>
+    <arch>x86_64</arch>
+    <description>SUSE Linux Enterprise Desktop 10 SP2 64bit</description>
+    <type>base</type>
+    <include>sles-10.2-sdk-x86_64</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLED-10-SP2-x86_64-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>1f527c9ae321d6e8291fe8e63d04574d</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FO4laI0St6AA%7E%2FSLED-10-SP2-x86_64-DVD1.iso&buildid=O4laI0St6AA~&fileid=Aurg53IQgEQ~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sled-10.2-x86">
+    <os>sled</os>
+    <release>10.2</release>
+    <arch>x86</arch>
+    <description>SUSE Linux Enterprise Desktop 10 SP2 32bit</description>
+    <type>base</type>
+    <include>sles-10.2-sdk-x86</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLED-10-SP2-x86-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+        </sharefiles>
+        <md5>74cdd3daf335f32a77be25a0e43b0c3d</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FO4laI0St6AA%7E%2FSLED-10-SP2-x86-DVD1.iso&buildid=O4laI0St6AA~&fileid=ka5NE_hzUP4~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <!-- SLES 10.2 RT -->
+
+  <distro name="sles-10.2-rt-x86_64">
+    <os>sles</os>
+    <release>10.2</release>
+    <addos>rt</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-10.2-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP2 Real-Time Add-On 64bit</description>
+    <type>addon</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso">
+        <path/>
+        <md5>a8601be6ad153a50d811dada3e4c2d61</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FsDXgx7pyw0Q%7E%2FSLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso&buildid=sDXgx7pyw0Q~&fileid=EZOK0eJ6_sU~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.2-rt-x86">
+    <os>sles</os>
+    <release>10.2</release>
+    <addos>rt</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>sles-10.2-x86</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP2 Real-Time Add-On 32bit</description>
+    <type>addon</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso">
+        <path/>
+        <md5>a8601be6ad153a50d811dada3e4c2d61</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FsDXgx7pyw0Q%7E%2FSLES-10-SP2-RT-CD-BiArch-GMC-CD1.iso&buildid=sDXgx7pyw0Q~&fileid=EZOK0eJ6_sU~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <!-- SLES 10.2 MONO -->
+
+  <distro name="sles-10.2-mono-x86_64">
+    <os>sles</os>
+    <release>10.2</release>
+    <addos>mono</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-10.2-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP2 Mono Add-On 64bit</description>
+    <type>addon</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP2-Mono-GM-DVD1.iso">
+        <path/>
+        <md5>63d8936595c7cf9e3f4d648eb2fdff5d</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2Fi25FHB-8OPg%7E%2FSLES-10-SP2-Mono-GM-DVD1.iso&buildid=i25FHB-8OPg~&fileid=t-CYENBIMHA~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.2-mono-x86">
+    <os>sles</os>
+    <release>10.2</release>
+    <addos>mono</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>sles-10.2-x86</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP2 Mono Add-On 32bit</description>
+    <type>addon</type>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP2-Mono-GM-DVD1.iso">
+        <path/>
+        <md5>63d8936595c7cf9e3f4d648eb2fdff5d</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2Fi25FHB-8OPg%7E%2FSLES-10-SP2-Mono-GM-DVD1.iso&buildid=i25FHB-8OPg~&fileid=t-CYENBIMHA~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

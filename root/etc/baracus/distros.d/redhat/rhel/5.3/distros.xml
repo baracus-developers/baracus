@@ -1,0 +1,90 @@
+<?xml version='1.0'?>
+<config>
+
+  <!-- RHEL 5.3 -->
+
+  <distro name="rhel-5.3-x86_64">
+    <os>rhel</os>
+    <release>5.3</release>
+    <arch>x86_64</arch>
+    <description>RedHat Enterprise Linux 5.3 64bit</description>
+    <type>base</type>
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <iso name="rhel-server-5.3-x86_64-dvd.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>c5ed6b284410f4d8212cafc78fd7a8c5</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="rhel-5.3-x86">
+    <os>rhel</os>
+    <release>5.3</release>
+    <arch>x86</arch>
+    <description>RedHat Enterprise Linux 5.3 32bit</description>
+    <type>base</type>
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <iso name="rhel-server-5.3-i386-dvd.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>371c62851611fd32ead440df6f24a296</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <!-- RHEL 5.3 MRG 1.1 -->
+
+  <distro name="rhel-5.3-mrg-1.1-x86_64">
+    <os>rhel</os>
+    <release>5.3</release>
+    <addos>mrg</addos>
+    <addrel>1.1</addrel>
+    <arch>x86_64</arch>
+    <requires>rhel-5.3-x86_64</requires> <!-- flag! content ignored -->
+    <description>RHEL 5 Messaging Real-Time Grid 1.1 64bit</description>
+    <type>addon</type>
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <iso name="rhel-5-mrg-1.1-x86_64.iso">
+        <path/>
+        <md5>d8914a71f91c43ec8c7781007ed0f4cb</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="rhel-5.3-mrg-1.1-x86">
+    <os>rhel</os>
+    <release>5.3</release>
+    <addos>mrg</addos>
+    <addrel>1.1</addrel>
+    <arch>x86</arch>
+    <requires>rhel-5.3-x86</requires> <!-- flag! content ignored -->
+    <type>addon</type>
+    <description>RHEL 5 Messaging Real-Time Grid 1.1 32bit</description>
+
+    <autodownload>no</autodownload>
+    <product name="dvd">
+      <iso name="rhel-5-mrg-1.1-i386.iso">
+        <path/>
+        <md5>723e96222900f39404fb0df8692d30dc</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

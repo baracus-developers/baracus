@@ -1,0 +1,48 @@
+<?xml version='1.0'?>
+<config>
+
+  <!-- fedora 12 -->
+
+  <distro name="fedora-12-x86_64">
+    <os>fedora</os>
+    <release>12</release>
+    <arch>x86_64</arch>
+    <description>Fedora 12 64bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+
+    <product name="dvd">
+      <iso name="Fedora-12-x86_64-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>6dd31e292cc2eb1140544e9b1ba61c56</md5>
+        <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/12/Fedora/x86_64/iso/Fedora-12-x86_64-DVD.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="fedora-12-x86">
+    <os>fedora</os>
+    <release>12</release>
+    <arch>x86</arch>
+    <description>Fedora 12 32bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+
+    <product name="dvd">
+      <iso name="Fedora-12-i386-DVD.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>2c4c1c0d09f2fbcfd8ee6a0c5542eeb2</md5>
+        <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/12/Fedora/i386/iso/Fedora-12-i386-DVD.iso]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>

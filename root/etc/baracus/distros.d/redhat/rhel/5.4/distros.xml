@@ -1,0 +1,48 @@
+<?xml version='1.0'?>
+<config>
+
+  <!-- RHEL 5.4 -->
+
+  <distro name="rhel-5.4-x86_64">
+    <os>rhel</os>
+    <release>5.4</release>
+    <arch>x86_64</arch>
+    <description>RedHat Enterprise Linux 5.4 64bit</description>
+    <type>base</type>
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <iso name="rhel-server-5.4-x86_64-dvd.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>04fe3c10202402d7b389528d2bad0210</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="rhel-5.4-x86">
+    <os>rhel</os>
+    <release>5.4</release>
+    <arch>x86</arch>
+    <description>RedHat Enterprise Linux 5.4 32bit</description>
+    <type>base</type>
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <iso name="rhel-server-5.4-i386-dvd.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>7a12ec6599527e4f3d1790b51eadbfed</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>
