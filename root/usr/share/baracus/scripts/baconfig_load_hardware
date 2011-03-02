@@ -121,4 +121,4 @@ baconfig add hardware --name default-xenserver \
 --bootargs="dom0_mem=752M console=vga --- /boot/vmlinuz console=tty0 --- /install.img" \
 --rootdisk=/dev/sda \
 --rootpart=/dev/sda \
---cert "xenserver-5.6-x86"
+--cert "xenserver-5.6.0-x86"

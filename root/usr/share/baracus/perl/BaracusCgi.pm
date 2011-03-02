@@ -59,7 +59,7 @@ BEGIN {
               do_netboot
               do_netboot_nfs
               do_rescue
-	      read_grubconf
+              read_grubconf
           )]
        );
   Exporter::export_ok_tags('subs');

@@ -128,11 +128,11 @@ baconfig add autobuild --name debian-x86_64-dhcp \
 --file=/usr/share/baracus/templates/autobuild/debian-5.06-x86_64-dhcp \
 --cert="debian-5.06-x86_64"
 
-baconfig detail autobuild win_ent-x86_64-dhcp &> /dev/null || \
-baconfig add autobuild --name win_ent-x86_64-dhcp \
---description="win enterprise 64bit (dhcp)" \
+baconfig detail autobuild win_ent-7-x86_64-dhcp &> /dev/null || \
+baconfig add autobuild --name win_ent-7-x86_64-dhcp \
+--description="windows 64bit (dhcp)" \
 --file=/usr/share/baracus/templates/autobuild/win_ent-7-x86_64.xml \
---cert="windows_ent-7-x86_64 windows_ent-2008-x86_64"
+--cert="windows_ent-7-x86_64 windows_server-2008-x86_64"
 
 baconfig detail autobuild win_ent-x86-dhcp &> /dev/null || \
 baconfig add autobuild --name win_ent-x86-dhcp \
@@ -140,11 +140,11 @@ baconfig add autobuild --name win_ent-x86-dhcp \
 --file=/usr/share/baracus/templates/autobuild/win_ent-7-x86.xml \
 --cert="windows_ent-7-x86"
 
-baconfig detail autobuild xenserver-5.6-x86-dhcp  &> /dev/null || \
-baconfig add autobuild --name xenserver-5.6-x86-dhcp \
---description="xenserver 5.6 32bit (dhcp)" \
+baconfig detail autobuild xenserver-5.6.0-x86-dhcp  &> /dev/null || \
+baconfig add autobuild --name xenserver-5.6.0-x86-dhcp \
+--description="xenserver 5.6.0 32bit (dhcp)" \
 --file=/usr/share/baracus/templates/autobuild/xenserver-5.6-x86-dhcp.xml \
---cert="xenserver-5.6-x86"
+--cert="xenserver-5.6.0-x86"
 
 ## Static autobuild templates
 ##

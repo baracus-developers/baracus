@@ -36,6 +36,7 @@ use BaracusSql qw( :vars :subs );
 use BaracusConfig qw( :vars :subs );
 use BaracusCore qw( :subs );  # main, check_command, etc...
 use BaracusAux  qw( :subs );  # aux check and db routines...
+use BaracusSource qw ( :vars );
 
 =pod
 
@@ -429,8 +430,8 @@ sub add_hardware
     $entry{'rootpart'} = $entry{'rootdisk'} unless ( $entry{'rootpart'} );
 
     unless ( $entry{'driverupdate'} eq "" ) {
-        my $dist = { distro => $entry{'driverupdate'} };
-        $dref = get_distro( $opts, $dbh, $dist );
+        my $dist = { distro => "$entry{'driverupdate'}" };
+        my $dref = &get_distro( $opts, $dbh, $dist );
         unless ( defined $dref ) {
             $opts->{LASTERROR} = "Unable to find driverupdate: $entry{'driverupdate'}\n";
             return 1;
@@ -1217,8 +1218,8 @@ sub update_hardware
     }
 
     unless ( $entry{'driverupdate'} eq "" ) {
-        my $dist = { distro => $entry{'driverupdate'} };
-        $dref = get_distro( $opts, $dbh, $dist );
+        my $dist = { distro => "$entry{'driverupdate'}" };
+        my $dref = &get_distro( $opts, $dbh, $dist );
         unless ( defined $dref ) {
             $opts->{LASTERROR} = "Unable to find driverupdate: $entry{'driverupdate'}\n";
             return 1;
