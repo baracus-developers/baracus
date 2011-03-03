@@ -39,7 +39,7 @@ use BaracusSql qw( :subs :vars );
 use BaracusCore qw( :subs  );
 use BaracusConfig qw( :vars :subs );
 use BaracusHost qw( :subs );
-use BaracusSource qw( :vars );
+use BaracusSource qw( :vars :subs );
 use BaracusState qw( :admin :actions :subs :vars );
 use BaracusAux qw( :subs );
 use BaracusStorage qw( :vars :subs );
