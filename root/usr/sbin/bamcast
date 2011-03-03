@@ -231,6 +231,9 @@ sub add
         return 1;
     }
 
+    # Get next available port
+    $mcastref->{port} = &get_free_mcast_port( $opts, $dbh );
+
     # done with all checking
     # begin loading of hash used for remainder of processing command
 
@@ -437,7 +440,7 @@ sub list
         return 1;
     }
 
-    my $sth = list_start_data ( $opts, $dbh, $tbl, $filter );
+    my $sth = &list_start_data ( $opts, $dbh, $tbl, $filter );
 
     unless( defined $sth ) {
         # list_start error

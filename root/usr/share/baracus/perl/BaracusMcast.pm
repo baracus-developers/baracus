@@ -58,6 +58,7 @@ BEGIN {
         (
          subs   =>
          [qw(
+                get_free_mcast_port
                 start_mchannel
                 stop_mchannel
             )],
@@ -72,7 +73,30 @@ my $tbl = 'mcast';
 # Subs
 
 #
-# start_mchannel
+# get_free_mcast_port( $dbh )
+#
+sub get_free_mcast_port
+{
+    my $opts = shift;
+    my $dbh = shift;
+
+    my $sth = &list_start_data ( $opts, $dbh, $tbl, "" );
+
+    my $port = "9000";
+    my $dbref;
+    while ( $dbref = &list_next_data( $sth )  ) {
+        print "DEBUG: channel=$dbref->{mcastid}\n";
+        if ( $dbref->{port} > $port ) {
+            $port = $dbref->{port};
+        }
+    }
+    $port = $port + 2;
+
+    return $port;
+}
+
+#
+# start_mchannel( $dbh, $mcastid )
 #
 
 sub start_mchannel
@@ -108,7 +132,8 @@ sub start_mchannel
         open STDERR, '>', '/dev/null' or die "Cannot open STDERR\n";
         exec("$udpsender", "--file=$imgref->{storage}", "--min-receivers=$mcastref->{mrecv}", "--full-duplex",
                            "--mcast-data-address=$mcastref->{dataip}", "--mcast-rdv-address=$mcastref->{rdvip}",
-                           "--interface=$mcastref->{interface}", "--max-bitrate=$mcastref->{ratemx}", "--daemon", "--nokbd");
+                           "--interface=$mcastref->{interface}", "--portbase=$mcastref->{port}",
+                           "--max-bitrate=$mcastref->{ratemx}", "--daemon", "--nokbd");
         exit(0);
     }
 
@@ -119,6 +144,10 @@ sub start_mchannel
         return 1;
     }
 }
+
+#
+# stop_channel( $dbh, 4mcastid )
+#
 
 sub stop_mchannel
 {

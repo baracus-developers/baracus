@@ -910,7 +910,7 @@ LABEL image
                 my $linux_mcst=get_arch_linux($input);
                 my $initrd_mcst=get_arch_initrd($input);
 
-                $imgref = &get_db_data( $dbh, 'mcast', $actref->{mcastid} );
+                $mcastref = &get_db_data( $dbh, 'mcast', $actref->{mcastid} );
 
                 # here iamgeid is in IP format (validated in bado image)
                 # so we're handling a multicast rendez-vous address
@@ -920,7 +920,7 @@ PROMPT 0
 TIMEOUT 0
 LABEL mcast
         kernel http://$baVar{serverip}/ba/$linux_mcst
-        append initrd=http://$baVar{serverip}/ba/$initrd_mcst root=/dev/ram0 install=exec:/usr/bin/baracus.mcast baimagedst="$hardref->{rootdisk}" bardvaddr="$imgref->{rdvip}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        append initrd=http://$baVar{serverip}/ba/$initrd_mcst root=/dev/ram0 install=exec:/usr/bin/baracus.mcast baimagedst="$hardref->{rootdisk}" bardvaddr="$mcastref->{rdvip}" baracus=$baVar{serverip} mac=$input->{mac} portbase=$mcastref->{port} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
             } elsif ( $pxenext eq BA_ACTION_CLONE ) {
                 printlog "$input->{mac} - serving cloning workload\n";

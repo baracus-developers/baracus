@@ -545,6 +545,7 @@ sub get_baracus_tables
          'storageid'   => 'VARCHAR(64)',
          'dataip'      => 'VARCHAR(15)',
          'rdvip'       => 'VARCHAR(15)',
+         'port'        => 'INTEGER',
          'interface'   => 'VARCHAR(8)',
          'ratemx'      => 'INTEGER',
          'mrecv'       => 'INTEGER',
