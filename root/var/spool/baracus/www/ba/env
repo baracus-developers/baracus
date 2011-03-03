@@ -910,7 +910,7 @@ LABEL image
                 my $linux_mcst=get_arch_linux($input);
                 my $initrd_mcst=get_arch_initrd($input);
 
-                $mcastref = &get_db_data( $dbh, 'mcast', $actref->{mcastid} );
+                my $mcastref = &get_db_data( $dbh, 'mcast', $actref->{mcastid} );
 
                 # here iamgeid is in IP format (validated in bado image)
                 # so we're handling a multicast rendez-vous address
