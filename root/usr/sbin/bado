@@ -452,14 +452,14 @@ sub build
     # command line wins over profile entry
     $addons_in = $entry{addons} if ($entry{addons});
 
-    if ( defined $sdks{$actref->{distro}} ) {
-        print "lumping in sdk addon $sdks{$actref->{distro}} for $actref->{distro}\n"
+    if ( my $dinc = get_distro_includes( $opts, $actref->{distro} ) ) {
+        print "lumping in sdk addon $dinc for $actref->{distro}\n"
             if ( $opts->{debug} );
 
         if ( $addons_in ) {
-            $addons_in = "$sdks{$actref->{distro}} " . $addons_in;
+            $addons_in = "$dinc " . $addons_in;
         } else {
-            $addons_in = $sdks{$actref->{distro}};
+            $addons_in = $dinc;
         }
     }
     # we're going to store this list of addons in the db
