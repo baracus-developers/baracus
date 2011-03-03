@@ -34,6 +34,7 @@ use lib "/usr/share/baracus/perl";
 use BaracusSql   qw( :subs :vars );
 use BaracusState qw( :vars );
 use BaracusCore  qw( :subs );
+use BaracusConfig qw( :vars );
 use BaracusAux   qw( :subs );
 
 =pod
@@ -130,7 +131,7 @@ sub start_mchannel
         warn "resource not available \n";
     } elsif ( $pid == 0 ) {
         open STDERR, '>', '/dev/null' or die "Cannot open STDERR\n";
-        exec("$udpsender", "--file=$imgref->{storage}", "--min-receivers=$mcastref->{mrecv}", "--full-duplex",
+        exec("$udpsender", "--file=$baDir{images}/$imgref->{storage}", "--min-receivers=$mcastref->{mrecv}", "--full-duplex",
                            "--mcast-data-address=$mcastref->{dataip}", "--mcast-rdv-address=$mcastref->{rdvip}",
                            "--interface=$mcastref->{interface}", "--portbase=$mcastref->{port}",
                            "--max-bitrate=$mcastref->{ratemx}", "--daemon", "--nokbd");
