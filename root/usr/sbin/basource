@@ -357,7 +357,7 @@ sub add() {
     # Add all extras
     foreach my $extra ( @extras ) {
         my $eh = &get_db_data( $dbh, 'distro', $extra );
-        if ( $eh->{type} eq "dud" ) {
+        if ( $eh->{type} eq BA_SOURCE_DUD ) {
             print "Calling routine to configure DUD bootloader\n" if $opts->{verbose};
             &add_dud_initrd( $opts, $distro, $extra )
         }
