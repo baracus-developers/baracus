@@ -65,9 +65,8 @@ BEGIN {
         (
          vars   =>
          [qw(
-                %sdks
                 %badistroType
-                %badistroStatus 
+                %badistroStatus
                 BA_SOURCE_BASE
                 BA_SOURCE_SDK
                 BA_SOURCE_ADDON
@@ -129,7 +128,7 @@ BEGIN {
 
 our $VERSION = '0.01';
 
-use vars qw ( %sdks %badistroType %badistroStatus );
+use vars qw ( %badistroType %badistroStatus );
 
 # Source Type constants
 use constant BA_SOURCE_BASE  => 1;
@@ -149,12 +148,12 @@ my %stypes =
       'cifs' => '3',
     );
 
-my %badistroType =
+%badistroType =
     (
-      '1'     => 'base',
-      '2'     => 'sdk',
-      '3'     => 'addon',
-      '4'     => 'dud',
+      1     => 'base',
+      2     => 'sdk',
+      3     => 'addon',
+      4     => 'dud',
 
       'base'  => BA_SOURCE_BASE,
       'sdk'   => BA_SOURCE_SDK,
@@ -167,12 +166,12 @@ my %badistroType =
       BA_SOURCE_DUD   => 'dud',
     );
 
-my %badistroStatus =
+%badistroStatus =
     (
-      '1'        => 'null',
-      '2'        => 'removed',
-      '3'        => 'enabled',
-      '4'        => 'disabled',
+      1        => 'null',
+      2        => 'removed',
+      3        => 'enabled',
+      4        => 'disabled',
 
       'null'     => BA_SOURCE_NULL,
       'removed'  => BA_SOURCE_REMOVED,
@@ -184,7 +183,7 @@ my %badistroStatus =
       BA_SOURCE_ENABLED  => 'enabled',
       BA_SOURCE_DISABLED => 'disabled',
     );
- 
+
 ###########################################################################
 ##
 ##  DATABASE RELATED ADD/READ - no update or delete provided?
@@ -845,7 +844,7 @@ sub baxml_load
         print "XML distro path $dh->{distpath}\n" if ($opts->{debug} > 2);
 
         # every non-addon distro needs one product of type "base"
-        # basefound indicates that <addon>base</addon> was found in product
+        # basefound indicates that <type>base</type> was found in product
         # but we also set this flag for addon that 'requires' a base
         # because it should be found thru that product.
         my $basefound = 0;
@@ -2345,9 +2344,11 @@ sub check_extra
         print "Please use one of the following:\n";
         foreach my $ao ( reverse sort &baxml_distros_getlist( $opts ) ) {
             my $ah = &baxml_distro_gethash( $opts, $ao );
-            print "\t" . $ao . "\n" if ( ( $ah->{type} eq "addon" ) or
-                                         ( $ah->{type} eq "sdk" )   or
-                                         ( $ah->{type} eq "dud" ) );
+            if ( ( $ah->{type} eq $badistroType{ BA_SOURCE_ADDON } ) or
+                 ( $ah->{type} eq $badistroType{ BA_SOURCE_SDK   } ) or
+                 ( $ah->{type} eq $badistroType{ BA_SOURCE_DUD   } ) ) {
+                print "\t" . $ao . "\n" ;
+            }
         }
         exit 1;
     }

@@ -3,9 +3,9 @@
 
   <!-- Debian 5.0.7 -->
 
-  <distro name="debian-5.07-x86_64">
+  <distro name="debian-5.0.7-x86_64">
     <os>debian</os>
-    <release>5.07</release>
+    <release>5.0.7</release>
     <arch>x86_64</arch>
     <description>Debian Lenny 5.0.7 64bit</description>
     <type>base</type>
@@ -62,9 +62,9 @@
     </product>
   </distro>
 
-  <distro name="debian-5.07-x86">
+  <distro name="debian-5.0.7-x86">
     <os>debian</os>
-    <release>5.07</release>
+    <release>5.0.7</release>
     <arch>x86</arch>
     <description>Debian Lenny 5.0.7 32bit</description>
     <type>base</type>

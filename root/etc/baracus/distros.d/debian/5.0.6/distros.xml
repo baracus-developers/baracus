@@ -3,9 +3,9 @@
 
   <!-- Debian 5.0.6 -->
 
-  <distro name="debian-5.06-x86_64">
+  <distro name="debian-5.0.6-x86_64">
     <os>debian</os>
-    <release>5.06</release>
+    <release>5.0.6</release>
     <arch>x86_64</arch>
     <description>Debian Lenny 5.0.6 64bit</description>
     <type>base</type>
@@ -61,9 +61,9 @@
     </product>
   </distro>
 
-  <distro name="debian-5.06-x86">
+  <distro name="debian-5.0.6-x86">
     <os>debian</os>
-    <release>5.06</release>
+    <release>5.0.6</release>
     <arch>x86</arch>
     <description>Debian Lenny 5.0.6 32bit</description>
     <type>base</type>

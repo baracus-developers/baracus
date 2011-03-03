@@ -357,11 +357,11 @@ sub add() {
     # Add all extras
     foreach my $extra ( @extras ) {
         my $eh = &get_db_data( $dbh, 'distro', $extra );
-        if ( $eh->{type} eq BA_SOURCE_DUD ) {
+        if ( $eh->{type} == BA_SOURCE_DUD ) {
             print "Calling routine to configure DUD bootloader\n" if $opts->{verbose};
             &add_dud_initrd( $opts, $distro, $extra )
         }
-            &source_register( $opts, $command, $extra );
+        &source_register( $opts, $command, $extra );
     }
 
     return 0;
@@ -1136,9 +1136,9 @@ sub list() {
     foreach my $adistro ( reverse sort &baxml_distros_getlist( $opts ) ) {
         my $dh = &baxml_distro_gethash( $opts, $adistro );
         if ( $base ) {
-            next if ( $dh->{type} ne "base" );
+            next if ( $dh->{type} ne $badistroType{ BA_SOURCE_BASE } );
         }
-        unless ( $addon ) {
+        unless ( $addon or $sdk or $dud ) {
             if ( $distro ) {
                 if ( $wildcard ) {
                     next unless ( $adistro =~ m|$distro|o );
@@ -1147,28 +1147,11 @@ sub list() {
                 }
             }
         }
-        if ( $addon ) {
-            next if ( $dh->{type} ne "addon" );
-            if ( $distro ) {
-                if ( $wildcard ) {
-                    next unless ( $dh->{basedist} =~ m|$distro|o );
-                } else {
-                    next unless ( $dh->{basedist} eq $distro );
-                }
-            }
-        }
-        if ( $sdk ) {
-            next if ( $dh->{type} ne "sdk" );
-            if ( $distro ) {
-                if ( $wildcard ) {
-                    next unless ( $dh->{basedist} =~ m|$distro|o );
-                } else {
-                    next unless ( $dh->{basedist} eq $distro );
-                }
-            }
-        }
-        if ( $dud ) {
-            next if ( $dh->{type} ne "dud" );
+        if ( $addon or $sdk or $dud ) {
+            next if ($addon and $dh->{type} ne $badistroType{BA_SOURCE_ADDON} );
+            next if ($sdk   and $dh->{type} ne $badistroType{BA_SOURCE_SDK} );
+            next if ($dud   and $dh->{type} ne $badistroType{BA_SOURCE_DUD} );
+
             if ( $distro ) {
                 if ( $wildcard ) {
                     next unless ( $dh->{basedist} =~ m|$distro|o );

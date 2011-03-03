@@ -1,4 +1,4 @@
-package Debian_60_x86;
+package Debian_600_x86;
 
 ###########################################################################
 #
@@ -40,11 +40,11 @@ use Pod::Usage;
 
 =head1 NAME
 
-B<Debian-6.0-x86> - Debian-6.0-x86 source handler
+B<Debian-6.0.0-x86> - Debian-6.0.0-x86 source handler
 
 =head1 SYNOPSIS
 
-source handler for debian-6.0-x86
+source handler for debian-6.0.0-x86
 
 =cut
 
@@ -76,7 +76,7 @@ sub external_source_handler() {
 
     ## source_handler to generate required debian mirror
     ## mirror created via unionfs mouting 5 DVDs
-    my $basepath = "/var/spool/baracus/builds/debian/6.0/x86";
+    my $basepath = "/var/spool/baracus/builds/debian/6.0.0/x86";
 
     ## check for loaded fuse module and insert if needed
     unless ( system("lsmod | grep fuse &> /dev/null") ) { system("modprobe -a fuse &> /dev/null"); }

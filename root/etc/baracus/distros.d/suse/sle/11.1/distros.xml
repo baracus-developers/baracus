@@ -407,25 +407,4 @@
     </product>
   </distro>
 
-  <!-- SLES 11.1 DUD bl685cg7 -->
-  <distro name="sles-11.1-bl685cg7-x86_64">
-    <os>sles</os>
-    <release>11.1</release>
-    <addos>bl685cg7</addos>
-    <addrel/>
-    <arch>x86_64</arch>
-    <requires>sles-11.1-x86_64</requires> <!-- flag! content ignored -->
-    <description>SLES 11 DUD hp-proliant-bl685c-g7</description>
-    <type>dud</type>
-    <autodownload>none</autodownload>
-
-    <product name="dvd">
-      <iso name="hp-proliant-bl685c-g7-sle11.iso">
-        <path/>
-        <md5>24b0e54ac934ad3b4b12b553d55b47af</md5>
-        <url><![CDATA[]]></url>
-      </iso>
-    </product>
-  </distro>
-
 </config>

@@ -3,9 +3,9 @@
 
   <!-- Debian 6.0.0 -->
 
-  <distro name="debian-6.0-x86_64">
+  <distro name="debian-6.0.0-x86_64">
     <os>debian</os>
-    <release>6.0</release>
+    <release>6.0.0</release>
     <arch>x86_64</arch>
     <description>Debian Squeeze 6.0.0 64bit</description>
     <type>base</type>
@@ -83,9 +83,9 @@
     </product>
   </distro>
 
-  <distro name="debian-6.0-x86">
+  <distro name="debian-6.0.0-x86">
     <os>debian</os>
-    <release>6.0</release>
+    <release>6.0.0</release>
     <arch>x86</arch>
     <description>Debian Squeeze 6.0.0 32bit</description>
     <type>base</type>

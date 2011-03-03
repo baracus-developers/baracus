@@ -125,8 +125,8 @@ baconfig add autobuild --name ubuntu-x86_64-dhcp \
 baconfig detail autobuild debian-x86_64-dhcp &> /dev/null || \
 baconfig add autobuild --name debian-x86_64-dhcp \
 --description="debian 64bit (dhcp)" \
---file=/usr/share/baracus/templates/autobuild/debian-5.06-x86_64-dhcp \
---cert="debian-5.06-x86_64"
+--file=/usr/share/baracus/templates/autobuild/debian-5.0.6-x86_64-dhcp \
+--cert="debian-5.0.6-x86_64"
 
 baconfig detail autobuild win_ent-7-x86_64-dhcp &> /dev/null || \
 baconfig add autobuild --name win_ent-7-x86_64-dhcp \
