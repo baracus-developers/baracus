@@ -96,6 +96,7 @@ BEGIN {
                 verify_iso
                 make_paths
                 add_bootloader_files
+                add_dud_initrd
                 remove_bootloader_files
                 add_build_service
                 remove_build_service
