@@ -67,6 +67,7 @@ BEGIN {
          [qw(
                 %sdks
                 %badistroType
+                %badistroStatus 
                 BA_SOURCE_BASE
                 BA_SOURCE_SDK
                 BA_SOURCE_ADDON
@@ -2316,7 +2317,7 @@ sub check_extras
     my $distro = shift;
     my $extras = shift;
 
-    my $dh = &baxml_distro_gethash( $opts, $distro );
+ #   my $dh = &baxml_distro_gethash( $opts, $distro );
 
     # verify all addons passed are intended for given distro as base
     foreach my $extra ( split /\s+/, $extras ) {
@@ -2324,8 +2325,8 @@ sub check_extras
 
         my $eh = &baxml_distro_gethash( $opts, $extra );
 
-        unless ( ( $eh->{basedisthash} eq $dh ) or ( $eh->{type} eq "sdk" ) ) {
-            print "Base passed $distro instead of $dh->{basedist} for $extra\n";
+        unless ( ( $eh->{basedist} eq $distro ) or ( $eh->{type} eq $badistroType{ BA_SOURCE_SDK } ) ) {
+            print "Base passed $distro instead of $eh->{basedist} for $extra\n";
             print "Perhaps try\n\t\t--distro $eh->{basedist} --addon $extra\n";
             exit 1;
         }
