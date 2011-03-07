@@ -257,7 +257,7 @@ sub add
     return 0;
 }
 
-=head2 remove --mcast <id>
+=head2 remove --name <name>
 
 Removes the multicast channel associated with specified mcastid.
 
@@ -302,7 +302,7 @@ sub remove
     return 0;
 }
 
-=head2 enable --mcast <id>
+=head2 enable --name <name>
 
 Enable the multicast channel associated with specified mcastid.
 
@@ -357,7 +357,7 @@ sub enable
 
 }
 
-=head2 disable --mcast <id>
+=head2 disable --name <name>
 
 Enable the multicast channel associated with specified mcastid.
 
@@ -462,7 +462,7 @@ sub list
     return 0;
 }
 
-=head2 detail --id <targetid>
+=head2 detail --name <name>
 
 Show details for specified multicast channels
 
