@@ -759,6 +759,12 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 if ( defined $actref->{type} and $actref->{type} == BA_STORAGE_NFS ) {
                     $args .= qq| root=/dev/nfs nfsroot=$actref->{storageuri}|;
                 }
+                if ( defined $hardref->{driverupdate} ) {
+                    my $dudref = get_db_data( $dbh, 'distro', $hardref->{driverupdate} );
+                    if ( defined $dudref ) {
+                        $args .= qq| dud=1 dud=$dudref->{sharetype}://$dudref->{shareip}$dudref->{basepath}|;
+                    }
+                }
                 my $lcmac = lc $input->{mac};
 
                 $output = qq|DEFAULT label_$actref->{hostname}
