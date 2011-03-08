@@ -422,4 +422,46 @@
     </product>
   </distro>
 
+<!-- Intel ESRT-2 DUD -->
+
+  <distro name="sles-10.3-esrt2-x86_64">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>esrt2</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP3 64bit megasr 14.00.1203.2010-1 DUD</description>
+    <type>dud</type>
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <iso name="megasr-14.00.1203.2010-1-sles10-sp3-x86_64.img">
+        <path/>
+        <md5>ecb750c2f68bbc7402251f56e6c9482d</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.3-esrt2-x86">
+    <os>sles</os>
+    <release>10.3</release>
+    <addos>esrt2</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>sles-10.3-x86</requires> <!-- flag! content ignored -->
+    <description>SLES 10 SP3 32bit megasr 14.00.1203.2010-1 DUD</description>
+    <type>dud</type>
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <iso name="megasr-14.00.1203.2010-1-sles10-sp3-x86.img">
+        <path/>
+        <md5>6bbba45aaf894e160ebc4dce7530f46b</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
 </config>

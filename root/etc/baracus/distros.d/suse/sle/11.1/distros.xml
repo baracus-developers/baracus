@@ -407,4 +407,46 @@
     </product>
   </distro>
 
+<!-- Intel ESRT-2 DUD -->
+
+  <distro name="sles-11.1-esrt2-x86_64">
+    <os>sles</os>
+    <release>11.1</release>
+    <addos>esrt2</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>sles-11.1-x86_64</requires> <!-- flag! content ignored -->
+    <description>SLES 11 SP1 64bit megasr 14.00.1203.2010-1 DUD</description>
+    <type>dud</type>
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <iso name="megasr-14.00.1203.2010-1-sles11-sp1-x86_64.img">
+        <path/>
+        <md5>b3c1fde52b2136d6af0a8ebcf00cba94</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-11.1-esrt2-x86">
+    <os>sles</os>
+    <release>11.1</release>
+    <addos>esrt2</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>sles-11.1-x86</requires> <!-- flag! content ignored -->
+    <description>SLES 11 SP1 32bit megasr 14.00.1203.2010-1 DUD</description>
+    <type>dud</type>
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <iso name="megasr-14.00.1203.2010-1-sles11-sp1-x86.img">
+        <path/>
+        <md5>2cf665bbea1fbcb5716441d8edbbbd87</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
 </config>

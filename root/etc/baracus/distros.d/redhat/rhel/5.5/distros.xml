@@ -45,4 +45,46 @@
     </product>
   </distro>
 
+<!-- Intel ESRT-2 DUD -->
+
+  <distro name="rhel-5.5-esrt-2-x86_64">">
+    <os>rhel</os>
+    <release>5.5</release>
+    <addos>esrt2</addos>
+    <addrel/>
+    <arch>x86_64</arch>
+    <requires>rhel-5.5-x86_64</requires> <!-- flag! content ignored -->
+    <description>RHEL 5.5 64bit megasr 14.00.1203.2010-1 DUD</description>
+    <type>dud</type>
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <iso name="megasr-14.00.1203.2010-1-rhel50-u5-all.img">
+        <path/>
+        <md5>5d773c8b04141107b28d67593baaa861</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="rhel-5.5-esrt-2-x86">
+    <os>rhel</os>
+    <release>5.5</release>
+    <addos>esrt2</addos>
+    <addrel/>
+    <arch>x86</arch>
+    <requires>rhel-5.5-x86</requires> <!-- flag! content ignored -->
+    <description>RHEL 5.5 32bit megasr 14.00.1203.2010-1 DUD</description>
+    <type>dud</type>
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <iso name="megasr-14.00.1203.2010-1-rhel50-u5-all.img">
+        <path/>
+        <md5>5d773c8b04141107b28d67593baaa861</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
 </config>
