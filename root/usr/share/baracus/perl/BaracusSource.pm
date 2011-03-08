@@ -97,6 +97,7 @@ BEGIN {
                 make_paths
                 add_bootloader_files
                 add_dud_initrd
+                remove_dud_initrd
                 remove_bootloader_files
                 add_build_service
                 remove_build_service
@@ -1310,6 +1311,16 @@ sub make_paths
     return 0;
 }
 
+sub remove_dud_initrd
+{
+    my $opts  = shift;
+    my $dud   = shift;
+
+    if ( &sqlfs_getstate( $opts, "initrd.$dud" ) ) {
+        &sqlfs_remove( $opts, "initrd.$dud" );
+    }
+}
+
 sub add_dud_initrd
 {
     my $opts  = shift;
@@ -1318,17 +1329,15 @@ sub add_dud_initrd
 
     print "+++++ add_bootloader_dud__files\n" if ( $opts->{debug} > 1 );
 
-    my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
-    print "using tempdir $tdir\n" if ($opts->{debug} > 1);
-    mkdir $tdir, 0755 || die ("Cannot create directory\n");
-    chmod 0777, $tdir || die "$!\n";
-
     my $bh = &baxml_distro_gethash( $opts, $base );
-    my $arch = $bh->{arch};
     my $basedist = $bh->{basedist};
 
     my $dh = &baxml_distro_gethash( $opts, $dud );
-    my $ih = &baxml_iso_gethash( $opts, $dud, 'dvd', $dh->{isofile} );
+    my @pl = &baxml_products_getlist( $opts, $dud );
+    my $ph = $pl[0]; # assume we're dealing with a list of one
+    my @il = &baxml_isos_getlist( $opts, $dud, $ph );
+    # again assume we're dealing with a list of one
+    my $ih = &baxml_iso_gethash( $opts, $dud, $ph, $il[0] );
 
     if( &sqlfs_getstate( $opts, "initrd.$basedist" ) ) {
         print "found bootloader initrd.$basedist in file database\n" 
@@ -1338,77 +1347,132 @@ sub add_dud_initrd
         return 1;
     }
 
+    my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
+    print "using tempdir $tdir\n" if ($opts->{debug} > 1);
+    mkdir $tdir, 0755 || die ("Cannot create directory\n");
+    chmod 0777, $tdir || die "$!\n";
+
     print "extract base distro initrd from db to $tdir/initrd.gz\n" if ( $opts->{debug} > 1 );
     copy($bh->{baseinitrd},"$tdir/initrd.gz") or die "Copy failed: $!";
 
     # unzip the initrd
-    system("zcat $tdir/initrd.gz | cpio --quiet -id");
+    system("cd $tdir; zcat $tdir/initrd.gz | cpio --quiet -id");
 
-    # unsquash if sles11
-    if ( $base =~ /sles-11/ ) {
-        system("unsquashfs", "$tdir/parts/00_lib");
+    # unsquash if opensuse 11.2 or sles 11 sp1 or higher
+    if ( ( $bh->{os} eq "sles" and $bh->{release} > 11 ) or
+         ( $bh->{os} eq "opensuse" and $bh->{release} >= 11.2 ) ) {
+        system("cd $tdir; unsquashfs $tdir/parts/00_lib");
     }
 
     # Find all relevant kernel drivers
     my @drvlist;
     find ( { wanted =>
              sub {
-                   /$arch.*\.ko\z/s &&
-                   push @drvlist, $_;
+               if( $_ =~ m/^.*\.ko$/ ) {
+                   print "found $File::Find::name ($_)\n" if $opts->{debug};
+                   push @drvlist, $File::Find::name;
+               }
              },
              follow => 1
            },
            $ih->{isopath} );
 
+    # match os
+    print "still need to filter this list down\n";
+    my @filtered;
+    my $prefix = qr|$ih->{isopath}|o;
+    my $filt64 = qr'^.*(x86_64|amd64).*$';
+    my $filt32 = qr'^.*(x|i).*86[^_]+.*$';
+    foreach my $loc (@drvlist) {
+        $loc =~ s|$prefix/||;
+        if ( $loc =~ m/$bh->{os}/ ) {
+            print "using os match $loc\n";
+            push (@filtered, $loc);
+        }
+    }
+    # use the filtered list only if there was an os name match
+    @drvlist = @filtered if ( scalar @filtered );
+    # match arch
+    @filtered = ();
+    foreach my $loc (@drvlist) {
+        $loc =~ s|$prefix/||;
+        if ($bh->{arch} eq "x86_64") {
+            if ( $loc =~ m/$filt64/ ) {
+                print "using arch match $loc\n";
+                push (@filtered, $loc);
+            }
+        } else {
+            if ( $loc =~ m/$filt32/ ) {
+                print "using arch match $loc\n";
+                push (@filtered, $loc);
+            }
+        }
+    }
+    unless (scalar @filtered) {
+        print "death to useless regex - try 'file' on the list\n" ;
+        exit 1;
+    }
+    foreach my $loc ( @filtered ) {
+        print "final answer using: $loc\n" if $opts->{debug};
+    }
+
+
     # Determine driver path in initrd
     my $drvpath;
     my $kernel;
-    if ( $base =~ m/sles-11/ ) {
-        opendir(IMD, "$tdir/parts/squashfs-root/lib/modules") || die("Cannot open directory"); 
+    if ( $bh->{os} eq "sles" and $bh->{release} eq "11.1" ) {
+        opendir(IMD, "$tdir/parts/squashfs-root/lib/modules") || die("Cannot open directory");
         my @dfiles = readdir(IMD);
         closedir(IMD);
         foreach my $dfile ( @dfiles ) {
-            if ( $dfile =~ /2.6/ ) { $kernel = $dfile; }
+            if ( $dfile =~ /2.6/ ) {
+                $kernel = $dfile;
+            }
         }
-        $drvpath = "$tdir/parts/squashfs-root/lib/modules/$kernel/initrd/";
-    } elsif ( $base =~ m/sles-10/ ) {
-        $drvpath = "";
+        $drvpath = "/parts/squashfs-root/lib/modules/$kernel/initrd/";
+    } elsif ( $bh->{os} eq "sles" and $bh->{release} eq "11" ) {
+        opendir(IMD, "$tdir/lib/modules") || die("Cannot open directory");
+        my @dfiles = readdir(IMD);
+        closedir(IMD);
+        foreach my $dfile ( @dfiles ) {
+            if ( $dfile =~ /2.6/ ) {
+                $kernel = $dfile;
+            }
+        }
+        $drvpath = "/lib/modules/$kernel/initrd";
     } else {
-        $opts->{LASTERROR} = "$base does not yet have dud support in baracus \n";
+        $opts->{LASTERROR} = "$basedist does not yet have dud support in baracus \n";
         return 1;
     }
 
     # Copy drivers to correct location in initrd
-    foreach my $driver ( @drvlist ) {
-        print "cp $driver to $tdir/$drvpath\n"
+    foreach my $driver ( @filtered ) {
+        print "cp $ih->{isopath}/$driver to $tdir/$drvpath\n"
             if ( $opts->{debug} > 1 );
-        copy("$driver", "$tdir/$drvpath") or
+        copy("$ih->{isopath}/$driver", "$tdir/$drvpath") or
             die "Copy failed: $!";
     }
 
     # Create depmod files
-    if ( $base =~ m/sles-11/ ) {
+    if ( $bh->{os} eq "sles" and $bh->{release} eq "11.1" ) {
         system("depmod", "-a", "--basedir", "$tdir/parts/squashfs-root", "$kernel");
-    } elsif ( $base =~ /sles-10/ ) {
-        # placeholder
+    } elsif ( $bh->{os} eq "sles" and $bh->{release} eq "11" ) {
+        system("depmod", "-a", "--basedir", "$tdir", "$kernel");
     } else {
         $opts->{LASTERROR} = "$base does not yet have dud support in baracus \n";
         return 1;
     }
 
     # Recreate the initrd
-    if ( $base =~ m/sles-11/ ) {
-        system("find . | cpio --quiet --create --format='newc' > $tdir/initrd.$dud");
-    } elsif ( $base =~ m/sles-10/ ) {
-        # placeholder
-    } else {
-        $opts->{LASTERROR} = "$base does not yet have dud support in baracus \n";
-        return 1;
-    }
+    print "creating initrd.$dud\n" if $opts->{debug};
+    system("cd $tdir; find . | cpio --quiet --create --format='newc' > ../initrd.$dud");
+    system("gzip", "$tdir/../initrd.$dud");
+    system("mv", "$tdir/../initrd.$dud.gz", "$tdir/../initrd.$dud");
 
     # Store the newly created initrd
-    &sqlfs_store( $opts, "$tdir/initrd.$dud" );
+    &sqlfs_store( $opts, "$tdir/../initrd.$dud" );
     unlink( "$tdir/initrd.$basedist" );
+    unlink("$tdir/../initrd.$dud" );
 
     print "removing tempdir $tdir\n" if ($opts->{debug} > 1);
     rmdir $tdir;

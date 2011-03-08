@@ -762,7 +762,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 if ( defined $hardref->{driverupdate} ) {
                     my $dudref = get_db_data( $dbh, 'distro', $hardref->{driverupdate} );
                     if ( defined $dudref ) {
-                        $args .= qq| dud=1 dud=$dudref->{sharetype}://$dudref->{shareip}$dudref->{basepath}|;
+                        $args .= qq| dud=$dudref->{sharetype}://$dudref->{shareip}$dudref->{basepath}/|;
                     }
                 }
                 my $lcmac = lc $input->{mac};
@@ -1398,7 +1398,17 @@ Address 'CMS' 'PURGE RDR ALL'
             exit 0;
         }
 
-        $file = "$file.$actref->{distro}";
+        my $filework = "$file.$actref->{distro}";
+
+        ## wrinkle to support hardware dud initrd
+        if ( $file =~ m/initrd/ ) {
+            &load_hardware( $opts, $dbh, $actref );
+            if ( defined $actref->{driverupdate} ) {
+                $filework = "$file.$actref->{driverupdate}";
+            }
+        }
+
+        $file = $filework;
 
         printlog "$input->{mac} - serving $file\n";
 

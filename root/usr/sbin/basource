@@ -695,6 +695,10 @@ sub remove() {
                     } else {
                         rmtree(@$shares[0]);
                     }
+                    my $dudh = &get_db_data( $dbh, 'distro', $extra );
+                    if ( $dudh->{type} == BA_SOURCE_DUD ) {
+                        &remove_dud_initrd( $opts, $extra )
+                    }
                     &source_register( $opts, $command, $extra );
                 }
             } 
