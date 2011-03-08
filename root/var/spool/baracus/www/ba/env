@@ -190,16 +190,31 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $sql = qq|INSERT INTO sqlfstable ( $fields ) VALUES ( $values )|;
         die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
 
+        my $putdata;
+        if ( defined $input->{PUTDATA} ) {
+            # new CGI.pm way - already read from STDIN
+            printlog "$input->{mac} - using CGI.pm new style\n";
+            $putdata = $input->{PUTDATA};
+        } else {
+            # old style read putdata from STDIN
+            printlog "$input->{mac} - using CGI.pm _old_ style\n";
+            read( STDIN, $putdata, $ENV{CONTENT_LENGTH} );
+        }
+
+        # now chop $putdata into BA_DBMAXLEN pieces to store
+        my $len = $ENV{CONTENT_LENGTH};
+        my $clen = BA_DBMAXLEN;
         my $bin;
+        my @bytes = split(//, $putdata);
         my $bytes = 1;
-        while ( $bytes ) {
-            read( STDIN, $bytes, BA_DBMAXLEN );
-            if ( $bytes ) {
-                $bin = pack( 'u', $bytes );
-                unless ( $sth->execute( $bin ) ) {
-                    croak $sth->err;
-                    exit 0;
-                }
+        while ( $len > 0 ) {
+            $clen = $len if ( $len < $clen );
+            $bytes = join('', splice(@bytes, 0, $clen));
+            $len -= $clen;
+            $bin = pack( 'u', $bytes );
+            unless ( $sth->execute( $bin ) ) {
+                croak $sth->err;
+                exit 0;
             }
         }
 
@@ -314,18 +329,34 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $sql = qq|INSERT INTO sqlfstable ( $fields ) VALUES ( $values )|;
         die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
 
+        my $putdata;
+        if ( defined $input->{PUTDATA} ) {
+            # new CGI.pm way - already read from STDIN
+            printlog "$input->{mac} - using CGI.pm new style\n";
+            $putdata = $input->{PUTDATA};
+        } else {
+            # old style read putdata from STDIN
+            printlog "$input->{mac} - using CGI.pm _old_ style\n";
+            read( STDIN, $putdata, $ENV{CONTENT_LENGTH} );
+        }
+
+        # now chop $putdata into BA_DBMAXLEN pieces to store
+        my $len = $ENV{CONTENT_LENGTH};
+        my $clen = BA_DBMAXLEN;
         my $bin;
+        my @bytes = split(//, $putdata);
         my $bytes = 1;
-        while ( $bytes ) {
-            read( STDIN, $bytes, BA_DBMAXLEN ); # $ENV{CONTENT_LENGTH}
-            if ( $bytes ) {
-                $bin = pack( 'u', $bytes );
-                unless ( $sth->execute( $bin ) ) {
-                    croak $sth->err;
-                    exit 0;
-                }
+        while ( $len > 0 ) {
+            $clen = $len if ( $len < $clen );
+            $bytes = join('', splice(@bytes, 0, $clen));
+            $len -= $clen;
+            $bin = pack( 'u', $bytes );
+            unless ( $sth->execute( $bin ) ) {
+                croak $sth->err;
+                exit 0;
             }
         }
+
         $sth->finish();
         $output = "upload success\n";
         my $ip = $ENV{ REMOTE_ADDR };
