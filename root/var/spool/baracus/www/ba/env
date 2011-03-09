@@ -1534,9 +1534,10 @@ Address 'CMS' 'PURGE RDR ALL'
     {
 	my $fd;
 	my $fdata;
+
 	$input->{mac} = &check_mac($input->{mac});
 
-	my $fn = &read_grubconf($cgi, $input->{nfsroot}, $1);
+	my $fn = &read_grubconf($input->{nfsroot}, $1);
         printlog "$input->{mac} - NFS boot $1 @ $fn\n";
 
 	open ($fd, "<", $fn) || printlog "Error opening $fn";

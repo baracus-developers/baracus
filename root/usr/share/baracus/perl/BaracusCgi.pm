@@ -192,7 +192,6 @@ LABEL netboot_nfs
 
 sub read_grubconf() {
 
-    my $cgi=shift;
     my $nfsroot=shift;
     my $reqfile=shift;
     my $req_kernel = "linux_net";
