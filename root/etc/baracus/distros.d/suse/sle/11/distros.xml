@@ -238,6 +238,7 @@
   </distro>
 
   <!-- SLES 11.1 DUD bl685cg7 -->
+
   <distro name="sles-11-bl685cg7-x86_64">
     <os>sles</os>
     <release>11</release>
@@ -267,7 +268,7 @@
     <addrel/>
     <arch>x86_64</arch>
     <requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
-    <description>SLES 11 64bit megasr 14.00.1203.2010-1 DUD</description>
+    <description>SLES 11 megasr 14.00.1203.2010-1 64bit</description>
     <type>dud</type>
     <autodownload>no</autodownload>
 
@@ -287,7 +288,7 @@
     <addrel/>
     <arch>x86</arch>
     <requires>sles-11-x86</requires> <!-- flag! content ignored -->
-    <description>SLES 11 32bit megasr 14.00.1203.2010-1 DUD</description>
+    <description>SLES 11 megasr 14.00.1203.2010-1 32bit</description>
     <type>dud</type>
     <autodownload>no</autodownload>
 
