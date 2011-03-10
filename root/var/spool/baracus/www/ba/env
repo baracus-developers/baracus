@@ -30,6 +30,7 @@ use warnings;
 use CGI;
 use Apache::DBI ();
 use DBI ();
+#use Switch;
 
 use lib "/usr/share/baracus/perl";
 
@@ -1533,6 +1534,7 @@ Address 'CMS' 'PURGE RDR ALL'
     elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/($linux_net|$initrd_net)\?.*\s*$} )
     {
 	my $fd;
+	my $fn;
 	my $fdata;
 	my $sysrc;
         my $nfs_script="/usr/share/baracus/scripts/mountnfs.sh";
@@ -1549,7 +1551,21 @@ Address 'CMS' 'PURGE RDR ALL'
 		printlog "system @args returns: $sysrc \n";
 	}
 
-	my $fn = &read_grubconf("$nfs_base/$sref->{storageip}/$sref->{storage}",				"boot/grub/menu.lst", $1);
+	if ($linux_net eq $1) {
+            $fn = "$nfs_base/$sref->{storageip}/$sref->{storage}/boot/vmlinuz";
+	}
+	elsif ($initrd_net eq $1) {
+            $fn = "$nfs_base/$sref->{storageip}/$sref->{storage}/boot/initrd";
+	}
+	else { $fn = ""; }
+
+        if ( -f $fn and -r $fn ) {
+	    printlog "$fn found\n";
+        }
+	else {
+	    printlog "$fn not found\n";
+	    $fn = &read_grubconf("$nfs_base/$sref->{storageip}/$sref->{storage}", "boot/grub/menu.lst", $1);
+	}
         printlog "$input->{mac} - NFS boot $1 @ $fn\n";
 
 	open ($fd, "<", $fn) || printlog "Error opening $fn";
@@ -1565,7 +1581,6 @@ Address 'CMS' 'PURGE RDR ALL'
 	printlog "$input->{mac} - read $fn length $flength bytes\n";
         $output .= $fdata;
     }
-
 
     ##
     ## kernel and initrd for inventory and dban
