@@ -193,18 +193,17 @@ LABEL netboot_nfs
 sub read_grubconf() {
 
     my $nfsroot=shift;
+    my $grubmenu=shift;
     my $reqfile=shift;
     my $req_kernel = "linux_net";
     my $req_initrd = "initrd_net";
     my $fd;
     my $line = 0;
-    my $nfspath="/var/spool/baracus/nfsroot/$nfsroot";
-    my $grubmenu="$nfspath/boot/grub/menu.lst";
     my $g_default = 0;
     my $titleno = -1;
     my $g_name = undef;
 
-    open ($fd, "<", "$grubmenu");
+    open ($fd, "<", "$nfsroot/$grubmenu");
 	while(<$fd>) {
 	    $line++;
 #           if ($titleno != $g_default && m,^\s*title\s+(.*),i ) {
@@ -226,14 +225,14 @@ sub read_grubconf() {
 	    }
 	    if ( m,^\s*kernel\s+\(.*\)(\S*),i && (not defined $g_name) &&
 		 ($reqfile eq "linux_net")) {
-		    $g_name = "$nfspath/$1";
+		    $g_name = "$nfsroot/$1";
 #               printlog "$input->{mac} - kernel $g_default -- $g_kernelname\n";
 		last;
 	        
 	    }
 	    if ( m,^\s*initrd\s+\(.*\)(\S*),i && (not defined $g_name) && 
 		($reqfile eq "initrd_net")) {
-		$g_name = "$nfspath/$1";
+		$g_name = "$nfsroot/$1";
 #               printlog "$input->{mac} - initrd $g_default -- $g_rdname\n";
 		last;
 	    }
