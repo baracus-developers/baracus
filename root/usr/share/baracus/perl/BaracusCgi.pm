@@ -198,7 +198,7 @@ sub read_grubconf() {
     my $req_initrd = "initrd_net";
     my $fd;
     my $line = 0;
-    my $nfspath="/net/$nfsroot/";
+    my $nfspath="/var/spool/baracus/nfsroot/$nfsroot";
     my $grubmenu="$nfspath/boot/grub/menu.lst";
     my $g_default = 0;
     my $titleno = -1;

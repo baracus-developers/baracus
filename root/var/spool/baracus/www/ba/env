@@ -1541,6 +1541,11 @@ Address 'CMS' 'PURGE RDR ALL'
 	my $aref = &get_db_data( $dbh, 'action', $input->{mac} );
 	my $sref = &get_db_data( $dbh, 'storage', $aref->{storageid});
 
+#	my @args = ("/sbin/sudo", "/sbin/mount.nfs", "172.16.200.1:/media/build", "/mnt");
+ 	my @args = ("/usr/share/baracus/scripts/mountnfs.sh", "$sref->{storageip}", $sref->{storage});
+    	my $sysrc = system(@args);
+	printlog "system @args returns: $sysrc \n";
+
 	my $fn = &read_grubconf("$sref->{storageip}/$sref->{storage}", $1);
         printlog "$input->{mac} - NFS boot $1 @ $fn\n";
 
