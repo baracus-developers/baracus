@@ -1,0 +1,13 @@
+default=0
+timeout=5
+min_mem64=1000
+
+title Oracle Solaris 11 Express snv_151a Automated Install ttya
+        kernel$ kernel/amd64/unix -B install=true,console=ttya \
+        install_media=151.155.230.38:/var/spool/baracus/builds/solaris/11/x86_64/dvd \
+        install_boot=151.155.230.38:/var/spool/baracus/builds/solaris/10.8/x86_64/dvd/boot
+        module$ boot_archive
+
+title Oracle Solaris 11 Express snv_151a Automated Install custom ttya
+        kernel$ kernel/amd64/unix -B install=true,aimanifest=prompt,console=ttya
+        module$ boot_archive

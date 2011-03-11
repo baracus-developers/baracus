@@ -30,6 +30,7 @@ use warnings;
 use CGI;
 use Apache::DBI ();
 use DBI ();
+#use Switch;
 
 use lib "/usr/share/baracus/perl";
 
@@ -190,31 +191,16 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $sql = qq|INSERT INTO sqlfstable ( $fields ) VALUES ( $values )|;
         die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
 
-        my $putdata;
-        if ( defined $input->{PUTDATA} ) {
-            # new CGI.pm way - already read from STDIN
-            printlog "$input->{mac} - using CGI.pm new style\n";
-            $putdata = $input->{PUTDATA};
-        } else {
-            # old style read putdata from STDIN
-            printlog "$input->{mac} - using CGI.pm _old_ style\n";
-            read( STDIN, $putdata, $ENV{CONTENT_LENGTH} );
-        }
-
-        # now chop $putdata into BA_DBMAXLEN pieces to store
-        my $len = $ENV{CONTENT_LENGTH};
-        my $clen = BA_DBMAXLEN;
         my $bin;
-        my @bytes = split(//, $putdata);
         my $bytes = 1;
-        while ( $len > 0 ) {
-            $clen = $len if ( $len < $clen );
-            $bytes = join('', splice(@bytes, 0, $clen));
-            $len -= $clen;
-            $bin = pack( 'u', $bytes );
-            unless ( $sth->execute( $bin ) ) {
-                croak $sth->err;
-                exit 0;
+        while ( $bytes ) {
+            read( STDIN, $bytes, BA_DBMAXLEN );
+            if ( $bytes ) {
+                $bin = pack( 'u', $bytes );
+                unless ( $sth->execute( $bin ) ) {
+                    croak $sth->err;
+                    exit 0;
+                }
             }
         }
 
@@ -329,34 +315,18 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $sql = qq|INSERT INTO sqlfstable ( $fields ) VALUES ( $values )|;
         die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
 
-        my $putdata;
-        if ( defined $input->{PUTDATA} ) {
-            # new CGI.pm way - already read from STDIN
-            printlog "$input->{mac} - using CGI.pm new style\n";
-            $putdata = $input->{PUTDATA};
-        } else {
-            # old style read putdata from STDIN
-            printlog "$input->{mac} - using CGI.pm _old_ style\n";
-            read( STDIN, $putdata, $ENV{CONTENT_LENGTH} );
-        }
-
-        # now chop $putdata into BA_DBMAXLEN pieces to store
-        my $len = $ENV{CONTENT_LENGTH};
-        my $clen = BA_DBMAXLEN;
         my $bin;
-        my @bytes = split(//, $putdata);
         my $bytes = 1;
-        while ( $len > 0 ) {
-            $clen = $len if ( $len < $clen );
-            $bytes = join('', splice(@bytes, 0, $clen));
-            $len -= $clen;
-            $bin = pack( 'u', $bytes );
-            unless ( $sth->execute( $bin ) ) {
-                croak $sth->err;
-                exit 0;
+        while ( $bytes ) {
+            read( STDIN, $bytes, BA_DBMAXLEN ); # $ENV{CONTENT_LENGTH}
+            if ( $bytes ) {
+                $bin = pack( 'u', $bytes );
+                unless ( $sth->execute( $bin ) ) {
+                    croak $sth->err;
+                    exit 0;
+                }
             }
         }
-
         $sth->finish();
         $output = "upload success\n";
         my $ip = $ENV{ REMOTE_ADDR };
@@ -630,7 +600,6 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             }
             &load_storage( $opts, $dbh, $actref );
             if ($actref->{type} == BA_STORAGE_NFS ) {
-#                printlog "$input->{mac} - nfs://$actref->{storageip}$actref->{storage}\n";
             	&do_netboot_nfs( $cgi, $actref, $baVar{serverip} );
             } else {
                 &do_netboot( $cgi, $actref, $baVar{serverip} );
@@ -1434,7 +1403,7 @@ Address 'CMS' 'PURGE RDR ALL'
         ## wrinkle to support hardware dud initrd
         if ( $file =~ m/initrd/ ) {
             &load_hardware( $opts, $dbh, $actref );
-            if ( defined $actref->{driverupdate} ) {
+            if ( $actref->{driverupdate} ne "" ) {
                 $filework = "$file.$actref->{driverupdate}";
             }
         }
@@ -1564,10 +1533,38 @@ Address 'CMS' 'PURGE RDR ALL'
     elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/($linux_net|$initrd_net)\?.*\s*$} )
     {
 	my $fd;
+	my $fn;
 	my $fdata;
+	my $sysrc;
+        my $nfs_script="/usr/share/baracus/scripts/mountnfs.sh";
+        my $nfs_base="/var/spool/baracus/nfsroot";
+
 	$input->{mac} = &check_mac($input->{mac});
 
-	my $fn = &read_grubconf($cgi, $input->{nfsroot}, $1);
+	my $aref = &get_db_data( $dbh, 'action', $input->{mac} );
+	my $sref = &get_db_data( $dbh, 'storage', $aref->{storageid});
+
+ 	my @args = ($nfs_script, "$sref->{storageip}", $sref->{storage});
+    	my $sysrc = system(@args);
+	unless ($sysrc == 0) {
+		printlog "system @args returns: $sysrc \n";
+	}
+
+	if ($linux_net eq $1) {
+            $fn = "$nfs_base/$sref->{storageip}/$sref->{storage}/boot/vmlinuz";
+	}
+	elsif ($initrd_net eq $1) {
+            $fn = "$nfs_base/$sref->{storageip}/$sref->{storage}/boot/initrd";
+	}
+	else { $fn = ""; }
+
+        if ( -f $fn and -r $fn ) {
+	    printlog "$fn found\n";
+        }
+	else {
+	    printlog "$fn not found\n";
+	    $fn = &read_grubconf("$nfs_base/$sref->{storageip}/$sref->{storage}", "boot/grub/menu.lst", $1);
+	}
         printlog "$input->{mac} - NFS boot $1 @ $fn\n";
 
 	open ($fd, "<", $fn) || printlog "Error opening $fn";
@@ -1583,7 +1580,6 @@ Address 'CMS' 'PURGE RDR ALL'
 	printlog "$input->{mac} - read $fn length $flength bytes\n";
         $output .= $fdata;
     }
-
 
     ##
     ## kernel and initrd for inventory and dban

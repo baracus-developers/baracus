@@ -407,6 +407,7 @@ nameserver __DNS1__
         <filename>mount_nfsroot</filename>
         <source><![CDATA[export TARGET_ROOT=__STORAGEURI__
 mount -o nolock -t nfs $TARGET_ROOT /mnt
+[ $? -ne 0 ] && exit 1
 mkdir /mnt/etc/
 cat > /mnt/etc/fstab <<- EOF
 $TARGET_ROOT 	/ 	nfs	defaults 	0 0

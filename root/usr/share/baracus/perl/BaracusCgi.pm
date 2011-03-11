@@ -74,20 +74,22 @@ my $initrd_xen_baracus = "initrd-xen.baracus";
 
 sub get_arch_linux {
     my $input = shift;
-    my $arch = lc $input->{arch};
-    if ( $arch eq "xen" ) {
-	return $linux_baracus_xen;
-    } 
-    return $linux_baracus;
+    if ( defined $input->{arch} and
+         $input->{arch} =~ m/xen/i ) {
+        return $linux_baracus_xen;
+    } else {
+        return $linux_baracus;
+    }
 }
 
 sub get_arch_initrd {
     my $input = shift;
-    my $arch = lc $input->{arch};
-    if ( $arch eq "xen" ) {
-	return $initrd_xen_baracus;
+    if ( defined $input->{arch} and
+         $input->{arch} =~ m/xen/i ) {
+        return $initrd_xen_baracus;
+    } else {
+        return $initrd_baracus;
     }
-    return $initrd_baracus;   
 }
 
 sub get_inventory() {
@@ -192,20 +194,18 @@ LABEL netboot_nfs
 
 sub read_grubconf() {
 
-    my $cgi=shift;
     my $nfsroot=shift;
+    my $grubmenu=shift;
     my $reqfile=shift;
     my $req_kernel = "linux_net";
     my $req_initrd = "initrd_net";
     my $fd;
     my $line = 0;
-    my $nfspath="/net/$nfsroot/";
-    my $grubmenu="$nfspath/boot/grub/menu.lst";
     my $g_default = 0;
     my $titleno = -1;
     my $g_name = undef;
 
-    open ($fd, "<", "$grubmenu");
+    open ($fd, "<", "$nfsroot/$grubmenu");
 	while(<$fd>) {
 	    $line++;
 #           if ($titleno != $g_default && m,^\s*title\s+(.*),i ) {
@@ -227,14 +227,14 @@ sub read_grubconf() {
 	    }
 	    if ( m,^\s*kernel\s+\(.*\)(\S*),i && (not defined $g_name) &&
 		 ($reqfile eq "linux_net")) {
-		    $g_name = "$nfspath/$1";
+		    $g_name = "$nfsroot/$1";
 #               printlog "$input->{mac} - kernel $g_default -- $g_kernelname\n";
 		last;
 	        
 	    }
 	    if ( m,^\s*initrd\s+\(.*\)(\S*),i && (not defined $g_name) && 
 		($reqfile eq "initrd_net")) {
-		$g_name = "$nfspath/$1";
+		$g_name = "$nfsroot/$1";
 #               printlog "$input->{mac} - initrd $g_default -- $g_rdname\n";
 		last;
 	    }

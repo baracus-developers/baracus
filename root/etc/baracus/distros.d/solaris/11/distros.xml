@@ -1,0 +1,28 @@
+<?xml version='1.0'?>
+<config>
+
+  <!-- Solaris 11 Express -->
+
+  <distro name="solaris-11-x86_64">
+    <os>solaris</os>
+    <release>11</release>
+    <arch>x86_64</arch>
+    <description>Solaris 11 Express 64bit</description>
+    <type>base</type>
+    <autodownload>no</autodownload>
+    <sharetype>nfs</sharetype>
+
+    <product name="dvd">
+      <iso name="sol-11-exp-201011-ai-x86.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='pxegrub'      file='boot/grub/pxegrub'/>
+          <sharefile sharetype='tftp' name='boot_archive' file='boot/platform/i86pc/amd64/boot_archive'/>
+        </sharefiles>
+        <md5>36527d4d49a645ef6f6d2677c8e0118c</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>
