@@ -74,20 +74,22 @@ my $initrd_xen_baracus = "initrd-xen.baracus";
 
 sub get_arch_linux {
     my $input = shift;
-    my $arch = lc $input->{arch};
-    if ( $arch eq "xen" ) {
-	return $linux_baracus_xen;
-    } 
-    return $linux_baracus;
+    if ( defined $input->{arch} and
+         $input->{arch} =~ m/xen/i ) {
+        return $linux_baracus_xen;
+    } else {
+        return $linux_baracus;
+    }
 }
 
 sub get_arch_initrd {
     my $input = shift;
-    my $arch = lc $input->{arch};
-    if ( $arch eq "xen" ) {
-	return $initrd_xen_baracus;
+    if ( defined $input->{arch} and
+         $input->{arch} =~ m/xen/i ) {
+        return $initrd_xen_baracus;
+    } else {
+        return $initrd_baracus;
     }
-    return $initrd_baracus;   
 }
 
 sub get_inventory() {

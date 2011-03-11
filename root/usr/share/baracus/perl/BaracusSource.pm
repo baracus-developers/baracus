@@ -1698,8 +1698,12 @@ sub add_build_service
                 print "modifying $file adding $share\n" if ( $opts->{debug} );
 
                 if ($sharetype eq "nfs") {
+                    if ( $distro =~ /solaris/ ) {
+                        ## NFSv4 workaround
+                        $share = &solaris_nfs_waround( $opts, $share );
+                    }
                     $ret = system("exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$share");
-                    print "exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$share\n" if ( $opts->{debug} > 1 );
+                    print "exportfs -o ro,not_root_squash,insecure,sync,no_subtree_check *:$share\n" if ( $opts->{debug} > 1 );
                     if ( $ret > 0 ) {
                         $opts->{LASTERROR} .= "export failed: $share $!";
                         next;
@@ -1812,6 +1816,10 @@ sub remove_build_service
             } else {
                 print "modifying $file removing $share\n" if ( $opts->{debug} );
                 if ($sharetype eq "nfs") {
+                    ## Ugly Solaris NFSc4 workaround
+                    if ( $da =~ /solaris/ ) {
+                        $share = "/var/lib/nfs/v4-root" . "/" . $share;
+                    }
                     $ret = system("exportfs -u *:$share");
                     if ( $ret > 0 ) {
                         $opts->{LASTERROR} .= "unexport failed: $share $!";
@@ -1910,7 +1918,7 @@ sub init_exporter
 
 #    $opts->{LASTERROR} = "";
 
-    my $sql = qq| SELECT mntpoint
+    my $sql = qq| SELECT distroid,mntpoint
                   FROM $baTbls{'iso'}
                   WHERE sharetype = '1'
                |;
@@ -1949,6 +1957,11 @@ sub init_exporter
             }
         }
         unless ( $is_shared ) {
+            # Ugly Solaris NFSv4 workaround
+            if ( $href->{distroid} =~ /solaris/ ) {
+                $href->{'mntpoint'} = &solaris_nfs_waround( $opts, $href->{'mntpoint'} );
+            }
+
             print "exporting $href->{'mntpoint'} \n" if ( $opts->{verbose} );
             $ret = system("exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$href->{'mntpoint'}");
             if ( $ret > 0 ) {
@@ -1959,6 +1972,39 @@ sub init_exporter
     } while ( $href = $sth->fetchrow_hashref() );
     return 1 if ( $opts->{LASTERROR} ne "" );
     return 0;
+}
+
+sub solaris_nfs_waround
+{
+    my $opts = shift;
+    my $share = shift;
+
+    my $nfsroot = "/var/lib/nfs/v4-root";
+
+    unless ( -d $nfsroot ) {
+        mkdir $nfsroot, 0755 || die ("Cannot create directory\n");
+    }
+
+    my $not_exported = system("showmount -e localhost | grep \"$nfsroot \"");
+    if ( $not_exported ) {
+        my $ret = system("exportfs -o fsid=root,nohide *:$nfsroot");
+        if ( $ret > 0 ) {
+            $opts->{LASTERROR} .= "export failed: $nfsroot $!";
+            return undef;
+        }
+    }
+
+    my $nfsdir = $nfsroot . $share;
+    mkpath( $nfsdir, {
+            verbose => 0,
+            mode => 0755} ) || die ("Cannot create directory\n");
+    my $ret = system("mount -o bind,nfsexp $share $nfsdir");
+    if ( $ret > 0 ) {
+        $opts->{LASTERROR} .= "mount failed: $nfsdir $!";
+        return undef;
+    }
+
+    return $nfsdir;
 }
 
 # return filename and state 0-missing 1-found for service config mods
