@@ -1494,7 +1494,7 @@ sub add_bigfile
     my $name = shift;
     my $file = shift;
     my $fh;
-    open( $fh, ">", "$baDir{bfdir}/$name" );
+    open( $fh, ">", "$baDir{bfdir}/$name" ) or die "why die $!";
     print $fh $file;
     close $fh;
 }
