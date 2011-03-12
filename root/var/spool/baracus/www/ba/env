@@ -30,7 +30,6 @@ use warnings;
 use CGI;
 use Apache::DBI ();
 use DBI ();
-#use Switch;
 
 use lib "/usr/share/baracus/perl";
 

@@ -916,6 +916,7 @@ sub openFILE
 {
 	# the request object
 	my $self = shift;
+    my $rfh;
 
 	$LASTERROR = '';
 
@@ -925,7 +926,8 @@ sub openFILE
 		# opcode is RRQ, open file for reading #
 		########################################
         if ( -f "$baDir{bfdir}/$self->{'_REQUEST_'}{'FileName'}" ) {
-			my $rfh;
+
+            # open cached file if it exists in ~baracus/bfdir
             if ( not CORE::open( $rfh, "<", "$baDir{bfdir}/$self->{'_REQUEST_'}{'FileName'}" ) ) {
                 $LASTERROR = sprintf "Error opening file '%s' for reading\n", $self->{'_REQUEST_'}{'FileName'};
                 return(undef);
@@ -935,7 +937,7 @@ sub openFILE
 			$self->{'_REQUEST_'}{'_FH_'} = $rfh;
 			return 1;
         }
-        elsif (my $rfh = $self->{'SqlFSHandle'}->readFH( $self->{'_REQUEST_'}{'FileName'}))
+        elsif ($rfh = $self->{'SqlFSHandle'}->readFH( $self->{'_REQUEST_'}{'FileName'}))
 		{
 			$self->{'_REQUEST_'}{'LASTBLK'} = 1 + int($self->{'FileSize'} / $self->{'BlkSize'});
 
@@ -999,6 +1001,7 @@ sub closeFILE
 
     if ( -f "$baDir{bfdir}/$self->{'_REQUEST_'}{'FileName'}" )
     {
+        # close cached file if it exists in ~baracus/bfdir
 		close $self->{'_REQUEST_'}{'_FH_'};
 		undef $self->{'_REQUEST_'}{'_FH_'};
 		return(1);

@@ -415,7 +415,7 @@ sub remove
 
     $name =~ s|.*/||;           # only the short name for the lookup
 
-    &remove_bigfile( $name );   # no size check - remove if it exists
+    &remove_bigfile( $name );   # no size check - will remove if it exists
 
     if ( not $sth->execute( $name ) ) {
         $LASTERROR = "Unable to execute 'remove' statement.\n" . $sth->err;
@@ -459,6 +459,7 @@ sub store
     my $size = length ( $tmp );
     close $fh;
 
+    # size > bfsize then create a cache file in ~baracus/bfdir
     &add_bigfile( $name, $tmp ) if ( $size >= $bfsize );
 
     if (not open( $fh, "<", $name ) ) {

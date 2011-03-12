@@ -1493,6 +1493,7 @@ sub add_bigfile
 {
     my $name = shift;
     my $file = shift;
+    my $fh;
     open( $fh, ">", "$baDir{bfdir}/$name" );
     print $fh $file;
     close $fh;
