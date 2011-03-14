@@ -88,9 +88,6 @@ my $linux_xen_baracus = "linux-xen.baracus";
 my $initrd_baracus = "initrd.baracus";
 my $initrd_xen_baracus = "initrd-xen.baracus";
 
-my $linux_net="linux_net";
-my $initrd_net="initrd_net";
-
 my $dbh = DBI->connect
     ("DBI:Pg:dbname=baracus;port=5162",
      "wwwrun",
