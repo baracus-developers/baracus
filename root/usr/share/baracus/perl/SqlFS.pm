@@ -462,6 +462,7 @@ sub store
 
     # size > bfsize then create a cache file in ~baracus/bfdir
     # only the short name for the lookup
+    my $bfname = $name;
     $bfname =~ s|.*/||;
     &add_bigfile( $bfname, $tmp ) if ( $size >= $bfsize );
 
@@ -619,6 +620,7 @@ sub update
 
         # will just overwrite - no need to remove tmp file and add
         # only the short name for the lookup
+        my $bfname = $name;
         $bfname =~ s|.*/||;
         &add_bigfile( $bfname, $tmp ) if ( $size >= $bfsize );
 
