@@ -461,7 +461,9 @@ sub store
     close $fh;
 
     # size > bfsize then create a cache file in ~baracus/bfdir
-    &add_bigfile( $name, $tmp ) if ( $size >= $bfsize );
+    # only the short name for the lookup
+    $bfname =~ s|.*/||;
+    &add_bigfile( $bfname, $tmp ) if ( $size >= $bfsize );
 
     if (not open( $fh, "<", $name ) ) {
         $LASTERROR = "Unable to open $name: $!\n";
@@ -616,7 +618,9 @@ sub update
         $self->remove( $hash{ 'name' } );
 
         # will just overwrite - no need to remove tmp file and add
-        &add_bigfile( $name, $tmp ) if ( $size >= $bfsize );
+        # only the short name for the lookup
+        $bfname =~ s|.*/||;
+        &add_bigfile( $bfname, $tmp ) if ( $size >= $bfsize );
 
         # SELECT name, description, enabled, insertion, change, bin
 
