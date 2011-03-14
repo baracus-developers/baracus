@@ -1444,29 +1444,29 @@ Address 'CMS' 'PURGE RDR ALL'
 	}
 	else 
 	{
-        my $filework = "$file.$actref->{distro}";
+            my $filework = "$file.$actref->{distro}";
 
-        ## wrinkle to support hardware dud initrd
-        if ( $file =~ m/initrd/ ) {
-            &load_hardware( $opts, $dbh, $actref );
-            if ( $actref->{driverupdate} ne "" ) {
-                $filework = "$file.$actref->{driverupdate}";
+            ## wrinkle to support hardware dud initrd
+            if ( $file =~ m/initrd/ ) {
+                &load_hardware( $opts, $dbh, $actref );
+                if ( $actref->{driverupdate} ne "" ) {
+                    $filework = "$file.$actref->{driverupdate}";
+                }
             }
-        }
 
-        $file = $filework;
+            $file = $filework;
 
-        printlog "$input->{mac} - serving $file\n";
+            printlog "$input->{mac} - serving $file\n";
 
-        $sql = qq|SELECT bin FROM sqlfstable WHERE name = '$file'|;
+            $sql = qq|SELECT bin FROM sqlfstable WHERE name = '$file'|;
 
-        die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
-        die "$!$sth->err\n" unless ( $sth->execute( ) );
+            die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
+            die "$!$sth->err\n" unless ( $sth->execute( ) );
 
-        while ( $href = $sth->fetchrow_hashref( ) ) {
-            $output .= unpack( 'u', $href->{'bin'} );
-        }
-        $sth->finish();
+            while ( $href = $sth->fetchrow_hashref( ) ) {
+                $output .= unpack( 'u', $href->{'bin'} );
+            }
+            $sth->finish();
 	}
     }
 
