@@ -31,6 +31,11 @@ use warnings;
 
 use DBI;
 
+use lib "/usr/share/baracus/perl";
+
+use BaracusConfig qw( :vars );
+use BaracusAux qw( :subs );
+
 # for sql tftp db binary file chunking 1MB blobs
 use constant BA_DBMAXLEN => 268435456; # 256 MB
 #use constant BA_DBMAXLEN => 1048575;
@@ -410,6 +415,9 @@ sub remove
     }
 
     $name =~ s|.*/||;           # only the short name for the lookup
+
+    &remove_bigfile( $name );   # no size check - will remove if it exists
+
     if ( not $sth->execute( $name ) ) {
         $LASTERROR = "Unable to execute 'remove' statement.\n" . $sth->err;
         return 1;
@@ -451,6 +459,13 @@ sub store
     my $tmp = join '', <$fh>;
     my $size = length ( $tmp );
     close $fh;
+
+    # size > bfsize then create a cache file in ~baracus/bfdir
+    # only the short name for the lookup
+    my $bfname = $name;
+    $bfname =~ s|.*/||;
+    &add_bigfile( $bfname, $tmp ) if ( $size >= $bfsize );
+
     if (not open( $fh, "<", $name ) ) {
         $LASTERROR = "Unable to open $name: $!\n";
         return 1;
@@ -571,10 +586,13 @@ sub update
     if ( defined $hash{'file'} and  $hash{'file'} ne "" ) {
         $file = $hash{'file'};
 
+        my $file_data;
         open (FILE, "<$file") || die "unable to open $file: $!\n";
-        undef $/;
-        my $file_data=<FILE>;   # slurp mode
-        $/ = "\n";
+        {
+            undef $/;
+            $file_data=<FILE>;   # slurp mode
+            $/ = "\n";
+        }
         close FILE;
 
         if ( $file_data eq $entry_data ) {
@@ -599,6 +617,12 @@ sub update
 
         # remove all entries before 'new' update
         $self->remove( $hash{ 'name' } );
+
+        # will just overwrite - no need to remove tmp file and add
+        # only the short name for the lookup
+        my $bfname = $name;
+        $bfname =~ s|.*/||;
+        &add_bigfile( $bfname, $tmp ) if ( $size >= $bfsize );
 
         # SELECT name, description, enabled, insertion, change, bin
 

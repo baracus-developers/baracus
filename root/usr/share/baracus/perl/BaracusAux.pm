@@ -108,6 +108,8 @@ BEGIN {
                 list_finish_data
 
                 check_broadcast
+                add_bigfile
+                remove_bigfile
             )],
          );
     Exporter::export_ok_tags('subs');
@@ -1485,6 +1487,22 @@ sub check_broadcast
 	print STDERR "Use broadcast address: " . $block->broadcast() . "\n" if ( $opts->{debug} > 1);
 	$aref->{broadcast} = $block->broadcast();
     }
+}
+
+sub add_bigfile
+{
+    my $name = shift;
+    my $file = shift;
+    my $fh;
+    open( $fh, ">", "$baDir{bfdir}/$name" ) or die "why die $!";
+    print $fh $file;
+    close $fh;
+}
+
+sub remove_bigfile
+{
+    my $name = shift;
+    unlink "$baDir{bfdir}/$name" if ( -f "$baDir{bfdir}/$name" );
 }
 
 1;

@@ -34,7 +34,9 @@ use warnings;
 use IO::Socket;
 
 use lib "/usr/share/baracus/perl";
+
 use SqlFS;
+use BaracusConfig qw( :vars );
 
 require Exporter;
 
@@ -914,6 +916,7 @@ sub openFILE
 {
 	# the request object
 	my $self = shift;
+    my $rfh;
 
 	$LASTERROR = '';
 
@@ -922,8 +925,19 @@ sub openFILE
 		########################################
 		# opcode is RRQ, open file for reading #
 		########################################
+        if ( -f "$baDir{bfdir}/$self->{'_REQUEST_'}{'FileName'}" ) {
 
-		if(my $rfh = $self->{'SqlFSHandle'}->readFH( $self->{'_REQUEST_'}{'FileName'}))
+            # open cached file if it exists in ~baracus/bfdir
+            if ( not CORE::open( $rfh, "<", "$baDir{bfdir}/$self->{'_REQUEST_'}{'FileName'}" ) ) {
+                $LASTERROR = sprintf "Error opening file '%s' for reading\n", $self->{'_REQUEST_'}{'FileName'};
+                return(undef);
+			}
+
+			$self->{'_REQUEST_'}{'LASTBLK'} = 1 + int($self->{'FileSize'} / $self->{'BlkSize'});
+			$self->{'_REQUEST_'}{'_FH_'} = $rfh;
+			return 1;
+        }
+        elsif ($rfh = $self->{'SqlFSHandle'}->readFH( $self->{'_REQUEST_'}{'FileName'}))
 		{
 			$self->{'_REQUEST_'}{'LASTBLK'} = 1 + int($self->{'FileSize'} / $self->{'BlkSize'});
 
@@ -985,7 +999,14 @@ sub closeFILE
 
 	$LASTERROR = '';
 
-	if($self->{'_REQUEST_'}{'_FH_'})
+    if ( -f "$baDir{bfdir}/$self->{'_REQUEST_'}{'FileName'}" )
+    {
+        # close cached file if it exists in ~baracus/bfdir
+		close $self->{'_REQUEST_'}{'_FH_'};
+		undef $self->{'_REQUEST_'}{'_FH_'};
+		return(1);
+	}
+    elsif ($self->{'_REQUEST_'}{'_FH_'})
 	{
 		if($self->{'SqlFSHandle'}->closeFH( $self->{'_REQUEST_'}{'_FH_'} ) )
 		{

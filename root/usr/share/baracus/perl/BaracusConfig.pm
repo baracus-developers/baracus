@@ -67,6 +67,7 @@ BEGIN {
               %baVar
               %baDir
               %multiarg
+              $bfsize
           )],
        subs =>
        [qw(
@@ -80,7 +81,9 @@ BEGIN {
 
 our $VERSION = '0.01';
 
-use vars qw( %baVar %baDir );
+use vars qw( %baVar %baDir $bfsize );
+
+$bfsize = 104857600; # 100M
 
 # get the sysconfig option settings
 
@@ -204,9 +207,15 @@ if ( $baracusdir =~ m|^~([^/]*)| ) {
 $baracusdir =~ s|/*\s*$||;
 
 # store baracus well know directories in global hash 'bdir'
-my @bdirs = qw( builds byum hooks images isos logs pgsql templates www );
+my @bdirs = qw( builds byum bfdir hooks images isos logs pgsql templates www );
+
+my (undef,undef,$uid,$gid) = getpwnam( 'baracus' );
 foreach my $bd (@bdirs) {
     $baDir{ $bd } = "$baracusdir/$bd";
+    unless ( -d $baDir{ $bd } ) {
+        mkdir $baDir{ $bd }, 0755 ;
+        chown $uid, $gid, $baDir{ $bd };
+    }
 }
 $baDir{ root } = $baracusdir;
 $baDir{ data } = "/usr/share/baracus";

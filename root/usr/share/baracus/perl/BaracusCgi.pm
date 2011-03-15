@@ -74,20 +74,22 @@ my $initrd_xen_baracus = "initrd-xen.baracus";
 
 sub get_arch_linux {
     my $input = shift;
-    my $arch = lc $input->{arch};
-    if ( $arch eq "xen" ) {
-	return $linux_baracus_xen;
-    } 
-    return $linux_baracus;
+    if ( defined $input->{arch} and
+         $input->{arch} =~ m/xen/i ) {
+        return $linux_baracus_xen;
+    } else {
+        return $linux_baracus;
+    }
 }
 
 sub get_arch_initrd {
     my $input = shift;
-    my $arch = lc $input->{arch};
-    if ( $arch eq "xen" ) {
-	return $initrd_xen_baracus;
+    if ( defined $input->{arch} and
+         $input->{arch} =~ m/xen/i ) {
+        return $initrd_xen_baracus;
+    } else {
+        return $initrd_baracus;
     }
-    return $initrd_baracus;   
 }
 
 sub get_inventory() {
@@ -183,8 +185,8 @@ sub do_netboot_nfs() {
 PROMPT 0
 TIMEOUT 0
 LABEL netboot_nfs
-    kernel http://$serverip/ba/linux_net?mac=$actref->{mac}&nfsroot=$actref->{storageip}/$actref->{storage}
-    append initrd=http://$serverip/ba/initrd_net?mac=$actref->{mac}&nfsroot=$actref->{storageip}/$actref->{storage} root=/dev/nfs nfsroot=$actref->{storageuri}
+    kernel http://$serverip/ba/linux?mac=$actref->{mac}&nfsroot=$actref->{storageip}/$actref->{storage}
+    append initrd=http://$serverip/ba/initrd?mac=$actref->{mac}&nfsroot=$actref->{storageip}/$actref->{storage} root=/dev/nfs nfsroot=$actref->{storageuri}
 |;
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
     exit 0;
@@ -195,8 +197,6 @@ sub read_grubconf() {
     my $nfsroot=shift;
     my $grubmenu=shift;
     my $reqfile=shift;
-    my $req_kernel = "linux_net";
-    my $req_initrd = "initrd_net";
     my $fd;
     my $line = 0;
     my $g_default = 0;
@@ -224,16 +224,14 @@ sub read_grubconf() {
 		next;
 	    }
 	    if ( m,^\s*kernel\s+\(.*\)(\S*),i && (not defined $g_name) &&
-		 ($reqfile eq "linux_net")) {
+		 ($reqfile eq "linux")) {
 		    $g_name = "$nfsroot/$1";
-#               printlog "$input->{mac} - kernel $g_default -- $g_kernelname\n";
 		last;
 	        
 	    }
 	    if ( m,^\s*initrd\s+\(.*\)(\S*),i && (not defined $g_name) && 
-		($reqfile eq "initrd_net")) {
+		($reqfile eq "initrd")) {
 		$g_name = "$nfsroot/$1";
-#               printlog "$input->{mac} - initrd $g_default -- $g_rdname\n";
 		last;
 	    }
 	}
