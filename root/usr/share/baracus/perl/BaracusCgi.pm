@@ -57,7 +57,6 @@ BEGIN {
               do_localboot
               do_pxewait
               do_netboot
-              do_netboot_nfs
               do_rescue
               read_grubconf
           )]
@@ -159,7 +158,7 @@ LABEL pxewait
     exit 0;
 }
 
-sub do_netboot() {
+sub do_netboot_san() {
     my $cgi = shift;
     my $actref = shift;
     my $serverip = shift;
@@ -190,6 +189,18 @@ LABEL netboot_nfs
 |;
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
     exit 0;
+}
+
+sub do_netboot() {
+    my $cgi = shift;
+    my $actref = shift;
+    my $serverip = shift;
+
+    if ($actref->{type} == BA_STORAGE_NFS) {
+        &do_netboot_nfs( $cgi, $actref, $serverip );
+    } else {
+        &do_netboot_san( $cgi, $actref, $serverip );
+    }
 }
 
 sub read_grubconf() {

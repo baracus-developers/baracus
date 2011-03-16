@@ -595,11 +595,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 &update_db_data( $dbh, 'action', $actref );
             }
             &load_storage( $opts, $dbh, $actref );
-            if ($actref->{type} == BA_STORAGE_NFS ) {
-            	&do_netboot_nfs( $cgi, $actref, $baVar{serverip} );
-            } else {
-                &do_netboot( $cgi, $actref, $baVar{serverip} );
-            }
+            &do_netboot( $cgi, $actref, $baVar{serverip} );
             # do_netboot exits
         }
 
