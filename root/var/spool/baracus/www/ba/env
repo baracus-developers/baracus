@@ -63,7 +63,7 @@ my $oldfh = select(STDOUT); $| = 1; select($oldfh);
 
 my $cgi = new CGI;
 
-my $input = {};  # for CGI args or PUT cookie
+my $input = {};                 # for CGI args or PUT cookie
 
 my $clonedone = "$baDir{hooks}/clone_fetch_complete";
 my $clonefail = "$baDir{hooks}/clone_fetch_failed";
@@ -146,8 +146,10 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
     ##       http://$baVar{serverip}/ba/inventory
     ##
 
-    foreach my $key ( $cgi->param() ) {
-        $input->{$key} = $cgi->param($key);
+    unless ( $CGI::VERSION > 3.43 ) {
+        foreach my $key ( $cgi->param() ) {
+            $input->{$key} = $cgi->param($key);
+        }
     }
     foreach my $key ( $cgi->cookie() ) {
         $input->{$key} = $cgi->cookie($key);
@@ -187,16 +189,31 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $sql = qq|INSERT INTO sqlfstable ( $fields ) VALUES ( $values )|;
         die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
 
+        my $putdata;
+        if ( $CGI::VERSION > 3.43 ) {
+            # new CGI.pm way - already read from STDIN
+            printlog "$input->{mac} - using CGI.pm new style\n";
+            $putdata = $cgi->param('PUTDATA');
+        } else {
+            # old style read putdata from STDIN
+            printlog "$input->{mac} - using CGI.pm _old_ style\n";
+            read( STDIN, $putdata, $ENV{CONTENT_LENGTH} );
+        }
+
+        # now chop $putdata into BA_DBMAXLEN pieces to store
+        my $len = $ENV{CONTENT_LENGTH};
+        my $clen = BA_DBMAXLEN;
         my $bin;
+        my @bytes = split(//, $putdata);
         my $bytes = 1;
-        while ( $bytes ) {
-            read( STDIN, $bytes, BA_DBMAXLEN );
-            if ( $bytes ) {
-                $bin = pack( 'u', $bytes );
-                unless ( $sth->execute( $bin ) ) {
-                    croak $sth->err;
-                    exit 0;
-                }
+        while ( $len > 0 ) {
+            $clen = $len if ( $len < $clen );
+            $bytes = join('', splice(@bytes, 0, $clen));
+            $len -= $clen;
+            $bin = pack( 'u', $bytes );
+            unless ( $sth->execute( $bin ) ) {
+                croak $sth->err;
+                exit 0;
             }
         }
 
@@ -311,16 +328,31 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
         $sql = qq|INSERT INTO sqlfstable ( $fields ) VALUES ( $values )|;
         die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
 
+        my $putdata;
+        if ( $CGI::VERSION > 3.43 ) {
+            # new CGI.pm way - already read from STDIN
+            printlog "$input->{mac} - using CGI.pm new style\n";
+            $putdata = $cgi->param('PUTDATA');
+        } else {
+            # old style read putdata from STDIN
+            printlog "$input->{mac} - using CGI.pm _old_ style\n";
+            read( STDIN, $putdata, $ENV{CONTENT_LENGTH} );
+        }
+
+        # now chop $putdata into BA_DBMAXLEN pieces to store
+        my $len = $ENV{CONTENT_LENGTH};
+        my $clen = BA_DBMAXLEN;
         my $bin;
+        my @bytes = split(//, $putdata);
         my $bytes = 1;
-        while ( $bytes ) {
-            read( STDIN, $bytes, BA_DBMAXLEN ); # $ENV{CONTENT_LENGTH}
-            if ( $bytes ) {
-                $bin = pack( 'u', $bytes );
-                unless ( $sth->execute( $bin ) ) {
-                    croak $sth->err;
-                    exit 0;
-                }
+        while ( $len > 0 ) {
+            $clen = $len if ( $len < $clen );
+            $bytes = join('', splice(@bytes, 0, $clen));
+            $len -= $clen;
+            $bin = pack( 'u', $bytes );
+            unless ( $sth->execute( $bin ) ) {
+                croak $sth->err;
+                exit 0;
             }
         }
         $sth->finish();
@@ -358,9 +390,7 @@ if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
                            ), $output;
         exit 0;
     }
-}
-elsif ( $ENV{REQUEST_METHOD} eq "GET" )
-{
+} elsif ( $ENV{REQUEST_METHOD} eq "GET" ) {
     my $opts =
     {
      LASTERROR => "",
@@ -461,8 +491,7 @@ chain http://$baVar{serverip}/ba/pxelinux.0?mac=\${mac}
         $actref = &get_db_data( $dbh, 'action', $input->{mac} );
         if ( not defined $macref or
              not defined $actref
-            )
-        {
+            ) {
             printlog "$input->{mac} - chain of unknown\n";
             $output = $default;
             print $cgi->header( -type => "text/plain",
@@ -475,8 +504,7 @@ chain http://$baVar{serverip}/ba/pxelinux.0?mac=\${mac}
         # found a mac and action entry - get the pxenext
         $pxenext = $actref->{pxenext};
 
-        if ( $pxenext eq BA_ACTION_BUILD )
-        {
+        if ( $pxenext eq BA_ACTION_BUILD ) {
             printlog "$input->{mac} - chain of build\n";
             $distref = &get_distro( $opts, $dbh, $actref );
 
@@ -511,8 +539,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
         $actref = &get_db_data( $dbh, 'action', $input->{mac} );
         if ( not defined $macref or
              not defined $actref
-            )
-        {
+            ) {
             ##
             ## INVENTORY - missing 'mac' or 'action' entry (or entries)
             ##
@@ -565,8 +592,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 
         if ( $admin eq BA_ADMIN_IGNORED or
              $pxenext eq BA_ACTION_NONE
-            )
-        {
+            ) {
             # we shouldn't be here - we've already fed host pxe info...
             printlog "$input->{mac} - bad tftp daemon, bad.\n";
             exit 1;
@@ -574,8 +600,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 
         if ( $admin eq BA_ADMIN_DISABLED or
              $pxenext eq BA_ACTION_PXEWAIT
-            )
-        {
+            ) {
             printlog "$input->{mac} - serving pxewait\n";
             &do_pxewait( $cgi, \%baVar, $input );
             # do_pxewait call exits
@@ -587,8 +612,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             &update_db_mac_state( $dbh, $macref->{mac}, $pxenext );
             if ( $actref->{oper} ne $pxenext or
                  $actref->{pxecurr} ne $pxenext
-                )
-            {
+                ) {
                 $actref->{oper} = $pxenext;
                 $actref->{pxecurr} = $pxenext;
                 $actref->{cmdline} = "# pxeboot network image";
@@ -614,8 +638,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             &update_db_mac_state( $dbh, $macref->{mac}, $pxenext );
             if ( $actref->{oper} ne $pxenext or
                  $actref->{pxecurr} ne $pxenext
-                )
-            {
+                ) {
                 $actref->{oper} = $pxenext;
                 $actref->{pxecurr} = $pxenext;
                 $actref->{cmdline} = "# pxeboot rescue mode";
@@ -655,8 +678,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
               or not defined $macref->{register}
               or $macref->{register} eq ""
               )
-            )
-        {
+            ) {
             ##
             ## INVENTORY - have 'mac' but still missing inventory
             ##
@@ -685,8 +707,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             # get_inventory call exits
         }
 
-        if ( $pxenext eq BA_ACTION_LOCALBOOT )
-        {
+        if ( $pxenext eq BA_ACTION_LOCALBOOT ) {
             ##
             ## LOCALBOOT - host built so just have it boot from localdisk
             ##
@@ -707,8 +728,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             # do_localboot exits
         }
 
-        if ( $pxenext eq BA_ACTION_BUILD )
-        {
+        if ( $pxenext eq BA_ACTION_BUILD ) {
             ##
             ## BUILD
             ##
@@ -742,8 +762,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 
             if ( $distref->{os} eq "opensuse" or
                  $distref->{os} eq "sles"     or
-                 $distref->{os} eq "sled"   )
-            {
+                 $distref->{os} eq "sled"   ) {
                 $args = qq|textmode=1 install=$distref->{sharetype}://$distref->{shareip}$distref->{basepath}|;
                 if ( $actref->{autobuild} ne "none" ) {
                     $args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
@@ -847,7 +866,7 @@ chain pxegrub
 
             } elsif ( $distref->{os} =~ m/win/i ) {
 
-# the mac isn't required here for operation but it identifies the requesting device 
+                # the mac isn't required here for operation but it identifies the requesting device 
 
                 if ( $actref->{storageid} ) {
                     $output = qq|#!gpxe
@@ -860,15 +879,14 @@ chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
 chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
 |;
 
+                }
             }
         }
-    }
 
         if ( $pxenext eq BA_ACTION_IMAGE or
              $pxenext eq BA_ACTION_MCAST or
              $pxenext eq BA_ACTION_CLONE
-            )
-        {
+            ) {
             ##
             ##  IMAGE|MCAST|CLONE - SERVE IMAGE WORKLOAD
             ##
@@ -948,8 +966,7 @@ LABEL clone
             }
 
         }
-        if ( $pxenext eq BA_ACTION_DISKWIPE )
-        {
+        if ( $pxenext eq BA_ACTION_DISKWIPE ) {
             ##
             ## WIPE
             ##
@@ -978,8 +995,8 @@ LABEL clone
             my $autonuke = "";
             $autonuke = " --autonuke" if ( $actref->{autonuke} );
 
-	    my $linux_nuk=get_arch_linux($input);
-	    my $initrd_nuk=get_arch_initrd($input);
+            my $linux_nuk=get_arch_linux($input);
+            my $initrd_nuk=get_arch_initrd($input);
 
             $output =
                 qq|DEFAULT wipe
@@ -1002,8 +1019,7 @@ LABEL wipe
         if ( not defined $macref or
              not defined $actref or
              not defined $distref
-            )
-        {
+            ) {
             ##
             ## WINST - missing 'mac' or 'action' entry (or entries)
             ##
@@ -1027,10 +1043,7 @@ n:\\setup.exe
 |;
         }
 
-    }
-
-    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(parm)\?.*\s*$} )
-    {
+    } elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(parm)\?.*\s*$} ) {
         die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
 
         $input->{mac} = &check_mac($input->{mac});
@@ -1040,8 +1053,7 @@ n:\\setup.exe
         if ( not defined $macref or
              not defined $actref or
              not defined $distref
-            )
-        {
+            ) {
             ##
             ## WINST - missing 'mac' or 'action' entry (or entries)
             ##
@@ -1063,53 +1075,52 @@ n:\\setup.exe
 
         &load_vars( $opts, $actref );
 
-	# Check if broadcast address is set
-	&check_broadcast( $opts, $actref );
+        # Check if broadcast address is set
+        &check_broadcast( $opts, $actref );
 
-	# parm file should only be served during installation
-	$admin = $actref->{admin};
-	if ( $admin eq BA_ADMIN_IGNORED or
-	     $admin eq BA_ADMIN_DISABLED ) {
-	    # Do not server anything in this case
-	    print $cgi->header( -status => "404 Not found");
-	    exit 0;
-	}
-	elsif (  $actref->{pxenext} eq BA_ACTION_BUILD ) {
-	    ##
-	    ## BUILD
-	    ##
+        # parm file should only be served during installation
+        $admin = $actref->{admin};
+        if ( $admin eq BA_ADMIN_IGNORED or
+             $admin eq BA_ADMIN_DISABLED ) {
+            # Do not server anything in this case
+            print $cgi->header( -status => "404 Not found");
+            exit 0;
+        } elsif (  $actref->{pxenext} eq BA_ACTION_BUILD ) {
+            ##
+            ## BUILD
+            ##
 
-	    printlog "$input->{mac} - building\n";
+            printlog "$input->{mac} - building\n";
 
-	    $state = BA_EVENT_BUILDING;
+            $state = BA_EVENT_BUILDING;
 
-	    &event_state_change( $dbh, $state, $macref, $actref );
-	    &update_db_mac_state( $dbh, $macref->{mac}, $state );
-	    $actref->{cmdline} = "# pxeboot directing to network install";
-	    &update_db_data( $dbh, 'action', $actref );
+            &event_state_change( $dbh, $state, $macref, $actref );
+            &update_db_mac_state( $dbh, $macref->{mac}, $state );
+            $actref->{cmdline} = "# pxeboot directing to network install";
+            &update_db_data( $dbh, 'action', $actref );
 
-## example parm
-#
-# ramdisk_size=65536 root=/dev/ram1 ro init=/linuxrc TERM=dumb
-# ReadChannel=0.0.0700 WriteChannel=0.0.0701 DataChannel=0.0.0702
-# OsaInterface=qdio OsaMedium=eth
-# InstNetDev=osa layer2=0 PortNo=0
-# Portname=VSW1
-# Hostname=s390vm01.suse.de HostIP=10.10.220.97
-# Gateway=10.10.0.8 Nameserver=10.10.0.1
-# Netmask=255.255.0.0 Broadcast=10.10.255.255
-# Install=nfs://10.10.0.100/dist/install/SLP/SLES-11-GM/s390x/DVD1/
-# UseSSH=1 SSHPassword=testing linuxrcstderr=/dev/console
+            ## example parm
+            #
+            # ramdisk_size=65536 root=/dev/ram1 ro init=/linuxrc TERM=dumb
+            # ReadChannel=0.0.0700 WriteChannel=0.0.0701 DataChannel=0.0.0702
+            # OsaInterface=qdio OsaMedium=eth
+            # InstNetDev=osa layer2=0 PortNo=0
+            # Portname=VSW1
+            # Hostname=s390vm01.suse.de HostIP=10.10.220.97
+            # Gateway=10.10.0.8 Nameserver=10.10.0.1
+            # Netmask=255.255.0.0 Broadcast=10.10.255.255
+            # Install=nfs://10.10.0.100/dist/install/SLP/SLES-11-GM/s390x/DVD1/
+            # UseSSH=1 SSHPassword=testing linuxrcstderr=/dev/console
 
-	    $output = qq|ramdisk_size=65536 root=/dev/ram1 ro init=/linuxrc
+            $output = qq|ramdisk_size=65536 root=/dev/ram1 ro init=/linuxrc
 $actref->{bootargs}
 Hostname=$actref->{hostname}.$actref->{dnsdomain}
 Install=$actref->{sharetype}://$actref->{shareip}$actref->{basepath}
 linuxrcstderr=/dev/console
 |;
 
-	    if ( $actref->{InstNetDev} eq "osa" ) {
-		$output .= qq|InstNetDev=osa
+            if ( $actref->{InstNetDev} eq "osa" ) {
+                $output .= qq|InstNetDev=osa
 OsaInterface=$actref->{OsaInterface}
 OsaMedium=$actref->{OsaMedium}
 layer2=$actref->{OsaLayer2}
@@ -1119,146 +1130,140 @@ ReadChannel=$actref->{ReadChannel}
 WriteChannel=$actref->{WriteChannel}
 DataChannel=$actref->{DataChannel}
 |;
-	    } elsif ($actref->{InstNetDev} eq "hsi" ) {
-		$output .= qq|InstNetDev=hsi
+            } elsif ($actref->{InstNetDev} eq "hsi" ) {
+                $output .= qq|InstNetDev=hsi
 ReadChannel=$actref->{ReadChannel}
 WriteChannel=$actref->{WriteChannel}
 DataChannel=$actref->{DataChannel}
 |;
-	    } else {
-            printlog "Unsupported InstNetDev: $actref->{InstNetDev}\n";
-		exit 1;
-	    }
+            } else {
+                printlog "Unsupported InstNetDev: $actref->{InstNetDev}\n";
+                exit 1;
+            }
 
-	    my $args = "";
+            my $args = "";
 
-	    # Only OSA Layer2 can do dhcp
-	    if ( $actref->{ip} ne "dhcp" or $actref->{OsaLayer2} ne "1" ) {
-		$args .= qq|HostIP=$actref->{ip}
+            # Only OSA Layer2 can do dhcp
+            if ( $actref->{ip} ne "dhcp" or $actref->{OsaLayer2} ne "1" ) {
+                $args .= qq|HostIP=$actref->{ip}
 Netmask=$actref->{netmask}
 Broadcast=$actref->{broadcast}
 Gateway=$actref->{gateway}
 Nameserver=$actref->{dns1}
 |;
-	    } else {
-            printlog "No IP configuration specified\n";
-		exit 1;
-	    }
-	    if ( $actref->{raccess} =~ m|(usessh=1)| ) {
-		$args .= $1 . " " ;
-		$args .= $1 . " " if ( $actref->{raccess} =~ m|(sshpassword=[^ \t\s]+)| );
-	    } elsif ( $actref->{raccess} =~ m|(vnc=1)| ) {
-		$args .= "usevnc=1 " ;
-		$args .= $1 . " " if ( $actref->{raccess} =~ m|(vncpassword=[^ \t\s]+)| );
-	    }
+            } else {
+                printlog "No IP configuration specified\n";
+                exit 1;
+            }
+            if ( $actref->{raccess} =~ m|(usessh=1)| ) {
+                $args .= $1 . " " ;
+                $args .= $1 . " " if ( $actref->{raccess} =~ m|(sshpassword=[^ \t\s]+)| );
+            } elsif ( $actref->{raccess} =~ m|(vnc=1)| ) {
+                $args .= "usevnc=1 " ;
+                $args .= $1 . " " if ( $actref->{raccess} =~ m|(vncpassword=[^ \t\s]+)| );
+            }
 
             my $actauto = &get_db_data( $dbh, 'actabld', $input->{mac} );
-	    if ( defined $actauto->{autobuild} ) {
-		$actref->{autobuild} = $actauto->{autobuild};
-		$actref->{autobuild_ver} = $actauto->{autobuild_ver};
-		$args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
-	    } else {
-		$actref->{autobuild} = "none";
-	    }
-	    $output .= $args;
+            if ( defined $actauto->{autobuild} ) {
+                $actref->{autobuild} = $actauto->{autobuild};
+                $actref->{autobuild_ver} = $actauto->{autobuild_ver};
+                $args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
+            } else {
+                $actref->{autobuild} = "none";
+            }
+            $output .= $args;
 
-	    my @tokens = split(' ', $output);
-	    my $line = "";
-	    my $outline;
-	    foreach my $token (@tokens) {
-		if ( length($line) == 0 ) {
-		    $line = $token;
-		} elsif ( length($line) + length($token) < 78 ) {
-		    $line = join(' ', $line, $token);
-		} else {
-		    $outline .= $line . "\n";
-		    $line = " " . $token;
-		}
-	    }
+            my @tokens = split(' ', $output);
+            my $line = "";
+            my $outline;
+            foreach my $token (@tokens) {
+                if ( length($line) == 0 ) {
+                    $line = $token;
+                } elsif ( length($line) + length($token) < 78 ) {
+                    $line = join(' ', $line, $token);
+                } else {
+                    $outline .= $line . "\n";
+                    $line = " " . $token;
+                }
+            }
 
-	    $output = $outline . $line . "\n";
+            $output = $outline . $line . "\n";
 
-	    # PARM file should not be longer than 10 lines
-	    my $count = $output =~ tr/\n//;
-	    unless ($count < 10) {
-            printlog "PARM file too long: $count lines\n";
-		exit 1;
-	    }
-	} else {
-	    # Do not server anything in this case
-	    print $cgi->header( -status => "404 Not found");
-	    exit 0;
-	}
-    }
-    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(exec)\?.*\s*$} )
-    {
-	die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
+            # PARM file should not be longer than 10 lines
+            my $count = $output =~ tr/\n//;
+            unless ($count < 10) {
+                printlog "PARM file too long: $count lines\n";
+                exit 1;
+            }
+        } else {
+            # Do not server anything in this case
+            print $cgi->header( -status => "404 Not found");
+            exit 0;
+        }
+    } elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(exec)\?.*\s*$} ) {
+        die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
 
-	$input->{mac} = &check_mac($input->{mac});
-	$macref = &get_db_data( $dbh, 'mac', $input->{mac} );
-	$actref = &get_db_data( $dbh, 'action', $input->{mac} );
-	$distref = &get_distro( $opts, $dbh, $actref );
-	if ( not defined $macref or
-	     not defined $actref or
-	     not defined $distref
-	    )
-	{
-	    ##
-	    ## WINST - missing 'mac' or 'action' entry (or entries)
-	    ##
-	    printlog "$input->{mac} - missing mac, action, distro in db\n";
-	    print $cgi->header( -status => "404 Not found");
-	    exit 0;
-	}
+        $input->{mac} = &check_mac($input->{mac});
+        $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
+        $actref = &get_db_data( $dbh, 'action', $input->{mac} );
+        $distref = &get_distro( $opts, $dbh, $actref );
+        if ( not defined $macref or
+             not defined $actref or
+             not defined $distref
+            ) {
+            ##
+            ## WINST - missing 'mac' or 'action' entry (or entries)
+            ##
+            printlog "$input->{mac} - missing mac, action, distro in db\n";
+            print $cgi->header( -status => "404 Not found");
+            exit 0;
+        }
 
-	&load_baracusconfig( $opts, $actref );
-	&load_storage( $opts, $dbh, $actref );
-	&load_hardware( $opts, $dbh, $actref );
-	&load_distro( $opts, $dbh, $actref );
-	&load_profile( $opts, $dbh, $actref );
+        &load_baracusconfig( $opts, $actref );
+        &load_storage( $opts, $dbh, $actref );
+        &load_hardware( $opts, $dbh, $actref );
+        &load_distro( $opts, $dbh, $actref );
+        &load_profile( $opts, $dbh, $actref );
 
-	if ( $actref->{arch} !~ m/s390/ ) {
-	    printlog "$input->{mac} - non-s390 arch request for exec file\n";
-	    exit 1;
-	}
+        if ( $actref->{arch} !~ m/s390/ ) {
+            printlog "$input->{mac} - non-s390 arch request for exec file\n";
+            exit 1;
+        }
 
-	&load_vars( $opts, $actref );
+        &load_vars( $opts, $actref );
 
-	$admin = $actref->{admin};
-	if ( $admin eq BA_ADMIN_IGNORED or
-	     $admin eq BA_ADMIN_DISABLED ) {
-	    # Do not server anything in this case
-	    print $cgi->header( -status => "404 Not found");
-	    exit 0;
-	}
-	elsif ( $actref->{pxenext} eq BA_ACTION_LOCALBOOT ) {
-## example REXX script
-#
-# /* REXX */
-# Say 'Hello'
-# Address 'CMS' 'CP CLOSE RDR'
-# Address 'CMS' 'PURGE RDR ALL'
-# Address 'CMS' 'IPL 0150'
+        $admin = $actref->{admin};
+        if ( $admin eq BA_ADMIN_IGNORED or
+             $admin eq BA_ADMIN_DISABLED ) {
+            # Do not server anything in this case
+            print $cgi->header( -status => "404 Not found");
+            exit 0;
+        } elsif ( $actref->{pxenext} eq BA_ACTION_LOCALBOOT ) {
+            ## example REXX script
+            #
+            # /* REXX */
+            # Say 'Hello'
+            # Address 'CMS' 'CP CLOSE RDR'
+            # Address 'CMS' 'PURGE RDR ALL'
+            # Address 'CMS' 'IPL 0150'
 
-	    $output = qq|/* REXX */
+            $output = qq|/* REXX */
 Address 'CMS' 'CP CLOSE RDR'
 Address 'CMS' 'PURGE RDR ALL'
 |;
 
-	    my $args = "";
+            my $args = "";
 
-	    if ( $actref->{IplDevice} ) {
-		$args .= qq|Address 'CMS' 'IPL $actref->{IplDevice}'
+            if ( $actref->{IplDevice} ) {
+                $args .= qq|Address 'CMS' 'IPL $actref->{IplDevice}'
 |;
-	    } else {
-		$args .= qq|Address 'CMS' 'IPL 0150'
+            } else {
+                $args .= qq|Address 'CMS' 'IPL 0150'
 |;
-	    }
-	    $output .= $args;
-	}
-    }
-    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(startrom.0|pxelinux.0|sanboot.c32|chain.c32).*\s*$} )
-    {
+            }
+            $output .= $args;
+        }
+    } elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(startrom.0|pxelinux.0|sanboot.c32|chain.c32).*\s*$} ) {
         my $file = $1;
 
         printlog "# no mac required to serve $file\n";
@@ -1272,14 +1277,11 @@ Address 'CMS' 'PURGE RDR ALL'
             $output .= unpack( 'u', $href->{'bin'} );
         }
         $sth->finish();
-    }
-
-    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(auto)\?.*\s*$} )
-    {
+    } elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(auto)\?.*\s*$} ) {
         my $file = $1;
 
-#        my $date = &get_rundate();
-#        printlog "# start time for get $file : $date\n";
+        #        my $date = &get_rundate();
+        #        printlog "# start time for get $file : $date\n";
 
         ##
         ## AUTOBUILD FILE
@@ -1346,19 +1348,16 @@ Address 'CMS' 'PURGE RDR ALL'
 
         &load_vars         ( $opts, $actref );
 
-	# Check if broadcast address is set
-	&check_broadcast( $opts, $actref );
+        # Check if broadcast address is set
+        &check_broadcast( $opts, $actref );
 
         printlog "$input->{mac} - serving autobuild $file\n";
 
         $output .= &get_autobuild_expanded( $opts, $dbh, $actref );
 
-#        $date = &get_rundate();
-#        printlog "# stop time for get $file : $date\n";
-    }
-
-    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(linux|initrd)\?.*\s*$} )
-    {
+        #        $date = &get_rundate();
+        #        printlog "# stop time for get $file : $date\n";
+    } elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(linux|initrd)\?.*\s*$} ) {
         my $file = $1;
 
         ##
@@ -1391,54 +1390,50 @@ Address 'CMS' 'PURGE RDR ALL'
         }
 
         ##
-        ## NFS boot 
+        ## NFS boot
         ##
-	if ( (defined $actref->{storageid}) && ($actref->{storageid} ne "") ) {
+        if ( (defined $actref->{storageid}) && ($actref->{storageid} ne "") ) {
             my $nfs_script="/usr/share/baracus/scripts/mountnfs.sh";
             my $nfs_base="/var/spool/baracus/nfsroot";
-	    my $sref = &get_db_data( $dbh, 'storage', $actref->{storageid});
+            my $sref = &get_db_data( $dbh, 'storage', $actref->{storageid});
             my $fn;
-	    my $fd;
-	    my $fdata;
+            my $fd;
+            my $fdata;
 
-	    printlog "netboot $actref->{storageid} $sref->{storageip} :: $1\n";
+            printlog "netboot $actref->{storageid} $sref->{storageip} :: $file\n";
 
- 	    my @args = ($nfs_script, "$sref->{storageip}", $sref->{storage});
+            my @args = ($nfs_script, "$sref->{storageip}", $sref->{storage});
     	    my $sysrc = system(@args);
-	    unless ($sysrc == 0) {
-		printlog "system @args returns: $sysrc \n";
-	    }
+            unless ($sysrc == 0) {
+                printlog "system @args returns: $sysrc \n";
+            }
 
-	    if ($1 eq "linux") {
+            if ($file eq "linux") {
                 $fn = "$nfs_base/$sref->{storageip}/$sref->{storage}/boot/vmlinuz";
-	    }
-	    elsif ($1 eq "initrd") {
+            } elsif ($file eq "initrd") {
                 $fn = "$nfs_base/$sref->{storageip}/$sref->{storage}/boot/initrd";
-	    }
+            }
 
             if ( -f $fn and -r $fn ) {
-	        printlog "$fn found\n";
+                printlog "$fn found\n";
+            } else {
+                $fn = &read_grubconf("$nfs_base/$sref->{storageip}/$sref->{storage}", "boot/grub/menu.lst", $file);
             }
-	    else {
-	        $fn = &read_grubconf("$nfs_base/$sref->{storageip}/$sref->{storage}", "boot/grub/menu.lst", $1);
-	    }
-            printlog "$input->{mac} - NFS boot $1 @ $fn\n";
+            printlog "$input->{mac} - NFS boot $file @ $fn\n";
 
-	    open ($fd, "<", $fn) || printlog "Error opening $fn";
-	    {
-	    binmode($fd);
-	    undef $/;
-	    $fdata=<$fd>;
-	    $/ = "\n";
-   	    }
-	    close $fd;
+            open ($fd, "<", $fn) || printlog "Error opening $fn";
+            {
+                binmode($fd);
+                undef $/;
+                $fdata=<$fd>;
+                $/ = "\n";
+            }
+            close $fd;
 
-	    my $flength = length( $fdata );
-	    printlog "$input->{mac} - read $fn length $flength bytes\n";
+            my $flength = length( $fdata );
+            printlog "$input->{mac} - read $fn length $flength bytes\n";
             $output .= $fdata;
-	}
-	else 
-	{
+        } else {
             my $filework = "$file.$actref->{distro}";
 
             ## wrinkle to support hardware dud initrd
@@ -1462,10 +1457,8 @@ Address 'CMS' 'PURGE RDR ALL'
                 $output .= unpack( 'u', $href->{'bin'} );
             }
             $sth->finish();
-	}
-    }
-
-    elsif ( $ENV{REQUEST_URI} =~ m%^\s*/ba/(pxewaitr|cloner)\?.*\s*$% ) {
+        }
+    } elsif ( $ENV{REQUEST_URI} =~ m%^\s*/ba/(pxewaitr|cloner)\?.*\s*$% ) {
 
         my $action = $1;
         $action =~ s/r$//;
@@ -1512,9 +1505,7 @@ Address 'CMS' 'PURGE RDR ALL'
             $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
             $output .= `$cmd`;
         }
-    }
-
-    elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/built\?.*\s*$| ) {
+    } elsif ( $ENV{REQUEST_URI} =~ m|^\s*/ba/built\?.*\s*$| ) {
 
         my $hostname = $input->{ hostname };
         my $uuid = $input->{ uuid };
@@ -1549,8 +1540,7 @@ Address 'CMS' 'PURGE RDR ALL'
                 $cmd = "sudo $BATools::baPath/modules/pfork.bin ".$cmd ;
                 my $output = `$cmd`;
             }
-        }
-        else {
+        } else {
             $state = BA_EVENT_BUILT;
             $actref->{cmdline} = "# build complete callback verified";
             printlog "$input->{mac} - $hostname $actref->{cmdline}\n";
@@ -1583,21 +1573,16 @@ Address 'CMS' 'PURGE RDR ALL'
         while ( $href = $sth->fetchrow_hashref( ) ) {
             $output .= unpack( 'u', $href->{'bin'} );
         }
-    }
-
-    else {
+    } else {
         # should be some 401 or something
         $output = "invalid URL";
     }
-}
-else
-{
+} else {
     die "unsupported HTTP method:  $ENV{REQUEST_METHOD}\n";
 }
 
 print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
 
 exit 0;
-
 
 1;
