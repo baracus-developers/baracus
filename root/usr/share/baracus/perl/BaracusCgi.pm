@@ -30,6 +30,7 @@ use strict;
 use warnings;
 
 use BaracusConfig qw( :vars );
+use BaracusStorage qw( :vars :subs );
 
 =head1 NAME
 
