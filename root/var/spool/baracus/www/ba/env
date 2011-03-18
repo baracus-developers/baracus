@@ -1442,6 +1442,7 @@ Address 'CMS' 'PURGE RDR ALL'
 
             my $nfs_script="/usr/share/baracus/scripts/mountnfs.sh";
             my $nfs_base="/var/spool/baracus/nfsroot";
+	    my $nfsroot="$nfs_base/$sref->{storageip}/$sref->{storage}";
             my $fn;
             my $fd;
             my $fdata;
@@ -1455,9 +1456,25 @@ Address 'CMS' 'PURGE RDR ALL'
             }
 
             if ($file eq "linux") {
-                $fn = "$nfs_base/$sref->{storageip}/$sref->{storage}/boot/vmlinuz";
+		my @kernels= ("vmlinuz","vmlinuz-xen");
+		foreach (@kernels)
+		{
+                    $fn = "$nfsroot/boot/$_";
+            	    if ((-f $fn) && (-r $fn)) {
+                        printlog "found: $fn \n";
+			last;
+		    }
+		}
             } elsif ($file eq "initrd") {
-                $fn = "$nfs_base/$sref->{storageip}/$sref->{storage}/boot/initrd";
+		my @initrds= ("initrd","initrd-xen");
+		foreach (@initrds)
+                {
+                    $fn = "$nfsroot/boot/$_";
+                    if ((-f $fn) && (-r $fn)) {
+                        printlog "found: $fn \n";
+                        last;
+                    }
+                }
             }
 
             if ( -f $fn and -r $fn ) {
