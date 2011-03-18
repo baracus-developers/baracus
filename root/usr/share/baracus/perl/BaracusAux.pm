@@ -82,6 +82,7 @@ BEGIN {
                 load_vars
                 load_baracusconfig
                 get_autobuild_expanded
+                get_sysidcfg_expanded
 
                 remove_sqlFS_files
                 get_mandatory_modules
@@ -602,6 +603,60 @@ sub load_baracusconfig
     return 0;
 }
 
+sub get_sysidcfg_expanded
+{
+    use File::Temp qw/ tempdir /;
+
+    my $opts = shift;
+    my $dbh  = shift;
+    my $aref = shift;
+
+    my $sysidcfg_file="/usr/share/baracus/templates/jumpstart/solaris-10.8-sysidcfg";
+    ## Probably better to eventually load this from db
+    open( SYSIDCFG, "<$sysidcfg_file" )  or die $!;
+    my $sysidcfg = join '', <SYSIDCFG>;
+    close ( SYSIDCFG );
+
+    my $date    = &get_rundate();
+    while ( my ($key, $value) = each %$aref ) {
+        $key =~ tr/a-z/A-Z/;
+        $key = "__${key}__";
+        $sysidcfg =~ s/$key/$value/g;
+    }
+
+    # we do the search and replace again
+    # to expand vars within __MODULE__ or other vars
+    while ( my ($key, $value) = each %$aref ) {
+        $key =~ tr/a-z/A-Z/;
+        $key = "__${key}__";
+        $sysidcfg =~ s/$key/$value/g;
+    }
+
+    my $cstart="#";
+    my $cstop="";
+
+    $sysidcfg .= "$cstart baracus.Hostname: $aref->{'hostname'} $cstop\n";
+    $sysidcfg .= "$cstart baracus.MAC: $aref->{'mac'}; $cstop\n";
+    $sysidcfg .= "$cstart baracus.Generated: $date $cstop\n";
+
+    if ( $sysidcfg =~ m/__.*__/ ) {
+        my $automac = $aref->{autobuild} . "-" . $aref->{autobuild_ver};
+        my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
+        print "using tempdir $tdir\n" if ($opts->{debug} > 1);
+        open(FILE, ">$tdir/$automac") or
+            die "Cannot open file $tdir/$automac: $!\n";
+        print FILE $sysidcfg;
+        close(FILE);
+        warn "generated but some vars still need to be replaced in $automac\n";
+        system "grep -Ene '__.*__' $tdir/$automac";
+        unlink "$tdir/$automac";
+        print "removing tempdir $tdir\n" if ($opts->{debug} > 1);
+        rmdir $tdir;
+    }
+
+    return $sysidcfg;
+}
+
 sub get_autobuild_expanded
 {
     use File::Temp qw/ tempdir /;
@@ -649,7 +704,8 @@ sub get_autobuild_expanded
     if ( $aref->{os} eq "rhel"   ||
          $aref->{os} eq "esx"    ||
          $aref->{os} eq "fedora" ||
-         $aref->{os} eq "centos" ) {
+         $aref->{os} eq "centos" ||
+         $aref->{os} eq "solaris" ) {
         # comment block for rhel kickstart script families
         $cstart="#";
         $cstop="";
@@ -1494,7 +1550,7 @@ sub add_bigfile
     my $name = shift;
     my $file = shift;
     my $fh;
-    open( $fh, ">", "$baDir{bfdir}/$name" ) or die "why die $!";
+    open( $fh, ">", "$baDir{bfdir}/$name" ) or die "why die $baDir{bfdir}/$name : $!";
     print $fh $file;
     close $fh;
 }

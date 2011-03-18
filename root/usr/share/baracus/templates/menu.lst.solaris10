@@ -1,8 +1,0 @@
-default 0
-timeout 4
-
-title Baracus Solaris10 JumpStart
-kernel multiboot kernel/unix - install dhcp -B \
-install_media=151.155.230.38:/var/spool/baracus/builds/solaris/10.8/x86_64/dvd, \
-install_boot=151.155.230.38:/var/spool/baracus/builds/solaris/10.8/x86_64/dvd/boot
-module x86.miniroot

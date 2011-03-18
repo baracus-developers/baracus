@@ -130,9 +130,150 @@ my $hardref = {};
 my $imgref  = {};
 my $filename = "";
 my $output = "";
+my $content_type = "text/plain";
 
+if ( $ENV{REQUEST_METHOD} eq "HEAD" ) {
+    my $opts =
+    {
+     LASTERROR => "",
+     debug     => 0,
+     };
 
-if ( $ENV{REQUEST_METHOD} eq "PUT" ) {
+    foreach my $key ( $cgi->param() ) {
+        $input->{$key} = $cgi->param($key);
+    }
+    foreach my $key ( $cgi->cookie() ) {
+        $input->{$key} = $cgi->cookie($key);
+    }
+
+    if ( $ENV{REQUEST_URI} =~ m|^\s*/ba/built\?.*\s*$| ) {
+        print $cgi->header(-type=>"$content_type",
+                           -Content_length=>1,
+                           -accept_ranges=>'bytes');
+    }
+    elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(jumpstart.tar)\?.*\s*$} )
+    {
+        my $file = $1;
+
+        die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
+
+        $input->{mac} = &check_mac($input->{mac});
+        $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
+        if ( not defined $macref ) {
+            $output = "$input->{mac} - user vs cgi... missing db mac entry";
+            printlog "$output\n";
+            print $cgi->header( -type => "text/plain",
+                                -content_length => length
+                                ($output)
+                               ), $output;
+            exit 0;
+        }
+
+        $actref = &get_db_data( $dbh, 'action', $input->{mac} );
+        if (not defined $actref ) {
+            $output = "$input->{mac} - user vs cgi... missing db action entry";
+            printlog "$output\n";
+            print $cgi->header( -type => "text/plain",
+                                -content_length => length
+                                ($output)
+                               ), $output;
+            exit 0;
+        }
+
+        $actref->{serverip} = $baVar{serverip};
+
+        # the mac and action might have been produced with an inventory req
+
+        my $actauto = &get_db_data( $dbh, 'actabld', $input->{mac} );
+        unless ( defined $actauto->{autobuild} ) {
+            # this entry has no related autobuild and shouldn't be asking
+            $output = "$input->{mac} - user vs cgi... no 'autobuild' entry";
+            printlog "$output\n";
+            print $cgi->header( -type => "text/plain",
+                                -content_length => length
+                                ($output)
+                               ), $output;
+            exit 0;
+        }
+
+        $actref->{autobuild} = $actauto->{autobuild};
+        $actref->{autobuild_ver} = $actauto->{autobuild_ver};
+
+        my $actmod = &get_action_modules_hash( $dbh, $input->{mac} );
+        if ( defined $actmod ) {
+            $actref->{modules} = join ' ', keys %{$actmod};
+        } else {
+            $actref->{modules} = '';
+        }
+
+        &load_baracusconfig( $opts, $actref );
+        &load_storage ( $opts, $dbh, $actref );
+        &load_hardware( $opts, $dbh, $actref );
+        &load_distro  ( $opts, $dbh, $actref );
+        &load_addons  ( $opts, $dbh, $actref );
+        &load_modules ( $opts, $dbh, $actref );
+        &load_profile ( $opts, $dbh, $actref );
+
+        &load_vars         ( $opts, $actref );
+
+        # Check if broadcast address is set
+        &check_broadcast( $opts, $actref );
+
+        printlog "$input->{mac} - serving autobuilds $file\n";
+
+        my $sysidcfg = &get_sysidcfg_expanded( $opts, $dbh, $actref );
+        my $autobuild = &get_autobuild_expanded( $opts, $dbh, $actref );
+        my $rules = "any              -               -     profile  finish\n";
+        my $rulesok = "any - - profile finish\n# version=2 checksum=num";
+        my $finish = "profetch \"http://$actref->{serverip}/ba/built?uuid=$actref->{uuid}&hostname=$actref->{hostname}\"";
+
+        my $jmac = $actref->{mac};
+        $jmac =~ s/://g;
+        printlog "DEBUG: $jmac\n";
+        mkdir "$baDir{cache}/jumpstart.$jmac", 0777 || die ("Cannot create directory\n");
+
+        open( SYSIDCFG, ">$baDir{cache}/jumpstart.$jmac/sysidcfg");
+        print SYSIDCFG $sysidcfg;
+        close( SYSIDCFG );
+
+        open( PROFILE, ">$baDir{cache}/jumpstart.$jmac/profile");
+        print PROFILE $autobuild;
+        close( PROFILE );
+
+        open( RULES, ">$baDir{cache}/jumpstart.$jmac/rules");
+        print RULES $rules;
+        close( RULES );
+
+        open( RULESOK, ">$baDir{cache}/jumpstart.$jmac/rules.ok");
+        print RULESOK $rulesok;
+        close( RULESOK );
+
+        open( FINISH, ">$baDir{cache}/jumpstart.$jmac/finish");
+        print FINISH $finish;
+        close( FINISH );
+
+        system("tar", "-cvpf", "$baDir{cache}/jumpstart.tar.$jmac", "-C", "$baDir{cache}/jumpstart.$jmac", ".");
+
+        open( OUTPUT, "<$baDir{cache}/jumpstart.tar.$jmac"); 
+        my $output = join '', <OUTPUT>;
+        close( OUTPUT );
+
+        ## Determine size of tarball
+        my $size;
+        {
+            use bytes;
+            $size = bytes::length($output);
+        }
+
+        print $cgi->header(-type=>'application/x-tar',
+                           -Content_length=>$size,
+                           -accept_ranges=>'bytes');
+
+    }
+    exit;
+
+}
+elsif ( $ENV{REQUEST_METHOD} eq "PUT" ) {
     my $opts =
     {
      LASTERROR => "",
@@ -1357,6 +1498,50 @@ Address 'CMS' 'PURGE RDR ALL'
 
         #        $date = &get_rundate();
         #        printlog "# stop time for get $file : $date\n";
+    } elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(jumpstart.tar)\?.*\s*$} ) {
+        my $file = $1;
+
+        die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
+
+        $input->{mac} = &check_mac($input->{mac});
+        $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
+        if ( not defined $macref ) {
+            $output = "$input->{mac} - user vs cgi... missing db mac entry";
+            printlog "$output\n";
+            print $cgi->header( -type => "text/plain",
+                                -content_length => length
+                                ($output)
+                               ), $output;
+            exit 0;
+        }
+
+        $actref = &get_db_data( $dbh, 'action', $input->{mac} );
+        if (not defined $actref ) {
+            $output = "$input->{mac} - user vs cgi... missing db action entry";
+            printlog "$output\n";
+            print $cgi->header( -type => "text/plain",
+                                -content_length => length
+                                ($output)
+                               ), $output;
+            exit 0;
+        }
+
+        my $jsdata;
+        my $jsfd;
+        my $jmac = $actref->{mac};
+        $jmac =~ s/://g;
+        open ($jsfd, "<", "$baDir{cache}/jumpstart.tar.$jmac") || printlog "Error opening $jsfd";
+        {
+            binmode($jsfd);
+            undef $/;
+            $jsdata=<$jsfd>;
+            $/ = "\n";
+        }
+        close $jsfd;
+
+        $output .= $jsdata;
+        $content_type="application/x-tar";
+
     } elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(linux|initrd)\?.*\s*$} ) {
         my $file = $1;
 
@@ -1621,7 +1806,7 @@ Address 'CMS' 'PURGE RDR ALL'
     die "unsupported HTTP method:  $ENV{REQUEST_METHOD}\n";
 }
 
-print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
+print $cgi->header( -type => "$content_type", -content_length => length ($output)), $output;
 
 exit 0;
 

@@ -1,0 +1,13 @@
+# ba BEGIN Baracus Informational Header BEGIN
+# ba name=menu.lst
+# ba description=Solaris 10.8 pxegrub menu
+# ba enabled=1
+# ba END    Baracus Informational Header    END
+default 0
+timeout 4
+
+title Baracus Solaris10 JumpStart
+kernel multiboot kernel/unix - verbose install dhcp \
+http://192.168.122.1/ba/jumpstart.tar?mac=00:00:22:33:44:55 \
+ -B install_media=192.168.122.1:/var/spool/baracus/builds/solaris/10.8/x86_64/dvd
+module x86.miniroot
