@@ -1,4 +1,4 @@
-package Solaris_11_x86_64;
+package Solaris_108_x86_64;
 
 ###########################################################################
 #
@@ -41,11 +41,11 @@ use File::Path;
 
 =head1 NAME
 
-B<Solaris_11_x86_64> - Solaris_11_x86_64 source handler
+B<Solaris_108_x86_64> - Solaris_10.8_x86_64 source handler
 
 =head1 SYNOPSIS
 
-source handler for Solaris-11-x86_64
+source handler for Solaris-10.8-x86_64
 
 =cut
 
@@ -75,7 +75,7 @@ sub external_source_handler() {
     my $ret = 0;
     my $status = 0;
 
-    my $basepath = "/var/spool/baracus/builds/solaris/11/x86_64/dvd";
+    my $basepath = "/var/spool/baracus/builds/solaris/10.8/x86_64/dvd";
     my $rootpath = "/var/lib/nfs/v4-root";
     my $nfspath  = $rootpath . $basepath;
 
@@ -103,7 +103,7 @@ sub external_source_handler() {
                            };
 
         /postremove/ && do {
-                               rmtree("$rootpath/var/spool/baracus/builds/solaris/11");
+                               rmtree("$rootpath/var/spool/baracus/builds/solaris/10.8") || die "Cannot remove directory\n";
                                last SWITCH;
                            };
 

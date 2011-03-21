@@ -146,6 +146,12 @@ baconfig add autobuild --name xenserver-5.6.0-x86-dhcp \
 --file=/usr/share/baracus/templates/autobuild/xenserver-5.6-x86-dhcp.xml \
 --cert="xenserver-5.6.0-x86"
 
+baconfig detail autobuild solaris-10.8-profile  &> /dev/null || \
+baconfig add autobuild --name solaris-10.8-profile \
+--description="solaris 10.8 64bit" \
+--file=/usr/share/baracus/templates/autobuild/solaris-10.8-profile \
+--cert="solaris-10.8-x86_64"
+
 ## Static autobuild templates
 ##
 baconfig detail autobuild rhel-http-x86_64 &> /dev/null || \

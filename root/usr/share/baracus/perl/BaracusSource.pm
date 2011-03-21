@@ -1625,16 +1625,28 @@ sub remove_bootloader_files
 
 
     my $dh = &baxml_distro_gethash( $opts, $distro );
-    my $bh = $dh->{basehash};
+    my $bh = $dh->{basedisthash};
     my $basedist = $dh->{basedist};
 
-    if ( &sqlfs_getstate( $opts, "linux.$basedist" ) ) {
-        &sqlfs_remove( $opts, "linux.$basedist" );
+    while ( my ($fname, $fh) = each ( %{$bh->{baseshares}} ) ) {
+        if ( $fname =~ m/kernel|initrd/i ) {
+            if ( $fname =~ m/kernel/i ) {
+                $fname = "linux";
+            }
+            $fname = $fname.".$basedist";
+        }
+     
+        ## eventually would like to be able to remove the kernel|initrd
+        ## check but other distros share some of the files that might
+        ## get removed.
+        if  ( ( &sqlfs_getstate( $opts, $fname ) ) and
+              ( $fname =~ m/kernel|initrd/i ) )  {
+            print "Removing $fname from fileDB\n" if ( $opts->{debug} );
+            &sqlfs_remove( $opts, $fname );
+        } else {
+            # warning: file not in db
+        }
     }
-    if ( &sqlfs_getstate( $opts, "initrd.$basedist" ) ) {
-        &sqlfs_remove( $opts, "initrd.$basedist" );
-    }
-
 }
 
 ################################################################################
@@ -1696,7 +1708,6 @@ sub add_build_service
             }
             else {
                 print "modifying $file adding $share\n" if ( $opts->{debug} );
-
                 if ($sharetype eq "nfs") {
                     if ( $distro =~ /solaris/ ) {
                         ## NFSv4 workaround
@@ -1818,7 +1829,7 @@ sub remove_build_service
                 if ($sharetype eq "nfs") {
                     ## Ugly Solaris NFSc4 workaround
                     if ( $da =~ /solaris/ ) {
-                        $share = "/var/lib/nfs/v4-root" . "/" . $share;
+                        $share = "/var/lib/nfs/v4-root/" .  $share;
                     }
                     $ret = system("exportfs -u *:$share");
                     if ( $ret > 0 ) {
@@ -1985,7 +1996,7 @@ sub solaris_nfs_waround
         mkdir $nfsroot, 0755 || die ("Cannot create directory\n");
     }
 
-    my $not_exported = system("showmount -e localhost | grep \"$nfsroot \"");
+    my $not_exported = system("showmount -e localhost | grep \"$nfsroot \" >& /dev/null");
     if ( $not_exported ) {
         my $ret = system("exportfs -o fsid=root,nohide *:$nfsroot");
         if ( $ret > 0 ) {
@@ -2140,6 +2151,16 @@ sub source_register
 
         print "Updating registration: add $distro\n";
         my $dbref = &get_db_source_entry( $opts, $distro );
+
+        ## Get correct sharetype from DB, if not get from sysconfig
+        if ( defined $dbref ) {
+            $sharetype = $dbref->{sharetype};
+        } else {
+            if ( $dbref->{'sharetype'} ) {
+                $sharetype = $dbref->{'sharetype'};
+            }
+        }
+
         unless ( defined $dbref->{distroid} and
                  ( $dbref->{distroid} eq $distro ) and
                  defined $dbref->{staus} and

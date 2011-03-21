@@ -87,6 +87,7 @@ sub external_source_handler() {
                     };
     
         /remove/ && do {
+print "DEBUG: in remove\n";
                         $ret = system("exportfs -u *:$nfspath");
 
                         $ret = system("umount $basepath");

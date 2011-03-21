@@ -1,4 +1,4 @@
-package Debian_507_x86_64;
+package Debian_60_x86_64;
 
 ###########################################################################
 #
@@ -40,11 +40,11 @@ use Pod::Usage;
 
 =head1 NAME
 
-B<Debian-5.07-x86_64> - Debian-5.07-x86_64 source handler
+B<Debian-6.0-x86_64> - Debian-6.0-x86_64 source handler
 
 =head1 SYNOPSIS
 
-source handler for debian-5.07-x86_64
+source handler for debian-6.0-x86_64
 
 =cut
 
@@ -76,7 +76,7 @@ sub external_source_handler() {
 
     ## source_handler to generate required debian mirror
     ## mirror created via unionfs mouting 5 DVDs
-    my $basepath = "/var/spool/baracus/builds/debian/5.07/x86_64";
+    my $basepath = "/var/spool/baracus/builds/debian/6.0/x86_64";
 
     ## check for loaded fuse module and insert if needed
     unless ( system("lsmod | grep fuse &> /dev/null") ) { system("modprobe -a fuse &> /dev/null"); }
@@ -94,7 +94,7 @@ sub external_source_handler() {
                                unless ( $mtab =~ m/$basepath\/mirror\/dists\/lenny/ ) {
                                    $ret = system("funionfs -o dirs=$basepath/dvds/dvd1/dists/lenny/=RW: NONE $basepath/mirror/dists/lenny -o nonempty -o allow_other");
                                    $status = 1 if ( $ret > 0 );
-                               } 
+                               }
 
                                last SWITCH;
                            };
@@ -127,14 +127,14 @@ sub external_source_handler() {
                                $ret = system("umount $basepath/mirror/pool/");
                                $status = 1 if ( $ret > 0 );
                                rmdir("$basepath/mirror/pool/");
- 
+
                                unlink("$basepath/mirror/dists/stable");
                                $ret = system("umount $basepath/mirror/dists/lenny");
                                $status = 1 if ( $ret > 0 );   
                                rmdir("$basepath/mirror/dists/lenny");
                                rmdir("$basepath/mirror/dists");
                                rmdir("$basepath/mirror");
-  
+ 
                                last SWITCH;
                            };
 

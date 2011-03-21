@@ -82,57 +82,65 @@ sub external_source_handler() {
     unless ( system("lsmod | grep fuse &> /dev/null") ) { system("modprobe -a fuse &> /dev/null"); }
 
     SWITCH: for ($switch) {
-        /init/   && do {
-                       open(MTAB, "</etc/mtab") or die $!;
-                       my $mtab = join '', <MTAB>;
-                       close(MTAB);
-                       unless ( $mtab =~ m/$basepath\/mirror\/pool/ ) { 
-                           $ret = system("funionfs -o dirs=$basepath/dvds/dvd1/pool/=RO:$basepath/dvds/dvd2/pool/=RO:$basepath/dvds/dvd3/pool/=RO:$basepath/dvds/dvd4/pool/=RO:$basepath/dvds/dvd5/pool/=RO: NONE $basepath/mirror/pool/ -o nonempty -o allow_other");
-                           $status = 1 if ( $ret > 0 );
-                       }
+        /init/       && do {
+                                open(MTAB, "</etc/mtab") or die $!;
+                                my $mtab = join '', <MTAB>;
+                                close(MTAB);
+                                unless ( $mtab =~ m/$basepath\/mirror\/pool/ ) { 
+                                    $ret = system("funionfs -o dirs=$basepath/dvds/dvd1/pool/=RO:$basepath/dvds/dvd2/pool/=RO:$basepath/dvds/dvd3/pool/=RO:$basepath/dvds/dvd4/pool/=RO:$basepath/dvds/dvd5/pool/=RO: NONE $basepath/mirror/pool/ -o nonempty -o allow_other");
+                                    $status = 1 if ( $ret > 0 );
+                                }
 
-                       unless ( $mtab =~ m/$basepath\/mirror\/dists\/lenny/ ) {
-                           $ret = system("funionfs -o dirs=$basepath/dvds/dvd1/dists/lenny/=RW: NONE $basepath/mirror/dists/lenny -o nonempty -o allow_other");
-                           $status = 1 if ( $ret > 0 );
-                       }
+                                unless ( $mtab =~ m/$basepath\/mirror\/dists\/lenny/ ) {
+                                    $ret = system("funionfs -o dirs=$basepath/dvds/dvd1/dists/lenny/=RW: NONE $basepath/mirror/dists/lenny -o nonempty -o allow_other");
+                                    $status = 1 if ( $ret > 0 );
+                                }
 
-                       last SWITCH;
-                    };
+                                last SWITCH;
+                           };
 
-        /add/    && do {
-                        # create 5 dvd pool union
-                        mkdir "$basepath/mirror";
-                        mkdir "$basepath/mirror/pool";
-                        $ret = system("funionfs -o dirs=$basepath/dvds/dvd1/pool/=RO:$basepath/dvds/dvd2/pool/=RO:$basepath/dvds/dvd3/pool/=RO:$basepath/dvds/dvd4/pool/=RO:$basepath/dvds/dvd5/pool/=RO: NONE $basepath/mirror/pool/ -o nonempty -o allow_other");
-                        $status = 1 if ( $ret > 0 );
+        /preadd/     && do {
+                               # create 5 dvd pool union
+                               mkdir "$basepath/mirror";
+                               mkdir "$basepath/mirror/pool";
+                               $ret = system("funionfs -o dirs=$basepath/dvds/dvd1/pool/=RO:$basepath/dvds/dvd2/pool/=RO:$basepath/dvds/dvd3/pool/=RO:$basepath/dvds/dvd4/pool/=RO:$basepath/dvds/dvd5/pool/=RO: NONE $basepath/mirror/pool/ -o nonempty -o allow_other");
+                               $status = 1 if ( $ret > 0 );
 
-                        # create dists/lenny union
-                        mkdir "$basepath/mirror/dists";
-                        mkdir "$basepath/mirror/dists/lenny";
-                        $ret = system("funionfs -o dirs=$basepath/dvds/dvd1/dists/lenny/=RW: NONE $basepath/mirror/dists/lenny -o nonempty -o allow_other");
-                        $status = 1 if ( $ret > 0 );
+                               # create dists/lenny union
+                               mkdir "$basepath/mirror/dists";
+                               mkdir "$basepath/mirror/dists/lenny";
+                               $ret = system("funionfs -o dirs=$basepath/dvds/dvd1/dists/lenny/=RW: NONE $basepath/mirror/dists/lenny -o nonempty -o allow_other");
+                               $status = 1 if ( $ret > 0 );
 
-                        # create symlink
-                        $ret = system("ln -s $basepath/mirror/dists/lenny $basepath/mirror/dists/stable");
-                        $status = 1 if ( $ret > 0 );
+                               # create symlink
+                               $ret = system("ln -s $basepath/mirror/dists/lenny $basepath/mirror/dists/stable");
+                               $status = 1 if ( $ret > 0 );
  
-                        last SWITCH;
-                    };
+                               last SWITCH;
+                           };
+
+        /postadd/    && do {
+                               last SWITCH;
+                           };
     
-        /remove/ && do {
-                        $ret = system("umount $basepath/mirror/pool/");
-                        $status = 1 if ( $ret > 0 );
-                        rmdir("$basepath/mirror/pool/");
-
-                        unlink("$basepath/mirror/dists/stable");
-                        $ret = system("umount $basepath/mirror/dists/lenny");
-                        $status = 1 if ( $ret > 0 );   
-                        rmdir("$basepath/mirror/dists/lenny");
-                        rmdir("$basepath/mirror/dists");
-                        rmdir("$basepath/mirror");
+        /preremove/  && do {
+                               $ret = system("umount $basepath/mirror/pool/");
+                               $status = 1 if ( $ret > 0 );
+                               rmdir("$basepath/mirror/pool/");
  
-                        last SWITCH;
-                    };
+                               unlink("$basepath/mirror/dists/stable");
+                               $ret = system("umount $basepath/mirror/dists/lenny");
+                               $status = 1 if ( $ret > 0 );   
+                               rmdir("$basepath/mirror/dists/lenny");
+                               rmdir("$basepath/mirror/dists");
+                               rmdir("$basepath/mirror");
+  
+                               last SWITCH;
+                           };
+
+        /postremove/ && do {
+                               last SWITCH;
+                           };
 
         print "function: $switch not defined\n";
 

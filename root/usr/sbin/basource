@@ -344,7 +344,7 @@ sub add() {
         $dhandler =~ s/\.pm//g;
         $dhandler->import(qw(external_source_handler));
         print "loading external source handler $distro function: $command\n" if $opts->{verbose};
-        &external_source_handler( $command, $opts, $distro );
+        &external_source_handler( "preadd", $opts, $distro );
     }
 
     # Add base distro
@@ -352,6 +352,14 @@ sub add() {
         print "Calling routine to configure bootloader\n" if $opts->{verbose};
         &add_bootloader_files( $opts, $distro );
         &source_register( $opts, $command, $distro );
+        $dhandler = $dhandler . ".pm";
+        if (-e "$source_handlers/$dhandler") {
+            require $dhandler;
+            $dhandler =~ s/\.pm//g;
+            $dhandler->import(qw(external_source_handler));
+            print "loading external source handler $distro function: $command\n" if $opts->{verbose};
+            &external_source_handler( "postadd", $opts, $distro );
+        }
     }
 
     # Add all extras
@@ -668,7 +676,7 @@ sub remove() {
         $dhandler =~ s/\.pm//g;
         $dhandler->import(qw(external_source_handler));
         print "loading external source handler $distro function: $command\n" if $opts->{verbose};
-        &external_source_handler( $command, $opts, $distro );
+        &external_source_handler( "preremove", $opts, $distro );
     }
 
     ## Remove all extras
@@ -686,10 +694,14 @@ sub remove() {
                     }
                     print "@$shares[0] ... removing\n" if $opts->{verbose};
                     if ( $is_loopback ) {
-                        $ret = system("umount @$shares[0]");
-                        if ( $ret > 0 ) {
-                            $opts->{LASTERROR} = "loopback unmount failed\n";
-                            return 1;
+                        my @mntchk = `mount | grep @$shares[0] | grep -v ^@$shares[0]`;
+                        if ( ( defined $mntchk[1] ) and
+                             (  $mntchk[1] eq @$shares[0] ) ) {
+                            $ret = system("umount @$shares[0]");
+                            if ( $ret > 0 ) {
+                                $opts->{LASTERROR} = "loopback unmount failed\n";
+                                return 1;
+                            }
                         }
                         rmdir(@$shares[0]);
                     } else {
@@ -716,16 +728,28 @@ sub remove() {
             $is_loopback = &is_loopback( $opts, $share );
             print "$share ... removing\n" if $opts->{verbose};
             if ( $is_loopback ) {
-                $ret = system("umount $share");
-                if ( $ret > 0 ) {
-                    $opts->{LASTERROR} = "loopback unmount failed\n";
-                     return 1;
+                my @mntchk = `mount | grep $share| grep -v ^$share`;
+                if ( ( defined $mntchk[1] ) and 
+                     ( $mntchk[1] eq $share ) ) {
+                    $ret = system("umount $share");
+                    if ( $ret > 0 ) {
+                        $opts->{LASTERROR} = "loopback unmount failed\n";
+                        return 1;
+                    }
                 }
                 rmdir($share);
             } 
         }
         &remove_bootloader_files( $opts, $distro );
         &source_register( $opts, $command, $distro);
+        $dhandler = $dhandler . ".pm";
+        if (-e "$source_handlers/$dhandler") {
+            require $dhandler;
+            $dhandler =~ s/\.pm//g;
+            $dhandler->import(qw(external_source_handler));
+            print "loading external source handler $distro function: $command\n" if $opts->{verbose};
+            &external_source_handler( "postremove", $opts, $distro );
+        }
     }
 
     return 0;
