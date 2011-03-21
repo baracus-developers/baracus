@@ -40,11 +40,11 @@ use Pod::Usage;
 
 =head1 NAME
 
-B<Debian-5.06-x86_64> - Debian-5.06-x86_64 source handler
+B<sles-9.4-x86_64> - sles-9.4-x86_64 source handler
 
 =head1 SYNOPSIS
 
-source handler for debian-5.06-x86_64
+source handler for sles-9.4-x86_64
 
 =cut
 

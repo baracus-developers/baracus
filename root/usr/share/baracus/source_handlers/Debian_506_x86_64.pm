@@ -40,11 +40,11 @@ use Pod::Usage;
 
 =head1 NAME
 
-B<Debian-5.06-x86_64> - Debian-5.06-x86_64 source handler
+B<Debian-5.0.6-x86_64> - Debian-5.0.6-x86_64 source handler
 
 =head1 SYNOPSIS
 
-source handler for debian-5.06-x86_64
+source handler for debian-5.0.6-x86_64
 
 =cut
 
@@ -76,7 +76,7 @@ sub external_source_handler() {
 
     ## source_handler to generate required debian mirror
     ## mirror created via unionfs mouting 5 DVDs
-    my $basepath = "/var/spool/baracus/builds/debian/5.06/x86_64";
+    my $basepath = "/var/spool/baracus/builds/debian/5.0.6/x86_64";
 
     ## check for loaded fuse module and insert if needed
     unless ( system("lsmod | grep fuse &> /dev/null") ) { system("modprobe -a fuse &> /dev/null"); }
