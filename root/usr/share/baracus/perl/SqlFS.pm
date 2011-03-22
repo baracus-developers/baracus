@@ -621,7 +621,7 @@ sub update
         # will just overwrite - no need to remove tmp file and add
         # only the short name for the lookup
         my $bfname = $name;
-        $bfname =~ s|.*/||;
+	$bfname =~ s|.*/||;
         &add_bigfile( $bfname, $tmp ) if ( $size >= $bfsize );
 
         # SELECT name, description, enabled, insertion, change, bin
@@ -858,7 +858,7 @@ sub storeScalar
         $LASTERROR = "Unable to open $name: $!\n";
         return 1;
     }
-    my $size = length( $refcontent );
+    my $size = length( $$refcontent );
 
     binmode $fh;
 

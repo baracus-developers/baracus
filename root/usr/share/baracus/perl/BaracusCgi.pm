@@ -30,7 +30,6 @@ use strict;
 use warnings;
 
 use BaracusConfig qw( :vars );
-use BaracusStorage qw( :vars :subs );
 
 =head1 NAME
 
@@ -57,7 +56,10 @@ BEGIN {
               get_inventory
               do_localboot
               do_pxewait
+              do_menu_lst_sol10
+              do_menu_lst_sol11
               do_netboot
+              do_netboot_nfs
               do_rescue
               read_grubconf
           )]
@@ -159,7 +161,49 @@ LABEL pxewait
     exit 0;
 }
 
-sub do_netboot_san() {
+sub do_menu_lst_sol10() {
+    my $cgi = shift;
+    my $actref = shift;
+    my $serverip = shift;
+    my $mntpoint = shift;
+
+    my $output = qq|default menu.lst
+timeout 4
+
+label menu.lst
+        title Baracus Solaris10 Jumpstart
+        kernel multiboot kernel/unix - verbose install dhcp http://$serverip/ba/jumpstart.tar?mac=$actref->{mac} -B install_media=$serverip:$mntpoint
+        module x86.miniroot
+|;
+
+    print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
+    exit 0;
+
+}
+
+sub do_menu_lst_sol11() {
+    my $cgi = shift;
+    my $actref = shift;
+    my $serverip = shift;
+    my $mntpoint = shift;
+
+    my $output = qq|default menu.lst
+timeout 4
+
+label menu.lst
+        title Baracus Solaris11 Jumpstart
+        kernel\$ kernel/amd64/unix -B install=true,console=ttya \
+        install_media=$serverip:$mntpoint \
+        install_boot=$serverip:$mntpoint/boot
+        module\$ boot_archive
+|;
+
+    print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
+    exit 0;
+
+}
+
+sub do_netboot() {
     my $cgi = shift;
     my $actref = shift;
     my $serverip = shift;
@@ -190,18 +234,6 @@ LABEL netboot_nfs
 |;
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
     exit 0;
-}
-
-sub do_netboot() {
-    my $cgi = shift;
-    my $actref = shift;
-    my $serverip = shift;
-
-    if ($actref->{type} == BA_STORAGE_NFS) {
-        &do_netboot_nfs( $cgi, $actref, $serverip );
-    } else {
-        &do_netboot_san( $cgi, $actref, $serverip );
-    }
 }
 
 sub read_grubconf() {

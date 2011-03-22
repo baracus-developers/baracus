@@ -653,6 +653,7 @@ chain http://$baVar{serverip}/ba/pxelinux.0?mac=\${mac}
 
                 $output = qq|#!gpxe
 chain tftp://$baVar{serverip}/pxegrub
+#chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 |;
             } elsif ( $distref->{os} =~ m/win/i ) {
 
@@ -1000,9 +1001,8 @@ LABEL label_$actref->{hostname}
 |;
 
             } elsif ( $distref->{os} =~ m/solaris/i ) {
-                $output = qq|DEFAULT label_$actref->{hostname}
-#!gpxe
-chain pxegrub
+                $output = qq|#!gpxe
+chain tftp://$baVar{serverip}/pxegrub
 |;
 
             } elsif ( $distref->{os} =~ m/win/i ) {
@@ -1498,6 +1498,62 @@ Address 'CMS' 'PURGE RDR ALL'
 
         #        $date = &get_rundate();
         #        printlog "# stop time for get $file : $date\n";
+    } elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(menu.lst)\?.*\s*$} ) {
+        my $file = $1;
+
+        die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
+
+        $input->{mac} = &check_mac($input->{mac});
+        $macref = &get_db_data( $dbh, 'mac', $input->{mac} );
+        if ( not defined $macref ) {
+            $output = "$input->{mac} - user vs cgi... missing db mac entry";
+            printlog "$output\n";
+            print $cgi->header( -type => "text/plain",
+                                -content_length => length
+                                ($output)
+                               ), $output;
+            exit 0;
+        }
+
+        $actref = &get_db_data( $dbh, 'action', $input->{mac} );
+        if ( not defined $actref ) {
+            $output = "$input->{mac} - user vs cgi... missing db action entry";
+            printlog "$output\n";
+            print $cgi->header( -type => "text/plain",
+                                -content_length => length
+                                ($output)
+                               ), $output;
+
+            exit 0;
+        }
+
+        my $isoref = &get_db_data( $dbh, 'iso', $actref->{distro}, 'distroid' );
+        if ( not defined $isoref ) {
+            $output = "$input->{mac} - user vs cgi... missing db iso entry";
+            printlog "$output\n";
+            print $cgi->header( -type => "text/plain",
+                                -content_length => length
+                                ($output)
+                               ), $output;
+
+            exit 0;
+        }
+
+        printlog "$input->{mac} - building\n";
+
+        $state = BA_EVENT_BUILDING;
+
+        &event_state_change( $dbh, $state, $macref, $actref );
+        &update_db_mac_state( $dbh, $macref->{mac}, $state );
+        $actref->{cmdline} = "# pxeboot directing to network install";
+        &update_db_data( $dbh, 'action', $actref );
+
+        if ( $actref->{distro} =~ /solaris-10/ ) {
+            &do_menu_lst_sol10( $cgi, $actref, $baVar{serverip}, $isoref->{mntpoint} );
+        } elsif ( $actref->{distro} =~ /solaris-11/ ) {
+            &do_menu_lst_sol11( $cgi, $actref, $baVar{serverip}, $isoref->{mntpoint} );
+        }
+
     } elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(jumpstart.tar)\?.*\s*$} ) {
         my $file = $1;
 

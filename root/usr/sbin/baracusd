@@ -29,6 +29,7 @@ use warnings;
 
 use Getopt::Long;
 use Time::localtime;
+use LWP;
 
 use lib "/usr/share/baracus/perl";
 
@@ -178,7 +179,18 @@ while (1) {
                     $OPCODES{$request->{'_REQUEST_'}{'OPCODE'}},
                         $request->{'_REQUEST_'}{'FileName'};
 
-            # process the request - track 01-<mac> denies and deliveries
+            # if the request is for menu.lst.mac then grab data from fileDB
+           if ( $request->{'_REQUEST_'}{'FileName'} =~ m|menu.lst.01((([0-9a-fA-F]){2}){6})$| ) {
+               unless ( $sqlfsOBJ->find($request->{'_REQUEST_'}{'FileName'}) ) {
+                   my $rmac = $1;
+                   my @parts = split( '', $rmac );
+                   my $fmac = sprintf '%X%X:%X%X:%X%X:%X%X:%X%X:%X%X', map hex, @parts;
+
+                   my $ua = LWP::UserAgent->new( );
+                   my $response = $ua->get("http://$baVar{serverip}/ba/menu.lst?mac=$fmac");
+                   $sqlfsOBJ->storeScalar( $request->{'_REQUEST_'}{'FileName'}, \$response->content, '' );
+               }
+            }
             my $status = $request->processRQ( );
             if ( $status ) {
                 $now = ctime();
@@ -191,9 +203,14 @@ while (1) {
                     # on successful deliver of winpe env nuke ip/arch mapping
                     delete $iparchmap->{ $request->{'_REQUEST_'}{'PeerAddr'}};
                 }
+                # remove the temp menu.lst.<mac> in fileDB
+                if ( $request->{'_REQUEST_'}{'FileName'} =~ m|menu.lst.01((([0-9a-fA-F]){2}){6})$| ) {
+                    $sqlfsOBJ->remove( $request->{'_REQUEST_'}{'FileName'} );
+                }
             } else {
                 print STDOUT $request->{'_REQUEST_'}{'PeerAddr'} . " : " . SqlTFTPd->error;
             }
+            
             # exit the forked proc
             exit 0;
         }
