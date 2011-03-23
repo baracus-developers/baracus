@@ -108,6 +108,7 @@ BEGIN {
                 list_next_data
                 list_finish_data
 
+                is_should_bigfile
                 check_broadcast
                 add_bigfile
                 remove_bigfile
@@ -1543,6 +1544,34 @@ sub check_broadcast
 	print STDERR "Use broadcast address: " . $block->broadcast() . "\n" if ( $opts->{debug} > 1);
 	$aref->{broadcast} = $block->broadcast();
     }
+}
+
+sub read_cachelist
+{
+    my $clh = {};
+    my $clfile = "$baDir{ bcdir }/cachelist";
+    open( my $fh, "<", $clfile ) or die "unable to open $clfile: $!";
+    while (<$fh>) {
+        s|#.*$||g;                # remove all comments full-line or eol
+        s|\s+||g;                 # remove all extraneous whitespace
+        next unless (m/^.+$/);    # skip blank lines
+        $clh->{$_} = $_;
+        print "added $_ to cache list hash\n" if ( 1 == 1 ) ;
+    }
+    close $fh;
+    return $clh;
+}
+
+sub is_should_bigfile
+{
+    my $name = shift;
+    my $size = shift || 0;
+
+    my $clhref = &read_cachelist();
+
+    return 1 if ( defined $clhref->{$name} );
+    return 1 if ( $size >= $bfsize );
+    return 0;
 }
 
 sub add_bigfile

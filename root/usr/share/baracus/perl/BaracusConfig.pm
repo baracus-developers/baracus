@@ -222,6 +222,8 @@ $baDir{ data } = "/usr/share/baracus";
 $baDir{ buildroot } = $baDir{builds};
 
 my $baconfigdir = "/etc/baracus";
+$baDir{ bcdir } = $baconfigdir;
+
 my @bcdirs = qw( distros.d repos.d );
 foreach my $bd (@bcdirs) {
     $baDir{ $bd } = "$baconfigdir/$bd";

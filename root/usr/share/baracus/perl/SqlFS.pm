@@ -464,7 +464,7 @@ sub store
     # only the short name for the lookup
     my $bfname = $name;
     $bfname =~ s|.*/||;
-    &add_bigfile( $bfname, $tmp ) if ( $size >= $bfsize );
+    &add_bigfile( $bfname, $tmp ) if ( is_should_bigfile( $bfname, $size ) );
 
     if (not open( $fh, "<", $name ) ) {
         $LASTERROR = "Unable to open $name: $!\n";
@@ -621,8 +621,8 @@ sub update
         # will just overwrite - no need to remove tmp file and add
         # only the short name for the lookup
         my $bfname = $name;
-	$bfname =~ s|.*/||;
-        &add_bigfile( $bfname, $tmp ) if ( $size >= $bfsize );
+        $bfname =~ s|.*/||;
+        &add_bigfile( $bfname, $tmp ) if ( is_should_bigfile( $bfname, $size ) );
 
         # SELECT name, description, enabled, insertion, change, bin
 

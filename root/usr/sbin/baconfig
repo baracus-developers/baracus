@@ -1037,8 +1037,10 @@ sub add_tftp
         return 1;
     }
 
-    # size > bfsize then a file create a cache file in ~baracus/bfdir
-    &add_bigfile( $entry{name}, $content_tmp ) if ( $entry{'size'} >= $bfsize );
+    # name in cache list or size > bfsize then
+    # create a cache file in ~baracus/bfdir
+    &add_bigfile( $entry{name}, $content_tmp )
+        if ( is_should_bigfile( $entry{name}, $entry{size} ) );
 
     open ($fh, "<", $file) || die "unable to open $file: $!\n";
 
@@ -2301,8 +2303,10 @@ sub update_tftp
             return 1;
         }
 
-        # size > bfsize then a file create a cache file in ~baracus/bfdir
-        &add_bigfile( $entry{name}, $file_data ) if ( $save{'size'} >= $bfsize );
+        # name in cache list or size > bfsize then
+        # create a cache file in ~baracus/bfdir
+        &add_bigfile( $entry{name}, $file_data )
+            if ( is_should_bigfile( $entry{name}, $save{size} ) );
 
         # open the file again to be read in by chunks to store
         my $fh;
@@ -2976,7 +2980,7 @@ sub remove
                 return 1;
             }
 
-            # size > bfsize then a file in ~baracus/bfdir was created - remove it
+            # was is_should_bigfile then file in ~baracus/bfdir - remove it
             &remove_bigfile( $name ) if ( $type eq "file" );
 
             unless ( $sth->execute( $name ) ) {

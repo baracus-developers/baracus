@@ -1,0 +1,9 @@
+# This is a list of files to cache outside of the database
+# workaround for serving unusually time-sensitive clients via tftp
+
+# Note that files over 100M are cached automatically 
+# controlled by variable $bfsize in BaracusConfig.pm
+
+# Format here is filename per line
+
+boot_archive
