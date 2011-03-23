@@ -694,9 +694,10 @@ sub remove() {
                     }
                     print "@$shares[0] ... removing\n" if $opts->{verbose};
                     if ( $is_loopback ) {
-                        my @mntchk = `mount | grep @$shares[0] | grep -v ^@$shares[0]`;
-                        if ( ( defined $mntchk[1] ) and
-                             (  $mntchk[1] eq @$shares[0] ) ) {
+                        my $mntchk = `mount | grep @$shares[0] | grep -v ^@$shares[0]`;
+                        $mntchk = (split / /, $mntchk)[2];
+                        if ( ( defined $mntchk ) and
+                             (  $mntchk eq @$shares[0] ) ) {
                             $ret = system("umount @$shares[0]");
                             if ( $ret > 0 ) {
                                 $opts->{LASTERROR} = "loopback unmount failed\n";
@@ -728,9 +729,10 @@ sub remove() {
             $is_loopback = &is_loopback( $opts, $share );
             print "$share ... removing\n" if $opts->{verbose};
             if ( $is_loopback ) {
-                my @mntchk = `mount | grep $share| grep -v ^$share`;
-                if ( ( defined $mntchk[1] ) and 
-                     ( $mntchk[1] eq $share ) ) {
+                my $mntchk = `mount | grep $share| grep -v ^$share`;
+                $mntchk = (split / /, $mntchk)[2];
+                if ( ( defined $mntchk ) and 
+                     ( $mntchk eq $share ) ) {
                     $ret = system("umount $share");
                     if ( $ret > 0 ) {
                         $opts->{LASTERROR} = "loopback unmount failed\n";
