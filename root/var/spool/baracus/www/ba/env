@@ -272,8 +272,7 @@ if ( $ENV{REQUEST_METHOD} eq "HEAD" ) {
     }
     exit;
 
-}
-elsif ( $ENV{REQUEST_METHOD} eq "PUT" ) {
+} elsif ( $ENV{REQUEST_METHOD} eq "PUT" ) {
     my $opts =
     {
      LASTERROR => "",

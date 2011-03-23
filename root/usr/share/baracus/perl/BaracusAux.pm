@@ -1556,7 +1556,6 @@ sub read_cachelist
         s|\s+||g;                 # remove all extraneous whitespace
         next unless (m/^.+$/);    # skip blank lines
         $clh->{$_} = $_;
-        print "added $_ to cache list hash\n" if ( 1 == 1 ) ;
     }
     close $fh;
     return $clh;

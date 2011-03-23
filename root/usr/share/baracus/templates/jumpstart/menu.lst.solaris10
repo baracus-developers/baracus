@@ -1,8 +1,3 @@
-# ba BEGIN Baracus Informational Header BEGIN
-# ba name=menu.lst
-# ba description=Solaris 10.8 pxegrub menu
-# ba enabled=1
-# ba END    Baracus Informational Header    END
 default 0
 timeout 4
 

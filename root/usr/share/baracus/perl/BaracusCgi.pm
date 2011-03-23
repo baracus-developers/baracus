@@ -30,6 +30,7 @@ use strict;
 use warnings;
 
 use BaracusConfig qw( :vars );
+use BaracusStorage qw( :vars :subs );
 
 =head1 NAME
 
@@ -59,7 +60,6 @@ BEGIN {
               do_menu_lst_sol10
               do_menu_lst_sol11
               do_netboot
-              do_netboot_nfs
               do_rescue
               read_grubconf
           )]
@@ -203,7 +203,7 @@ label menu.lst
 
 }
 
-sub do_netboot() {
+sub do_netboot_san() {
     my $cgi = shift;
     my $actref = shift;
     my $serverip = shift;
@@ -234,6 +234,18 @@ LABEL netboot_nfs
 |;
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
     exit 0;
+}
+
+sub do_netboot() {
+    my $cgi = shift;
+    my $actref = shift;
+    my $serverip = shift;
+
+    if ($actref->{type} == BA_STORAGE_NFS) {
+        &do_netboot_nfs( $cgi, $actref, $serverip );
+    } else {
+        &do_netboot_san( $cgi, $actref, $serverip );
+    }
 }
 
 sub read_grubconf() {
