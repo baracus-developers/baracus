@@ -17,6 +17,7 @@
         <path/>
         <sharefiles>
           <sharefile sharetype='tftp' name='pxegrub'      file='boot/grub/pxegrub'/>
+          <sharefile sharetype='tftp' name='unix'         file='boot/platform/i86pc/kernel/amd64/unix'/>
           <sharefile sharetype='tftp' name='boot_archive' file='boot/platform/i86pc/amd64/boot_archive'/>
         </sharefiles>
         <md5>36527d4d49a645ef6f6d2677c8e0118c</md5>
