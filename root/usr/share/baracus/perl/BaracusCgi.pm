@@ -112,7 +112,7 @@ PROMPT 0
 TIMEOUT 0
 LABEL register
         kernel http://$baVar->{serverip}/ba/$inventory_linux
-        append initrd=http://$baVar->{serverip}/ba/$inventory_initrd install=exec:/usr/bin/baracus.register textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        append initrd=http://$baVar->{serverip}/ba/$inventory_initrd install=exec:/usr/bin/baracus.register textmode=1 baracus=$baVar->{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60 nosmp
 |;
 
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
