@@ -30,22 +30,58 @@ use File::Copy;
 use File::Basename;
 use File::Path;
 
-our $LASTERROR="";
+=pod
 
-sub error {
-    return $LASTERROR;
+=head1 NAME
+
+B<BaracusREPO> - subroutines for managing Baracus repos
+
+=head1 SYNOPSIS
+
+Another collection of routines used in Baracus
+
+=cut
+
+BEGIN {
+    use Exporter ();
+    use vars qw( @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
+    @ISA         = qw(Exporter);
+    @EXPORT      = qw();
+    @EXPORT_OK   = qw();
+    %EXPORT_TAGS =
+        (
+         subs   =>
+         [qw(
+                create_repo
+                add_packages
+                update_repo
+                remove_repo
+                sign_repo
+                verify_repo_creation
+                verify_repo_repodata
+                verify_repo_sign
+            )],
+         );
+
+    Exporter::export_ok_tags('subs');
 }
 
+our $VERSION = '0.01';
+
 sub create_repo {
-    my $repo = shift;
-    my @packages = @_;
+
+    my $opts     = shift;
+    my $repo     = shift;
+    my $packages = shift;
+
+    my @packages = split( /\s+/, $packages );
     my $base = basename ( $repo );
     my $status;
 
     ## Create Apache repo configuration
     ##
     unless ( -f "/etc/apache2/conf.d/$base.conf" ) {
-        open(TEMPLATE, "</usr/share/baracus/templates/byum.conf.template") or
+        open(TEMPLATE, "</usr/share/baracus/templates/repo/byum.conf.template") or
             die "Unable to open barepo apache template. $!\n";
         my $byumrepo = join '', <TEMPLATE>;
         close(TEMPLATE);
@@ -61,7 +97,7 @@ sub create_repo {
     if (-d "$repo/repodata") {
         opendir(DIR, "$repo/repodata");
         unless(scalar(grep(!/^\.+$/, readdir(DIR)) == 0)) {
-            $LASTERROR = "Create stop. Found existing repodata for '$base'.\n";
+            $opts->{LASTERROR}  = "Create stop. Found existing repodata for '$base'.\n";
             return 1;
         }
         close(DIR);
@@ -70,7 +106,7 @@ sub create_repo {
     ## Create repo directory and repo files
     ##
     unless ( -d "$repo" or mkdir $repo, 0755 ) {
-        $LASTERROR ="Unable create directory $repo $!\n";
+        $opts->{LASTERROR} ="Unable create directory $repo $!\n";
         return 1;
     }
 
@@ -91,21 +127,25 @@ sub create_repo {
 
     system("/usr/bin/createrepo -q $repo &> /dev/null");
 
-    return sign_repo($repo);
+    return &sign_repo( $opts, $repo );
 }
 
 sub add_packages {
-    my $repo = shift;
-    my @packages = @_;
+
+    my $opts     = shift;
+    my $repo     = shift;
+    my $packages = shift;
+
+    my @packages = split( /\s+/, $packages );
     my $status;
 
     unless( scalar @packages ) {
-        $LASTERROR = "Attempt to add without providing any rpm file arguments.\n";
+        $opts->{LASTERROR} = "Attempt to add without providing any rpm file arguments.\n";
         return 1;
     }
 
     # verify repopath and apache conf - from create
-    return 1 if ( &verify_repo_creation( $repo ) );
+    return 1 if ( &verify_repo_creation( $opts, $repo ) );
 
     foreach my $package (@packages) {
         if (-f $package) {
@@ -119,17 +159,20 @@ sub add_packages {
         }
     }
 
-    return $status if ( $status = &update_repo($repo) );
+    return $status if ( $status = &update_repo( $opts, $repo ) );
 
-    return &sign_repo($repo);
+    return &sign_repo( $opts, $repo );
 }
 
 sub update_repo {
-    my $repo = shift @_;
+
+    my $opts = shift;
+    my $repo = shift;
+
     my $status;
 
     # verify repopath and apache conf - from create
-    return 1 if ( &verify_repo_creation( $repo ) );
+    return 1 if ( &verify_repo_creation( $opts, $repo ) );
 
     if (-f "$repo/repodata/repomd.xml.asc") {
         unlink("$repo/repodata/repomd.xml.asc");
@@ -137,16 +180,19 @@ sub update_repo {
 
     system("/usr/bin/createrepo -q $repo &> /dev/null");
 
-    return &sign_repo($repo);
+    return &sign_repo( $opts, $repo );
 }
 
 sub remove_repo {
-    my $repo = shift @_;
+ 
+    my $opts = shift;
+    my $repo = shift;
+
     my $base =  basename("$repo");
 
     # verify only that the name is a dir under the byum directory
     unless ( $repo =~ m|byum| and -d $repo ) {
-        $LASTERROR = "Unable to remove non-byum or non-directory $base\n";
+        $opts->{LASTERROR} = "Unable to remove non-byum or non-directory $base\n";
         return 1;
     }
     rmtree($repo);
@@ -158,9 +204,10 @@ sub remove_repo {
 
 sub sign_repo {
 
+    my $opts = shift;
     my $repo = shift;
 
-    return 1 if ( &verify_repo_creation( $repo ) );
+    return 1 if ( &verify_repo_creation( $opts, $repo ) );
 
     my $status;
     my $gpghome = "/usr/share/baracus/gpghome";
@@ -184,18 +231,21 @@ sub sign_repo {
 }
 
 sub verify_repo_creation {
+
+    my $opts = shift;
     my $repo = shift;
+
     my $repopath = "$repo/repodata";
     my $base = basename( $repo );
 
-    $LASTERROR = "Missing repo dir $repopath\n"
+    $opts->{LASTERROR} = "Missing repo dir $repopath\n"
         unless (-d $repopath);
 
-    $LASTERROR .= "Missing apache repo config for $base.\n"
+    $opts->{LASTERROR} .= "Missing apache repo config for $base.\n"
         unless (-f "/etc/apache2/conf.d/$base.conf");
 
-    if ( $LASTERROR ne "" ) {
-        $LASTERROR .= "Recommend 'barepo create $base'.\n";
+    if ( $opts->{LASTERROR} ne "" ) {
+        $opts->{LASTERROR} .= "Recommend 'barepo create $base'.\n";
         return 1;
     }
 
@@ -203,7 +253,10 @@ sub verify_repo_creation {
 }
 
 sub verify_repo_repodata {
-    my $repo = shift @_;
+
+    my $opts = shift;
+    my $repo = shift;
+
     my $repopath = "$repo/repodata";
     my $base = basename( $repo );
 
@@ -215,12 +268,12 @@ sub verify_repo_repodata {
 
     foreach my $file (@repofiles) {
         unless (-f "$repopath/$file" ) {
-            $LASTERROR .= "Missing repo file $file\n";
+            $opts->{LASTERROR} .= "Missing repo file $file\n";
         }
     }
 
-    if ( $LASTERROR ne "" ) {
-        $LASTERROR .= "Recommend 'barepo update $base' to regenerate.\n";
+    if ( $opts->{LASTERROR} ne "" ) {
+        $opts->{LASTERROR} .= "Recommend 'barepo update $base' to regenerate.\n";
         return 1;
     }
 
@@ -228,7 +281,10 @@ sub verify_repo_repodata {
 }
 
 sub verify_repo_sign {
-    my $repo = shift @_;
+
+    my $opts = shift;
+    my $repo = shift;
+
     my $repopath = "$repo/repodata";
     my $base = basename( $repo );
 
@@ -238,12 +294,12 @@ sub verify_repo_sign {
 
     foreach my $file (@repofiles) {
         unless (-f "$repopath/$file" ) {
-            $LASTERROR .= "Missing repo sig file $file\n";
+            $opts->{LASTERROR} .= "Missing repo sig file $file\n";
         }
     }
 
-    if ( $LASTERROR ne "" ) {
-        $LASTERROR .= "Recommend 'barepo update $base' to sign.\n";
+    if ( $opts->{LASTERROR} ne "" ) {
+        $opts->{LASTERROR} .= "Recommend 'barepo update $base' to sign.\n";
         return 1;
     }
 
@@ -253,7 +309,7 @@ sub verify_repo_sign {
                         "--verify", "$repopath/repomd.xml.asc" );
 
     if ( $status ) {
-        $LASTERROR = "Failed gpg sig check. Recommend 'barepo update $base'\n";
+        $opts->{LASTERROR} = "Failed gpg sig check. Recommend 'barepo update $base'\n";
         return 1;
     }
 
@@ -261,3 +317,12 @@ sub verify_repo_sign {
 }
 
 1;
+
+__END__
+
+=head1 AUTHOR
+
+Daniel Westervelt, E<lt>dwestervelt@novellE<gt>
+David Bahi, E<lt>dbahi@novellE<gt>
+
+=cut

@@ -1,0 +1,10 @@
+Origin: %ORIGIN%
+Label: %LABEL%
+Codename: %CODENAME%
+Architectures: %ARCH%
+Components: main
+Description: %DESC%
+SignWith: yes
+DebOverride: %DEBOVERRIDE%
+DscOverride: %DSCOVERRIDE%
+

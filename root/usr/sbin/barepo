@@ -30,8 +30,9 @@ use Pod::Usage;
 
 use lib "/usr/share/baracus/perl";
 
-use BaracusREPO;
-use BaracusConfig qw( :vars );
+use BaracusREPO   qw( :subs );
+use BaracusConfig qw( :subs :vars );
+use BaracusCore   qw( :subs );
 
 =pod
 
@@ -76,16 +77,10 @@ This tool provides assistance to users wanting to create their own network insta
 
 =cut
 
-our $LASTERROR="";
-
 my $man      = 0;
 my $help     = 0;
-my $debug    = 0;
-my $verbose  = 0;
-my $quiet    = 0;
-my $nolabels = 0;
 
-my %cmds = (
+my $cmds = {
             'create'   => \&create,
             'add'      => \&add,
             'update'   => \&update,
@@ -95,75 +90,48 @@ my %cmds = (
             'detail'   => \&detail,
             'help'     => \&help,
             'man'      => \&man,
-            );
+            };
+
+my $opts = {
+            verbose    => 0,
+            quiet      => 0,
+            all        => 0,
+            nolabels   => 0,
+            debug      => 0,
+            execname   => "",
+            LASTERROR  => "",
+            };
+
+# Build command line for help, historical reference and point-in-time rebuilding
+$opts->{execname} = $0;
+$opts->{execname} = $1 if ( $0 =~ m|^.*/([^/].+)| );
 
 GetOptions(
-           'help|?'         => \$help,
-           'man'            => \$man,
-           'debug'          => \$debug,
-           'verbose'        => \$verbose,
-           'quiet'          => \$quiet,
-           'nolabels'       => \$nolabels,
+           'verbose'   => \$opts->{verbose},
+           'quiet'     => \$opts->{quiet},
+           'all'       => \$opts->{all},
+           'nolabels'  => \$opts->{nolabels},
+           'debug+'    => \$opts->{debug},
+           'man'       => \$man,
+           'help|?'    => \$help,
            );
 
 &man()  if $man;
-&help() if $help;
-&help() unless ( scalar @ARGV );
+&help( $opts, $cmds ) if $help;
+&help( $opts, $cmds ) unless ( scalar @ARGV );
 if ($ARGV[0] eq "man"  ) { &man(); }
-if ($ARGV[0] eq "help" ) { shift @ARGV; &help(@ARGV); }
+if ($ARGV[0] eq "help" ) { shift @ARGV; &help( $opts, $cmds, @ARGV ); }
 
-my $command;
-my $status = &main(@ARGV);
+my $status;
+$status = &main( $opts, $cmds, @ARGV );
 
-print $LASTERROR if $status;
+print $opts->{LASTERROR} if $status;
 
 exit $status;
 
 die "DOES NOT EXECUTE";
 
-###############################################################################
-#
-# command subroutines
-#
-
-sub main
-{
-    $command = shift;
-
-    $command = lc $command;
-    &check_command( $command );
-
-    printf "Executing $command with \"@_\".\n" if $debug;
-
-    $cmds{ $command }( @_ );
-}
-
-sub help() {
-    my $command = shift;
-
-    unless ( defined $command ) {
-        pod2usage( -verboase => 0,
-                   -exitstatus => 0 );
-    }
-
-    $command = lc $command;
-    &check_command( $command );
-
-    my $execname = $0;
-    $execname = $1 if ( $0 =~ m|^.*/([^/].+)| );
-
-    pod2usage( -msg        => "$execname $command ...\n",
-               -verbose    => 99,
-               -sections   => "COMMANDS/${command}.*",
-               -exitstatus => 0 );
-}
-
-sub man
-{
-    pod2usage( -verbose    => 2,
-               -sections   => "NAME|SYNOPSIS|DESCRIPTION|OPTIONS|COMMANDS",
-               -exitstatus => 0 );
-}
+###########################################################################
 
 =head1 COMMANDS
 
@@ -174,24 +142,43 @@ Creates the repository with <name> and populates it with any rpms listed provide
 =cut
 
 sub create() {
-    my $repo = shift;
-    my @packages = @_;
+
+    my $command = 'create';
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $repo     = "";
+    my $packages = "";
+    my $type     = "";
+
+    @ARGV = @_;
+
+    GetOptions(
+               'repo=s'      => \$repo,
+               'packages=s'  => \&multiarg_handler,
+               'type=s'      => \&type,
+               );
+
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help( $opts, $cmds, $command );
+    }
 
     unless ( defined $repo and $repo !~ m|\.rpm|) {
         printf "\nMissing reponame <name>\n";
-        &help( $command );
+        &help( $opts, $cmds, $command );
     }
+
+    $packages = $multiarg{ packages } if ( defined $multiarg{ packages } );
 
     $repo = "$baDir{'byum'}/$repo";
     unless ( -d $baDir{'byum'}) {
         mkdir $baDir{'byum'}, 0755 || die ("Cannot create directory\n");
     }
-    if ($verbose) { print "Creating $repo \n"; }
-    my $status = BaracusREPO::create_repo($repo, @packages);
-    if ( $status ) {
-        $LASTERROR = BaracusREPO::error();
-        return 1;
-    }
+    if ( $opts->{verbose} ) { print "Creating $repo \n"; }
+    &create_repo( $opts, $repo, $packages );
 
     return &restart_service();
 }
@@ -203,20 +190,38 @@ Add the rpms listed in space seperated [rpm_list] to the repository with <name> 
 =cut
 
 sub add() {
-    my $repo = shift;
-    my @packages = @_;
+
+    my $command = 'add';
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $repo     = "";
+    my $packages = "";
+
+    @ARGV = @_;
+
+    GetOptions(
+               'repo=s'      => \$repo,
+               'packages=s'  => \&multiarg_handler,
+               );
+
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help( $opts, $cmds, $command );
+    }
 
     unless ( defined $repo ) {
         printf "\nMissing reponame <name>\n";
         &help( $command );
     }
+
+    $packages = $multiarg{ packages } if ( defined $multiarg{ packages } );
+
     $repo = "$baDir{'byum'}/$repo";
-    if ($verbose) { print "Adding packages to $repo \n"; }
-    my $status = BaracusREPO::add_packages($repo, @packages);
-    if ( $status ) {
-        $LASTERROR = BaracusREPO::error();
-        return $status;
-    }
+    if ( $opts->{verbose} ) { print "Adding packages to $repo \n"; }
+    &add_packages( $opts, $repo, $packages );
 }
 
 =head2 update <name>
@@ -227,7 +232,25 @@ Regenerate repodata and sign.
 
 
 sub update() {
-    my $repo = shift;
+
+    my $command = 'update';
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $repo     = "";
+
+    @ARGV = @_;
+
+    GetOptions(
+               'repo=s'      => \$repo,
+               );
+    
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help( $opts, $cmds, $command );
+    }
 
     unless ( defined $repo ) {
         printf "\nMissing reponame <name>\n";
@@ -235,14 +258,10 @@ sub update() {
     }
 
     $repo = "$baDir{'byum'}/$repo";
-    if ($verbose) { print "Updating $repo \n"; }
-    my $status = BaracusREPO::update_repo($repo);
-    if ( $status ) {
-        $LASTERROR = BaracusREPO::error();
-        return $status;
-    }
+    if ( $opts->{verbose} ) { print "Updating $repo \n"; }
+    &update_repo( $opts, $repo );
 
-    return $status;
+    return 0;
 }
 
 =head2 remove <name>
@@ -252,22 +271,37 @@ Remove the repo directory and all related contents.
 =cut
 
 sub remove() {
-    my $repo = shift;
+
+    my $command = 'remove';
+    
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }   
+        
+    my $repo = "";
+    
+    @ARGV = @_;
+    
+    GetOptions(
+               'repo=s' => \$repo,
+               );
+    
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help( $opts, $cmds, $command );
+    }
 
     unless ( defined $repo ) {
         printf "\nMissing reponame <name>\n";
-        &help( $command );
+        &help( $opts, $cmds, $command );
     }
 
     $repo="$baDir{'byum'}/$repo";
-    if ($verbose) { print "Removing $repo \n"; }
-    my $status = BaracusREPO::remove_repo($repo);
-    if ( $status ) {
-        $LASTERROR = BaracusREPO::error();
-        return $status;
-    }
+    if ( $opts->{verbose} ) { print "Removing $repo \n"; }
+    &remove_repo( $opts, $repo );
 
     return &restart_service();
+
 }
 
 =head2 verify <name>
@@ -277,39 +311,45 @@ Sanity check some repo files and states.
 =cut
 
 sub verify {
-    my $repo = shift @_;
-    my $status;
+
+    my $command = 'verify';
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $repo = "";
+
+    @ARGV = @_;
+
+    GetOptions(
+               'repo=s' => \$repo,
+               );
+
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help( $opts, $cmds, $command );
+    }    
 
     unless ( defined $repo ) {
         printf "\nMissing reponame <name>\n";
-        &help( $command );
+        &help( $opts, $cmds, $command );
     }
 
     $repo = "$baDir{'byum'}/$repo";
 
     # barepo create related issues
     print "Verify directory and apache config... ";
-    $status = &BaracusREPO::verify_repo_creation( $repo );
-    if ( $status ) {
-        $LASTERROR = BaracusREPO::error();
-        return $status;
-    }
+    &verify_repo_creation( $opts, $repo );
     print "good.\n";
     # barepo update related issues
     print "Verify metadata present... ";
-    $status = &BaracusREPO::verify_repo_repodata( $repo );
-    if ( $status ) {
-        $LASTERROR = BaracusREPO::error();
-        return $status;
-    }
+    &verify_repo_repodata( $opts, $repo );
+
     print "good.\n";
     # barepo keysign related issues
     print "Verify repodata gpg signed...\n";
-    $status = &BaracusREPO::verify_repo_sign( $repo );
-    if ( $status ) {
-        $LASTERROR = BaracusREPO::error();
-        return $status;
-    }
+    &verify_repo_sign( $opts, $repo );
 
     return 0;
 }
@@ -321,20 +361,34 @@ list available repositories
 =cut
 
 sub list {
-    my $repo = shift;
+
+    my $command = 'list';
+
+    my $repo = "";
+
+    @ARGV = @_;
+
+    GetOptions(
+               'repo=s' => \$repo,
+               );
+
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help( $opts, $cmds, $command );
+    }
 
     printf "List repositories %s\n",
-        defined $repo ? "matching $repo" : "" if ($verbose);
+        defined $repo ? "matching $repo" : "" if ( $opts->{verbose} );
 
     if (defined $repo) {
         # shell to regex modification - if '*' passed prefix with '.'
         $repo =~ s|\*|.*|g;
     } else {
-        $repo = "";
+        $repo = "*";
     }
-    print "repo $repo\n" if ( $debug );
+    print "repo $repo\n" if ( $opts->{debug} );
 
-    unless ( $quiet || $nolabels ) {
+    unless ( $opts->{quiet} || $opts->{nolabels} ) {
         print "--------------------------------------------------------------------------------\n";
         printf "%-32s conf repo verify checks\n", "repository";
         print "--------------------------------------------------------------------------------\n";
@@ -349,11 +403,11 @@ sub list {
     opendir(DIR, $baDir{'byum'});
     foreach my $mydir ( grep(/\b$repo\b/o, grep(!/^\.+$/, readdir(DIR))) ) {
         $repodir = "$baDir{'byum'}/$mydir";
-        $create = BaracusREPO::verify_repo_creation( $repodir );
-        $data   = BaracusREPO::verify_repo_repodata( $repodir );
-        print "repo $mydir create $create data $data\n" if ($debug);
+        $create = &verify_repo_creation( $opts, $repodir );
+        $data   = &verify_repo_repodata( $opts, $repodir );
+        print "repo $mydir create $create data $data\n" if ( $opts->{debug} );
         printf "%-32s ", $mydir;
-        unless ( $quiet ) {
+        unless ( $opts->{quiet} ) {
             printf "%-4s %-4s", $create ? 0 : 1, $data ? 0 : 1;
         }
         print "\n";
@@ -369,21 +423,39 @@ Display detailed information about the named repo
 =cut
 
 sub detail {
-    my $repo = shift;
+
+    my $command = 'detail';
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $repo = "";
+
+    @ARGV = @_;
+
+    GetOptions(
+               'repo=s' => \$repo,
+               );
+
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help( $opts, $cmds, $command );
+    }
 
     unless ( defined $repo ) {
         printf "\nMissing reponame <name>\n";
-        &help( $command );
+        &help( $opts, $cmds, $command );
     }
 
     my $repodir = "$baDir{'byum'}/$repo";
 
     unless ( -d $baDir{'byum'} && -d $repodir ) {
-        $LASTERROR = "Unable to find repo named $repo\n";
+        $opts->{LASTERROR} = "Unable to find repo named $repo\n";
         return 1;
     }
 
-    unless ( $quiet || $nolabels ) {
+    unless ( $opts->{quiet} || $opts->{nolabels} ) {
         print "--------------------------------------------------------------------------------\n";
         print "File listing for repo '$repo'\n";
         print "--------------------------------------------------------------------------------\n";
@@ -407,23 +479,9 @@ sub detail {
 sub restart_service() {
 
     my $status = system("/etc/init.d/apache2 reload &> /dev/null");
-    $LASTERROR = "Unable to restart repo network service\n" if ($status);
+    $opts->{LASTERROR} = "Unable to restart repo network service\n" if ( $status );
+
     return $status;
-}
-
-sub check_command {
-    my $command = shift;
-
-    my $cmd_list = join ', ', (sort keys %cmds);
-    unless ( defined $command ) {
-        print "Requires <command> (e.g. $cmd_list)\n";
-        &help();
-    }
-
-    unless ( defined $cmds{ $command } ) {
-        print "Invalid <command> '$command' please use:  $cmd_list\n";
-        exit 1;
-    }
 }
 
 die "ABSOLUTELY DOES NOT EXECUTE";
