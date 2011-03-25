@@ -63,6 +63,7 @@ Where E<lt>commandE<gt> is
     inventory <...>  Force re/collection of inventory next pxeboot
     localboot <...>  Boot from localdisk
     netboot   <...>  Boot a network image
+    pxewait   <...>  Boot a pxewait shell
     rescue    <...>  Boot device into a rescue mode
     wipe      <...>  Use Darik's Boot and Nuke to wipe connected drive(s)
 
@@ -103,6 +104,7 @@ my $cmds = {
             'inventory'     => \&inventory,
             'localboot'     => \&localboot,
             'netboot'       => \&netboot,
+            'pxewait'       => \&pxewait,
             'rescue'        => \&rescue,
             'wipe'          => \&wipe,
 
@@ -1439,6 +1441,114 @@ sub empty
     if ( $opts->{verbose} )
     {
         printf "Clear complete.\nNext pxeboot of %s will rediscover host.\n",
+            $hostname ne "" ? $hostname : $mac;
+    }
+
+    return 0;
+}
+
+=head2 pxewait { --mac <macaddr | --hostname <name> }
+
+Set a device to go into pxewait state on the next pxeboot cycle.
+
+Arguments
+
+     --mac <macaddr>     specify device by mac address
+     --hostname <name>   specify device by hostname ( if available )
+
+=cut
+
+sub pxewait
+{
+    my $command = "pxewait";
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $mac="";
+    my $hostname="";
+
+    my $macref;
+    my $actref;
+    my $chkref;
+
+    @ARGV = @_;
+
+    GetOptions(
+               'mac=s'          => \$mac,
+               'hostname=s'     => \$hostname,
+               );
+
+    if ( scalar @ARGV ) {
+        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    # this routine checks for mac and hostname args
+    # and if hostname passed finds related mac entry
+    # returns undef on error (e.g., unable to find hostname)
+    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
+    unless ( defined $mac ) {
+        # $opts->{LASTERROR} set in subroutine
+        return 1;
+    }
+
+    $macref = &get_db_data( $dbh, 'mac', $mac );
+    unless ( defined $macref ) {
+        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
+    }
+    if ( $opts->{debug} > 1 ) {
+        while ( my ($key, $val) = each %{$macref} ) {
+            print "mac $key => " . $val eq "" ? "" : $val . "\n";
+        }
+    }
+
+    $chkref = &get_db_data( $dbh, 'action', $mac );
+    if ( defined $chkref ) {
+        if ( $opts->{debug} > 1 ) {
+            while ( my ($key, $val) = each %{$chkref} ) {
+                print "check $key => " . $val eq "" ? "" : $val . "\n";
+            }
+        }
+        # store a copy of the ref found for modification
+        $actref = $chkref;
+    }
+
+    if ( defined $chkref and
+         $chkref->{pxenext} eq BA_ACTION_PXEWAIT ) {
+        $opts->{LASTERROR} = "device already set to $command.\n";
+        return 1;
+    }
+
+    ##
+    ## ALL CHECKS DONE - DO MODS
+
+    $actref->{cmdline} = $cmdline;
+    $actref->{mac} = $mac;
+
+    # if passed both mac and hostname create a host table entry
+    if ( $hostname ne "" ) {
+        $actref->{hostname} = $hostname;
+        unless ( &get_db_data( $dbh, 'host', $hostname ) ) {
+            &add_db_data( $dbh, 'host', $actref );
+        }
+    }
+
+    action_state_change( $dbh, BA_ACTION_PXEWAIT, $macref, $actref );
+
+    &update_db_mac_state( $dbh, $mac, BA_ACTION_PXEWAIT );
+
+    # for proper command history update we update
+    if ( defined $chkref ) {
+        &update_db_data( $dbh, 'action', $actref );
+    } else {
+        &add_db_data( $dbh, 'action', $actref );
+    }
+
+    if ( $opts->{verbose} )
+    {
+        printf "Inventory set\nNext pxeboot of %s will pxewait.\n",
             $hostname ne "" ? $hostname : $mac;
     }
 
