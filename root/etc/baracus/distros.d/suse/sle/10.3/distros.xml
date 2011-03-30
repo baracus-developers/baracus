@@ -5,6 +5,7 @@
     <os>sles</os>
     <release>10.3</release>
     <arch>s390x</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Server 10 SP3 s390x</description>
     <type>base</type>
     <include>sles-10.3-sdk-s390x</include>
@@ -29,6 +30,7 @@
     <addos>sdk</addos>
     <addrel/>
     <arch>s390x</arch>
+    <codename/>
     <requires>sles-10.3-s390x</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP3 Software Development Kit s390x</description>
     <type>sdk</type>
@@ -47,6 +49,7 @@
     <os>sles</os>
     <release>10.3</release>
     <arch>x86_64</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Server 10 SP3 64bit</description>
     <type>base</type>
     <include>sles-10.3-sdk-x86_64</include>
@@ -71,6 +74,7 @@
     <addos>sdk</addos>
     <addrel/>
     <arch>x86_64</arch>
+    <codename/>
     <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP3 Software Development Kit 64bit</description>
     <type>sdk</type>
@@ -89,6 +93,7 @@
     <os>sles</os>
     <release>10.3</release>
     <arch>x86_64_xen</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Server 10 SP3 64bit Xen</description>
     <type>base</type>
     <include>sles-10.3-sdk-x86_64_xen</include>
@@ -113,6 +118,7 @@
     <addos>sdk</addos>
     <addrel/>
     <arch>x86_64_xen</arch>
+    <codename/>
     <requires>sles-10.3-x86_64_xen</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP3 Software Development Kit 64bit Xen</description>
     <type>sdk</type>
@@ -131,6 +137,7 @@
     <os>sles</os>
     <release>10.3</release>
     <arch>x86</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Server 10 SP3 32bit</description>
     <type>base</type>
     <include>sles-10.3-sdk-x86</include>
@@ -155,6 +162,7 @@
     <addos>sdk</addos>
     <addrel/>
     <arch>x86</arch>
+    <codename/>
     <requires>sles-10.3-x86</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP3 Software Development Kit 32bit</description>
     <type>sdk</type>
@@ -173,6 +181,7 @@
     <os>sles</os>
     <release>10.3</release>
     <arch>x86_xen</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Server 10 SP3 32bit Xen</description>
     <type>base</type>
     <include>sles-10.3-sdk-x86_xen</include>
@@ -197,6 +206,7 @@
     <addos>sdk</addos>
     <addrel/>
     <arch>x86_xen</arch>
+    <codename/>
     <requires>sles-10.3-x86_xen</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP3 Software Development Kit 32bit Xen</description>
     <type>sdk</type>
@@ -215,6 +225,7 @@
     <os>sled</os>
     <release>10.3</release>
     <arch>x86_64</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Desktop 10 SP3 64bit</description>
     <type>base</type>
     <include>sles-10.3-sdk-x86_64</include>
@@ -237,6 +248,7 @@
     <os>sled</os>
     <release>10.3</release>
     <arch>x86</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Desktop 10 SP3 32bit</description>
     <type>base</type>
     <include>sles-10.3-sdk-x86</include>
@@ -263,6 +275,7 @@
     <addos>rt</addos>
     <addrel/>
     <arch>x86_64</arch>
+    <codename/>
     <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP3 Real-Time Add-On 64bit</description>
     <type>addon</type>
@@ -283,6 +296,7 @@
     <addos>rt</addos>
     <addrel/>
     <arch>x86</arch>
+    <codename/>
     <requires>sles-10.3-x86</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP3 Real-Time Add-On 32bit</description>
     <type>addon</type>
@@ -305,6 +319,7 @@
     <addos>oes</addos>
     <addrel/>
     <arch>x86_64</arch>
+    <codename/>
     <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP3 Open Enterprise Server Add-On 64bit</description>
     <type>addon</type>
@@ -325,6 +340,7 @@
     <addos>oes</addos>
     <addrel/>
     <arch>x86</arch>
+    <codename/>
     <requires>sles-10.3-x86</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP3 Open Enterprise Server Add-On 32bit</description>
     <type>addon</type>
@@ -346,6 +362,7 @@
     <addos>oes</addos>
     <addrel/>
     <arch>x86_64_xen</arch>
+    <codename/>
     <requires>sles-10.3-x86_64_xen</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP3 Open Enterprise Server Add-On 64bit Xen</description>
     <type>addon</type>
@@ -366,6 +383,7 @@
     <addos>oes</addos>
     <addrel/>
     <arch>x86_xen</arch>
+    <codename/>
     <requires>sles-10.3-x86_xen</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP3 Open Enterprise Server Add-On 32bit Xen</description>
     <type>addon</type>
@@ -388,6 +406,7 @@
     <addos>smt</addos>
     <addrel/>
     <arch>x86_64</arch>
+    <codename/>
     <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP3 Subscription Mgmt Tool Add-On 64bit</description>
     <type>addon</type>
@@ -408,6 +427,7 @@
     <addos>smt</addos>
     <addrel/>
     <arch>x86</arch>
+    <codename/>
     <requires>sles-10.3-x86</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP3 Subscription Mgmt Tool Add-On 32bit</description>
     <type>addon</type>
@@ -430,6 +450,7 @@
     <addos>esrt2</addos>
     <addrel/>
     <arch>x86_64</arch>
+    <codename/>
     <requires>sles-10.3-x86_64</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP3 64bit megasr 14.00.1203.2010-1 DUD</description>
     <type>dud</type>
@@ -450,6 +471,7 @@
     <addos>esrt2</addos>
     <addrel/>
     <arch>x86</arch>
+    <codename/>
     <requires>sles-10.3-x86</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP3 32bit megasr 14.00.1203.2010-1 DUD</description>
     <type>dud</type>

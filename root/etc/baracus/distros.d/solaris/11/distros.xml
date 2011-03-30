@@ -7,6 +7,7 @@
     <os>solaris</os>
     <release>11</release>
     <arch>x86_64</arch>
+    <codename/>
     <description>Solaris 11 Express 64bit</description>
     <type>base</type>
     <autodownload>no</autodownload>

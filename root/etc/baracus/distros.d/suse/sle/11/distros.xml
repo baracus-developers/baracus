@@ -5,6 +5,7 @@
     <os>sles</os>
     <release>11</release>
     <arch>x86_64</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Server 11 64bit</description>
     <type>base</type>
     <include>sles-11-sdk-x86_64</include>
@@ -29,6 +30,7 @@
     <addos>sdk</addos>
     <addrel/>
     <arch>x86_64</arch>
+    <codename/>
     <requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
     <description>SLES 11 Software Development Kit 64bit</description>
     <type>sdk</type>
@@ -47,6 +49,7 @@
     <os>sles</os>
     <release>11</release>
     <arch>x86</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Server 11 32bit</description>
     <type>base</type>
     <include>sles-11-sdk-x86_64</include>
@@ -71,6 +74,7 @@
     <addos>sdk</addos>
     <addrel/>
     <arch>x86</arch>
+    <codename/>
     <requires>sles-11-x86</requires> <!-- flag! content ignored -->
     <description>SLES 11 Software Development Kit 32bit</description>
     <type>sdk</type>
@@ -91,6 +95,7 @@
     <os>sled</os>
     <release>11</release>
     <arch>x86_64</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Desktop 11 64bit</description>
     <type>base</type>
     <include>sles-11-sdk-x86_64</include>
@@ -113,6 +118,7 @@
     <os>sled</os>
     <release>11</release>
     <arch>x86</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Desktop 11 32bit</description>
     <type>base</type>
     <include>sles-11-sdk-x86</include>
@@ -139,6 +145,7 @@
     <addos>mono</addos>
     <addrel/>
     <arch>x86_64</arch>
+    <codename/>
     <requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
     <description>SLES 11 Mono Add-On 64bit</description>
     <type>addon</type>
@@ -159,6 +166,7 @@
     <addos>mono</addos>
     <addrel/>
     <arch>x86</arch>
+    <codename/>
     <requires>sles-11-x86</requires> <!-- flag! content ignored -->
     <description>SLES 11 Mono Add-On 32bit</description>
     <type>addon</type>
@@ -181,6 +189,7 @@
     <addos>hae</addos>
     <addrel/>
     <arch>x86_64</arch>
+    <codename/>
     <requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
     <description>SLES 11 High Availability Extension 64bit</description>
     <type>addon</type>
@@ -201,6 +210,7 @@
     <addos>ha</addos>
     <addrel/>
     <arch>x86</arch>
+    <codename/>
     <requires>sles-11-x86</requires> <!-- flag! content ignored -->
     <description>SLES 11 High Availability Extension 32bit</description>
     <type>addon</type>
@@ -223,6 +233,7 @@
     <addos>ncm</addos>
     <addrel/>
     <arch>x86_64</arch>
+    <codename/>
     <requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
     <description>SLES 11 Novell Cloud Manger 64bit</description>
     <type>addon</type>
@@ -245,6 +256,7 @@
     <addos>bl685cg7</addos>
     <addrel/>
     <arch>x86_64</arch>
+    <codename/>
     <requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
     <description>SLES 11 DUD hp-proliant-bl685c-g7</description>
     <type>dud</type>
@@ -267,6 +279,7 @@
     <addos>esrt2</addos>
     <addrel/>
     <arch>x86_64</arch>
+    <codename/>
     <requires>sles-11-x86_64</requires> <!-- flag! content ignored -->
     <description>SLES 11 megasr 14.00.1203.2010-1 64bit</description>
     <type>dud</type>
@@ -287,6 +300,7 @@
     <addos>esrt2</addos>
     <addrel/>
     <arch>x86</arch>
+    <codename/>
     <requires>sles-11-x86</requires> <!-- flag! content ignored -->
     <description>SLES 11 megasr 14.00.1203.2010-1 32bit</description>
     <type>dud</type>

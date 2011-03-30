@@ -1,7 +1,7 @@
 Alias /%REPO% "/var/spool/baracus/byum/%REPO%"
 
 <Directory "/var/spool/baracus/byum/%REPO%">
-   Options +Indexes FollowSymlinks MultiViews
+   Options Indexes FollowSymlinks MultiViews
    DirectoryIndex index.html
    AllowOverride Options
    Order allow,deny

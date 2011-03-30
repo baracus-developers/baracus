@@ -7,6 +7,7 @@
     <os>debian</os>
     <release>5.0.6</release>
     <arch>x86_64</arch>
+    <codename>lenny</codename>
     <description>Debian Lenny 5.0.6 64bit</description>
     <type>base</type>
     <autodownload>no</autodownload>
@@ -65,6 +66,7 @@
     <os>debian</os>
     <release>5.0.6</release>
     <arch>x86</arch>
+    <codename>lenny</codename>
     <description>Debian Lenny 5.0.6 32bit</description>
     <type>base</type>
     <autodownload>no</autodownload>

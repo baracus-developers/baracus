@@ -7,6 +7,7 @@
     <os>windows_server</os>
     <release>2008</release>
     <arch>x86_64</arch>
+    <codename/>
     <description>Windows Server 2008 64bit</description>
     <type>base</type>
     <autodownload>no</autodownload>

@@ -7,6 +7,7 @@
     <os>rhel</os>
     <release>5.3</release>
     <arch>x86_64</arch>
+    <codename/>
     <description>RedHat Enterprise Linux 5.3 64bit</description>
     <type>base</type>
     <autodownload>no</autodownload>
@@ -28,6 +29,7 @@
     <os>rhel</os>
     <release>5.3</release>
     <arch>x86</arch>
+    <codename/>
     <description>RedHat Enterprise Linux 5.3 32bit</description>
     <type>base</type>
     <autodownload>no</autodownload>
@@ -53,6 +55,7 @@
     <addos>mrg</addos>
     <addrel>1.1</addrel>
     <arch>x86_64</arch>
+    <codename/>
     <requires>rhel-5.3-x86_64</requires> <!-- flag! content ignored -->
     <description>RHEL 5 Messaging Real-Time Grid 1.1 64bit</description>
     <type>addon</type>
@@ -73,6 +76,7 @@
     <addos>mrg</addos>
     <addrel>1.1</addrel>
     <arch>x86</arch>
+    <codename/>
     <requires>rhel-5.3-x86</requires> <!-- flag! content ignored -->
     <type>addon</type>
     <description>RHEL 5 Messaging Real-Time Grid 1.1 32bit</description>

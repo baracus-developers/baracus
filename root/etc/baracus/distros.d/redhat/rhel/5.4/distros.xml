@@ -7,6 +7,7 @@
     <os>rhel</os>
     <release>5.4</release>
     <arch>x86_64</arch>
+    <codename/>
     <description>RedHat Enterprise Linux 5.4 64bit</description>
     <type>base</type>
     <autodownload>no</autodownload>
@@ -28,6 +29,7 @@
     <os>rhel</os>
     <release>5.4</release>
     <arch>x86</arch>
+    <codename/>
     <description>RedHat Enterprise Linux 5.4 32bit</description>
     <type>base</type>
     <autodownload>no</autodownload>

@@ -5,6 +5,7 @@
     <os>sles</os>
     <release>9.3</release>
     <arch>x86_64</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Server 9 SP3 64bit</description>
     <autodownload>auth</autodownload>
     <type>base</type>

@@ -29,6 +29,13 @@ use strict;
 use File::Copy;
 use File::Basename;
 use File::Path;
+use File::Temp;
+use File::Find;
+
+use lib "/usr/share/baracus/perl";
+
+use BaracusConfig qw( :vars :subs );
+use BaracusSource qw( :vars :subs );
 
 =pod
 
@@ -50,10 +57,21 @@ BEGIN {
     @EXPORT_OK   = qw();
     %EXPORT_TAGS =
         (
+         vars   =>
+         [qw(
+                %barepoType
+                BA_REPO_YUM
+                BA_REPO_APT
+                BA_REPO_IPS
+                BA_REPO_MSI
+                BA_REPO_UNSUPPORTED
+            )],
          subs   =>
          [qw(
-                create_repo
-                add_packages
+                create_repo_yum
+                create_repo_apt
+                add_packages_yum
+                add_packages_apt
                 update_repo
                 remove_repo
                 sign_repo
@@ -63,41 +81,86 @@ BEGIN {
             )],
          );
 
+    Exporter::export_ok_tags('vars');
     Exporter::export_ok_tags('subs');
 }
 
 our $VERSION = '0.01';
 
-sub create_repo {
+use vars qw ( %barepoType );
+
+use constant BA_REPO_YUM => 1;
+use constant BA_REPO_APT => 2;
+use constant BA_REPO_IPS => 3;
+use constant BA_REPO_MSI => 4;
+use constant BA_REPO_UNSUPPORTED => 5;
+
+%barepoType =
+    (
+      1     => 'yum',
+      2     => 'apt',
+      3     => 'ips',
+      4     => 'msi',
+      5     => 'unsupported',
+
+      'rpm'         => BA_REPO_YUM,
+      'deb'         => BA_REPO_APT,
+      'pkg'         => BA_REPO_IPS,
+      'msi'         => BA_REPO_MSI,
+      'unsupported' => BA_REPO_UNSUPPORTED,
+
+      BA_REPO_YUM          => 'yum',
+      BA_REPO_APT          => 'apt',
+      BA_REPO_IPS          => 'ips',
+      BA_REPO_MSI          => 'msi',
+      BA_REPO_UNSUPPORTED  => 'unsupported',
+    );
+
+
+sub create_repo_yum {
 
     my $opts     = shift;
     my $repo     = shift;
+    my $distro   = shift;
     my $packages = shift;
 
     my @packages = split( /\s+/, $packages );
-    my $base = basename ( $repo );
     my $status;
+    my $template = "/usr/share/baracus/templates/repo/byum.conf.template";
+
+    my $dh = &baxml_distro_gethash( $opts, $distro );
+    my $os      = $dh->{os};
+    my $release = $dh->{release};
+    my $arch    = $dh->{arch};
+
+    my $rpath = "$baDir{'byum'}/$repo/". "$os". "_" . "$arch";
+
+    ## Create repo directory
+    ##
+    unless ( -d $baDir{'byum'}) {
+        mkdir $baDir{'byum'}, 0755 || die ("Cannot create directory\n");
+    }
 
     ## Create Apache repo configuration
     ##
-    unless ( -f "/etc/apache2/conf.d/$base.conf" ) {
-        open(TEMPLATE, "</usr/share/baracus/templates/repo/byum.conf.template") or
+    unless ( -f "/etc/apache2/conf.d/$repo.conf" ) {
+        open(TEMPLATE, "<$template") or
             die "Unable to open barepo apache template. $!\n";
-        my $byumrepo = join '', <TEMPLATE>;
+        my $barepo = join '', <TEMPLATE>;
         close(TEMPLATE);
-        $byumrepo =~ s/%REPO%/$base/g;
-        open(CONFIG, ">/etc/apache2/conf.d/$base.conf") or
-            die "Unable to open $base.conf $!\n";
-        print CONFIG $byumrepo;
+        $barepo =~ s/%REPO%/$repo/g;
+        open(CONFIG, ">/etc/apache2/conf.d/$repo.conf") or
+            die "Unable to open $repo.conf $!\n";
+        print CONFIG $barepo;
         close(CONFIG);
     }
 
     ## Soft test to see if Repo exists
     ##
-    if (-d "$repo/repodata") {
-        opendir(DIR, "$repo/repodata");
+    if (-d "$rpath") {
+        opendir(DIR, "$rpath/repodata");
         unless(scalar(grep(!/^\.+$/, readdir(DIR)) == 0)) {
-            $opts->{LASTERROR}  = "Create stop. Found existing repodata for '$base'.\n";
+            $opts->{LASTERROR}  = "Create stop. Found existing repodata for '$repo'.\n";
             return 1;
         }
         close(DIR);
@@ -105,8 +168,15 @@ sub create_repo {
 
     ## Create repo directory and repo files
     ##
-    unless ( -d "$repo" or mkdir $repo, 0755 ) {
-        $opts->{LASTERROR} ="Unable create directory $repo $!\n";
+    unless ( -d "$rpath" or mkpath "$rpath", { verbose => 0, mode => 0755 } ) {
+        $opts->{LASTERROR} ="Unable create directory $rpath $!\n";
+        return 1;
+    }
+
+    ## Create repo directory and repo files
+    ##
+    unless ( -d "$rpath/$arch" or mkdir "$rpath/$arch", 0755 ) {
+        $opts->{LASTERROR} ="Unable create directory $rpath $!\n";
         return 1;
     }
 
@@ -122,22 +192,128 @@ sub create_repo {
         unless ( $package =~ m|\.rpm| ) {
             print "Skipping non-rpm $package\n";
         }
-        copy($package, $repo);
+        copy($package, "$rpath/$arch");
     }
 
-    system("/usr/bin/createrepo -q $repo &> /dev/null");
+    system("/usr/bin/createrepo -q $rpath &> /dev/null");
 
-    return &sign_repo( $opts, $repo );
+    &sign_repo( $opts, $rpath );
+
+    return 0;
 }
 
-sub add_packages {
+sub create_repo_apt {
 
     my $opts     = shift;
     my $repo     = shift;
+    my $distro   = shift;
+    my $packages = shift;
+
+    my $dh = &baxml_distro_gethash( $opts, $distro );
+    my $arch     = $dh->{arch};
+    my $codename = $dh->{codename};
+
+    my @packages = split( /\s+/, $packages );
+    my $base = basename ( $repo );
+    my $status;
+    my $template = "/usr/share/baracus/templates/repo/batp.conf.template";
+    my %vhash =
+            (
+                'base'        => "$base",
+                'origin'      => "$base",
+                'label'       => "$base",
+                'codename'    => "$codename",
+                'arch'        => "$arch",
+                'desc'        => "Baracus Apt Repository: $base",
+                'deboverride' => "",
+                'dscoverride' => "",
+            );
+
+    ## Test to see if Repo exists
+    ##
+    if ( -f "$baDir{'byum'}/$repo/db/packages.db" ) {
+        $opts->{LASTERROR}  = "Create stop. Found existing repodata for '$base'.\n";
+        return 1;
+    }
+
+    ## Create repo directory
+    ##
+    unless ( -d "$baDir{'byum'}/$repo") {
+        mkdir "$baDir{'byum'}/$repo", 0755 || die ("Cannot create directory\n");
+        mkdir "$baDir{'byum'}/$repo/conf", 0755 || die ("Cannot create directory\n");
+    }
+ 
+    ## Create Apache repo configuration
+    ##
+    unless ( -f "/etc/apache2/conf.d/$base.conf" ) {
+        open(TEMPLATE, "<$template") or
+            die "Unable to open barepo apache template. $!\n";
+        my $barepo = join '', <TEMPLATE>;
+        close(TEMPLATE);
+        $barepo =~ s/%REPO%/$base/g;
+        open(CONFIG, ">/etc/apache2/conf.d/$base.conf") or
+            die "Unable to open $base.conf $!\n";
+        print CONFIG $barepo;
+        close(CONFIG);
+    }
+
+    ## Create repo directory and repo files
+    ##
+    unless ( -d "$repo" or mkdir $repo, 0755 ) {
+        $opts->{LASTERROR} ="Unable create directory $repo $!\n";
+        return 1;
+    }
+
+    ## Create conf file and populate 
+    open(DISTRIBUTIONS, "</usr/share/baracus/templates/repo/distributions.debian") ||
+      die "Unable to open barepo debian distributions template. $!\n";
+    my $distributions = join '', <DISTRIBUTIONS>;
+    close(DISTRIBUTIONS);
+
+    while ( my ($key, $value) = each(%vhash) ) {
+        $key = uc( $key );
+        $distributions =~ s/%$key%/$value/g;
+    }
+
+    open(DISTCONF, ">$baDir{'byum'}/$repo/conf/distributions") ||
+      die "Unable to open barepo debian distributions file. $!\n";
+    print DISTCONF $distributions;
+    close(DISTCONF);
+
+    foreach my $package (@packages) {
+        unless (-e $package) {
+            print "Skipping non-existing $package\n";
+            next;
+        }
+        unless (-f $package) {
+            print "Skipping non-file $package\n";
+            next;
+        }
+        unless ( $package =~ m|\.deb| ) {
+            print "Skipping non-deb $package\n";
+        }
+
+        print "calling: /usr/bin/reprepro --gnupghome /usr/share/baracus/gpghome/.gnupg --basedir $baDir{'byum'}/$repo includedeb $codename $package" if ( $opts->{debug} );
+        system("/usr/bin/reprepro", "--gnupghome", "/usr/share/baracus/gpghome/.gnupg", 
+                                    "--basedir", "$baDir{'byum'}/$repo", "includedeb", 
+                                    "$codename", "$package");
+    }
+
+}
+
+sub add_packages_yum {
+
+    my $opts     = shift;
+    my $repo     = shift;
+    my $distro   = shift;
     my $packages = shift;
 
     my @packages = split( /\s+/, $packages );
-    my $status;
+
+    my $dh = &baxml_distro_gethash( $opts, $distro );
+    my $arch = $dh->{arch};
+
+    my $rpath = "$baDir{'byum'}/$repo/$distro";
 
     unless( scalar @packages ) {
         $opts->{LASTERROR} = "Attempt to add without providing any rpm file arguments.\n";
@@ -150,7 +326,7 @@ sub add_packages {
     foreach my $package (@packages) {
         if (-f $package) {
             if ( $package =~ m|\.rpm| ) {
-                copy($package, $repo);
+                copy($package, "$rpath/$arch");
             } else {
                 print "Skipping add of non-rpm $package\n";
             }
@@ -159,28 +335,58 @@ sub add_packages {
         }
     }
 
-    return $status if ( $status = &update_repo( $opts, $repo ) );
-
-    return &sign_repo( $opts, $repo );
-}
-
-sub update_repo {
-
-    my $opts = shift;
-    my $repo = shift;
-
-    my $status;
-
     # verify repopath and apache conf - from create
-    return 1 if ( &verify_repo_creation( $opts, $repo ) );
-
-    if (-f "$repo/repodata/repomd.xml.asc") {
-        unlink("$repo/repodata/repomd.xml.asc");
+    if ( &verify_repo_creation( $opts, $repo ) ) {
+        $opts->{LASTERROR} = "Bad repo, cannot add packages.\n";
+        return 1;
     }
 
-    system("/usr/bin/createrepo -q $repo &> /dev/null");
+    system("/usr/bin/createrepo -q $rpath &> /dev/null");
 
-    return &sign_repo( $opts, $repo );
+    return &sign_repo( $opts, $rpath );
+}
+
+sub add_packages_apt {
+
+    my $opts     = shift;
+    my $repo     = shift;
+    my $distro   = shift;
+    my $packages = shift;
+
+    my @packages = split( /\s+/, $packages );
+
+    unless( scalar @packages ) {
+        $opts->{LASTERROR} = "Attempt to add without providing any rpm file arguments.\n";
+        return 1;
+    }
+
+    my $dh = &baxml_distro_gethash( $opts, $distro );
+    my $arch     = $dh->{arch};
+    my $codename = $dh->{codename};
+
+    # verify repopath and apache conf - from create
+    if ( &verify_repo_creation( $opts, $repo ) ) {
+        $opts->{LASTERROR} = "Bad repo, cannot add packages.\n";
+        return 1;
+    }
+
+    foreach my $package (@packages) {
+        if (-f $package) {
+            if ( $package =~ m|\.deb| ) {
+                print "calling: /usr/bin/reprepro --basedir $baDir{'byum'}/$repo includedeb $codename $package" if ( $opts->{debug} );
+                system("/usr/bin/reprepro", "--gnupghome", "/usr/share/baracus/gpghome/.gnupg",
+                                            " --basedir", "$baDir{'byum'}/$repo", "includedeb",
+                                            "$codename", "$package");
+            } else {
+                print "Skipping add of non-rpm $package\n";
+            }
+        } else {
+            print "Skipping non-existing $package\n";
+        }
+    }
+
+    return 0;
+
 }
 
 sub remove_repo {
@@ -188,15 +394,13 @@ sub remove_repo {
     my $opts = shift;
     my $repo = shift;
 
-    my $base =  basename("$repo");
-
     # verify only that the name is a dir under the byum directory
-    unless ( $repo =~ m|byum| and -d $repo ) {
-        $opts->{LASTERROR} = "Unable to remove non-byum or non-directory $base\n";
+    unless ( -d "$baDir{'byum'}/$repo" ) {
+        $opts->{LASTERROR} = "Unable to remove non-byum or non-directory $repo\n";
         return 1;
     }
-    rmtree($repo);
-    unlink("/etc/apache2/conf.d/$base.conf");
+    rmtree("$baDir{'byum'}/$repo");
+    unlink("/etc/apache2/conf.d/$repo.conf");
 
     return 0;
 }
@@ -205,26 +409,35 @@ sub remove_repo {
 sub sign_repo {
 
     my $opts = shift;
-    my $repo = shift;
+    my $rpath = shift;
+     
+    my $distro = basename($rpath);
+    my $repo   = $rpath;
+    $repo =~ s/$distro//;
+    $repo = basename($repo);
 
-    return 1 if ( &verify_repo_creation( $opts, $repo ) );
+    if ( &verify_repo_creation( $opts, $repo ) ) {
+        $opts->{LASTERROR} = "$repo does not exist.\n";
+        return 1;
+    }
 
-    my $status;
     my $gpghome = "/usr/share/baracus/gpghome";
+
+    print "Signing repo: $repo\n" if ( $opts->{verbose} );
 
     ## Sign $filename
     ##
-    if (-f "$repo/repodata/repomd.xml.asc") {
-        unlink("$repo/repodata/repomd.xml.asc");
+    if (-f "$rpath/repodata/repomd.xml.asc") {
+        unlink("$rpath/repodata/repomd.xml.asc");
     }
     system("gpg", "--homedir=$gpghome/.gnupg",
            "-a", "--detach-sign", "--default-key=C685894B",
-           "$repo/repodata/repomd.xml");
+           "$rpath/repodata/repomd.xml");
 
     ## Install key into repo
     ##
-    unless (-f "$repo/repodata/repomd.xml.key") {
-       copy("$gpghome/.gnupg/my-key.gpg", "$repo/repodata/repomd.xml.key");
+    unless (-f "$rpath/repodata/repomd.xml.key") {
+       copy("$gpghome/.gnupg/my-key.gpg", "$rpath/repodata/repomd.xml.key");
     }
 
     return 0;
@@ -235,17 +448,13 @@ sub verify_repo_creation {
     my $opts = shift;
     my $repo = shift;
 
-    my $repopath = "$repo/repodata";
-    my $base = basename( $repo );
+    unless (-d "$baDir{'byum'}/$repo") {
+        $opts->{LASTERROR} = "Missing repo dir $repo\n";
+        return 1;
+    };
 
-    $opts->{LASTERROR} = "Missing repo dir $repopath\n"
-        unless (-d $repopath);
-
-    $opts->{LASTERROR} .= "Missing apache repo config for $base.\n"
-        unless (-f "/etc/apache2/conf.d/$base.conf");
-
-    if ( $opts->{LASTERROR} ne "" ) {
-        $opts->{LASTERROR} .= "Recommend 'barepo create $base'.\n";
+    unless (-f "/etc/apache2/conf.d/$repo.conf") {
+        $opts->{LASTERROR} .= "Missing apache repo config for $repo.\n";
         return 1;
     }
 
@@ -257,23 +466,66 @@ sub verify_repo_repodata {
     my $opts = shift;
     my $repo = shift;
 
-    my $repopath = "$repo/repodata";
-    my $base = basename( $repo );
+    my $type = &get_type( $opts, $repo );
+    my @paths;
+    my $path;
+    my @chkfiles;
+    my $rpath = "$baDir{'byum'}/$repo";
 
-    my @repofiles = qw| filelists.xml.gz
-                        primary.xml.gz
-                        repomd.xml
-                        other.xml.gz
+    if ( $type == BA_REPO_YUM ) {
+        opendir(DIR, "$rpath");
+        foreach my $path ( grep(!/^\.+$/, readdir(DIR)) ) {
+            push @paths, "$rpath/$path/repodata";
+            use XML::Simple qw(:strict);
+            my $xs = XML::Simple->new
+            ( SuppressEmpty => 1,
+              ForceArray =>
+              [ qw
+                ( data
+                )
+               ],
+              KeyAttr =>
+              {
+               data     => 'type',
+               },
+             );
+
+            my $repoXML = $xs->XMLin("$rpath/$path/repodata/repomd.xml");
+
+            @chkfiles = ("$repoXML->{data}->{filelists}->{location}->{href}",
+                         "$repoXML->{data}->{other}->{location}->{href}",
+                         "$repoXML->{data}->{primary}->{location}->{href}");
+
+            foreach my $path ( @paths ) {
+                foreach my $file (@chkfiles) {
+                    $file = basename($file);
+                    unless (-f "$path/$file" ) {
+                        $opts->{LASTERROR} = "Missing repo file $file\n";
+                        return 1;
+                    }
+                }
+            }
+        }
+    } elsif ( $type == BA_REPO_APT ) {
+        @paths = "$rpath/db";
+        @chkfiles = qw| references.db
+                        checksums.db
+                        packages.db
+                        version
+                        release.caches.db
                       |;
 
-    foreach my $file (@repofiles) {
-        unless (-f "$repopath/$file" ) {
-            $opts->{LASTERROR} .= "Missing repo file $file\n";
+        foreach my $path ( @paths ) {
+            foreach my $file (@chkfiles) {
+                $file = basename($file);
+                unless (-f "$path/$file" ) {
+                    $opts->{LASTERROR} = "Missing repo file $file\n";
+                    return 1;
+                }
+            }
         }
-    }
-
-    if ( $opts->{LASTERROR} ne "" ) {
-        $opts->{LASTERROR} .= "Recommend 'barepo update $base' to regenerate.\n";
+    } else {
+        $opts->{LASTERROR} = "Unable to determine repo type: unsupported or corrupt repo\n";
         return 1;
     }
 
@@ -285,35 +537,86 @@ sub verify_repo_sign {
     my $opts = shift;
     my $repo = shift;
 
-    my $repopath = "$repo/repodata";
-    my $base = basename( $repo );
+    my @yumfiles = qw| repomd.xml.asc
+                       repomd.xml.key
+                     |;
 
-    my @repofiles = qw| repomd.xml.asc
-                        repomd.xml.key
-                      |;
+    my @aptfiles = qw| Release.gpg |;
 
-    foreach my $file (@repofiles) {
-        unless (-f "$repopath/$file" ) {
-            $opts->{LASTERROR} .= "Missing repo sig file $file\n";
+    my $type = &get_type( $opts, $repo );
+    my $path;
+    my @paths;
+    my @chkfiles;
+
+    my $rpath = "$baDir{'byum'}/$repo";
+
+    if ( $type == BA_REPO_YUM ) {
+        opendir(DIR, "$rpath");
+        foreach $path ( grep(!/^\.+$/, readdir(DIR)) ) {
+            push @paths, "$rpath/$path/repodata";
+        }
+        @chkfiles = @yumfiles;
+    } elsif ( $type == BA_REPO_APT ) {
+        opendir(DIR, "$rpath/dists");
+        foreach $path ( grep(!/^\.+$/, readdir(DIR)) )  {
+            push @paths, "$rpath/dists/$path";
+        }
+        @chkfiles = @aptfiles;
+    } else {
+        $opts->{LASTERROR} = "Unable to determine repo type\n";
+        return 1;
+    }
+
+    foreach my $path ( @paths ) {
+        foreach my $file (@chkfiles) {
+            unless (-f "$path/$file" ) {
+                $opts->{LASTERROR} .= "Missing repo sig file $file\n";
+                return 1;
+            }
         }
     }
 
-    if ( $opts->{LASTERROR} ne "" ) {
-        $opts->{LASTERROR} .= "Recommend 'barepo update $base' to sign.\n";
-        return 1;
-    }
+    if ( $type == BA_REPO_YUM ) {
 
-    my $gpghome = "/usr/share/baracus/gpghome";
-
-    my $status = system("gpg2", "--homedir=$gpghome/.gnupg/",
-                        "--verify", "$repopath/repomd.xml.asc" );
-
-    if ( $status ) {
-        $opts->{LASTERROR} = "Failed gpg sig check. Recommend 'barepo update $base'\n";
-        return 1;
+        foreach my $path ( @paths ) {
+            my $gpghome = "/usr/share/baracus/gpghome";
+            open STDERR, '>', '/dev/null' or die "Cannot open STDERR\n";
+            my $status = system("gpg2", "--homedir=$gpghome/.gnupg/",
+                                "--verify", "$path/repomd.xml.asc" );
+            close(STDERR);
+            if ( $status ) {
+                $opts->{LASTERROR} = "Failed gpg sig check. Recommend 'barepo update $repo'\n";
+                return 1;
+            }
+        }
     }
 
     return 0;
+
+}
+
+sub get_type
+{
+
+    my $opts = shift;
+    my $repo = shift;
+
+    my $type = BA_REPO_UNSUPPORTED;
+
+    find ( { wanted =>
+             sub {
+                     if (  $_ eq "repodata" ) {
+                         $type = BA_REPO_YUM;
+                     } elsif ( $_ eq "dists" ) {
+                         $type = BA_REPO_APT;
+                     }
+                 },
+                 follow => 1
+           },
+           "$baDir{'byum'}/$repo" );
+
+    return $type;
+
 }
 
 1;

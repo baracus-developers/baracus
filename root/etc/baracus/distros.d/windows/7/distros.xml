@@ -7,6 +7,7 @@
     <os>windows_ent</os>
     <release>7</release>
     <arch>x86_64</arch>
+    <codename/>
     <description>Windows Enterprise 7 64bit</description>
     <type>base</type>
     <autodownload>no</autodownload>
@@ -34,6 +35,7 @@
     <os>windows_ent</os>
     <release>7</release>
     <arch>x86</arch>
+    <codename/>
     <description>Windows Enterprise 7 32bit</description>
     <type>base</type>
     <autodownload>no</autodownload>

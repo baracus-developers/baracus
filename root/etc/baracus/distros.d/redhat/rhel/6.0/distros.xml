@@ -7,6 +7,7 @@
     <os>rhel</os>
     <release>6.0</release>
     <arch>x86_64</arch>
+    <codename/>
     <description>RedHat Enterprise Linux 6.0 64bit</description>
     <type>base</type>
     <autodownload>no</autodownload>
@@ -28,6 +29,7 @@
     <os>rhel</os>
     <release>6.0</release>
     <arch>x86</arch>
+    <codename/>
     <description>RedHat Enterprise Linux 6.0 32bit</description>
     <type>base</type>
     <autodownload>no</autodownload>
@@ -53,6 +55,7 @@
     <addos>esrt2</addos>
     <addrel/>
     <arch>x86_64</arch>
+    <codename/>
     <requires>rhel-6.0-x86_64</requires> <!-- flag! content ignored -->
     <description>RHEL 6.0 64bit megasr 14.00.1203.2010-1 DUD</description>
     <type>dud</type>
@@ -73,6 +76,7 @@
     <addos>esrt2</addos>
     <addrel/>
     <arch>x86</arch>
+    <codename/>
     <requires>rhel-6.0-x86</requires> <!-- flag! content ignored -->
     <description>RHEL 6.0 32bit megasr 14.00.1203.2010-1 DUD</description>
     <type>dud</type>

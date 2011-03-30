@@ -5,6 +5,7 @@
     <os>sles</os>
     <release>10.4</release>
     <arch>x86_64</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Server 10 SP4 64bit</description>
     <type>base</type>
     <include>sles-10.4-sdk-x86_64</include>
@@ -29,6 +30,7 @@
     <addos>sdk</addos>
     <addrel/>
     <arch>x86_64</arch>
+    <codename/>
     <requires>sles-10.4-x86_64</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP4 Software Development Kit 64bit</description>
     <type>sdk</type>
@@ -47,6 +49,7 @@
     <os>sles</os>
     <release>10.4</release>
     <arch>x86_64_xen</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Server 10 SP4 64bit Xen</description>
     <type>base</type>
     <include>sles-10.4-sdk-x86_64_xen</include>
@@ -71,6 +74,7 @@
     <addos>sdk</addos>
     <addrel/>
     <arch>x86_64_xen</arch>
+    <codename/>
     <requires>sles-10.4-x86_64_xen</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP4 Software Development Kit 64bit Xen</description>
     <type>sdk</type>
@@ -89,6 +93,7 @@
     <os>sles</os>
     <release>10.4</release>
     <arch>x86</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Server 10 SP4 32bit</description>
     <type>base</type>
     <include>sles-10.4-sdk-x86</include>
@@ -113,6 +118,7 @@
     <addos>sdk</addos>
     <addrel/>
     <arch>x86</arch>
+    <codename/>
     <requires>sles-10.4-x86</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP4 Software Development Kit 32bit</description>
     <type>sdk</type>
@@ -131,6 +137,7 @@
     <os>sles</os>
     <release>10.4</release>
     <arch>x86_xen</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Server 10 SP4 32bit Xen</description>
     <type>base</type>
     <include>sles-10.4-sdk-x86_xen</include>
@@ -155,6 +162,7 @@
     <addos>sdk</addos>
     <addrel/>
     <arch>x86_xen</arch>
+    <codename/>
     <requires>sles-10.4-x86_xen</requires> <!-- flag! content ignored -->
     <description>SLES 10 SP4 Software Development Kit 32bit Xen</description>
     <type>sdk</type>

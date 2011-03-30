@@ -7,6 +7,7 @@
     <os>debian</os>
     <release>6.0.0</release>
     <arch>x86_64</arch>
+    <codename>squeeze</codename>
     <description>Debian Squeeze 6.0.0 64bit</description>
     <type>base</type>
     <autodownload>open</autodownload>
@@ -87,6 +88,7 @@
     <os>debian</os>
     <release>6.0.0</release>
     <arch>x86</arch>
+    <codename>squeeze</codename>
     <description>Debian Squeeze 6.0.0 32bit</description>
     <type>base</type>
     <autodownload>open</autodownload>

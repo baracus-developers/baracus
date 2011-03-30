@@ -7,6 +7,7 @@
     <os>fedora</os>
     <release>13</release>
     <arch>x86_64</arch>
+    <codename/>
     <description>Fedora 13 64bit</description>
     <type>base</type>
     <autodownload>open</autodownload>
@@ -28,6 +29,7 @@
     <os>fedora</os>
     <release>13</release>
     <arch>x86</arch>
+    <codename/>
     <description>Fedora 13 32bit</description>
     <type>base</type>
     <autodownload>open</autodownload>

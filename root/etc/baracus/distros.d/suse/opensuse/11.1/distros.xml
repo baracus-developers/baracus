@@ -7,6 +7,7 @@
     <os>opensuse</os>
     <release>11.1</release>
     <arch>x86_64</arch>
+    <codename/>
     <description>openSUSE 11.1 64bit</description>
     <type>base</type>
     <autodownload>open</autodownload>
@@ -30,6 +31,7 @@
     <addos>nonoss</addos>
     <addrel/>
     <arch>x86_64</arch>
+    <codename/>
     <requires>opensuse-11.1-x86_64</requires> <!-- flag! content ignored -->
     <description>openSUSE 11.1 non-OSS 64bit</description>
     <type>addon</type>
@@ -50,6 +52,7 @@
     <addos>lang</addos>
     <addrel/>
     <arch>x86_64</arch>
+    <codename/>
     <requires>opensuse-11.1-x86_64</requires> <!-- flag! content ignored -->
     <description>openSUSE 11.1 Languages 64bit</description>
     <type>addon</type>
@@ -68,6 +71,7 @@
     <os>opensuse</os>
     <release>11.1</release>
     <arch>x86</arch>
+    <codename/>
     <description>openSUSE 11.1 32bit</description>
     <type>base</type>
     <autodownload>open</autodownload>
@@ -91,6 +95,7 @@
     <addos>nonoss</addos>
     <addrel/>
     <arch>x86</arch>
+    <codename/>
     <requires>opensuse-11.1-x86</requires> <!-- flag! content ignored -->
     <description>openSUSE 11.1 non-OSS 32bit</description>
     <type>addon</type>
@@ -111,6 +116,7 @@
     <addos>lang</addos>
     <addrel/>
     <arch>x86</arch>
+    <codename/>
     <requires>opensuse-11.1-x86</requires> <!-- flag! content ignored -->
     <description>openSUSE 11.1 Languages 32bit</description>
     <type>addon</type>

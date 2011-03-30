@@ -7,6 +7,7 @@
     <os>solaris</os>
     <release>10.8</release>
     <arch>x86_64</arch>
+    <codename/>
     <description>Solaris 10 U8 64bit</description>
     <type>base</type>
     <autodownload>no</autodownload>

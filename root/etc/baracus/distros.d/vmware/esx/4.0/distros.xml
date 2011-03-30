@@ -7,6 +7,7 @@
     <os>esx</os>
     <release>4.0</release>
     <arch>x86_64</arch>
+    <codename/>
     <description>VMware ESX 4.0 Update01-208167</description>
     <type>base</type>
     <autodownload>no</autodownload>

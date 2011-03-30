@@ -27,12 +27,16 @@
 use strict;
 use Getopt::Long qw( :config pass_through );
 use Pod::Usage;
+use File::Find;
+use File::Basename;
+use Clone qw( clone );
 
 use lib "/usr/share/baracus/perl";
 
-use BaracusREPO   qw( :subs );
+use BaracusREPO   qw( :subs :vars );
 use BaracusConfig qw( :subs :vars );
 use BaracusCore   qw( :subs );
+use BaracusSource qw( :subs :vars );
 
 =pod
 
@@ -122,6 +126,21 @@ GetOptions(
 if ($ARGV[0] eq "man"  ) { &man(); }
 if ($ARGV[0] eq "help" ) { shift @ARGV; &help( $opts, $cmds, @ARGV ); }
 
+my $baXML;
+
+my @xmlfiles = &get_xml_filelist( $opts, $baDir{'distros.d'} );
+
+for my $xmlfile ( @xmlfiles ) {
+    print "now loading user distro file: $xmlfile\n" if $opts->{debug};
+    my $tmpXML = &baxml_load( $opts, $xmlfile );
+    while ( my ($key, $val) = each %{$tmpXML->{distro}} ) {
+        print " $key => $val\n" if $opts->{debug};
+        $baXML->{'distro'}->{$key} = clone( $val );
+    }
+}
+
+$opts->{baXML}    = $baXML;
+
 my $status;
 $status = &main( $opts, $cmds, @ARGV );
 
@@ -152,13 +171,14 @@ sub create() {
     my $repo     = "";
     my $packages = "";
     my $type     = "";
+    my $distro   = "";
 
     @ARGV = @_;
 
     GetOptions(
                'repo=s'      => \$repo,
                'packages=s'  => \&multiarg_handler,
-               'type=s'      => \&type,
+               'distro=s'    => \$distro,
                );
 
     if ( scalar @ARGV ) {
@@ -166,19 +186,29 @@ sub create() {
         &help( $opts, $cmds, $command );
     }
 
-    unless ( defined $repo and $repo !~ m|\.rpm|) {
+    unless ( defined $repo ) {
         printf "\nMissing reponame <name>\n";
         &help( $opts, $cmds, $command );
     }
 
+    &check_distro( $opts, $distro );
+
     $packages = $multiarg{ packages } if ( defined $multiarg{ packages } );
 
-    $repo = "$baDir{'byum'}/$repo";
-    unless ( -d $baDir{'byum'}) {
-        mkdir $baDir{'byum'}, 0755 || die ("Cannot create directory\n");
+    ## Determine package type
+    if ( $packages =~ m|\.rpm| ) {
+        $type = BA_REPO_YUM;
+    } elsif ( $packages =~ m|\.deb| ) {
+        $type = BA_REPO_APT;
+    } else {
+        $type = BA_REPO_UNSUPPORTED;
+        $opts->{LASTERROR} = "provided repo package type: $type not supported";
+        return 1;
     }
+
     if ( $opts->{verbose} ) { print "Creating $repo \n"; }
-    &create_repo( $opts, $repo, $packages );
+    &create_repo_yum( $opts, $repo, $distro, $packages ) if ( $type == BA_REPO_YUM );
+    &create_repo_apt( $opts, $repo, $distro, $packages ) if ( $type == BA_REPO_APT );
 
     return &restart_service();
 }
@@ -198,12 +228,15 @@ sub add() {
     }
 
     my $repo     = "";
+    my $distro   = "";
     my $packages = "";
+    my $type     = "";
 
     @ARGV = @_;
 
     GetOptions(
                'repo=s'      => \$repo,
+               'distro=s'    => \$distro,
                'packages=s'  => \&multiarg_handler,
                );
 
@@ -217,51 +250,31 @@ sub add() {
         &help( $command );
     }
 
+    unless ( -d "$baDir{'byum'}/$repo" ) {
+        $opts->{LASTERROR} = "repo: $repo does not exist. create with \"barepo create\".\n";
+        return 1;
+    }
+
+    &check_distro( $opts, $distro );
+
     $packages = $multiarg{ packages } if ( defined $multiarg{ packages } );
+
+    ## Determine package type
+    if ( $packages =~ m|\.rpm| ) {
+        $type = BA_REPO_YUM;
+    } elsif ( $packages =~ m|\.deb| ) {
+        $type = BA_REPO_APT;
+    } else {
+        $type = BA_REPO_UNSUPPORTED;
+        $opts->{LASTERROR} = "provided repo package type: $type not supported";
+        return 1;
+    }
 
     $repo = "$baDir{'byum'}/$repo";
     if ( $opts->{verbose} ) { print "Adding packages to $repo \n"; }
-    &add_packages( $opts, $repo, $packages );
-}
 
-=head2 update <name>
-
-Regenerate repodata and sign.
-
-=cut
-
-
-sub update() {
-
-    my $command = 'update';
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $repo     = "";
-
-    @ARGV = @_;
-
-    GetOptions(
-               'repo=s'      => \$repo,
-               );
-    
-    if ( scalar @ARGV ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &help( $opts, $cmds, $command );
-    }
-
-    unless ( defined $repo ) {
-        printf "\nMissing reponame <name>\n";
-        &help( $command );
-    }
-
-    $repo = "$baDir{'byum'}/$repo";
-    if ( $opts->{verbose} ) { print "Updating $repo \n"; }
-    &update_repo( $opts, $repo );
-
-    return 0;
+    &add_packages_yum( $opts, $repo, $distro, $packages )  if ( $type == BA_REPO_YUM );
+    &add_packages_apt( $opts, $repo, $distro, $packages ) if ( $type == BA_REPO_APT );
 }
 
 =head2 remove <name>
@@ -296,7 +309,6 @@ sub remove() {
         &help( $opts, $cmds, $command );
     }
 
-    $repo="$baDir{'byum'}/$repo";
     if ( $opts->{verbose} ) { print "Removing $repo \n"; }
     &remove_repo( $opts, $repo );
 
@@ -336,20 +348,32 @@ sub verify {
         &help( $opts, $cmds, $command );
     }
 
-    $repo = "$baDir{'byum'}/$repo";
-
     # barepo create related issues
     print "Verify directory and apache config... ";
-    &verify_repo_creation( $opts, $repo );
-    print "good.\n";
+    if ( &verify_repo_creation( $opts, $repo ) ) {
+        print "\n$opts->{LASTERROR}\n";
+        $opts->{LASTERROR} = "";
+    } else {
+        print "good.\n";
+    }
+
     # barepo update related issues
     print "Verify metadata present... ";
-    &verify_repo_repodata( $opts, $repo );
+    if ( &verify_repo_repodata( $opts, $repo ) ) {
+        print "\n$opts->{LASTERROR}\n";
+        $opts->{LASTERROR} = "";
+    } else {
+        print "good.\n";
+    }
 
-    print "good.\n";
     # barepo keysign related issues
-    print "Verify repodata gpg signed...\n";
-    &verify_repo_sign( $opts, $repo );
+    print "Verify repodata gpg signed... ";
+    if ( &verify_repo_sign( $opts, $repo ) ) {
+        print "\n$opts->{LASTERROR}\n";
+        $opts->{LASTERROR} = "";
+    } else {
+        print "good.\n";
+    }
 
     return 0;
 }
@@ -390,7 +414,7 @@ sub list {
 
     unless ( $opts->{quiet} || $opts->{nolabels} ) {
         print "--------------------------------------------------------------------------------\n";
-        printf "%-32s conf repo verify checks\n", "repository";
+        printf "%-32s conf checks\n", "repository";
         print "--------------------------------------------------------------------------------\n";
     }
 
@@ -399,12 +423,11 @@ sub list {
         return 0;
     }
 
-    my ($create, $data, $repodir);
+    my ($create, $data);
     opendir(DIR, $baDir{'byum'});
     foreach my $mydir ( grep(/\b$repo\b/o, grep(!/^\.+$/, readdir(DIR))) ) {
-        $repodir = "$baDir{'byum'}/$mydir";
-        $create = &verify_repo_creation( $opts, $repodir );
-        $data   = &verify_repo_repodata( $opts, $repodir );
+        $create = &verify_repo_creation( $opts, $mydir );
+        $data   = &verify_repo_repodata( $opts, $mydir );
         print "repo $mydir create $create data $data\n" if ( $opts->{debug} );
         printf "%-32s ", $mydir;
         unless ( $opts->{quiet} ) {
@@ -461,11 +484,15 @@ sub detail {
         print "--------------------------------------------------------------------------------\n";
     }
 
-    opendir(DIR, $repodir);
-    foreach my $rfile ( grep(!/^\.+$|^repodata$/, readdir(DIR)) ) {
-        print "$rfile\n";
-    }
-    closedir DIR;
+   find ( { wanted =>
+                 sub {
+                     if ( $_ =~ m/^.*\.(deb|rpm)\z/si ) {
+                         print basename($_) . "\n";
+                     }
+                  },
+                  follow =>1
+          },
+          "$baDir{'byum'}/$repo" ); 
 
     return 0;
 }

@@ -5,6 +5,7 @@
     <os>sles</os>
     <release>9.4</release>
     <arch>x86_64</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Server 9 SP4 64bit</description>
     <type>base</type>
     <autodownload>auth</autodownload>
@@ -98,6 +99,7 @@
     <os>sles</os>
     <release>9.4</release>
     <arch>x86</arch>
+    <codename/>
     <description>SUSE Linux Enterprise Server 9 SP4 32bit</description>
     <autodownload>auth</autodownload>
     <type>base</type>

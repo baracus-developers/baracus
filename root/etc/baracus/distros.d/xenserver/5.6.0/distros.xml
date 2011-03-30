@@ -7,6 +7,7 @@
     <os>xenserver</os>
     <release>5.6.0</release>
     <arch>x86</arch>
+    <codename/>
     <description>Xen Server 5.6.0 32bit</description>
     <type>base</type>
     <autodownload>no</autodownload>
