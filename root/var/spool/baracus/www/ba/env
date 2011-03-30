@@ -67,12 +67,15 @@ my $input = {};                 # for CGI args or PUT cookie
 
 my $clonedone = "$baDir{hooks}/clone_fetch_complete";
 my $clonefail = "$baDir{hooks}/clone_fetch_failed";
+my $migratedone = "$baDir{hooks}/migrate_fetch_complete";
+my $migratefail = "$baDir{hooks}/migrate_fetch_failed";
 my $imagedone = "$baDir{hooks}/image_deploy_complete";
 my $imagefail = "$baDir{hooks}/image_deploy_failed";
 my $mcastdone = "$baDir{hooks}/mcast_deploy_complete";
 my $mcastfail = "$baDir{hooks}/mcast_deploy_failed";
 my $newinv    = "$baDir{hooks}/new_inventory_available";
 my $incloner  = "$baDir{hooks}/node_in_clone_ready";
+my $inmigrate = "$baDir{hooks}/node_in_migrate_ready";
 my $inpxewait = "$baDir{hooks}/node_in_pxewait";
 my $inmcast   = "$baDir{hooks}/node_in_mcastwait";
 my $built     = "$baDir{hooks}/verify_client_build_passed";
@@ -382,7 +385,7 @@ if ( $ENV{REQUEST_METHOD} eq "HEAD" ) {
 
         $output = "upload success\n";
 
-    } elsif ( $ENV{REQUEST_URI} =~ m%^\s*/ba/(wipe|image|mcast|clonelog)\s*$% ) {
+    } elsif ( $ENV{REQUEST_URI} =~ m%^\s*/ba/(wipe|image|mcast|clonelog|migratelog)\s*$% ) {
 
         ##
         ## WIPE|IMAGE|MCAST|CLONE - COMPLETE HOOK AND STORE LOG/TICKET
@@ -439,6 +442,18 @@ if ( $ENV{REQUEST_METHOD} eq "HEAD" ) {
             } else {
                 $state = BA_EVENT_CLONEFAIL;
                 $hook = $clonefail;
+            }
+        } elsif ( $baState{$action} eq BA_ACTION_MIGRATE ) {
+            if ($input->{status} eq "pass") {
+                $state = BA_EVENT_MIGRATED;
+                $hook = $migratedone;
+                my $sref = &get_db_data( $dbh, 'storage', $actref->{storageid});
+# Is migration to other then NFS supported?
+                $sref->{type} = BA_STORAGE_NFS;
+                &update_db_data( $dbh, 'storage', $sref);
+            } else {
+                $state = BA_EVENT_MIGRATEFAIL;
+                $hook = $migratefail;
             }
         } else {
             # really bad don't know this upload/put log type - or how we get here
@@ -1738,7 +1753,7 @@ Address 'CMS' 'PURGE RDR ALL'
             $output .= $fdata;
 	}
 
-    } elsif ( $ENV{REQUEST_URI} =~ m%^\s*/ba/(pxewaitr|cloner)\?.*\s*$% ) {
+    } elsif ( $ENV{REQUEST_URI} =~ m%^\s*/ba/(pxewaitr|cloner|migrate)\?.*\s*$% ) {
 
         my $action = $1;
         $action =~ s/r$//;
@@ -1777,6 +1792,8 @@ Address 'CMS' 'PURGE RDR ALL'
             $hook = $inpxewait;
         } elsif ( $baState{$action} eq BA_ACTION_CLONE ) {
             $hook = $incloner;
+        } elsif ( $baState{$action} eq BA_ACTION_MIGRATE ) {
+            $hook = $inmigrate;
         }
 
         if ( -f $hook ) {
