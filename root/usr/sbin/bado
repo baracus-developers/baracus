@@ -61,6 +61,7 @@ Where E<lt>commandE<gt> is
     clone     <...>  Boot and clone drive to create specified image
     empty     <...>  Clear relations and PXEBOOT presents infinite wait screen
     inventory <...>  Force re/collection of inventory next pxeboot
+    migrate   <...>  Migrate a file system to another medium
     localboot <...>  Boot from localdisk
     netboot   <...>  Boot a network image
     pxewait   <...>  Boot a pxewait shell
@@ -102,6 +103,7 @@ my $cmds = {
             'clone'         => \&clone,
             'empty'         => \&empty,
             'inventory'     => \&inventory,
+	    'migrate'       => \&migrate,
             'localboot'     => \&localboot,
             'netboot'       => \&netboot,
             'pxewait'       => \&pxewait,
@@ -1555,7 +1557,7 @@ sub pxewait
     return 0;
 }
 
-=head2 inventory { --mac <macaddr | --hostname <name> }
+=head2 inventory { --mac <macaddr> | --hostname <name> }
 
 Set a device so that it collect basic inventory information on the next pxeboot cycle.
 
@@ -1657,6 +1659,130 @@ sub inventory
     if ( $opts->{verbose} )
     {
         printf "Inventory set\nNext pxeboot of %s will collect inventory.\n",
+            $hostname ne "" ? $hostname : $mac;
+    }
+
+    return 0;
+}
+
+
+=head2 migrate { --mac <macaddr> | --hostname <name> } --storageid <storage> [ --disk <num> --partition <num> ]
+
+Set a device to migrate its local root file system to network storage
+so that it migrates its file system on the next pxeboot cycle.
+
+Arguments
+
+    --mac <macaddr>        specify device by mac address
+    --hostname <name>      specify device by hostname ( if available )
+
+    --storageid <netroot>  specify network storage id
+
+    --disk <num>           Disk number to migrate [ default 0 (first)]
+    --partition <num>      Partition number to migrate [ default 0 (first)]
+
+
+=cut
+
+sub migrate
+{
+    my $command = "migrate";
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $command );
+    }
+
+    my $mac="";
+    my $hostname="";
+
+    my $storage="";
+
+    my $disk      = "0";
+    my $partition = "0";
+
+    my $macref;
+    my $actref;
+    my $chkref;
+
+    @ARGV = @_;
+
+    GetOptions(
+               'mac=s'          => \$mac,
+               'hostname=s'     => \$hostname,
+               'storageid=s'    => \$storage,
+               'disk=s'         => \$disk,
+               'partition=s'    => \$partition,
+               );
+
+    if ( scalar @ARGV ) {
+        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    # this routine checks for mac and hostname args
+    # and if hostname passed finds related mac entry
+    # returns undef on error (e.g., unable to find hostname)
+    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
+    unless ( defined $mac ) {
+        # $opts->{LASTERROR} set in subroutine
+        return 1;
+    }
+
+    $macref = &get_db_data( $dbh, 'mac', $mac );
+    unless ( defined $macref ) {
+        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
+    }
+    if ( $opts->{debug} > 1 ) {
+        while ( my ($key, $val) = each %{$macref} ) {
+            print "mac $key => " . $val eq "" ? "" : $val . "\n";
+        }
+    }
+
+    $chkref = &get_db_data( $dbh, 'action', $mac );
+    if ( defined $chkref ) {
+        if ( $opts->{debug} > 1 ) {
+            while ( my ($key, $val) = each %{$chkref} ) {
+                print "check $key => " . $val eq "" ? "" : $val . "\n";
+            }
+        }
+        # store a copy of the ref found for modification
+        $actref = $chkref;
+    }
+
+    if ( defined $chkref and
+         $chkref->{pxenext} eq BA_ACTION_MIGRATE ) {
+        $opts->{LASTERROR} = "device already set to migrate.\n";
+        return 1;
+    }
+
+    ##
+    ## ALL CHECKS DONE - DO MODS
+
+    $actref->{cmdline} = $cmdline;
+    $actref->{mac} = $mac;
+
+    # if passed both mac and hostname create a host table entry
+    if ( $hostname ne "" ) {
+        $actref->{hostname} = $hostname;
+        unless ( &get_db_data( $dbh, 'host', $hostname ) ) {
+            &add_db_data( $dbh, 'host', $actref );
+        }
+    }
+
+    action_state_change( $dbh, BA_ACTION_MIGRATE, $macref, $actref );
+
+    &update_db_mac_state( $dbh, $mac, BA_ACTION_MIGRATE );
+
+    # for proper command history update we update
+    if ( defined $chkref ) {
+        &update_db_data( $dbh, 'action', $actref );
+    } else {
+        &add_db_data( $dbh, 'action', $actref );
+    }
+
+    if ( $opts->{verbose} )
+    {
+        printf "Migrate set\nNext pxeboot of %s will migrate file system\n",
             $hostname ne "" ? $hostname : $mac;
     }
 
