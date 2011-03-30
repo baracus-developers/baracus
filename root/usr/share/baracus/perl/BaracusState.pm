@@ -77,7 +77,6 @@ BEGIN {
                 BA_NONE
                 BA_INVENTORY
                 BA_BUILD
-		BA_MIGRATE
                 BA_DISKWIPE
                 BA_RESCUE
                 BA_NORESCUE
@@ -88,8 +87,6 @@ BEGIN {
                 BA_REGISTER
                 BA_BUILDING
                 BA_BUILT
-		BA_MIGRATING
-		BA_MIGRATED
                 BA_SPOOFED
                 BA_WIPING
                 BA_WIPED
@@ -106,6 +103,10 @@ BEGIN {
                 BA_CLONING
                 BA_CLONED
                 BA_CLONEFAIL
+		BA_MIGRATE
+		BA_MIGRATING
+		BA_MIGRATED
+		BA_MIGRATEFAIL
             )],
          admin =>
          [qw(
@@ -120,7 +121,6 @@ BEGIN {
                 BA_ACTION_NONE
                 BA_ACTION_INVENTORY
                 BA_ACTION_BUILD
-		BA_ACTION_MIGRATE
                 BA_ACTION_DISKWIPE
                 BA_ACTION_RESCUE
                 BA_ACTION_NORESCUE
@@ -130,6 +130,7 @@ BEGIN {
                 BA_ACTION_IMAGE
                 BA_ACTION_MCAST
                 BA_ACTION_CLONE
+		BA_ACTION_MIGRATE
             )],
          events =>
          [qw(
@@ -137,8 +138,6 @@ BEGIN {
                 BA_EVENT_REGISTER
                 BA_EVENT_BUILDING
                 BA_EVENT_BUILT
-		BA_EVENT_MIGRATING
-		BA_EVENT_MIGRATED
                 BA_EVENT_SPOOFED
                 BA_EVENT_WIPING
                 BA_EVENT_WIPED
@@ -152,6 +151,9 @@ BEGIN {
                 BA_EVENT_CLONING
                 BA_EVENT_CLONED
                 BA_EVENT_CLONEFAIL
+		BA_EVENT_MIGRATING
+		BA_EVENT_MIGRATED
+		BA_EVENT_MIGRATEFAIL
             )],
          );
     Exporter::export_ok_tags('vars');
@@ -173,35 +175,36 @@ use constant BA_IGNORED           => 5  ;
 use constant BA_NONE              => 6  ;
 use constant BA_INVENTORY         => 7  ;
 use constant BA_BUILD             => 8  ;
-use constant BA_MIGRATE           => 9  ;
-use constant BA_DISKWIPE          => 10 ;
-use constant BA_RESCUE            => 11 ;
-use constant BA_NORESCUE          => 12 ;
-use constant BA_LOCALBOOT         => 13 ;
-use constant BA_PXEWAIT           => 14 ;
-use constant BA_NETBOOT           => 15 ;
-use constant BA_FOUND             => 16 ;
-use constant BA_REGISTER          => 17 ;
-use constant BA_BUILDING          => 18 ;
-use constant BA_BUILT             => 19 ;
-use constant BA_MIGRATING         => 20 ;
-use constant BA_MIGRATED          => 21 ;
-use constant BA_SPOOFED           => 22 ;
-use constant BA_WIPING            => 23 ;
-use constant BA_WIPED             => 24 ;
-use constant BA_WIPEFAIL          => 25 ;
-use constant BA_IMAGE             => 26 ;
-use constant BA_IMAGING           => 27 ;
-use constant BA_IMAGED            => 28 ;
-use constant BA_IMAGEFAIL         => 29 ;
-use constant BA_MCAST             => 30 ;
-use constant BA_MCASTING          => 31 ;
-use constant BA_MCASTED           => 32 ;
-use constant BA_MCASTFAIL         => 33 ;
-use constant BA_CLONE             => 34 ;
-use constant BA_CLONING           => 35 ;
-use constant BA_CLONED            => 36 ;
-use constant BA_CLONEFAIL         => 37 ;
+use constant BA_DISKWIPE          => 9 ;
+use constant BA_RESCUE            => 10 ;
+use constant BA_NORESCUE          => 11 ;
+use constant BA_LOCALBOOT         => 12 ;
+use constant BA_PXEWAIT           => 13 ;
+use constant BA_NETBOOT           => 14 ;
+use constant BA_FOUND             => 15 ;
+use constant BA_REGISTER          => 16 ;
+use constant BA_BUILDING          => 17 ;
+use constant BA_BUILT             => 18 ;
+use constant BA_SPOOFED           => 19 ;
+use constant BA_WIPING            => 20 ;
+use constant BA_WIPED             => 21 ;
+use constant BA_WIPEFAIL          => 22 ;
+use constant BA_IMAGE             => 23 ;
+use constant BA_IMAGING           => 24 ;
+use constant BA_IMAGED            => 25 ;
+use constant BA_IMAGEFAIL         => 26 ;
+use constant BA_MCAST             => 27 ;
+use constant BA_MCASTING          => 28 ;
+use constant BA_MCASTED           => 29 ;
+use constant BA_MCASTFAIL         => 30 ;
+use constant BA_CLONE             => 31 ;
+use constant BA_CLONING           => 32 ;
+use constant BA_CLONED            => 33 ;
+use constant BA_CLONEFAIL         => 34 ;
+use constant BA_MIGRATE           => 35 ;
+use constant BA_MIGRATING         => 36 ;
+use constant BA_MIGRATED          => 37 ;
+use constant BA_MIGRATEFAIL       => 38 ;
 
 # map to host admin
 use constant BA_ADMIN_ADDED       => BA_ADDED     ;
@@ -214,7 +217,6 @@ use constant BA_ADMIN_IGNORED     => BA_IGNORED   ;
 use constant BA_ACTION_NONE       => BA_NONE      ;
 use constant BA_ACTION_INVENTORY  => BA_INVENTORY ;
 use constant BA_ACTION_BUILD      => BA_BUILD     ;
-use constant BA_ACTION_MIGRATE    => BA_MIGRATE   ;
 use constant BA_ACTION_DISKWIPE   => BA_DISKWIPE  ;
 use constant BA_ACTION_RESCUE     => BA_RESCUE    ;
 use constant BA_ACTION_NORESCUE   => BA_NORESCUE  ;
@@ -224,14 +226,13 @@ use constant BA_ACTION_NETBOOT    => BA_NETBOOT   ;
 use constant BA_ACTION_IMAGE      => BA_IMAGE     ;
 use constant BA_ACTION_MCAST      => BA_MCAST     ;
 use constant BA_ACTION_CLONE      => BA_CLONE     ;
+use constant BA_ACTION_MIGRATE    => BA_MIGRATE   ;
 
 # map to non-user triggered events
 use constant BA_EVENT_FOUND       => BA_FOUND     ;
 use constant BA_EVENT_REGISTER    => BA_REGISTER  ;
 use constant BA_EVENT_BUILDING    => BA_BUILDING  ;
 use constant BA_EVENT_BUILT       => BA_BUILT     ;
-use constant BA_EVENT_MIGRATING   => BA_MIGRATING ;
-use constant BA_EVENT_MIGRATED    => BA_MIGRATED  ;
 use constant BA_EVENT_SPOOFED     => BA_SPOOFED   ;
 use constant BA_EVENT_WIPING      => BA_WIPING    ;
 use constant BA_EVENT_WIPED       => BA_WIPED     ;
@@ -245,6 +246,9 @@ use constant BA_EVENT_MCASTFAIL   => BA_MCASTFAIL ;
 use constant BA_EVENT_CLONING     => BA_CLONING   ;
 use constant BA_EVENT_CLONED      => BA_CLONED    ;
 use constant BA_EVENT_CLONEFAIL   => BA_CLONEFAIL ;
+use constant BA_EVENT_MIGRATING   => BA_MIGRATING ;
+use constant BA_EVENT_MIGRATED    => BA_MIGRATED  ;
+use constant BA_EVENT_MIGRATEFAIL => BA_MIGRATEFAIL;
 
 =pod
 
@@ -278,8 +282,6 @@ to the value of that state constant.
      'register'   ,
      'building'   ,
      'built'      ,
-     'migrating'  ,
-     'migrated'   ,
      'spoofed'    ,
      'wiping'     ,
      'wiped'      ,
@@ -296,6 +298,10 @@ to the value of that state constant.
      'cloning'    ,
      'cloned'     ,
      'clonefail'  ,
+     'migrate'    ,
+     'migrating'  ,
+     'migrated'   ,
+     'migratefail',
      );
 
 =item hash baState
@@ -314,35 +320,36 @@ here we define a hash to make easy using the state constants easier
      6              => 'none'       ,
      7              => 'inventory'  ,
      8              => 'build'      ,
-     9              => 'migrate'    ,
-     10             => 'diskwipe'   ,
-     11             => 'rescue'     ,
-     12             => 'norescue'   ,
-     13             => 'localboot'  ,
-     14             => 'pxewait'    ,
-     15             => 'netboot'    ,
-     16             => 'found'      ,
-     17             => 'register'   ,
-     18             => 'building'   ,
-     19             => 'built'      ,
-     20		    => 'migrating'  ,
-     21		    => 'migrated'   ,
-     22             => 'spoofed'    ,
-     23             => 'wiping'     ,
-     24             => 'wiped'      ,
-     25             => 'wipefail'   ,
-     26             => 'image'      ,
-     27             => 'imaging'    ,
-     28             => 'imaged'     ,
-     29             => 'imagefail'  ,
-     30             => 'mcast'      ,
-     31             => 'mcasting'   ,
-     32             => 'mcasted'    ,
-     33             => 'mcastfail'  ,
-     34             => 'clone'      ,
-     35             => 'cloning'    ,
-     36             => 'cloned'     ,
-     37             => 'clonefail'  ,
+     9              => 'diskwipe'   ,
+     10             => 'rescue'     ,
+     11             => 'norescue'   ,
+     12             => 'localboot'  ,
+     13             => 'pxewait'    ,
+     14             => 'netboot'    ,
+     15             => 'found'      ,
+     16             => 'register'   ,
+     17             => 'building'   ,
+     18             => 'built'      ,
+     19             => 'spoofed'    ,
+     20             => 'wiping'     ,
+     21             => 'wiped'      ,
+     22             => 'wipefail'   ,
+     23             => 'image'      ,
+     24             => 'imaging'    ,
+     25             => 'imaged'     ,
+     26             => 'imagefail'  ,
+     27             => 'mcast'      ,
+     28             => 'mcasting'   ,
+     29             => 'mcasted'    ,
+     30             => 'mcastfail'  ,
+     31             => 'clone'      ,
+     32             => 'cloning'    ,
+     33             => 'cloned'     ,
+     34             => 'clonefail'  ,
+     35             => 'migrate'    ,
+     36		    => 'migrating'  ,
+     37		    => 'migrated'   ,
+     38		    => 'migratefail'   ,
 
      'added'        => BA_ADDED     ,
      'removed'      => BA_REMOVED   ,
@@ -352,7 +359,6 @@ here we define a hash to make easy using the state constants easier
      'none'         => BA_NONE      ,
      'inventory'    => BA_INVENTORY ,
      'build'        => BA_BUILD     ,
-     'migrate'      => BA_MIGRATE   ,
      'diskwipe'     => BA_DISKWIPE  ,
      'rescue'       => BA_RESCUE    ,
      'norescue'     => BA_NORESCUE  ,
@@ -379,6 +385,10 @@ here we define a hash to make easy using the state constants easier
      'cloning'      => BA_CLONING   ,
      'cloned'       => BA_CLONED    ,
      'clonefail'    => BA_CLONEFAIL ,
+     'migrate'      => BA_MIGRATE   ,
+     'migrating'    => BA_MIGRATING ,
+     'migrated'     => BA_MIGRATED  ,
+     'migratefail'  => BA_MIGRATEFAIL,
 
      BA_ADDED       => 'added'      ,
      BA_REMOVED     => 'removed'    ,
@@ -388,7 +398,6 @@ here we define a hash to make easy using the state constants easier
      BA_NONE        => 'none'       ,
      BA_INVENTORY   => 'inventory'  ,
      BA_BUILD       => 'build'      ,
-     BA_MIGRATE     => 'migrate'    ,
      BA_DISKWIPE    => 'diskwipe'   ,
      BA_RESCUE      => 'rescue'     ,
      BA_NORESCUE    => 'norescue'   ,
@@ -399,8 +408,6 @@ here we define a hash to make easy using the state constants easier
      BA_REGISTER    => 'register'   ,
      BA_BUILDING    => 'building'   ,
      BA_BUILT       => 'built'      ,
-     BA_MIGRATING   => 'migrating'  ,
-     BA_MIGRATED    => 'migrated'   ,
      BA_SPOOFED     => 'spoofed'    ,
      BA_WIPING      => 'wiping'     ,
      BA_WIPED       => 'wiped'      ,
@@ -417,6 +424,10 @@ here we define a hash to make easy using the state constants easier
      BA_CLONING     => 'cloning'    ,
      BA_CLONED      => 'cloned'     ,
      BA_CLONEFAIL   => 'clonefail'  ,
+     BA_MIGRATE     => 'migrate'    ,
+     BA_MIGRATING   => 'migrating'  ,
+     BA_MIGRATED    => 'migrated'   ,
+     BA_MIGRATEFAIL => 'migratefail',
 
      BA_ADMIN_ADDED       => 'added'      ,
      BA_ADMIN_REMOVED     => 'removed'    ,
@@ -427,7 +438,6 @@ here we define a hash to make easy using the state constants easier
      BA_ACTION_NONE       => 'none'       ,
      BA_ACTION_INVENTORY  => 'inventory'  ,
      BA_ACTION_BUILD      => 'build'      ,
-     BA_ACTION_MIGRATE    => 'migrate'    ,
      BA_ACTION_DISKWIPE   => 'diskwipe'   ,
      BA_ACTION_RESCUE     => 'rescue'     ,
      BA_ACTION_NORESCUE   => 'norescue'   ,
@@ -437,13 +447,12 @@ here we define a hash to make easy using the state constants easier
      BA_ACTION_IMAGE      => 'image'      ,
      BA_ACTION_MCAST      => 'mcast'      ,
      BA_ACTION_CLONE      => 'clone'      ,
+     BA_ACTION_MIGRATE    => 'migrate'    ,
 
      BA_EVENT_FOUND       => 'found'      ,
      BA_EVENT_REGISTER    => 'register'   ,
      BA_EVENT_BUILDING    => 'building'   ,
      BA_EVENT_BUILT       => 'built'      ,
-     BA_EVENT_MIGRATING   => 'migrating'  ,
-     BA_EVENT_MIGRATED    => 'migrated'   ,
      BA_EVENT_SPOOFED     => 'spoofed'    ,
      BA_EVENT_WIPING      => 'wiping'     ,
      BA_EVENT_WIPED       => 'wiped'      ,
@@ -458,6 +467,9 @@ here we define a hash to make easy using the state constants easier
      BA_EVENT_CLONING     => 'cloning'    ,
      BA_EVENT_CLONED      => 'cloned'     ,
      BA_EVENT_CLONEFAIL   => 'clonefail'  ,
+     BA_EVENT_MIGRATING   => 'migrating'  ,
+     BA_EVENT_MIGRATED    => 'migrated'   ,
+     BA_EVENT_MIGRATEFAIL => 'migratefail',
 
      );
 
