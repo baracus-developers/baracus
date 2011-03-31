@@ -1072,7 +1072,8 @@ sub get_iso
 {
     my ($opts,$distro,$url,$iso,$username,$password,$proxy,$pusername,$ppassword,$proxyaddr) = @_;
     use LWP::UserAgent;
-    my $file="$baDir{'isos'}/$iso";
+    my $idir = "$baDir{'isos'}/$distro";
+    my $file = "$idir/$iso";
     my $br;
     my $ua;
 
@@ -1098,6 +1099,10 @@ sub get_iso
     }
 
     $| = 1;
+
+    unless ( -d $idir ) {
+        mkdir $idir, 0755 || die ("Cannot create $idir directory\n");
+    }
     open(FILE, ">$file") || die "Can't open $file: $!\n";
     my $req = $ua->request(HTTP::Request->new(GET => $url),
                            sub {
@@ -1129,7 +1134,8 @@ sub get_iso_locations
             sub {
                 if ($_ =~ /.*\.iso$/) {
                     print "found $File::Find::name\n" if ( $opts->{debug} > 2 );
-                    $isohash{ $_ } = $File::Find::name ;
+                    push @{ $isohash{ $_ } }, $File::Find::name;
+                  #  $isohash{ $_ } = $File::Find::name ;
                 }
             },
             follow => 1
@@ -1181,7 +1187,19 @@ sub verify_iso
                 $distisoinfo->{$isofile}->{'hash'} = $ih;
                 $distisoinfo->{$isofile}->{'path'} = $ih->{'isopath'};
                 if ( defined $iso_location_hashref->{$isofile} ) {
-                    push @distisolist, $iso_location_hashref->{$isofile};
+                    if ( defined $iso_location_hashref->{$isofile}[1] ) {
+                        print "multiple iso name matches, need to check MD5s\n" if ($opts->{debug} > 1);
+                        foreach my $iso ( @{ $iso_location_hashref->{$isofile} }  ) {
+                            my $iah = &baxml_iso_gethash( $opts, $da, $prod, basename($iso) );
+                            my $md5 = &get_md5sum( $iso );
+                            if ( $md5 eq $iah->{md5} ) {
+                                print "match, using: $iso \n" if ($opts->{debug} > 1);
+                                push @distisolist, $iso;
+                            }
+                        }
+                    } else {
+                        push @distisolist, $iso_location_hashref->{$isofile}[0];
+                    }
                 } else {
                     $halt = 1;
                     print "Missing required file $isofile\n";
@@ -1874,9 +1892,10 @@ sub init_mounter
     my $opts = shift;
     my @mount;
     my $ret = 0;
+    my $isoloc;
     my $iso_location_hashref = &get_iso_locations( $opts );
 
-    my $sql = qq| SELECT mntpoint, iso
+    my $sql = qq| SELECT mntpoint, iso, distroid
                   FROM $baTbls{'iso'}
                   WHERE is_loopback = 't'
                |;
@@ -1900,16 +1919,34 @@ sub init_mounter
         my $is_mounted = 0;
         foreach ( @mount ) {
             if (/$href->{'mntpoint'}/) {
-                print "Already mounted: $iso_location_hashref->{$href->{'iso'}}\n" if ( $opts->{verbose} );
+                print "Already mounted: $href->{'mntpoint'}\n" if ( $opts->{verbose} );
                 $is_mounted = 1;
             }
         }
+        if ( $is_mounted ) { next; }
         unless ( $is_mounted ) {
-            if ( not defined $iso_location_hashref->{ $href->{'iso'} } ) {
+            if ( defined $iso_location_hashref->{ $href->{'iso'} }[1] ) {
+                ## more than one possible iso to mount
+                ## determine correct choice 
+                print "More than one iso found for mount, verifying with md5sum\n" if ( $opts->{verbose} );
+                foreach my $prod ( &baxml_products_getlist( $opts, $href->{'distroid'} ) ) {
+                    foreach my $iso ( @{ $iso_location_hashref->{ $href->{'iso'} } }  ) {
+                        my $iah = &baxml_iso_gethash( $opts, $href->{'distroid'}, $prod, basename($iso) );
+                        my $md5 = &get_md5sum( $iso );
+                        if ( $md5 eq $iah->{md5} ) {
+                            print "match, using: $iso \n" if ($opts->{debug} > 1);
+                            $isoloc = $iso;
+                        }
+                    }
+                }
+            } else {
+                $isoloc = $iso_location_hashref->{ $href->{'iso'} }[0];
+            }
+            if ( not defined $isoloc ) {
                 $opts->{LASTERROR} .= "Missing required iso: $href->{'iso'}\n";
             } else {
-                print "Mounting $iso_location_hashref->{ $href->{'iso'} } at $href->{'mntpoint'} \n" if ( $opts->{verbose} );
-                $ret = system("mount -o loop $iso_location_hashref->{ $href->{'iso'} } $href->{'mntpoint'}");
+                print "Mounting $isoloc at $href->{'mntpoint'} \n" if ( $opts->{verbose} );
+                $ret = system("mount -o loop $isoloc $href->{'mntpoint'}");
                 if ( $ret > 0 ) {
                     $opts->{LASTERROR} .= "Mount failed for $href->{'mntpoint'}: $!";
                     next;
