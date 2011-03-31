@@ -1115,15 +1115,13 @@ LABEL clone
                 $actref->{cmdline} = "# pxeboot directing migrate disk image";
 
                 $dstref = &get_db_data( $dbh, 'storage', $actref->{storageid} );
-                $dstref->{storage} =~ s|\.gz$||;
-
                 $output =
-                    qq|DEFAULT clone
+                    qq|DEFAULT migrate
 PROMPT 0
 TIMEOUT 0
 LABEL migrate
         kernel http://$baVar{serverip}/ba/$linux_wrkld
-        append initrd=http://$baVar{serverip}/ba/$initrd_wrkld root=/dev/ram0 install=exec:/usr/bin/baracus.migrate badstfs="$dstref->{storage}" basrcfs="$hardref->{rootdisk}" utomigrate=$actref->{automigrate} baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        append initrd=http://$baVar{serverip}/ba/$initrd_wrkld root=/dev/ram0 install=exec:/usr/bin/baracus.migrate badstfs="$dstref->{storageip}:$dstref->{storage}" basrcfs="$hardref->{rootdisk}" automigrate=$actref->{automigrate} baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
             }
 
