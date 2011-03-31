@@ -469,6 +469,7 @@ sub get_baracus_tables
 
          'autonuke'    => 'BOOLEAN', # if asserted pass autowipe option
          'autoclone'   => 'BOOLEAN', # if asserted pass autoclone option
+         'automigrate' => 'BOOLEAN', # if asserted pass automigrate option
          'disk'        => 'INTEGER', # localboot target disk
          'partition'   => 'INTEGER', # localboot target partition
          'storageid'   => 'VARCHAR', # clone/image id
