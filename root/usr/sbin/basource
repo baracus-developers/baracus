@@ -660,7 +660,16 @@ sub remove() {
     undef @extras;
     @extras = split( /\s+/, $extras );
 
-    # only check extras passed if not removing all
+    ## Are there any extras not removed dependant on base
+    my @extchk = &list_installed_extras( $opts, $distro );
+    foreach my $extchk (@extchk) {
+        if ( ! exists {map { $_ => 1 } @extras}->{$extchk} ) {
+            $opts->{LASTERROR} =  "cannot remove $distro:\n\t$extchk installed and depends on $distro\n";
+            return 1;
+        }
+    }
+
+    ## only check extras passed if not removing all
     if ( scalar @extras ) {
         print "Calling routine to verify extra(s) passed\n" if $opts->{verbose};
         return 1 if &check_extras( $opts, $distro, $extras );
