@@ -131,6 +131,8 @@ my $actref  = {};
 my $distref = {};
 my $hardref = {};
 my $imgref  = {};
+my $dstref  = {};
+
 my $filename = "";
 my $output = "";
 my $content_type = "text/plain";
@@ -1040,7 +1042,8 @@ chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
 
         if ( $pxenext eq BA_ACTION_IMAGE or
              $pxenext eq BA_ACTION_MCAST or
-             $pxenext eq BA_ACTION_CLONE
+             $pxenext eq BA_ACTION_CLONE or
+             $pxenext eq BA_ACTION_MIGRATE
             ) {
             ##
             ##  IMAGE|MCAST|CLONE - SERVE IMAGE WORKLOAD
@@ -1055,14 +1058,14 @@ chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
             }
 
             my $lcmac = lc $input->{mac};
+	    
+            my $linux_wrkld=get_arch_linux($input);
+            my $initrd_wrkld=get_arch_initrd($input);
 
             if ($pxenext eq BA_ACTION_IMAGE) {
                 printlog "$input->{mac} - serving imaging workload\n";
                 $state = BA_EVENT_IMAGING;
                 $actref->{cmdline} = "# pxeboot directing to image disk";
-
-                my $linux_img=get_arch_linux($input);
-                my $initrd_img=get_arch_initrd($input);
 
                 $imgref = &get_db_data( $dbh, 'storage', $actref->{storageid} );
 
@@ -1071,16 +1074,13 @@ chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
 PROMPT 0
 TIMEOUT 0
 LABEL image
-        kernel http://$baVar{serverip}/ba/$linux_img
-        append initrd=http://$baVar{serverip}/ba/$initrd_img root=/dev/ram0 install=exec:/usr/bin/baracus.image baimagedst="$hardref->{rootdisk}" baimagesrc="$imgref->{storage}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60 nosmp
+        kernel http://$baVar{serverip}/ba/$linux_wrkld
+        append initrd=http://$baVar{serverip}/ba/$initrd_wrkld root=/dev/ram0 install=exec:/usr/bin/baracus.image baimagedst="$hardref->{rootdisk}" baimagesrc="$imgref->{storage}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60 nosmp
 |;
             } elsif ( $pxenext eq BA_ACTION_MCAST ) {
                 printlog "$input->{mac} - serving mcasting workload\n";
                 $state = BA_EVENT_MCASTING;
                 $actref->{cmdline} = "# pxeboot directing to multicast image disk";
-                my $linux_mcst=get_arch_linux($input);
-                my $initrd_mcst=get_arch_initrd($input);
-
                 my $mcastref = &get_db_data( $dbh, 'mcast', $actref->{mcastid} );
 
                 # here iamgeid is in IP format (validated in bado image)
@@ -1090,16 +1090,13 @@ LABEL image
 PROMPT 0
 TIMEOUT 0
 LABEL mcast
-        kernel http://$baVar{serverip}/ba/$linux_mcst
-        append initrd=http://$baVar{serverip}/ba/$initrd_mcst root=/dev/ram0 install=exec:/usr/bin/baracus.mcast baimagedst="$hardref->{rootdisk}" bardvaddr="$mcastref->{rdvip}" baracus=$baVar{serverip} mac=$input->{mac} portbase=$mcastref->{port} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60 nosmp
+        kernel http://$baVar{serverip}/ba/$linux_wrkld
+        append initrd=http://$baVar{serverip}/ba/$initrd_wrkld root=/dev/ram0 install=exec:/usr/bin/baracus.mcast baimagedst="$hardref->{rootdisk}" bardvaddr="$mcastref->{rdvip}" baracus=$baVar{serverip} mac=$input->{mac} portbase=$mcastref->{port} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60 nosmp
 |;
             } elsif ( $pxenext eq BA_ACTION_CLONE ) {
                 printlog "$input->{mac} - serving cloning workload\n";
                 $state = BA_EVENT_CLONING;
                 $actref->{cmdline} = "# pxeboot directing clone disk image";
-
-                my $linux_cln=get_arch_linux($input);
-                my $initrd_cln=get_arch_initrd($input);
 
                 $imgref = &get_db_data( $dbh, 'storage', $actref->{storageid} );
                 $imgref->{storage} =~ s|\.gz$||;
@@ -1109,8 +1106,24 @@ LABEL mcast
 PROMPT 0
 TIMEOUT 0
 LABEL clone
-        kernel http://$baVar{serverip}/ba/$linux_cln
-        append initrd=http://$baVar{serverip}/ba/$initrd_cln root=/dev/ram0 install=exec:/usr/bin/baracus.clone baimagedst="$imgref->{storage}" baimagesrc="$hardref->{rootdisk}" autoclone=$actref->{autoclone} baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60 nosmp
+        kernel http://$baVar{serverip}/ba/$linux_wrkld
+        append initrd=http://$baVar{serverip}/ba/$initrd_wrkld root=/dev/ram0 install=exec:/usr/bin/baracus.clone baimagedst="$imgref->{storage}" baimagesrc="$hardref->{rootdisk}" autoclone=$actref->{autoclone} baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60 nosmp
+|;
+            } elsif ( $pxenext eq BA_ACTION_MIGRATE ) {
+                printlog "$input->{mac} - serving migrate workload\n";
+                $state = BA_EVENT_MIGRATING;
+                $actref->{cmdline} = "# pxeboot directing migrate disk image";
+
+                $dstref = &get_db_data( $dbh, 'storage', $actref->{storageid} );
+                $dstref->{storage} =~ s|\.gz$||;
+
+                $output =
+                    qq|DEFAULT clone
+PROMPT 0
+TIMEOUT 0
+LABEL migrate
+        kernel http://$baVar{serverip}/ba/$linux_wrkld
+        append initrd=http://$baVar{serverip}/ba/$initrd_wrkld root=/dev/ram0 install=exec:/usr/bin/baracus.migrate badstfs="$dstref->{storage}" basrcfs="$hardref->{rootdisk}" utomigrate=$actref->{automigrate} baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
             }
 
