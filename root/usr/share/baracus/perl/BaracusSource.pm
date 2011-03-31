@@ -2448,8 +2448,6 @@ sub check_extras
     my $distro = shift;
     my $extras = shift;
 
- #   my $dh = &baxml_distro_gethash( $opts, $distro );
-
     # verify all addons passed are intended for given distro as base
     foreach my $extra ( split /\s+/, $extras ) {
         &check_extra( $opts, $extra );
