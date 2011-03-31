@@ -470,7 +470,6 @@ here we define a hash to make easy using the state constants easier
      BA_EVENT_MIGRATING   => 'migrating'  ,
      BA_EVENT_MIGRATED    => 'migrated'   ,
      BA_EVENT_MIGRATEFAIL => 'migratefail',
-
      );
 
 =item admin_state_change
@@ -671,6 +670,17 @@ sub event_state_change
            ) {
         $actref->{oper}    = $event;
         $actref->{pxenext} = BA_ACTION_LOCALBOOT;
+    }
+    elsif ( $event eq BA_EVENT_MIGRATING ) {
+        $actref->{oper}    = $event;
+        $actref->{pxecurr} = BA_ACTION_MIGRATE;
+        $actref->{pxenext} = BA_ACTION_NETBOOT;
+    }
+    elsif ( $event eq BA_EVENT_MIGRATED or
+            $event eq BA_EVENT_MIGRATEFAIL
+           ) {
+        $actref->{oper}    = $event;
+        $actref->{pxenext} = BA_ACTION_PXEWAIT;
     }
     else {
         print "Unknown event value $event in attempt to change state.\n";
