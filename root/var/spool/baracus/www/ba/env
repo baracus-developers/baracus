@@ -1706,8 +1706,8 @@ Address 'CMS' 'PURGE RDR ALL'
 
             ## NFS boot 
 
-            my $nfs_script="/usr/share/baracus/scripts/mountnfs.sh";
-            my $nfs_base="/var/spool/baracus/nfsroot";
+            my $nfs_script="$baDir{scripts}/mountnfs.sh";
+            my $nfs_base="$baDir{nfsroot}";
 	    my $nfsroot="$nfs_base/$sref->{storageip}/$sref->{storage}";
             my $fn;
             my $fd;
@@ -1715,7 +1715,7 @@ Address 'CMS' 'PURGE RDR ALL'
 
             printlog "netboot $actref->{storageid} $sref->{storageip} :: $1\n";
  
-            my @args = ($nfs_script, "$sref->{storageip}", $sref->{storage});
+            my @args = ($nfs_script, "$nfs_base", "$sref->{storageip}", "$sref->{storage}");
 	    my $sysrc = system(@args);
             unless ($sysrc == 0) {
                 printlog "system @args returns: $sysrc \n";

@@ -1,4 +1,11 @@
-NFSBASE=/var/spool/baracus/nfsroot
-sudo mkdir -p $NFSBASE/$1/$2
-sudo umount $NFSBASE/$1/$2
-sudo mount -o soft,async -t nfs $1:$2 $NFSBASE/$1/$2
+#!/bin/bash
+ROOT=$1
+SERVER=$2
+SHARE=$3
+
+NFSLOCAL=$ROOT/${SERVER}${SHARE}
+NFSREMOTE=$SERVER:$SHARE
+
+sudo mkdir -p $NFSLOCAL
+sudo umount $NFSLOCAL 2&>/dev/null
+sudo mount -o soft,async -t nfs $NFSREMOTE $NFSLOCAL

@@ -207,7 +207,7 @@ if ( $baracusdir =~ m|^~([^/]*)| ) {
 $baracusdir =~ s|/*\s*$||;
 
 # store baracus well know directories in global hash 'bdir'
-my @bdirs = qw( builds byum bfdir hooks images isos logs pgsql www cache );
+my @bdirs = qw( builds byum bfdir hooks images isos logs pgsql www cache nfsroot );
 
 my (undef,undef,$uid,$gid) = getpwnam( 'baracus' );
 foreach my $bd (@bdirs) {
@@ -218,9 +218,11 @@ foreach my $bd (@bdirs) {
     }
 }
 $baDir{ root } = $baracusdir;
-$baDir{ data } = "/usr/share/baracus";
 $baDir{ buildroot } = $baDir{builds};
+
+$baDir{ data } = "/usr/share/baracus";
 $baDir{ templates } =  "$baDir{ data }/templates";
+$baDir{ scripts } =  "$baDir{ data }/scripts";
 
 my $baconfigdir = "/etc/baracus";
 $baDir{ bcdir } = $baconfigdir;
