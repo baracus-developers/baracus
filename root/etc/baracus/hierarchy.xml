@@ -1,0 +1,46 @@
+<?xml version='1.0'?>
+<root>
+  <class name='debian'>
+    <pkgtype>deb</pkgtype>
+    <autobuild>preseed</autobuild>
+    <os name='debian'/>
+    <os name='ubuntu'/>
+    <os name='ubuntu_desktop'/>
+  </class>
+  <class name='redhat'>
+    <pkgtype>rpm</pkgtype>
+    <autobuild>kickstart</autobuild>
+    <os name='centos'/>
+    <os name='fedora'/>
+    <os name='rhel'/>
+  </class>
+  <class name='solaris'>
+    <pkgtype>pkg</pkgtype>
+    <autobuild>jumpstart</autobuild>
+    <os name='solaris'/>
+  </class>
+  <class name='suse'>
+    <pkgtype>rpm</pkgtype>
+    <autobuild>autoyast</autobuild>
+    <os name='opensuse'/>
+    <os name='sled'/>
+    <os name='sles'/>
+  </class>
+  <class name='vmware'>
+    <pkgtype>rpm</pkgtype>
+    <autobuild>kickstart</autobuild>
+    <os name='esx'/>
+    <os name='esxi'/>
+  </class>
+  <class name='windows'>
+    <pkgtype>msi</pkgtype>
+    <autobuild>unattended</autobuild>
+    <os name='windows_ent'/>
+    <os name='windows_server'/>
+  </class>
+  <class name='xenserver'>
+    <pkgtype>tarbz2</pkgtype>
+    <autobuild>answerfile</autobuild>
+    <os name='xenserver'/>
+  </class>
+</root>

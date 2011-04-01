@@ -29,7 +29,6 @@ use Getopt::Long qw( :config pass_through );
 use Pod::Usage;
 use File::Find;
 use File::Basename;
-use Clone qw( clone );
 
 use lib "/usr/share/baracus/perl";
 
@@ -50,16 +49,16 @@ B<barepo> E<lt>commandE<gt> [options]
 
 Where E<lt>commandE<gt> is
 
-    create  <name> <rpmlist>  Create new repo.
-    add     <name> <rpmlist>  Add more packages to repo.
-    update  <name>            Regenerate metafiles after add.
-    remove  <name>            Remove repo.
-    verify  <name>            Run some checks on repo health.
-    list    [match]           List all, or matching, repos.
-    detail  <name>            List the files in named repo.
+    create  <...>  Create new repo.
+    add     <...>  Add more packages to repo.
+    update  <...>  Regenerate metafiles after add.
+    remove  <...>  Remove repo.
+    verify  <...>  Run some checks on repo health.
+    list    <...>  List all, or matching, repos.
+    detail  <...>  List the files in named repo.
 
-    help                      This 'Usage' summary message.
-    man                       Detailed man page.
+    help    This 'Usage' summary message.
+    man     Detailed man page.
 
 Use 'man' or 'help <command>' for more details.
 
@@ -126,20 +125,7 @@ GetOptions(
 if ($ARGV[0] eq "man"  ) { &man(); }
 if ($ARGV[0] eq "help" ) { shift @ARGV; &help( $opts, $cmds, @ARGV ); }
 
-my $baXML;
-
-my @xmlfiles = &get_xml_filelist( $opts, $baDir{'distros.d'} );
-
-for my $xmlfile ( @xmlfiles ) {
-    print "now loading user distro file: $xmlfile\n" if $opts->{debug};
-    my $tmpXML = &baxml_load( $opts, $xmlfile );
-    while ( my ($key, $val) = each %{$tmpXML->{distro}} ) {
-        print " $key => $val\n" if $opts->{debug};
-        $baXML->{'distro'}->{$key} = clone( $val );
-    }
-}
-
-$opts->{baXML}    = $baXML;
+$opts->{baXML}    = &baxml_load_distros( $opts );
 
 my $status;
 $status = &main( $opts, $cmds, @ARGV );
@@ -154,7 +140,7 @@ die "DOES NOT EXECUTE";
 
 =head1 COMMANDS
 
-=head2 create <name> [rpm_list]
+=head2 create --repo <name> --distro <distro> [ --package="rpm list" ]
 
 Creates the repository with <name> and populates it with any rpms listed provided in space seperated [rpm_list]
 
@@ -170,7 +156,6 @@ sub create() {
 
     my $repo     = "";
     my $packages = "";
-    my $type     = "";
     my $distro   = "";
 
     @ARGV = @_;
@@ -195,27 +180,24 @@ sub create() {
 
     $packages = $multiarg{ packages } if ( defined $multiarg{ packages } );
 
-    ## Determine package type
-    if ( $packages =~ m|\.rpm| ) {
-        $type = BA_REPO_YUM;
-    } elsif ( $packages =~ m|\.deb| ) {
-        $type = BA_REPO_APT;
-    } else {
-        $type = BA_REPO_UNSUPPORTED;
-        $opts->{LASTERROR} = "provided repo package type: $type not supported";
+    my $dh =  &baxml_distro_gethash( $opts, $distro );
+    unless ( defined $dh->{pkgtype} and defined $barepoType{ $dh->{pkgtype} } ) {
+        $opts->{LASTERROR} = "provided repo package type not supported";
         return 1;
     }
+    my $type = $barepoType{ $dh->{pkgtype} };
 
-    if ( $opts->{verbose} ) { print "Creating $repo \n"; }
+    print "Creating $repo \n" if ( $opts->{verbose} );
     &create_repo_yum( $opts, $repo, $distro, $packages ) if ( $type == BA_REPO_YUM );
     &create_repo_apt( $opts, $repo, $distro, $packages ) if ( $type == BA_REPO_APT );
 
-    return &restart_service();
+    # enable_service is clever will start if needed or restart
+    return &enable_service( $opts, "http");
 }
 
-=head2 add <name> [rpm_list]
+=head2 add --repo <name> --distro <distro> --packages "<rpm list>"
 
-Add the rpms listed in space seperated [rpm_list] to the repository with <name> and updates the repo metadata.
+Add the rpms listed in space seperated <rpm_list> to the repository with <name> for the distributuion <distro>. Also updates the repo metadata.
 
 =cut
 
@@ -230,7 +212,6 @@ sub add() {
     my $repo     = "";
     my $distro   = "";
     my $packages = "";
-    my $type     = "";
 
     @ARGV = @_;
 
@@ -250,8 +231,10 @@ sub add() {
         &help( $command );
     }
 
-    unless ( -d "$baDir{'byum'}/$repo" ) {
-        $opts->{LASTERROR} = "repo: $repo does not exist. create with \"barepo create\".\n";
+    my $repodir = "$baDir{'byum'}/$repo";
+
+    unless ( -d $repodir ) {
+        $opts->{LASTERROR} = "Repo not found. Create with: barepo create --repo $repo --distro $distro\n";
         return 1;
     }
 
@@ -259,46 +242,41 @@ sub add() {
 
     $packages = $multiarg{ packages } if ( defined $multiarg{ packages } );
 
-    ## Determine package type
-    if ( $packages =~ m|\.rpm| ) {
-        $type = BA_REPO_YUM;
-    } elsif ( $packages =~ m|\.deb| ) {
-        $type = BA_REPO_APT;
-    } else {
-        $type = BA_REPO_UNSUPPORTED;
-        $opts->{LASTERROR} = "provided repo package type: $type not supported";
+    my $dh =  &baxml_distro_gethash( $opts, $distro );
+    unless ( defined $dh->{pkgtype} and defined $barepoType{ $dh->{pkgtype} } ) {
+        $opts->{LASTERROR} = "provided repo package type not supported";
         return 1;
     }
+    my $type = $barepoType{ $dh->{pkgtype} };
 
-    $repo = "$baDir{'byum'}/$repo";
-    if ( $opts->{verbose} ) { print "Adding packages to $repo \n"; }
+    print "Adding packages to $repo \n" if ( $opts->{verbose} );
 
-    &add_packages_yum( $opts, $repo, $distro, $packages )  if ( $type == BA_REPO_YUM );
+    &add_packages_yum( $opts, $repo, $distro, $packages ) if ( $type == BA_REPO_YUM );
     &add_packages_apt( $opts, $repo, $distro, $packages ) if ( $type == BA_REPO_APT );
+
 }
 
-=head2 remove <name>
+=head2 remove --repo <name>
 
-Remove the repo directory and all related contents.
+Remove the repo directory and all related contents (repo distros and pkgs).
 
 =cut
 
 sub remove() {
 
     my $command = 'remove';
-    
+
     unless ( scalar @_ ) {
         &help( $opts, $cmds, $command );
-    }   
-        
+    }
     my $repo = "";
-    
+
     @ARGV = @_;
-    
+
     GetOptions(
                'repo=s' => \$repo,
                );
-    
+
     if ( scalar @ARGV ) {
         printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
         &help( $opts, $cmds, $command );
@@ -312,11 +290,10 @@ sub remove() {
     if ( $opts->{verbose} ) { print "Removing $repo \n"; }
     &remove_repo( $opts, $repo );
 
-    return &restart_service();
-
+    return &enable_service( $opts, "http");
 }
 
-=head2 verify <name>
+=head2 verify --repo <name>
 
 Sanity check some repo files and states.
 
@@ -341,7 +318,7 @@ sub verify {
     if ( scalar @ARGV ) {
         printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
         &help( $opts, $cmds, $command );
-    }    
+    }
 
     unless ( defined $repo ) {
         printf "\nMissing reponame <name>\n";
@@ -439,7 +416,7 @@ sub list {
     return 0;
 }
 
-=head2 detail <name>
+=head2 detail --repo <name>
 
 Display detailed information about the named repo
 
@@ -473,7 +450,7 @@ sub detail {
 
     my $repodir = "$baDir{'byum'}/$repo";
 
-    unless ( -d $baDir{'byum'} && -d $repodir ) {
+    unless ( -d $repodir ) {
         $opts->{LASTERROR} = "Unable to find repo named $repo\n";
         return 1;
     }
@@ -492,23 +469,9 @@ sub detail {
                   },
                   follow =>1
           },
-          "$baDir{'byum'}/$repo" ); 
+          "$repodir" );
 
     return 0;
-}
-
-
-###########################################################################
-#
-# helper subroutines
-#
-
-sub restart_service() {
-
-    my $status = system("/etc/init.d/apache2 reload &> /dev/null");
-    $opts->{LASTERROR} = "Unable to restart repo network service\n" if ( $status );
-
-    return $status;
 }
 
 die "ABSOLUTELY DOES NOT EXECUTE";

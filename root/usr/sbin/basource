@@ -26,7 +26,6 @@
 
 use strict;
 
-use Clone qw( clone );
 use Getopt::Long qw( :config pass_through );
 use Pod::Usage;
 use File::Find;
@@ -175,24 +174,10 @@ my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp;port=5162",
 print "setting uid back to $uid\n" if ($opts->{debug} > 2);
 $> = $uid;
 
-# my $baXML = &baxml_load( $opts, "$baDir{'data'}/badistro.xml" );
-my $baXML;
-
-my @xmlfiles = &get_xml_filelist( $opts, $baDir{'distros.d'} );
-
-for my $xmlfile ( @xmlfiles ) {
-    print "now loading user distro file: $xmlfile\n" if $opts->{debug};
-    my $tmpXML = &baxml_load( $opts, $xmlfile );
-    while ( my ($key, $val) = each %{$tmpXML->{distro}} ) {
-        print " $key => $val\n" if $opts->{debug};
-        $baXML->{'distro'}->{$key} = clone( $val );
-    }
-}
-
 $opts->{dbh}      = $dbh;
 $opts->{dbrole}   = $dbrole;
 $opts->{sqlfsOBJ} = $sqlfsOBJ;
-$opts->{baXML}    = $baXML;
+$opts->{baXML}    = &baxml_load_distros( $opts );
 
 my $status;
 # sidestep list of cmds - provide

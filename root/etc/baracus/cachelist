@@ -6,4 +6,4 @@
 
 # Format here is filename per line
 
-boot_archive
+boot_archive  # for solaris 11

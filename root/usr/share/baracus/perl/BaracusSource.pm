@@ -91,6 +91,7 @@ BEGIN {
                 baxml_isos_getlist
                 baxml_iso_gethash
                 baxml_load
+                baxml_load_distros
                 download_iso
                 get_iso_locations
                 verify_iso
@@ -953,6 +954,67 @@ sub baxml_load
     return $baXML;
 }
 
+sub baxml_load_distros
+{
+    use Clone qw( clone );
+
+    my $opts = shift;
+
+    my $baXML;
+
+    # bind the distro to a class (N:1 associations) in baXML hash
+    # from data store in hierarchy (1:N compact and less duplication)
+    # for faster distro->class lookup
+    # though if this just lives for usage once same cost / speed
+
+    # we load hierarchy xml here instead of per file in baxml_load call
+
+    my $xsclass = XML::Simple->new
+        ( SuppressEmpty => 1,
+          ForceArray =>
+          [ qw
+            (
+                class
+                os
+            )
+           ],
+          KeyAttr =>
+          {
+           class => 'name',
+           os    => 'name',
+           },
+         );
+
+    my $classXML = $xsclass->XMLin("$baDir{bcdir}/hierarchy.xml");
+
+    my @xmlfiles = &get_xml_filelist( $opts, $baDir{'distros.d'} );
+
+    for my $xmlfile ( @xmlfiles ) {
+        print "now loading user distro file: $xmlfile\n" if $opts->{debug};
+        my $tmpXML = &baxml_load( $opts, $xmlfile );
+        while ( my ($key, $val) = each %{$tmpXML->{distro}} ) {
+            print " $key => $val\n" if $opts->{debug};
+            $baXML->{'distro'}->{$key} = clone( $val );
+        }
+    }
+
+    foreach my $distro ( keys %{$baXML->{distro}} ) {
+        my $dh = $baXML->{distro}->{$distro};
+        foreach my $class ( keys %{$classXML->{class}} ) {
+            my $ch = $classXML->{class}->{$class};
+            foreach my $os ( keys %{$ch->{os}} ) {
+                if ( $dh->{os} =~ m|$os| ) {
+                    $dh->{class} = $class;
+                    $dh->{pkgtype} = $ch->{pkgtype};
+                    $dh->{autotype} = $ch->{autobuild};
+                }
+            }
+        }
+    }
+
+    return $baXML;
+}
+
 ###########################################################################
 ##
 ##  GENERIC BASOURCE HELPER ROUTINES not db or xml specific
@@ -1653,12 +1715,12 @@ sub remove_bootloader_files
             }
             $fname = $fname.".$basedist";
         }
-     
+
         ## eventually would like to be able to remove the kernel|initrd
         ## check but other distros share some of the files that might
         ## get removed.
         if  ( ( &sqlfs_getstate( $opts, $fname ) ) and
-              ( $fname =~ m/kernel|initrd/i ) )  {
+              ( $fname =~ m/linux|initrd/i ) )  {
             print "Removing $fname from fileDB\n" if ( $opts->{debug} );
             &sqlfs_remove( $opts, $fname );
         } else {

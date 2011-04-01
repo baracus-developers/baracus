@@ -35,6 +35,7 @@ RPO=psoagent_2.1-sle-11-x86_64
 #barepo remove $PSO
 mkdir -p $MNT
 mount -o loop $ISO $MNT
-barepo create $RPO $MNT/suse/*/*.rpm
+barepo create --repo $RPO --dist sles-11-x86_64
+barepo add    --repo $RPO --dist sles-11-x86_64 --pac "`find $MNT/suse -name '*.rpm'`"
 umount $MNT
 rmdir  $MNT

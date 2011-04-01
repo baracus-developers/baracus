@@ -97,9 +97,9 @@ use constant BA_REPO_UNSUPPORTED => 5;
 
 %barepoType =
     (
-      1     => 'yum',
-      2     => 'apt',
-      3     => 'ips',
+      1     => 'rpm',
+      2     => 'deb',
+      3     => 'pkg',
       4     => 'msi',
       5     => 'unsupported',
 
@@ -109,9 +109,9 @@ use constant BA_REPO_UNSUPPORTED => 5;
       'msi'         => BA_REPO_MSI,
       'unsupported' => BA_REPO_UNSUPPORTED,
 
-      BA_REPO_YUM          => 'yum',
-      BA_REPO_APT          => 'apt',
-      BA_REPO_IPS          => 'ips',
+      BA_REPO_YUM          => 'rpm',
+      BA_REPO_APT          => 'deb',
+      BA_REPO_IPS          => 'pkg',
       BA_REPO_MSI          => 'msi',
       BA_REPO_UNSUPPORTED  => 'unsupported',
     );
@@ -126,14 +126,14 @@ sub create_repo_yum {
 
     my @packages = split( /\s+/, $packages );
     my $status;
-    my $template = "/usr/share/baracus/templates/repo/byum.conf.template";
+    my $template = "$baDir{templates}/repo/byum.conf.template";
 
     my $dh = &baxml_distro_gethash( $opts, $distro );
     my $os      = $dh->{os};
     my $release = $dh->{release};
     my $arch    = $dh->{arch};
 
-    my $rpath = "$baDir{'byum'}/$repo/". "$os". "_" . "$arch";
+    my $rpath = "$baDir{'byum'}/$repo/${os}_${release}";
 
     ## Create repo directory
     ##
@@ -145,7 +145,7 @@ sub create_repo_yum {
     ##
     unless ( -f "/etc/apache2/conf.d/$repo.conf" ) {
         open(TEMPLATE, "<$template") or
-            die "Unable to open barepo apache template. $!\n";
+            die "Unable to open $template: $!\n";
         my $barepo = join '', <TEMPLATE>;
         close(TEMPLATE);
         $barepo =~ s/%REPO%/$repo/g;
@@ -216,7 +216,7 @@ sub create_repo_apt {
     my @packages = split( /\s+/, $packages );
     my $base = basename ( $repo );
     my $status;
-    my $template = "/usr/share/baracus/templates/repo/batp.conf.template";
+    my $template = "$baDir{templates}/repo/batp.conf.template";
     my %vhash =
             (
                 'base'        => "$base",
@@ -247,7 +247,7 @@ sub create_repo_apt {
     ##
     unless ( -f "/etc/apache2/conf.d/$base.conf" ) {
         open(TEMPLATE, "<$template") or
-            die "Unable to open barepo apache template. $!\n";
+            die "Unable to open $template: $!\n";
         my $barepo = join '', <TEMPLATE>;
         close(TEMPLATE);
         $barepo =~ s/%REPO%/$base/g;
@@ -265,7 +265,7 @@ sub create_repo_apt {
     }
 
     ## Create conf file and populate 
-    open(DISTRIBUTIONS, "</usr/share/baracus/templates/repo/distributions.debian") ||
+    open(DISTRIBUTIONS, "<", "$baDir{templates}/repo/distributions.debian") ||
       die "Unable to open barepo debian distributions template. $!\n";
     my $distributions = join '', <DISTRIBUTIONS>;
     close(DISTRIBUTIONS);
@@ -311,9 +311,11 @@ sub add_packages_yum {
     my @packages = split( /\s+/, $packages );
 
     my $dh = &baxml_distro_gethash( $opts, $distro );
-    my $arch = $dh->{arch};
+    my $os      = $dh->{os};
+    my $release = $dh->{release};
+    my $arch    = $dh->{arch};
 
-    my $rpath = "$baDir{'byum'}/$repo/$distro";
+    my $rpath = "$baDir{'byum'}/$repo/${os}_${release}";
 
     unless( scalar @packages ) {
         $opts->{LASTERROR} = "Attempt to add without providing any rpm file arguments.\n";
