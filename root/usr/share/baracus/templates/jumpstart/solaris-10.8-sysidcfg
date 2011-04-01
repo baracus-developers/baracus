@@ -1,9 +1,0 @@
-system_locale=__LOCALE__
-timezone=__TIMEZONE__
-terminal=vt100
-timeserver=__NTP__
-name_service=DNS {domain_name=__DNSDOMAIN__ name_server=__DNS1__}
-network_interface=rtls0 {dhcp protocol_ipv6=no}
-security_policy=NONE
-root_password=U/9V72F8UgYdM
-nfs4_domain=dynamic

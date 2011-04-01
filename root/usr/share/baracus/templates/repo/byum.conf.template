@@ -1,8 +1,0 @@
-Alias /%REPO% "/var/spool/baracus/byum/%REPO%"
-
-<Directory "/var/spool/baracus/byum/%REPO%">
-   Options +Indexes
-   AllowOverride None
-   Order allow,deny
-   Allow from all
-</Directory>
