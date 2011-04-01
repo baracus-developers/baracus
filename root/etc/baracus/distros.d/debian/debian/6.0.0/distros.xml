@@ -21,7 +21,7 @@
           <sharefile sharetype='tftp' name='kernel' file='linux'/>
           <sharefile sharetype='tftp' name='initrd' file='initrd.gz'/>
         </sharefiles>
-        <md5>7ad5d904df7781748ba5cca0f5abd0d2</md5>
+        <md5>6d4bff617ee6157406c110edbc22a994</md5>
         <url><![CDATA[http://ftp.nl.debian.org/debian/dists/squeeze/main/installer-amd64/current/images/netboot/mini.iso]]></url>
       </iso>
 
@@ -102,7 +102,7 @@
           <sharefile sharetype='tftp' name='kernel' file='linux'/>
           <sharefile sharetype='tftp' name='initrd' file='initrd.gz'/>
         </sharefiles>
-        <md5></md5>
+        <md5>f0d52ef5d96de452eb0027d299cd3353</md5>
         <url><![CDATA[http://ftp.nl.debian.org/debian/dists/squeeze/main/installer-i386/current/images/netboot/mini.iso]]></url>
       </iso>
 
