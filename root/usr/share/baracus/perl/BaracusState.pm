@@ -676,9 +676,11 @@ sub event_state_change
         $actref->{pxecurr} = BA_ACTION_MIGRATE;
         $actref->{pxenext} = BA_ACTION_NETBOOT;
     }
-    elsif ( $event eq BA_EVENT_MIGRATED or
-            $event eq BA_EVENT_MIGRATEFAIL
-           ) {
+    elsif ( $event eq BA_EVENT_MIGRATED ) {
+        $actref->{oper}    = $event;
+        $actref->{pxenext} = BA_ACTION_NETBOOT;
+    }
+    elsif ( $event eq BA_EVENT_MIGRATEFAIL) {
         $actref->{oper}    = $event;
         $actref->{pxenext} = BA_ACTION_PXEWAIT;
     }
