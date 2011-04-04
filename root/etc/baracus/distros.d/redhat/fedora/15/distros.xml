@@ -1,7 +1,7 @@
 <?xml version='1.0'?>
 <config>
 
-  <!-- fedora 14 -->
+  <!-- fedora 15 -->
 
   <distro name="fedora-15-x86_64">
     <os>fedora</os>
@@ -35,14 +35,14 @@
     <autodownload>open</autodownload>
 
     <product name="dvd">
-      <iso name="Fedora-15.ALPHA-i386-DVD.iso">
+      <iso name="Fedora-15-ALPHA-i386-DVD.iso">
         <path/>
         <sharefiles>
           <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
           <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
         </sharefiles>
         <md5></md5>
-        <url><![CDATA[http://mirrors.kernel.org/fedora/releases/test/15-Alpha/Fedora/i386/iso/Fedora-15-Alpha-i386-DVD.iso]]></url>
+        <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/test/15-Alpha/Fedora/i386/iso/Fedora-15-Alpha-i386-DVD.iso]]></url>
       </iso>
     </product>
   </distro>
