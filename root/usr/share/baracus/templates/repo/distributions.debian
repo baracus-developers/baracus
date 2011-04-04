@@ -1,0 +1,7 @@
+Origin: %ORIGIN%
+Label: %LABEL%
+Codename: %CODENAME%
+Architectures: %ARCHES%
+Components: main
+Description: %DESC%
+SignWith: yes

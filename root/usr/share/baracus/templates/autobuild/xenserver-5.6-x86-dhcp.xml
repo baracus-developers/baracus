@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+   <installation>
+      <primary-disk>__ROOTPART__</primary-disk>
+      <guest-disk>__GUESTDISK__</guest-disk>
+      <keymap>__KEYMAP__</keymap>
+      <root-password>$2a$05$3k2U/T1DJugCeV0Tl4pxYuimRTyrY.zGLdGqA7jZWTmPPwmrRceaS</root-password>
+      <source type="url">http://__SERVERIP__</source>
+		<post-install-script type="url">http://__SERVERIP__/ba/auto?mac=__MAC__</post-install-script>
+      <admin-interface name="eth0" proto="dhcp" />
+      <timezone>__TIMEZONE__</timezone>
+   </installation>
+
