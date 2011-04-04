@@ -643,22 +643,26 @@ sub event_state_change
         $actref->{pxecurr} = BA_ACTION_IMAGE;
         $actref->{pxenext} = BA_ACTION_LOCALBOOT;
     }
-    elsif ( $event eq BA_EVENT_IMAGED or
-            $event eq BA_EVENT_IMAGEFAIL
-           ) {
+    elsif ( $event eq BA_EVENT_IMAGED ) {
         $actref->{oper}    = $event;
         $actref->{pxenext} = BA_ACTION_LOCALBOOT;
+    }
+    elsif ( $event eq BA_EVENT_IMAGEFAIL ) {
+        $actref->{oper}    = $event;
+        $actref->{pxenext} = BA_ACTION_PXEWAIT;
     }
     elsif ( $event eq BA_EVENT_MCASTING ) {
         $actref->{oper}    = $event;
         $actref->{pxecurr} = BA_ACTION_MCAST;
         $actref->{pxenext} = BA_ACTION_LOCALBOOT;
     }
-    elsif ( $event eq BA_EVENT_MCASTED or
-            $event eq BA_EVENT_MCASTFAIL
-           ) {
+    elsif ( $event eq BA_EVENT_MCASTED ) {
         $actref->{oper}    = $event;
         $actref->{pxenext} = BA_ACTION_LOCALBOOT;
+    }
+    elsif ( $event eq BA_EVENT_MCASTFAIL ) {
+        $actref->{oper}    = $event;
+        $actref->{pxenext} = BA_ACTION_PXEWAIT;
     }
     elsif ( $event eq BA_EVENT_CLONING ) {
         $actref->{oper}    = $event;
