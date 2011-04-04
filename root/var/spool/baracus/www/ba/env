@@ -67,8 +67,8 @@ my $input = {};                 # for CGI args or PUT cookie
 
 my $clonedone = "$baDir{hooks}/clone_fetch_complete";
 my $clonefail = "$baDir{hooks}/clone_fetch_failed";
-my $migratedone = "$baDir{hooks}/migrate_fetch_complete";
-my $migratefail = "$baDir{hooks}/migrate_fetch_failed";
+my $migratedone = "$baDir{hooks}/migrate_complete";
+my $migratefail = "$baDir{hooks}/migrate_failed";
 my $imagedone = "$baDir{hooks}/image_deploy_complete";
 my $imagefail = "$baDir{hooks}/image_deploy_failed";
 my $mcastdone = "$baDir{hooks}/mcast_deploy_complete";
