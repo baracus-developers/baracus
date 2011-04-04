@@ -1655,33 +1655,7 @@ Address 'CMS' 'PURGE RDR ALL'
             exit 0;
         }
 
-        if ($actref->{pxecurr} eq BA_ACTION_BUILD) {
-
-            my $filework = "$file.$actref->{distro}";
-
-            ## wrinkle to support hardware dud initrd
-            if ( $file =~ m/initrd/ ) {
-                &load_hardware( $opts, $dbh, $actref );
-                if ( $actref->{driverupdate} ne "" ) {
-                    $filework = "$file.$actref->{driverupdate}";
-                }
-            }
-
-            $file = $filework;
-
-            printlog "$input->{mac} - serving $file\n";
-
-            $sql = qq|SELECT bin FROM sqlfstable WHERE name = '$file'|;
-
-            die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
-            die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-            while ( $href = $sth->fetchrow_hashref( ) ) {
-                $output .= unpack( 'u', $href->{'bin'} );
-            }
-            $sth->finish();
-        } else { 
-
+        if ($actref->{pxecurr} eq BA_ACTION_NETBOOT) {
 	    if (not defined $actref->{storageid}) {
                 $output = "$input->{mac} - user vs cgi... missing storageid entry";
                 printlog "$output\n";
@@ -1762,7 +1736,32 @@ Address 'CMS' 'PURGE RDR ALL'
             my $flength = length( $fdata );
             printlog "$input->{mac} - read $fn length $flength bytes\n";
             $output .= $fdata;
-	}
+	} else {
+
+            my $filework = "$file.$actref->{distro}";
+
+            ## wrinkle to support hardware dud initrd
+            if ( $file =~ m/initrd/ ) {
+                &load_hardware( $opts, $dbh, $actref );
+                if ( $actref->{driverupdate} ne "" ) {
+                    $filework = "$file.$actref->{driverupdate}";
+                }
+            }
+
+            $file = $filework;
+
+            printlog "$input->{mac} - serving $file\n";
+
+            $sql = qq|SELECT bin FROM sqlfstable WHERE name = '$file'|;
+
+            die "$!\n$tftph->errstr" unless ( $sth = $tftph->prepare( $sql ) );
+            die "$!$sth->err\n" unless ( $sth->execute( ) );
+
+            while ( $href = $sth->fetchrow_hashref( ) ) {
+                $output .= unpack( 'u', $href->{'bin'} );
+            }
+            $sth->finish();
+        } 
 
     } elsif ( $ENV{REQUEST_URI} =~ m%^\s*/ba/(pxewaitr|cloner|migrate)\?.*\s*$% ) {
 
