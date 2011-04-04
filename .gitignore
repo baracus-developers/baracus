@@ -2,6 +2,6 @@ diff_baracus_vs_installed.sh
 find_dos_files.pl
 get_baracus_file_list.sh
 list_svn_at_root.sh
-meld_list
+meld_list.sh
 symlink_baracus_svn_files.sh
 .stgit-*
