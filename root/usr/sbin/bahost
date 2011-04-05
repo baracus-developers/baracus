@@ -725,7 +725,7 @@ sub _enable_disable_
         $actref->{pxenext} = BA_ACTION_INVENTORY;
     }
 
-    my $admin   = $command eq "enable" ? BA_ADMIN_ENABLED : BA_ADMIN_DISABLED;
+    my $admin = $command eq "enable" ? BA_ADMIN_ENABLED : BA_ADMIN_DISABLED;
 
     if ( defined $chkref and $chkref->{admin} eq $admin ) {
         $opts->{LASTERROR} = "device admin state already $baState{ $admin }\n";

@@ -149,6 +149,7 @@ Creates the repository with <name> and populates it with any rpms listed provide
 sub create() {
 
     my $command = 'create';
+    my $status;
 
     unless ( scalar @_ ) {
         &help( $opts, $cmds, $command );
@@ -188,8 +189,11 @@ sub create() {
     my $type = $barepoType{ $dh->{pkgtype} };
 
     print "Creating $repo \n" if ( $opts->{verbose} );
-    &create_repo_yum( $opts, $repo, $distro, $packages ) if ( $type == BA_REPO_YUM );
-    &create_repo_apt( $opts, $repo, $distro, $packages ) if ( $type == BA_REPO_APT );
+    $status = &create_repo_yum( $opts, $repo, $distro, $packages ) if ( $type == BA_REPO_YUM );
+    $status = &create_repo_apt( $opts, $repo, $distro, $packages ) if ( $type == BA_REPO_APT );
+    if ( $status >= 1 ) {
+        return 1;
+    }
 
     # enable_service is clever will start if needed or restart
     return &enable_service( $opts, "http");
@@ -204,6 +208,7 @@ Add the rpms listed in space seperated <rpm_list> to the repository with <name> 
 sub add() {
 
     my $command = 'add';
+    my $status;
 
     unless ( scalar @_ ) {
         &help( $opts, $cmds, $command );
@@ -251,8 +256,13 @@ sub add() {
 
     print "Adding packages to $repo \n" if ( $opts->{verbose} );
 
-    &add_packages_yum( $opts, $repo, $distro, $packages ) if ( $type == BA_REPO_YUM );
-    &add_packages_apt( $opts, $repo, $distro, $packages ) if ( $type == BA_REPO_APT );
+    $status = &add_packages_yum( $opts, $repo, $distro, $packages ) if ( $type == BA_REPO_YUM );
+    $status = &add_packages_apt( $opts, $repo, $distro, $packages ) if ( $type == BA_REPO_APT );
+    if ( $status >= 1 ) {
+        return 1;
+    }
+
+    return 0;
 
 }
 
@@ -265,6 +275,7 @@ Remove the repo directory and all related contents (repo distros and pkgs).
 sub remove() {
 
     my $command = 'remove';
+    my $status;
 
     unless ( scalar @_ ) {
         &help( $opts, $cmds, $command );
@@ -288,7 +299,10 @@ sub remove() {
     }
 
     if ( $opts->{verbose} ) { print "Removing $repo \n"; }
-    &remove_repo( $opts, $repo );
+    $status = &remove_repo( $opts, $repo );
+    if ( $status >= 1 ) {
+        return 1;
+    }
 
     return &enable_service( $opts, "http");
 }
