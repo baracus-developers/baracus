@@ -31,6 +31,7 @@ use warnings;
 
 use BaracusConfig qw( :vars );
 use BaracusStorage qw( :vars :subs );
+use BaracusAux qw( :subs );
 
 =head1 NAME
 
@@ -57,11 +58,11 @@ BEGIN {
               get_inventory
               do_localboot
               do_pxewait
-              do_menu_lst_sol10
-              do_menu_lst_sol11
+              do_menu_lst
               do_netboot
               do_rescue
               read_grubconf
+              is_inventory_still_required
           )]
        );
   Exporter::export_ok_tags('subs');
@@ -161,13 +162,16 @@ LABEL pxewait
     exit 0;
 }
 
-sub do_menu_lst_sol10() {
+sub do_menu_lst() {
     my $cgi = shift;
     my $actref = shift;
     my $serverip = shift;
     my $mntpoint = shift;
 
-    my $output = qq|default menu.lst
+    my $output = "";
+
+    if ( $actref->{distro} =~ /solaris-10/ ) {
+        $output =  qq|default menu.lst
 timeout 4
 
 label menu.lst
@@ -175,19 +179,8 @@ label menu.lst
         kernel multiboot kernel/unix - verbose install dhcp http://$serverip/ba/jumpstart.tar?mac=$actref->{mac} -B install_media=$serverip:$mntpoint
         module x86.miniroot
 |;
-
-    print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
-    exit 0;
-
-}
-
-sub do_menu_lst_sol11() {
-    my $cgi = shift;
-    my $actref = shift;
-    my $serverip = shift;
-    my $mntpoint = shift;
-
-    my $output = qq|default menu.lst
+    } elsif ( $actref->{distro} =~ /solaris-11/ ) {
+        $output = qq|default menu.lst
 timeout 4
 
 label menu.lst
@@ -197,6 +190,7 @@ label menu.lst
         install_boot=$serverip:$mntpoint/boot
         module\$ boot_archive
 |;
+    }
 
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
     exit 0;
@@ -314,6 +308,24 @@ LABEL rescue
     exit 0;
 }
 
+sub is_inventory_still_required
+{
+    my $opts   = shift;
+    my $tftph  = shift;
+    my $input  = shift;
+    my $macref = shift;
+
+    my $filename = $input->{mac} . ".inventory";
+    my $href = &find_tftpfile( $opts, $tftph, $filename );
+    if (not defined $href               or
+        $href->{name} ne $filename      or
+        not defined $macref->{register} or
+        $macref->{register} eq ""       )
+    {
+        return 1;
+    }
+    return 0;
+}
 
 1;
 

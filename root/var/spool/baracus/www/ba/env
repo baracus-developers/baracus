@@ -30,6 +30,7 @@ use warnings;
 use CGI;
 use Apache::DBI ();
 use DBI ();
+use File::Path;
 
 use lib "/usr/share/baracus/perl";
 
@@ -234,8 +235,7 @@ if ( $ENV{REQUEST_METHOD} eq "HEAD" ) {
 
         my $jmac = $actref->{mac};
         $jmac =~ s/://g;
-        printlog "DEBUG: $jmac\n";
-        mkdir "$baDir{cache}/jumpstart.$jmac", 0777 || die ("Cannot create directory\n");
+        mkdir "$baDir{cache}/jumpstart.$jmac", 0755 or die ("Cannot create $baDir{cache}/jumpstart.$jmac directory\n");
 
         open( SYSIDCFG, ">$baDir{cache}/jumpstart.$jmac/sysidcfg");
         print SYSIDCFG $sysidcfg;
@@ -257,9 +257,11 @@ if ( $ENV{REQUEST_METHOD} eq "HEAD" ) {
         print FINISH $finish;
         close( FINISH );
 
-        system("tar", "-cvpf", "$baDir{cache}/jumpstart.tar.$jmac", "-C", "$baDir{cache}/jumpstart.$jmac", ".");
+        system("tar -cvpf $baDir{cache}/jumpstart.tar.$jmac -C $baDir{cache}/jumpstart.$jmac . &>/dev/null");
 
-        open( OUTPUT, "<$baDir{cache}/jumpstart.tar.$jmac"); 
+        rmtree("$baDir{cache}/jumpstart.$jmac");
+
+        open( OUTPUT, "<$baDir{cache}/jumpstart.tar.$jmac");
         my $output = join '', <OUTPUT>;
         close( OUTPUT );
 
@@ -661,7 +663,11 @@ chain http://$baVar{serverip}/ba/pxelinux.0?mac=\${mac}
         # found a mac and action entry - get the pxenext
         $pxenext = $actref->{pxenext};
 
-        if ( $pxenext eq BA_ACTION_BUILD ) {
+        if ( &is_inventory_still_required( $opts, $tftph, $input, $macref ) ) {
+            printlog "$input->{mac} - inventory still needed\n";
+            $output = $default;
+        }
+        elsif ( $pxenext eq BA_ACTION_BUILD ) {
             printlog "$input->{mac} - chain of build\n";
             $distref = &get_distro( $opts, $dbh, $actref );
 
@@ -827,16 +833,8 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
         # have we been directed to fetch inventory
         # or is it missing ? if so - get it now.
 
-        $filename = $input->{mac} . ".inventory";
-        $href = &find_tftpfile( $opts, $tftph, $filename );
-        if ( $pxenext eq BA_ACTION_INVENTORY
-             or
-             (not defined $href
-              or $href->{name} ne $filename
-              or not defined $macref->{register}
-              or $macref->{register} eq ""
-              )
-            ) {
+        if ( $pxenext eq BA_ACTION_INVENTORY or
+             &is_inventory_still_required( $opts, $tftph, $input, $macref ) ) {
             ##
             ## INVENTORY - have 'mac' but still missing inventory
             ##
@@ -1573,11 +1571,7 @@ Address 'CMS' 'PURGE RDR ALL'
         $actref->{cmdline} = "# pxeboot directing to network install";
         &update_db_data( $dbh, 'action', $actref );
 
-        if ( $actref->{distro} =~ /solaris-10/ ) {
-            &do_menu_lst_sol10( $cgi, $actref, $baVar{serverip}, $isoref->{mntpoint} );
-        } elsif ( $actref->{distro} =~ /solaris-11/ ) {
-            &do_menu_lst_sol11( $cgi, $actref, $baVar{serverip}, $isoref->{mntpoint} );
-        }
+        &do_menu_lst( $cgi, $actref, $baVar{serverip}, $isoref->{mntpoint} );
 
     } elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(jumpstart.tar)\?.*\s*$} ) {
         my $file = $1;
@@ -1619,6 +1613,8 @@ Address 'CMS' 'PURGE RDR ALL'
             $/ = "\n";
         }
         close $jsfd;
+
+        unlink("$baDir{cache}/jumpstart.tar.$jmac");
 
         $output .= $jsdata;
         $content_type="application/x-tar";
