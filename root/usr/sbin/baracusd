@@ -70,8 +70,8 @@ my $listener = SqlTFTPd->new( 'Timeout' => 10, 'debug' => $debug )
     or die SqlTFTPd->error;
 
 unless( $listener->open() ) {
-    print STDOUT "baracusd unable to listen on tftp port: ", $@, "\n";
-    print STDOUT "Try shutting down other possible tftp servers first:\n\n",
+    print STDOUT "[" . ctime() ."] baracusd unable to listen on tftp port: ", $@, "\n";
+    print STDOUT "[" . ctime() ."] Try shutting down other possible tftp servers first:\n\n",
         "\tservice atftpd stop\n",
         "\tchkconfig atftpd off\n\n",
         "Or disabling the xinetd based 'tftp' service:\n\n",
@@ -83,6 +83,15 @@ unless( $listener->open() ) {
 }
 
 $now = ctime();
+
+unless ( &fuse_is_loaded() ) {
+    if ( &fuse_load() ) {
+        # sub is system call non-zero on error
+        print STDOUT "[${now}] Error:  unable to load 'fuse' module. Try with:  modprobe fuse\n";
+    } else {
+        print STDOUT "[${now}] module fuse now loaded.\n";
+    }
+}
 
 print STDOUT "[${now}] baracusd launched with uid: $>\n";
 
@@ -208,9 +217,9 @@ while (1) {
                     $sqlfsOBJ->remove( $request->{'_REQUEST_'}{'FileName'} );
                 }
             } else {
-                print STDOUT $request->{'_REQUEST_'}{'PeerAddr'} . " : " . SqlTFTPd->error;
+                print STDOUT "[${now}] " . $request->{'_REQUEST_'}{'PeerAddr'} . " : " . SqlTFTPd->error;
             }
-            
+
             # exit the forked proc
             exit 0;
         }
@@ -242,14 +251,14 @@ sub config_syslog
     }
 
     if ($baVar{rlogging} eq "yes") {
-        print STDOUT "Enabling remote logging support in syslog-ng.conf\n";
+        print STDOUT "[" . ctime() ."] Enabling remote logging support in syslog-ng.conf\n";
         if ( enable_remote_logging( $logpath,
                                     $logconf,
                                     $baVar{serverip} )) {
 #            system("rcsyslog restart");
             system("rcsyslog status || rcsyslog restart");
         } else {
-            print BaracusSYSLOG::error();
+            print "[". ctime() ."] ". BaracusSYSLOG::error();
         }
 
         unless ( -f $armorconf ) {
@@ -261,15 +270,15 @@ sub config_syslog
 #            system("rcapparmor restart");
             system("rcapparmor status || rcapparmor restart");
         } else {
-            print BaracusSYSLOG::error();
+            print "[". ctime() ."] ". BaracusSYSLOG::error();
         }
     } else {
-        print STDOUT "Disabling remote logging support in syslog-ng.conf\n";
+        print STDOUT "[" . ctime() ."] Disabling remote logging support in syslog-ng.conf\n";
         if ( disable_remote_logging( $logconf ) ) {
 #            system("rcsyslog restart");
             system("rcsyslog status || rcsyslog restart");
         } else {
-            print BaracusSYSLOG::error();
+            print "[". ctime() ."] ". BaracusSYSLOG::error();
         }
 
         unless ( -f $armorconf ) {
@@ -280,7 +289,7 @@ sub config_syslog
 #            system("rcapparmor restart");
             system("rcapparmor status || rcapparmor restart");
         } else {
-            print BaracusSYSLOG::error();
+            print "[". ctime() ."] ". BaracusSYSLOG::error();
         }
     }
 }
@@ -301,7 +310,7 @@ sub upcasepxefilename {
     } elsif ($request->{'_REQUEST_'}{'FileName'} =~ m|(.*)/startrom.0|) {
         my $arch = $1;
         $iparchmap->{$request->{'_REQUEST_'}{'PeerAddr'}} = $arch;
-        print STDOUT "remaping $request->{'_REQUEST_'}{'FileName'} to startrom.0-${arch}\n";
+        print STDOUT "[" . ctime() ."] remaping $request->{'_REQUEST_'}{'FileName'} to startrom.0-${arch}\n";
         $request->{'_REQUEST_'}{'FileName'} = "startrom.0-${arch}";
     } else {
         $request->{'_REQUEST_'}{'FileName'} =~ s|.*\\||;
@@ -311,13 +320,22 @@ sub upcasepxefilename {
             if ( defined $iparchmap->{ $request->{'_REQUEST_'}{'PeerAddr'} } )
             {
                 my $arch = $iparchmap->{ $request->{'_REQUEST_'}{'PeerAddr'} };
-                print STDOUT "remaping $request->{'_REQUEST_'}{'FileName'} to $request->{'_REQUEST_'}{'FileName'}-${arch}\n";
+                print STDOUT "[" . ctime() ."] remaping $request->{'_REQUEST_'}{'FileName'} to $request->{'_REQUEST_'}{'FileName'}-${arch}\n";
                 $request->{'_REQUEST_'}{'FileName'} .= "-${arch}";
             }
         }
     }
 }
 
+sub fuse_is_loaded
+{
+    return (! system("lsmod | grep fuse &> /dev/null"));
+}
+
+sub fuse_load
+{
+    return system("modprobe fuse &> /dev/null");
+}
 
 die "ABSOLUTELY DOES NOT EXECUTE";
 
