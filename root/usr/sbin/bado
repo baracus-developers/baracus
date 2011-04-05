@@ -1666,7 +1666,7 @@ sub inventory
 }
 
 
-=head2 migrate { --mac <macaddr> | --hostname <name> } --storageid <storage> [ --disk <num> --partition <num> ]
+=head2 migrate { --mac <macaddr> | --hostname <name> } --storageid <storage> [ --device <device> --vfstype <vfstype> ]
 
 Set a device to migrate its local root file system to network storage.
 Migration takes place on the next pxeboot cycle.
@@ -1678,7 +1678,9 @@ Arguments
 
     --storageid <netroot>  specify network storage id 
 
-    --device <device>      Block device  to migrate (required)
+    --disk <num>           Disk number to migrate [ default 0 (first)]
+    --partition <num>      Partition number to migrate [ default 0 (first)]
+
     --vfstype <type>	   File system type [ default autodetect ]
 
 =cut
@@ -1694,26 +1696,30 @@ sub migrate
         &help( $opts, $cmds, $command );
     }
 
-    my $mac="";
-    my $hostname="";
+    my $chkref;
+    my $macref;
+    my $hostref;
+    my $actref;
+    my $sref;
 
-    my $storage="";
-
-    my $device="";
     my $vfstype="";
 
-    my $macref;
-    my $actref;
-    my $chkref;
+    my %entry;
+    my $cols = lc get_cols( $baTbls{ action });
+    foreach my $key (split(/[,\s*]/, $cols )) {
+        $entry{$key} = '';
+	print "Key: $key\n";
+    }
 
     @ARGV = @_;
 
     GetOptions(
-               'mac=s'          => \$mac,
-               'hostname=s'     => \$hostname,
-               'storageid=s'    => \$storage,
-               'device=s'       => \$device,
-	       'vfstype=s'	=> \$vfstype,
+               'mac=s'          => \$entry{mac},
+               'hostname=s'     => \$entry{hostname},
+               'storageid=s'    => \$entry{storageid},
+	       'disk=s'         => \$entry{disk},
+               'partition=s'    => \$entry{partition},
+               'vfstype=s'	=> \$vfstype,
                );
 
     if ( scalar @ARGV ) {
@@ -1721,18 +1727,31 @@ sub migrate
         return 1;
     }
 
+    if ( $entry{storageid} ne "" ) {
+        # get and check for image based on id
+        $sref = &get_db_data( $dbh, 'storage', $entry{storageid} );
+        unless ( defined $sref ) {
+            $opts->{LASTERROR} = "storageid does not exist: $entry{storageid}\n";
+            return 1;
+        }
+    } else {
+        $opts->{LASTERROR} = "--storageid is required\n";
+        return 1;
+    }
+
     # this routine checks for mac and hostname args
     # and if hostname passed finds related mac entry
     # returns undef on error (e.g., unable to find hostname)
-    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
-    unless ( defined $mac ) {
+    $entry{mac} = &get_mac_by_hostname( $opts, $dbh, $entry{mac}, 
+					$entry{hostname} );
+    unless ( defined $entry{mac} ) {
         # $opts->{LASTERROR} set in subroutine
         return 1;
     }
 
-    $macref = &get_db_data( $dbh, 'mac', $mac );
+    $macref = &get_db_data( $dbh, 'mac', $entry{mac} );
     unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
+        &add_db_mac( $dbh, $entry{mac}, BA_ADMIN_ADDED );
     }
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
@@ -1740,7 +1759,7 @@ sub migrate
         }
     }
 
-    $chkref = &get_db_data( $dbh, 'action', $mac );
+    $chkref = &get_db_data( $dbh, 'action', $entry{mac} );
     if ( defined $chkref ) {
         if ( $opts->{debug} > 1 ) {
             while ( my ($key, $val) = each %{$chkref} ) {
@@ -1760,20 +1779,20 @@ sub migrate
     ##
     ## ALL CHECKS DONE - DO MODS
 
-    $actref->{cmdline} = $cmdline;
-    $actref->{mac} = $mac;
+    $actref->{cmdline} = $entry{cmdline};
+    $actref->{mac} = $entry{mac};
 
     # if passed both mac and hostname create a host table entry
-    if ( $hostname ne "" ) {
-        $actref->{hostname} = $hostname;
-        unless ( &get_db_data( $dbh, 'host', $hostname ) ) {
+    if ( $entry{hostname} ne "" ) {
+        $actref->{hostname} = $entry{hostname};
+        unless ( &get_db_data( $dbh, 'host', $entry{hostname} ) ) {
             &add_db_data( $dbh, 'host', $actref );
         }
     }
 
     action_state_change( $dbh, BA_ACTION_MIGRATE, $macref, $actref );
 
-    &update_db_mac_state( $dbh, $mac, BA_ACTION_MIGRATE );
+    &update_db_mac_state( $dbh, $entry{mac}, BA_ACTION_MIGRATE );
 
     # for proper command history update we update
     if ( defined $chkref ) {
@@ -1785,7 +1804,7 @@ sub migrate
     if ( $opts->{verbose} )
     {
         printf "Migrate set\nNext pxeboot of %s will migrate file system\n",
-            $hostname ne "" ? $hostname : $mac;
+            $entry{hostname} ne "" ? $entry{hostname} : $entry{mac};
     }
 
     return 0;
