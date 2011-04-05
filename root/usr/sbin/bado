@@ -1673,20 +1673,20 @@ Migration takes place on the next pxeboot cycle.
 
 Arguments
 
-    --mac <macaddr>        specify device by mac address
-    --hostname <name>      specify device by hostname ( if available )
+  --mac <macaddr>        specify device by mac address
+  --hostname <name>      specify device by hostname ( if available )
 
-    --storageid <netroot>  specify network storage id 
+  --hardware <hwteplate>   Hardware template that describes build client
+                             > baconfig list hardware
 
-    --disk <num>           Disk number to migrate [ default 0 (first)]
-    --partition <num>      Partition number to migrate [ default 0 (first)]
+  --storageid <netroot>  specify network storage id 
 
-    --vfstype <type>	   File system type [ default autodetect ]
+  --disk <num>           Disk number to migrate [ default 0 (first)]
+  --partition <num>      Partition number to migrate [ default 0 (first)]
+
+  --vfstype <type>	   File system type [ default autodetect ]
 
 =cut
-#    (future:)
-#    --direction	<d>        Migration to or from physical
-#    --initialize	   Format or erase the target before migrating
 
 sub migrate
 {
@@ -1702,6 +1702,8 @@ sub migrate
     my $actref;
     my $sref;
 
+    my $disk = "0";
+    my $partition = "0";
     my $vfstype="";
 
     my %entry;
@@ -1716,6 +1718,7 @@ sub migrate
     GetOptions(
                'mac=s'          => \$entry{mac},
                'hostname=s'     => \$entry{hostname},
+               'hardware=s'     => \$entry{hardware},
                'storageid=s'    => \$entry{storageid},
 	       'disk=s'         => \$entry{disk},
                'partition=s'    => \$entry{partition},
@@ -1749,6 +1752,10 @@ sub migrate
         return 1;
     }
 
+    # hosts <=> mac relations checked in get_mac_by_hostname above
+    # now get any existing action db entry
+
+    # lookup by MAC
     $macref = &get_db_data( $dbh, 'mac', $entry{mac} );
     unless ( defined $macref ) {
         &add_db_mac( $dbh, $entry{mac}, BA_ADMIN_ADDED );
@@ -1760,15 +1767,104 @@ sub migrate
     }
 
     $chkref = &get_db_data( $dbh, 'action', $entry{mac} );
-    if ( defined $chkref ) {
-        if ( $opts->{debug} > 1 ) {
-            while ( my ($key, $val) = each %{$chkref} ) {
-                print "check $key => " . $val eq "" ? "" : $val . "\n";
-            }
-        }
-        # store a copy of the ref found for modification
-        $actref = $chkref;
+    if ( defined $chkref
+         and $chkref->{hostname}
+         and $entry{hostname} ne ''
+         and $entry{hostname} ne $chkref->{hostname} ) {
+        print "Attempt to create entry for $entry{hostname} with mac identical to existing 'action' entry $chkref->{hostname}\n";
+        exit 1;
     }
+    if ( $entry{hostname} ne '' ) {
+        # lookup by hostname
+        $actref = get_db_data_by( $dbh, 'action', $entry{hostname}, 'hostname' );
+        if ( defined $actref
+             and defined $actref->{mac}
+             and $entry{mac} ne $actref->{mac} ) {
+            print "Attempt to create entry for $entry{mac} with hostname identical to existing 'action' entry $actref->{mac}\n";
+            exit 1;
+        }
+    } else {
+        # require hostname here or from entry
+        if ( $entry{hostname} eq "" and
+             defined $chkref and
+             $chkref->{hostname} ne ""
+            )
+        {
+            $entry{hostname} = $chkref->{hostname};
+        } else {
+            $opts->{LASTERROR} = "Missing  --hostname\n";
+            return 1;
+        }
+    }
+
+    # hardware file may be in profile *and* on command line
+    # command line wins over profile entry
+    $actref->{'hardware'}= $entry{hardware} if ($entry{hardware});
+
+    die "Need --hardware via commandline\n"
+        unless ($actref->{'hardware'});
+
+    # breakout possible compound ver:name with call get back ( name, ver/undef )
+    ( $actref->{hardware}, $actref->{hardware_ver} ) =
+        &get_name_version( $actref->{hardware} );
+    print "hardware $actref->{hardware}\n" if ($opts->{debug});
+    print "hardware version $actref->{hardware_ver}\n" if (defined $actref->{hardware_ver} and $opts->{debug});
+
+
+    return 1 if ( &load_hardware( $opts, $dbh, $actref ) );
+#    return 1 if ( &check_cert( $opts, $dbh, $actref->{'distro'}, "hardware", $actref->{'hardware'}) );
+    if ($opts->{debug} > 1) {
+        foreach my $key ( sort ( keys %{$actref} )) {
+            print "add post-hardware:  $key => $actref->{$key}\n";
+        }
+    }
+
+    unless ( $disk =~ /^\d+$/ ) {
+        $opts->{LASTERROR} = "--disk needs to be an integer\n";
+        return 1;
+    }
+
+    unless ( $partition =~ /\d+$/ ) {
+        $opts->{LASTERROR} = "--partition needs to be an integer\n";
+        return 1;
+    }
+
+    $actref->{disk} = $disk;
+    $actref->{partition} = $partition;
+    $actref->{storageid} = "";  # wipe the storageid info
+
+    # do not want any setting to override these values
+
+    $actref->{'cmdline'} = $cmdline;
+    $actref->{'hostname'} = $entry{hostname} if (defined $entry{hostname} and $entry{hostname}  ne "");
+    $actref->{'ip'} = $entry{ip};
+    $actref->{'mac'} = $entry{mac};
+    $actref->{'uuid'} = &get_uuid;
+    $actref->{'storageid'} = $entry{storageid};
+    
+    if ($opts->{debug}) {
+        print "settings to use:\n";
+        foreach my $key ( sort keys %{$actref} ) {
+            printf "actref:  $key => %s\n",
+                defined $actref->{$key} ? $actref->{$key} : "";
+        }
+    }
+
+    $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
+    unless ( defined $macref ) {
+        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED );
+        $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
+    }
+
+    $hostref = &get_db_data_by( $dbh, 'host', $actref->{mac}, 'mac' );
+    unless ( defined $hostref ) {
+        &add_db_data( $dbh, 'host', $actref );
+    }
+
+    # reset action_module join table list
+    # now that modules have been checked and loaded
+    # create the action_module entries and store ver
+
 
     if ( defined $chkref and
         $chkref->{pxenext} eq BA_ACTION_MIGRATE ) {
