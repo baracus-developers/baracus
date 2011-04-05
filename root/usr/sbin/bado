@@ -347,7 +347,7 @@ sub build
          and $entry{hostname} ne ''
          and $entry{hostname} ne $chkref->{hostname} ) {
         print "Attempt to create entry for $entry{hostname} with mac identical to existing 'action' entry $chkref->{hostname}\n";
-        exit 1;
+        return 1;
     }
     if ( $entry{hostname} ne '' ) {
         # lookup by hostname
@@ -356,7 +356,7 @@ sub build
              and defined $actref->{mac}
              and $entry{mac} ne $actref->{mac} ) {
             print "Attempt to create entry for $entry{mac} with hostname identical to existing 'action' entry $actref->{mac}\n";
-            exit 1;
+            return 1;
         }
     } else {
         # require hostname here or from entry
@@ -942,7 +942,7 @@ sub image
          and $entry{hostname} ne ''
          and $entry{hostname} ne $chkref->{hostname} ) {
         print "Attempt to create entry for $entry{hostname} with mac identical to existing 'action' entry $chkref->{hostname}\n";
-        exit 1;
+        return 1;
     }
     if ( $entry{hostname} ne '' ) {
         # lookup by hostname
@@ -951,7 +951,7 @@ sub image
              and defined $actref->{mac}
              and $entry{mac} ne $actref->{mac} ) {
             print "Attempt to create entry for $entry{mac} with hostname identical to existing 'action' entry $actref->{mac}\n";
-            exit 1;
+            return 1;
         }
     } else {
         # require hostname here or from entry
@@ -1201,7 +1201,7 @@ sub clone
          and $entry{hostname} ne ''
          and $entry{hostname} ne $chkref->{hostname} ) {
         print "Attempt to create entry for $entry{hostname} with mac identical to existing 'action' entry $chkref->{hostname}\n";
-        exit 1;
+        return 1;
     }
     if ( $entry{hostname} ne '' ) {
         # lookup by hostname
@@ -1210,7 +1210,7 @@ sub clone
              and defined $actref->{mac}
              and $entry{mac} ne $actref->{mac} ) {
             print "Attempt to create entry for $entry{mac} with hostname identical to existing 'action' entry $actref->{mac}\n";
-            exit 1;
+            return 1;
         }
     } else {
         # require hostname here or from entry
@@ -1772,7 +1772,7 @@ sub migrate
          and $entry{hostname} ne ''
          and $entry{hostname} ne $chkref->{hostname} ) {
         print "Attempt to create entry for $entry{hostname} with mac identical to existing 'action' entry $chkref->{hostname}\n";
-        exit 1;
+        return 1;
     }
     if ( $entry{hostname} ne '' ) {
         # lookup by hostname
@@ -1781,7 +1781,7 @@ sub migrate
              and defined $actref->{mac}
              and $entry{mac} ne $actref->{mac} ) {
             print "Attempt to create entry for $entry{mac} with hostname identical to existing 'action' entry $actref->{mac}\n";
-            exit 1;
+            return 1;
         }
     } else {
         # require hostname here or from entry
@@ -2425,7 +2425,7 @@ sub rescue
          and $entry{hostname} ne ''
          and $entry{hostname} ne $chkref->{hostname} ) {
         print "Attempt to create entry for $entry{hostname} with mac identical to existing 'action' entry $chkref->{hostname}\n";
-        exit 1;
+        return 1;
     }
     if ( $entry{hostname} ne '' ) {
         # lookup by hostname
@@ -2434,7 +2434,7 @@ sub rescue
              and defined $actref->{mac}
              and $entry{mac} ne $actref->{mac} ) {
             print "Attempt to create entry for $entry{mac} with hostname identical to existing 'action' entry $actref->{mac}\n";
-            exit 1;
+            return 1;
         }
     }
 
