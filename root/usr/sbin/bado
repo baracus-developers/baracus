@@ -1668,21 +1668,23 @@ sub inventory
 
 =head2 migrate { --mac <macaddr> | --hostname <name> } --storageid <storage> [ --disk <num> --partition <num> ]
 
-Set a device to migrate its local root file system to network storage
-so that it migrates its file system on the next pxeboot cycle.
+Set a device to migrate its local root file system to network storage.
+Migration takes place on the next pxeboot cycle.
 
 Arguments
 
     --mac <macaddr>        specify device by mac address
     --hostname <name>      specify device by hostname ( if available )
 
-    --storageid <netroot>  specify network storage id
+    --storageid <netroot>  specify network storage id 
 
-    --disk <num>           Disk number to migrate [ default 0 (first)]
-    --partition <num>      Partition number to migrate [ default 0 (first)]
-
+    --device <device>      Block device  to migrate (required)
+    --vfstype <type>	   File system type [ default autodetect ]
 
 =cut
+#    (future:)
+#    --direction	<d>        Migration to or from physical
+#    --initialize	   Format or erase the target before migrating
 
 sub migrate
 {
@@ -1697,8 +1699,8 @@ sub migrate
 
     my $storage="";
 
-    my $disk      = "0";
-    my $partition = "0";
+    my $device="";
+    my $vfstype="";
 
     my $macref;
     my $actref;
@@ -1710,8 +1712,8 @@ sub migrate
                'mac=s'          => \$mac,
                'hostname=s'     => \$hostname,
                'storageid=s'    => \$storage,
-               'disk=s'         => \$disk,
-               'partition=s'    => \$partition,
+               'device=s'       => \$device,
+	       'vfstype=s'	=> \$vfstype,
                );
 
     if ( scalar @ARGV ) {
@@ -1750,7 +1752,7 @@ sub migrate
     }
 
     if ( defined $chkref and
-         $chkref->{pxenext} eq BA_ACTION_MIGRATE ) {
+        $chkref->{pxenext} eq BA_ACTION_MIGRATE ) {
         $opts->{LASTERROR} = "device already set to migrate.\n";
         return 1;
     }
