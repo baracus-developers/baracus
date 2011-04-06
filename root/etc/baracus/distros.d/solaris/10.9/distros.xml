@@ -1,0 +1,30 @@
+<?xml version='1.0'?>
+<config>
+
+  <!-- Solaris 10 U9 -->
+
+  <distro name="solaris-10.9-x86_64">
+    <os>solaris</os>
+    <release>10.9</release>
+    <arch>x86_64</arch>
+    <codename/>
+    <description>Solaris 10 U9 64bit</description>
+    <type>base</type>
+    <autodownload>no</autodownload>
+    <sharetype>nfs</sharetype>
+
+    <product name="dvd">
+      <iso name="sol-10-u9-ga-x86-dvd.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='pxegrub'      file='boot/grub/pxegrub'/>
+          <sharefile sharetype='tftp' name='multiboot'    file='boot/multiboot'/>
+          <sharefile sharetype='tftp' name='x86.miniroot' file='boot/amd64/x86.miniroot'/>
+        </sharefiles>
+        <md5>c96bb1fb33081231c72c93add331e338</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>
