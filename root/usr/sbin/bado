@@ -169,68 +169,6 @@ exit $status;
 die "DOES NOT EXECUTE";
 
 
-sub check_host_action  
-{
-    my $eref = shift;
-    my $chkref = shift;
-    my $actref = shift;
-
-    $eref->{mac} = &get_mac_by_hostname( $opts, $dbh, $eref->{mac}, 
-					  $eref->{hostname} );
-    unless ( defined $eref->{mac} ) {
-        # $opts->{LASTERROR} set in subroutine
-        return 1;
-    }
-
-    # hosts <=> mac relations checked in get_mac_by_hostname above
-    # now get any existing action db entry
-
-    # lookup by MAC
-    $chkref = &get_db_data( $dbh, 'action', $eref->{mac} );
-    if ( defined $chkref
-         and $eref->{hostname}
-         and $eref->{hostname} ne ''
-         and $eref->{hostname} ne $chkref->{hostname} ) {
-        print "Attempt to create entry for $eref->{hostname} with mac identical to existing 'action' entry $chkref->{hostname}\n";
-        return 1;
-    }
-    if ( $eref->{hostname} ne '' ) {
-        # lookup by hostname
-        $actref = get_db_data_by( $dbh, 'action', $eref->{hostname}, 'hostname' );
-        if ( defined $actref
-             and defined $actref->{mac}
-             and $eref->{mac} ne $actref->{mac} ) {
-            print "Attempt to create entry for $eref->{mac} with hostname identical to existing 'action' entry $actref->{mac}\n";
-            return 1;
-	}
-    } else {
-        # require hostname here or from entry
-        if ( $eref->{hostname} eq "" and
-             defined $chkref and
-             $chkref->{hostname} ne ""
-            )
-        {
-            $eref->{hostname} = $chkref->{hostname};
-        } else {
-            $opts->{LASTERROR} = "Missing  --hostname\n";
-            return 1;
-        }
-    }
-    return 0;
-}
-
-sub check_add_db_mac
-{
-    my $macref = shift;
-    my $mac = shift;
-
-    $macref = get_db_data( $dbh, 'mac', $mac );
-    unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
-        $macref = get_db_data( $dbh, 'mac', $mac );
-    }
-}
-
 ###############################################################################
 ##
 ## commands
@@ -390,9 +328,8 @@ sub build
     $entry{vars}    = $multiarg{ 'vars'   } if (defined $multiarg{ 'vars'   });
     $entry{modules} = $multiarg{ 'module' } if (defined $multiarg{ 'module' });
 
-    if ( &check_host_action ( \%entry, $chkref, $actref ))
-    {
-	return 1;
+    if ( &check_host_action ( $opts, $dbh, \%entry, $chkref, $actref )) {
+        return 1;
     }
 
     # get the ip from the existing entry if any
@@ -737,7 +674,7 @@ sub build
     $actref->{disk} = $disk;
     $actref->{partition} = $partition;
 
-    &check_add_db_mac( $macref, $actref->{mac} );
+    $macref = &check_add_db_mac( $opts, $dbh, $macref, $actref->{mac} );
 
     $hostref = &get_db_data( $dbh, 'host', $entry{hostname} );
     unless ( defined $hostref ) {
@@ -942,9 +879,8 @@ sub image
         return 1;
     }
 
-    if ( &check_host_action ( \%entry, $chkref, $actref ))
-    {
-	return 1;
+    if ( &check_host_action ( $opts, $dbh, \%entry, $chkref, $actref )) {
+        return 1;
     }
 
     # hardware file may be in profile *and* on command line
@@ -1001,7 +937,7 @@ sub image
         }
     }
 
-    &check_add_db_mac( $macref, $actref->{mac} );
+    $macref = &check_add_db_mac( $opts, $dbh, $macref, $actref->{mac} );
 
     $hostref = &get_db_data_by( $dbh, 'host', $actref->{mac}, 'mac' );
     unless ( defined $hostref ) {
@@ -1159,9 +1095,8 @@ sub clone
         return 1;
     }
 
-    if ( &check_host_action ( \%entry, $chkref, $actref ))
-    {
-	return 1;
+    if ( &check_host_action ( $opts, $dbh, \%entry, $chkref, $actref )) {
+        return 1;
     }
 
     # hardware file may be in profile *and* on command line
@@ -1208,7 +1143,7 @@ sub clone
         }
     }
 
-    &check_add_db_mac( $macref, $actref->{mac} );
+    $macref = &check_add_db_mac( $opts, $dbh, $macref, $actref->{mac} );
 
     $hostref = &get_db_data_by( $dbh, 'host', $actref->{mac}, 'mac' );
     unless ( defined $hostref ) {
@@ -1322,11 +1257,11 @@ sub empty
         return 1;
     }
 
-    $macref = &get_db_data( $dbh, 'mac', $mac );
+    $macref = &check_add_db_mac( $opts, $dbh, $macref, $mac );
 
-    if (( $opts->{debug} > 1 ) && ( defined $macref )) {
+    if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
-            print "mac $key => " . $val eq "" ? "" : $val . "\n";
+            printf "macref:  $key => %s\n", defined ${val} ? ${val} : "";
         }
     }
 
@@ -1334,15 +1269,14 @@ sub empty
     if ( defined $chkref ) {
         if ( $opts->{debug} > 1 ) {
             while ( my ($key, $val) = each %{$chkref} ) {
-                print "host $key => " . $val eq "" ? "" : $val . "\n";
+                printf "actref:  $key => %s\n", defined ${val} ? ${val} : "";
             }
         }
         # store a copy of the ref found for modification
         $actref = $chkref;
     }
 
-    if ( defined $chkref and
-        $chkref->{pxenext} eq BA_ACTION_NONE ) {
+    if ( $macref->{state} == BA_ACTION_NONE ) {
         $opts->{LASTERROR} = "baracus already cleared of host info.\n";
         return 1;
     }
@@ -1423,11 +1357,11 @@ sub pxewait
         return 1;
     }
 
-    &check_add_db_mac( $macref, $mac );
+    $macref = &check_add_db_mac( $opts, $dbh, $macref, $mac );
 
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
-            print "mac $key => " . $val eq "" ? "" : $val . "\n";
+            printf "macref:  $key => %s\n", defined ${val} ? ${val} : "";
         }
     }
 
@@ -1435,7 +1369,7 @@ sub pxewait
     if ( defined $chkref ) {
         if ( $opts->{debug} > 1 ) {
             while ( my ($key, $val) = each %{$chkref} ) {
-                print "check $key => " . $val eq "" ? "" : $val . "\n";
+                printf "actref:  $key => %s\n", defined ${val} ? ${val} : "";
             }
         }
         # store a copy of the ref found for modification
@@ -1526,11 +1460,11 @@ sub inventory
         return 1;
     }
 
-    &check_add_db_mac( $macref, $mac );
+    $macref = &check_add_db_mac( $opts, $dbh, $macref, $mac );
 
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
-            print "mac $key => " . $val eq "" ? "" : $val . "\n";
+            printf "macref:  $key => %s\n", defined ${val} ? ${val} : "";
         }
     }
 
@@ -1538,7 +1472,7 @@ sub inventory
     if ( defined $chkref ) {
         if ( $opts->{debug} > 1 ) {
             while ( my ($key, $val) = each %{$chkref} ) {
-                print "check $key => " . $val eq "" ? "" : $val . "\n";
+                printf "actref:  $key => %s\n", defined ${val} ? ${val} : "";
             }
         }
         # store a copy of the ref found for modification
@@ -1640,7 +1574,7 @@ sub migrate
                'hostname=s'     => \$entry{hostname},
                'hardware=s'     => \$entry{hardware},
                'storageid=s'    => \$entry{storageid},
-	       'disk=s'         => \$entry{disk},
+               'disk=s'         => \$entry{disk},
                'partition=s'    => \$entry{partition},
                'vfstype=s'	=> \$vfstype,
                );
@@ -1662,9 +1596,8 @@ sub migrate
         return 1;
     }
 
-    if ( &check_host_action ( \%entry, $chkref, $actref ))
-    {
-	return 1;
+    if ( &check_host_action ( $opts, $dbh, \%entry, $chkref, $actref )) {
+        return 1;
     }
 
     # hardware file may be in profile *and* on command line
@@ -1720,7 +1653,7 @@ sub migrate
         }
     }
 
-    &check_add_db_mac( $macref, $actref->{mac} );
+    $macref = &check_add_db_mac( $opts, $dbh, $macref, $actref->{mac} );
 
     $hostref = &get_db_data_by( $dbh, 'host', $actref->{mac}, 'mac' );
     unless ( defined $hostref ) {
@@ -1838,11 +1771,11 @@ sub wipe
         return 1;
     }
 
-    &check_add_db_mac( $macref, $mac );
+    $macref = &check_add_db_mac( $opts, $dbh, $macref, $mac );
 
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
-            print "mac $key => " . $val eq "" ? "" : $val . "\n";
+            printf "macref:  $key => %s\n", defined ${val} ? ${val} : "";
         }
     }
 
@@ -1850,7 +1783,7 @@ sub wipe
     if ( defined $chkref ) {
         if ( $opts->{debug} > 1 ) {
             while ( my ($key, $val) = each %{$chkref} ) {
-                print "check $key => " . $val eq "" ? "" : $val . "\n";
+                printf "actref:  $key => %s\n", defined ${val} ? ${val} : "";
             }
         }
         # store a copy of the ref found for modification
@@ -1968,11 +1901,11 @@ sub localboot
         return 1;
     }
 
-    &check_add_db_mac( $macref, $mac );
+    $macref = &check_add_db_mac( $opts, $dbh, $macref, $mac );
 
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
-            print "mac $key => " . $val eq "" ? "" : $val . "\n";
+            printf "macref:  $key => %s\n", defined ${val} ? ${val} : "";
         }
     }
 
@@ -1980,7 +1913,7 @@ sub localboot
     if ( defined $chkref ) {
         if ( $opts->{debug} > 1 ) {
             while ( my ($key, $val) = each %{$chkref} ) {
-                print "check $key => " . $val eq "" ? "" : $val . "\n";
+                printf "actref:  $key => %s\n", defined ${val} ? ${val} : "";
             }
         }
         # store a copy of the ref found for modification
@@ -2085,11 +2018,11 @@ sub netboot
         return 1;
     }
 
-    &check_add_db_mac( $macref, $mac );
+    $macref = &check_add_db_mac( $opts, $dbh, $macref, $mac );
 
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each( %$macref ) ) {
-            print "mac: $key => $macref->{$key}\n" if defined $val;
+            printf "macref:  $key => %s\n", defined ${val} ? ${val} : "";
         }
     }
 
@@ -2097,7 +2030,7 @@ sub netboot
     if ( defined $chkref ) {
         if ( $opts->{debug} > 1 ) {
             while ( my ($key, $val) = each( %$chkref ) ) {
-                print "check: $key => $chkref->{$key}\n" if defined $val;
+                printf "actref:  $key => %s\n", defined ${val} ? ${val} : "";
             }
         }
 
@@ -2258,9 +2191,8 @@ sub rescue
 
     $entry{vars}    = $multiarg{ 'vars'   } if (defined $multiarg{ 'vars'   });
 
-    if ( &check_host_action ( \%entry, $chkref, $actref ))
-    {
-	return 1;
+    if ( &check_host_action ( $opts, $dbh, \%entry, $chkref, $actref )) {
+        return 1;
     }
 
     # get the ip from the existing entry if any
@@ -2472,7 +2404,7 @@ sub rescue
         }
     }
 
-    &check_add_db_mac( $macref, $actref->{mac} );
+    $macref = &check_add_db_mac( $opts, $dbh, $macref, $actref->{mac} );
 
     $hostref = &get_db_data( $dbh, 'host', $actref->{hostname} );
     unless ( defined $hostref ) {
@@ -2567,7 +2499,7 @@ sub list()
 
     if ( $opts->{debug} ) {
         while ( my ($key, $val) = each %{$argref} ) {
-            print "key '$key' => has val '$val'\n";
+            printf "argref:  $key => %s\n", defined ${val} ? ${val} : "";
         }
     }
 

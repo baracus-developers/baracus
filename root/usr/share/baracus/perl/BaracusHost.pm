@@ -32,7 +32,7 @@ use warnings;
 use lib "/usr/share/baracus/perl";
 
 use BaracusSql   qw( :subs :vars );
-use BaracusState qw( :vars );
+use BaracusState qw( :vars :admin );
 use BaracusCore  qw( :subs );
 use BaracusAux   qw( :subs );
 
@@ -60,6 +60,8 @@ BEGIN {
          [qw(
                 add_db_mac
                 get_mac_by_hostname
+                check_host_action
+                check_add_db_mac
                 update_db_mac_state
                 add_action_autobuild
                 add_action_modules
@@ -124,7 +126,7 @@ sub get_mac_by_hostname
 
             $mac = $href->{mac};
         }
-        elsif ( $mac ne "" and $mac ne $href->{mac} ) {
+        elsif ( $mac ne $href->{mac} ) {
             # mac and hostname passed
             # but mac passed differs from mac in table
             $opts->{LASTERROR} = "Hostname already bound to $href->{mac}\n";
@@ -141,6 +143,71 @@ sub get_mac_by_hostname
 
     return $mac;
 }
+
+sub check_host_action
+{
+    my $opts   = shift;
+    my $dbh    = shift;
+    my $eref   = shift;
+    my $chkref = shift;
+    my $actref = shift;
+
+    $eref->{mac} = &get_mac_by_hostname( $opts, $dbh,
+                                         $eref->{mac},
+                                         $eref->{hostname} );
+    # $opts->{LASTERROR} set in subroutine
+    return 1 unless ( defined $eref->{mac} );
+
+    # hosts <=> mac relations checked in get_mac_by_hostname above
+    # now get any existing action db entry
+
+    # lookup by MAC
+    $chkref = &get_db_data( $dbh, 'action', $eref->{mac} );
+    if ( defined $chkref
+         and $eref->{hostname}
+         and $eref->{hostname} ne ''
+         and $eref->{hostname} ne $chkref->{hostname} ) {
+        $opts->{LASTERROR} = "Attempt to create entry for $eref->{hostname} with mac identical to existing 'action' entry $chkref->{hostname}\n";
+        return 1;
+    }
+    if ( $eref->{hostname} ne '' ) {
+        # lookup by hostname
+        $actref = get_db_data_by( $dbh, 'action', $eref->{hostname}, 'hostname' );
+        if ( defined $actref
+             and defined $actref->{mac}
+             and $eref->{mac} ne $actref->{mac} ) {
+            $opts->{LASTERROR} = "Attempt to create entry for $eref->{mac} with hostname identical to existing 'action' entry $actref->{mac}\n";
+            return 1;
+        }
+    } else {
+        # require hostname here or from entry
+        if ( $eref->{hostname} eq ""
+             and defined $chkref
+             and $chkref->{hostname} ne "" ) {
+            $eref->{hostname} = $chkref->{hostname};
+        } else {
+            $opts->{LASTERROR} = "Missing  --hostname\n";
+            return 1;
+        }
+    }
+    return 0;
+}
+
+sub check_add_db_mac
+{
+    my $opts   = shift;
+    my $dbh    = shift;
+    my $macref = shift;
+    my $mac    = shift;
+
+    $macref = get_db_data( $dbh, 'mac', $mac );
+    unless ( defined $macref ) {
+        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
+        $macref = get_db_data( $dbh, 'mac', $mac );
+    }
+    return $macref;
+}
+
 
 # These _db_ entry routines collect the host template db table interface
 
