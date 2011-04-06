@@ -1326,10 +1326,8 @@ sub empty
     }
 
     $macref = &get_db_data( $dbh, 'mac', $mac );
-    unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
-    }
-    if ( $opts->{debug} > 1 ) {
+
+    if (( $opts->{debug} > 1 ) && ( defined $macref )) {
         while ( my ($key, $val) = each %{$macref} ) {
             print "mac $key => " . $val eq "" ? "" : $val . "\n";
         }
