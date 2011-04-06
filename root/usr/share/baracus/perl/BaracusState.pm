@@ -540,7 +540,6 @@ sub action_state_change
     my $dbh    = shift;
     my $event  = shift;
 
-    my $macref = shift;
     my $actref = shift;
 
     unless ( defined $actref->{admin} and $actref->{admin} ne "" ) {

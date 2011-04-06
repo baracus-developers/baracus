@@ -748,7 +748,7 @@ sub build
     # now that modules have been checked and loaded
     # create the action_module entries and store ver
 
-    action_state_change( $dbh, BA_ACTION_BUILD, $macref, $actref );
+    &action_state_change( $dbh, BA_ACTION_BUILD, $actref );
 
     &update_db_mac_state ( $dbh, $actref->{mac}, BA_ACTION_BUILD);
 
@@ -1014,7 +1014,7 @@ sub image
 
     my $action = $entry{mcastid} ? BA_ACTION_MCAST : BA_ACTION_IMAGE ;
 
-    &action_state_change( $dbh, $action, $macref, $actref );
+    &action_state_change( $dbh, $action, $actref );
 
     &update_db_mac_state ( $dbh, $actref->{mac}, $action );
 
@@ -1222,7 +1222,7 @@ sub clone
     # now that modules have been checked and loaded
     # create the action_module entries and store ver
 
-    action_state_change( $dbh, BA_ACTION_CLONE, $macref, $actref );
+    &action_state_change( $dbh, BA_ACTION_CLONE, $actref );
 
     &update_db_mac_state ( $dbh, $actref->{mac}, BA_ACTION_CLONE);
 
@@ -1359,7 +1359,7 @@ sub empty
     $actref->{hostname} = $hostname if ( $hostname ne "" );
     $actref->{mac} = $mac;
 
-    &action_state_change( $dbh, BA_ACTION_NONE, $macref, $actref );
+    &action_state_change( $dbh, BA_ACTION_NONE, $actref );
 
     &update_db_mac_state( $dbh, $mac, BA_ACTION_NONE );
 
@@ -1469,7 +1469,7 @@ sub pxewait
         }
     }
 
-    action_state_change( $dbh, BA_ACTION_PXEWAIT, $macref, $actref );
+    &action_state_change( $dbh, BA_ACTION_PXEWAIT, $actref );
 
     &update_db_mac_state( $dbh, $mac, BA_ACTION_PXEWAIT );
 
@@ -1574,7 +1574,7 @@ sub inventory
         }
     }
 
-    action_state_change( $dbh, BA_ACTION_INVENTORY, $macref, $actref );
+    &action_state_change( $dbh, BA_ACTION_INVENTORY, $actref );
 
     &update_db_mac_state( $dbh, $mac, BA_ACTION_INVENTORY );
 
@@ -1765,7 +1765,7 @@ sub migrate
         }
     }
 
-    action_state_change( $dbh, BA_ACTION_MIGRATE, $macref, $actref );
+    &action_state_change( $dbh, BA_ACTION_MIGRATE, $actref );
 
     &update_db_mac_state( $dbh, $entry{mac}, BA_ACTION_MIGRATE );
 
@@ -1898,7 +1898,7 @@ sub wipe
         }
     }
 
-    action_state_change( $dbh, BA_ACTION_DISKWIPE, $macref, $actref );
+    &action_state_change( $dbh, BA_ACTION_DISKWIPE, $actref );
 
     &update_db_mac_state( $dbh, $mac, BA_ACTION_DISKWIPE );
 
@@ -2028,7 +2028,8 @@ sub localboot
             &add_db_data( $dbh, 'host', $actref );
         }
     }
-    &action_state_change( $dbh, BA_ACTION_LOCALBOOT, $macref, $actref );
+
+    &action_state_change( $dbh, BA_ACTION_LOCALBOOT, $actref );
 
     &update_db_mac_state( $dbh, $mac, BA_ACTION_LOCALBOOT );
 
@@ -2147,7 +2148,7 @@ sub netboot
         }
     }
 
-    &action_state_change( $dbh, BA_ACTION_NETBOOT, $macref, $actref );
+    &action_state_change( $dbh, BA_ACTION_NETBOOT, $actref );
 
     &update_db_mac_state( $dbh, $mac, BA_ACTION_NETBOOT );
 
@@ -2501,7 +2502,7 @@ sub rescue
         &add_db_data( $dbh, 'host', $actref );
     }
 
-    &action_state_change( $dbh, BA_ACTION_RESCUE, $macref, $actref );
+    &action_state_change( $dbh, BA_ACTION_RESCUE, $actref );
 
     &update_db_mac_state( $dbh, $actref->{mac}, BA_ACTION_RESCUE );
 
