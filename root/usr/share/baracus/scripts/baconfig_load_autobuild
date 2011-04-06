@@ -44,6 +44,12 @@ baconfig add autobuild --name sles-11-x86_64-dhcp \
 --file=/usr/share/baracus/templates/autobuild/sles-11-x86_64-dhcp.xml \
 --cert="sles-11-x86_64 sles-11.1-x86_64"
 
+baconfig detail autobuild sles-11.1-iscsi-dhcp-x86_64  &> /dev/null || \
+baconfig add autobuild --name sles-11.1-iscsi-dhcp-x86_64 \
+--description="sles 11 sp1 iSCSI 64bit (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/sles-11.1-iscsi-dhcp-x86_64.xml \
+--cert="sles-11.1-x86_64"
+
 baconfig detail autobuild sles-11.1-ha-x86_64-dhcp  &> /dev/null || \
 baconfig add autobuild --name sles-11.1-ha-x86_64-dhcp \
 --description="sles 11.1 HA 64bit (dhcp)" \
