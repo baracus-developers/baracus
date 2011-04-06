@@ -1207,11 +1207,8 @@ sub clone
                 defined $actref->{$key} ? $actref->{$key} : "";
         }
     }
-    $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
-    unless ( defined $macref ) {
-        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED );
-        $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
-    }
+
+    &check_add_db_mac( $macref, $actref->{mac} );
 
     $hostref = &get_db_data_by( $dbh, 'host', $actref->{mac}, 'mac' );
     unless ( defined $hostref ) {
@@ -1426,10 +1423,8 @@ sub pxewait
         return 1;
     }
 
-    $macref = &get_db_data( $dbh, 'mac', $mac );
-    unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
-    }
+    &check_add_db_mac( $macref, $mac );
+
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
             print "mac $key => " . $val eq "" ? "" : $val . "\n";
@@ -1531,10 +1526,8 @@ sub inventory
         return 1;
     }
 
-    $macref = &get_db_data( $dbh, 'mac', $mac );
-    unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
-    }
+    &check_add_db_mac( $macref, $mac );
+
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
             print "mac $key => " . $val eq "" ? "" : $val . "\n";
@@ -1727,11 +1720,7 @@ sub migrate
         }
     }
 
-    $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
-    unless ( defined $macref ) {
-        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED );
-        $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
-    }
+    &check_add_db_mac( $macref, $actref->{mac} );
 
     $hostref = &get_db_data_by( $dbh, 'host', $actref->{mac}, 'mac' );
     unless ( defined $hostref ) {
@@ -1849,10 +1838,8 @@ sub wipe
         return 1;
     }
 
-    $macref = &get_db_data( $dbh, 'mac', $mac );
-    unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
-    }
+    &check_add_db_mac( $macref, $mac );
+
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
             print "mac $key => " . $val eq "" ? "" : $val . "\n";
@@ -1981,10 +1968,8 @@ sub localboot
         return 1;
     }
 
-    $macref = &get_db_data( $dbh, 'mac', $mac );
-    unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
-    }
+    &check_add_db_mac( $macref, $mac );
+
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each %{$macref} ) {
             print "mac $key => " . $val eq "" ? "" : $val . "\n";
@@ -2100,10 +2085,8 @@ sub netboot
         return 1;
     }
 
-    $macref = &get_db_data( $dbh, 'mac', $mac );
-    unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
-    }
+    &check_add_db_mac( $macref, $mac );
+
     if ( $opts->{debug} > 1 ) {
         while ( my ($key, $val) = each( %$macref ) ) {
             print "mac: $key => $macref->{$key}\n" if defined $val;
@@ -2489,11 +2472,7 @@ sub rescue
         }
     }
 
-    $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
-    unless ( defined $macref ) {
-        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED );
-        $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
-    }
+    &check_add_db_mac( $macref, $actref->{mac} );
 
     $hostref = &get_db_data( $dbh, 'host', $actref->{hostname} );
     unless ( defined $hostref ) {
