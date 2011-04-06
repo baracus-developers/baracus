@@ -22,38 +22,6 @@ __ADDON__
       <lines_cache_id>2</lines_cache_id>
       <timeout config:type="integer">8</timeout>
     </global>
-    <initrd_modules config:type="list">
-      <initrd_module>
-        <module>processor</module>
-      </initrd_module>
-      <initrd_module>
-        <module>thermal</module>
-      </initrd_module>
-      <initrd_module>
-        <module>ata_piix</module>
-      </initrd_module>
-      <initrd_module>
-        <module>ata_generic</module>
-      </initrd_module>
-      <initrd_module>
-        <module>piix</module>
-      </initrd_module>
-      <initrd_module>
-        <module>ide_pci_generic</module>
-      </initrd_module>
-      <initrd_module>
-        <module>fan</module>
-      </initrd_module>
-      <initrd_module>
-        <module>jbd</module>
-      </initrd_module>
-      <initrd_module>
-        <module>ext3</module>
-      </initrd_module>
-      <initrd_module>
-        <module>edd</module>
-      </initrd_module>
-    </initrd_modules>
     <loader_type>grub</loader_type>
     <sections config:type="list">
       <section>
@@ -112,218 +80,6 @@ __ADDON__
       <import_gpg_key config:type="boolean">true</import_gpg_key>
     </signature-handling>
   </general>
-  <groups config:type="list">
-    <group>
-      <group_password>x</group_password>
-      <groupname>users</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>floppy</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>bin</groupname>
-      <userlist>daemon</userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>xok</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>nobody</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>modem</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>lp</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>tty</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>postfix</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>uuidd</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>nogroup</groupname>
-      <userlist>nobody</userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>maildrop</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>messagebus</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>video</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>sys</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>shadow</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>console</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>cdrom</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>haldaemon</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>trusted</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>dialout</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>polkituser</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>wheel</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>www</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>games</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>disk</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>audio</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>suse-ncc</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>ftp</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>at</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>kmem</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>public</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>root</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>mail</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>daemon</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>ntp</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>uucp</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>ntadmin</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>man</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>utmp</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>x</group_password>
-      <groupname>news</groupname>
-      <userlist></userlist>
-    </group>
-    <group>
-      <group_password>!</group_password>
-      <groupname>sshd</groupname>
-      <userlist></userlist>
-    </group>
-  </groups>
   <host>
     <hosts config:type="list">
       <hosts_entry>
@@ -386,9 +142,16 @@ nameserver __DNS1__
         <file_permissions>544</file_permissions>
       </file>
     </files>
-  <iscsi-client>
-    <initiatorname></initiatorname>
-    <targets config:type="list"/>
+   <iscsi-client>
+    <initiatorname>iqn.2010-01.baracus.net:__MAC__</initiatorname>
+    <targets config:type="list">
+      <listentry>
+        <authmethod>None</authmethod>
+        <portal>__STORAGEIP__:3260,1</portal>
+        <startup>onboot</startup>
+        <target>__STORAGE__</target>
+      </listentry>
+    </targets>
     <version>1.0</version>
   </iscsi-client>
   <kdump>
@@ -443,7 +206,7 @@ nameserver __DNS1__
         <ipaddr>__IP__</ipaddr>
         <netmask>__NETMASK__</netmask>
         <lladdr>__MAC__</lladdr>
-        <startmode>onboot</startmode>
+        <startmode>nfsroot</startmode>
       </interface>
     </interfaces>
     <managed config:type="boolean">false</managed>
@@ -469,13 +232,29 @@ nameserver __DNS1__
     </routing>
   </networking>
   <scripts>
+<!-- SLES 11 Required a kernel update for iSCSI support
+    <chroot-scripts config:type="list">
+      <script>
+        <chrooted config:type="boolean">true</chrooted>
+        <feedback config:type="boolean">false</feedback>
+        <debug config:type="boolean">false</debug>
+        <filename>kernel-up.sh</filename>
+        <interpreter>shell</interpreter>
+        <source><![CDATA[
+            /usr/bin/zypper ar http://__SERVERIP__/sles11-kernel-2.6.27.39-0.3.1 kernel-up
+            /usr/bin/zypper -n up
+            ]]>
+        </source>
+      </script>
+    </chroot-scripts>
+-->
     <post-scripts config:type="list">
     </post-scripts>
     <init-scripts config:type="list">
       <script>
         <filename>build_notify</filename>
         <source><![CDATA[sleep 60
-wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></source>
+curl http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></source>
       </script>
       __MODULE__
     </init-scripts>
@@ -552,7 +331,7 @@ wget http://__SERVERIP__/ba/built?uuid=__UUID__\&hostname=__HOSTNAME__]]></sourc
     </patterns>
     <packages config:type="list">
       <package>kdump</package>
-      <package>wget</package>
+      <package>open-iscsi</package>
     </packages>
   </software>
   <timezone>
