@@ -175,9 +175,6 @@ sub check_host_action
     my $chkref = shift;
     my $actref = shift;
 
-    # this routine checks for mac and hostname args
-    # and if hostname passed finds related mac entry
-    # returns undef on error (e.g., unable to find hostname)
     $eref->{mac} = &get_mac_by_hostname( $opts, $dbh, $eref->{mac}, 
 					  $eref->{hostname} );
     unless ( defined $eref->{mac} ) {
@@ -1317,9 +1314,6 @@ sub empty
         return 1;
     }
 
-    # this routine checks for mac and hostname args
-    # and if hostname passed finds related mac entry
-    # returns undef on error (e.g., unable to find hostname)
     $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
     unless ( defined $mac ) {
         # $opts->{LASTERROR} set in subroutine
@@ -1423,9 +1417,6 @@ sub pxewait
         return 1;
     }
 
-    # this routine checks for mac and hostname args
-    # and if hostname passed finds related mac entry
-    # returns undef on error (e.g., unable to find hostname)
     $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
     unless ( defined $mac ) {
         # $opts->{LASTERROR} set in subroutine
@@ -1531,9 +1522,6 @@ sub inventory
         return 1;
     }
 
-    # this routine checks for mac and hostname args
-    # and if hostname passed finds related mac entry
-    # returns undef on error (e.g., unable to find hostname)
     $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
     unless ( defined $mac ) {
         # $opts->{LASTERROR} set in subroutine
@@ -1852,9 +1840,6 @@ sub wipe
         return 1;
     }
 
-    # this routine checks for mac and hostname args
-    # and if hostname passed finds related mac entry
-    # returns undef on error (e.g., unable to find hostname)
     $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
     unless ( defined $mac ) {
         # $opts->{LASTERROR} set in subroutine
@@ -1977,9 +1962,6 @@ sub localboot
         return 1;
     }
 
-    # this routine checks for mac and hostname args
-    # and if hostname passed finds related mac entry
-    # returns undef on error (e.g., unable to find hostname)
     $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
     unless ( defined $mac ) {
         # $opts->{LASTERROR} set in subroutine
@@ -2103,9 +2085,6 @@ sub netboot
         return 1;
     }
 
-    # this routine checks for mac and hostname args
-    # and if hostname passed finds related mac entry
-    # returns undef on error (e.g., unable to find hostname)
     $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
     unless ( defined $mac ) {
         # $opts->{LASTERROR} set in subroutine
