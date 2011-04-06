@@ -381,7 +381,7 @@ sub build
     $entry{vars}    = $multiarg{ 'vars'   } if (defined $multiarg{ 'vars'   });
     $entry{modules} = $multiarg{ 'module' } if (defined $multiarg{ 'module' });
 
-    if ( &check_host_action ( \%entry, $chkref, $macref ))
+    if ( &check_host_action ( \%entry, $chkref, $actref ))
     {
 	return 1;
     }
@@ -937,48 +937,9 @@ sub image
         return 1;
     }
 
-    # this routine checks for mac and hostname args
-    # and if hostname passed finds related mac entry
-    # returns undef on error (e.g., unable to find hostname)
-    $entry{mac} = &get_mac_by_hostname( $opts, $dbh, $entry{mac}, $entry{hostname} );
-    unless ( defined $entry{mac} ) {
-        # $opts->{LASTERROR} set in subroutine
-        return 1;
-    }
-
-    # hosts <=> mac relations checked in get_mac_by_hostname above
-    # now get any existing action db entry
-
-    # lookup by MAC
-    $chkref = &get_db_data( $dbh, 'action', $entry{mac} );
-    if ( defined $chkref
-         and $chkref->{hostname}
-         and $entry{hostname} ne ''
-         and $entry{hostname} ne $chkref->{hostname} ) {
-        print "Attempt to create entry for $entry{hostname} with mac identical to existing 'action' entry $chkref->{hostname}\n";
-        return 1;
-    }
-    if ( $entry{hostname} ne '' ) {
-        # lookup by hostname
-        $actref = get_db_data_by( $dbh, 'action', $entry{hostname}, 'hostname' );
-        if ( defined $actref
-             and defined $actref->{mac}
-             and $entry{mac} ne $actref->{mac} ) {
-            print "Attempt to create entry for $entry{mac} with hostname identical to existing 'action' entry $actref->{mac}\n";
-            return 1;
-        }
-    } else {
-        # require hostname here or from entry
-        if ( $entry{hostname} eq "" and
-             defined $chkref and
-             $chkref->{hostname} ne ""
-            )
-        {
-            $entry{hostname} = $chkref->{hostname};
-        } else {
-            $opts->{LASTERROR} = "Missing  --hostname\n";
-            return 1;
-        }
+    if ( &check_host_action ( \%entry, $chkref, $actref ))
+    {
+	return 1;
     }
 
     # hardware file may be in profile *and* on command line
