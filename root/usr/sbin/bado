@@ -219,6 +219,18 @@ sub check_host_action
     return 0;
 }
 
+sub check_add_db_mac
+{
+    my $macref = shift;
+    my $actref = shift;
+
+    $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
+    unless ( defined $macref ) {
+        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED );
+        $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
+    }
+}
+
 ###############################################################################
 ##
 ## commands
@@ -725,11 +737,7 @@ sub build
     $actref->{disk} = $disk;
     $actref->{partition} = $partition;
 
-    $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
-    unless ( defined $macref ) {
-        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED );
-        $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
-    }
+    &check_add_db_mac( $macref, $actref );
 
     $hostref = &get_db_data( $dbh, 'host', $entry{hostname} );
     unless ( defined $hostref ) {
@@ -992,11 +1000,8 @@ sub image
                 defined $actref->{$key} ? $actref->{$key} : "";
         }
     }
-    $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
-    unless ( defined $macref ) {
-        &add_db_mac( $dbh, $actref->{mac}, BA_ADMIN_ADDED );
-        $macref = get_db_data( $dbh, 'mac', $actref->{mac} );
-    }
+
+    &check_add_db_mac( $macref, $actref );
 
     $hostref = &get_db_data_by( $dbh, 'host', $actref->{mac}, 'mac' );
     unless ( defined $hostref ) {
