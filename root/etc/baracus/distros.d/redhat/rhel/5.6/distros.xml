@@ -1,0 +1,50 @@
+<?xml version='1.0'?>
+<config>
+
+  <!-- RHEL 5.6 -->
+
+  <distro name="rhel-5.6-x86_64">
+    <os>rhel</os>
+    <release>5.6</release>
+    <arch>x86_64</arch>
+    <codename/>
+    <description>RedHat Enterprise Linux 5.6 64bit</description>
+    <type>base</type>
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <iso name="rhel-server-5.6-x86_64-dvd.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5>d77d3815afb381a50148ba55ad930679</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="rhel-5.6-x86">
+    <os>rhel</os>
+    <release>5.6</release>
+    <arch>x86</arch>
+    <codename/>
+    <description>RedHat Enterprise Linux 5.6 32bit</description>
+    <type>base</type>
+    <autodownload>no</autodownload>
+
+    <product name="dvd">
+      <iso name="rhel-server-5.6-i386-dvd.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
+          <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
+        </sharefiles>
+        <md5></md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>
