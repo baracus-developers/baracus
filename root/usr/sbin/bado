@@ -2342,36 +2342,9 @@ sub rescue
 
     $entry{vars}    = $multiarg{ 'vars'   } if (defined $multiarg{ 'vars'   });
 
-    # this routine checks for mac and hostname args
-    # and if hostname passed finds related mac entry
-    # returns undef on error (e.g., unable to find hostname)
-    $entry{mac} = &get_mac_by_hostname( $opts, $dbh, $entry{mac}, $entry{hostname} );
-    unless ( defined $entry{mac} ) {
-        # $opts->{LASTERROR} set in subroutine
-        return 1;
-    }
-
-    # hosts <=> mac relations checked in get_mac_by_hostname above
-    # now, if both passed, get any existing action db entry and check reuse
-
-    # lookup by MAC
-    $chkref = &get_db_data( $dbh, 'action', $entry{mac} );
-    if ( defined $chkref
-         and $chkref->{hostname}
-         and $entry{hostname} ne ''
-         and $entry{hostname} ne $chkref->{hostname} ) {
-        print "Attempt to create entry for $entry{hostname} with mac identical to existing 'action' entry $chkref->{hostname}\n";
-        return 1;
-    }
-    if ( $entry{hostname} ne '' ) {
-        # lookup by hostname
-        $actref = get_db_data_by( $dbh, 'action', $entry{hostname}, 'hostname' );
-        if ( defined $actref
-             and defined $actref->{mac}
-             and $entry{mac} ne $actref->{mac} ) {
-            print "Attempt to create entry for $entry{mac} with hostname identical to existing 'action' entry $actref->{mac}\n";
-            return 1;
-        }
+    if ( &check_host_action ( \%entry, $chkref, $actref ))
+    {
+	return 1;
     }
 
     # get the ip from the existing entry if any
