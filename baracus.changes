@@ -1,4 +1,19 @@
 -------------------------------------------------------------------
+Thu Apr  7 03:05:16 UTC 2011 - dbahi@novell.com
+
+- bamcast tied to bastorage 
+- rhel-5.6 solaris-10.9 opensuse-11.4
+- iscsi autobuild templates for fedora 15 alpha and sles 11 sp1
+- much refactoring and simplification of code
+
+-------------------------------------------------------------------
+Tue Feb 15 21:00:57 UTC 2011 - dbahi@novell.com
+
+- bastorage work for iscsi and nfsroot build/boot
+- bado build to netroot and flip to netboot 
+- debian 6.0 and sles 10.3 oes added
+
+-------------------------------------------------------------------
 Wed Feb  2 21:30:39 UTC 2011 - dbahi@novell.com
 
 - add vm fusion and workstation power handling

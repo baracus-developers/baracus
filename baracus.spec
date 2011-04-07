@@ -1,6 +1,6 @@
 # norootforbuild
 
-Summary:   Tool to create network install build source and manage host builds
+Summary:   Tool to create network install source and manage host pxeboot events
 Name:      baracus
 Version:   1.8.0
 Release:   0
@@ -13,27 +13,29 @@ Source2:   initd.%{name}d
 Source3:   sysconfig.%{name}db
 Source4:   initd.%{name}db
 Source5:   apache.baracus.conf
-Source6:   apache.baracus-webserver.conf
 #Source7:   Makefile
-Requires:  apache2, apache2-mod_perl, perl-Apache-DBI, pidentd, sudo
-Requires:  perl, perl-XML-Simple, perl-libwww-perl, perl-Data-UUID
-Requires:  perl-Config-General, perl-Clone
+Requires:  apache2, apache2-mod_perl, samba, samba-client
+Requires:  perl, perl-Apache-DBI, perl-XML-Simple, perl-libwww-perl
+Requires:  perl-Data-UUID, perl-Config-General, perl-Clone
 Requires:  perl-TermReadKey, perl-DBI, perl-DBD-Pg, perl-Tie-IxHash
 Requires:  perl-IO-Interface, perl-Net-Netmask, perl-XML-LibXSLT
-Requires:  rsync, dhcp-server, postgresql-server, createrepo, fence
-Requires:  samba, samba-client, ipmitool, dropbear, fuse-funionfs
+Requires:  postgresql-server
+Requires:  pidentd, rsync, sudo, fence, createrepo, reprepro, udpcast
+Requires:  dhcp-server, dropbear, ipmitool, fuse-funionfs
 Requires:  baracus-kernel
-BuildRequires: gcc-c++
 %if 0%{?suse_version} < 1030
 Requires:  nfs-utils
 %else
 Requires:  nfs-kernel-server
 %endif
 %if 0%{?suse_version} >= 1110
-Requires:  libvirt
+Requires:  libvirt, dnsmasq
 %endif
-# Remote logging requires syslog-ng installed
+# Remote logging currently requires syslog-ng installed to config remote access
 Requires:  syslog-ng
+BuildRequires: gcc-c++
+Provides:  %{name}-webserver %{version}
+Obsoletes: %{name}-webserver <= 1.7.2
 
 PreReq:    %insserv_prereq %fillup_prereq pwdutils
 PreReq:    /usr/sbin/groupadd /usr/sbin/useradd /sbin/chkconfig
@@ -42,16 +44,9 @@ PreReq:    /usr/sbin/groupadd /usr/sbin/useradd /sbin/chkconfig
 Baracus is a collection of tools to simplify the retrevial of distribution
 and add-on media, building distribution trees, creation and management of
 a network install server, and maintain a collection of build templates for
-rapid PXE boot installs of a collection of build clients.
+rapid PXE boot installs of a collection of build clients.  Many non-build
+pxeboot actions are also provided to aid with build client management.
 
-
-%package   webserver
-Summary:   Separate package for the baracus server web interface
-Group:     System/Services
-Requires:  baracus = %{version}
-%description webserver
-Baracus is composed of many services and a command line interface.
-This package provides a web interface to these services.
 
 %prep
 %setup -q
@@ -68,7 +63,6 @@ cp -r ${PWD}/* %{buildroot}/.
 
 rm          %{buildroot}/etc/baracus/README
 rm          %{buildroot}/var/spool/baracus/www/htdocs/blank.html
-rm    -rf   %{buildroot}/var/spool/baracus/templates
 mkdir       %{buildroot}/var/spool/baracus/isos
 mkdir       %{buildroot}/var/spool/baracus/images
 mkdir       %{buildroot}/var/spool/baracus/logs
@@ -88,7 +82,7 @@ sed -ire 's/ident sameuser/ident/' %{S:4}
 install -D -m755 %{S:4} %{buildroot}%{_initrddir}/%{name}db
 ln -s ../..%{_initrddir}/%{name}db %{buildroot}%{_sbindir}/rc%{name}db
 install -D -m644 %{S:5} %{buildroot}/etc/apache2/conf.d/%{name}.conf
-install -D -m644 %{S:6} %{buildroot}/etc/apache2/conf.d/%{name}-webserver.conf
+
 chmod -R 700 %{buildroot}%{_datadir}/%{name}/gpghome
 
 install -D -m755 %{buildroot}/usr/share/baracus/utils/pfork.bin %{buildroot}/var/spool/%{name}/www/modules/pfork.bin
@@ -98,6 +92,11 @@ rm    -rf   %{buildroot}/usr/share/baracus/utils
 rm    -rf   %{buildroot}/etc/modprobe.d/baracus.loop
 install -D -m644 %{buildroot}/usr/share/baracus/templates/modprobe.d.max_loop.conf %{buildroot}/etc/modprobe.d/baracus-loop.conf
 install -d -m755 %{buildroot}%{_sysconfdir}/%{name}/distros.d
+
+# remove antiquated web front-end files
+rm -rf   %{buildroot}/var/spool/%{name}/www/htdocs
+rm -rf   %{buildroot}/var/spool/%{name}/www/cgi-bin
+rm -rf   %{buildroot}/var/spool/%{name}/www/htdocs/pool
 
 %clean
 rm -rf %{buildroot}
@@ -117,21 +116,9 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %restart_on_update baracusdb baracusd apache2
 %insserv_cleanup
 
-%postun webserver
-%restart_on_update apache2
-%insserv_cleanup
-
-%files webserver
-%defattr(-,root,root)
-/var/spool/%{name}/www/htdocs
-/var/spool/%{name}/www/cgi-bin
-%attr(755,wwwrun,www) %dir /var/spool/%{name}/www/htdocs/pool
-%config %{_sysconfdir}/apache2/conf.d/%{name}-webserver.conf
-
 %files
 %defattr(-,root,root)
 /var/adm/fillup-templates/*
-%doc %{_mandir}/man?/*
 %{_sbindir}/*
 %{_bindir}/*
 %config %{_initrddir}/%{name}d
@@ -139,7 +126,6 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 /etc/modprobe.d
 %dir %{_datadir}/%{name}
 %dir %{_datadir}/%{name}/data
-%doc %{_datadir}/%{name}/*.xml
 %doc %{_datadir}/%{name}/doc
 %{_datadir}/%{name}/data/*
 %{_datadir}/%{name}/profile_default
@@ -151,7 +137,7 @@ useradd -g baracus -o -r -d /var/spool/baracus -s /bin/bash -c "Baracus Server" 
 %dir %{_sysconfdir}/apache2
 %dir %{_sysconfdir}/apache2/conf.d
 %dir %{_sysconfdir}/%{name}
-%dir %{_sysconfdir}/%{name}/distros.d
+%{_sysconfdir}/%{name}/*
 %config %{_sysconfdir}/apache2/conf.d/%{name}.conf
 %attr(755,baracus,users) %dir /var/spool/%{name}
 %attr(755,baracus,users) %dir /var/spool/%{name}/builds
