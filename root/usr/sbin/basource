@@ -601,7 +601,7 @@ sub remove() {
     $extras = $extras . " $multiarg{ 'addons' }" if ( defined $multiarg{ 'addons' } );
     $extras = $extras . " $multiarg{ 'sdks' }" if ( defined $multiarg{ 'sdks' } );
     $extras = $extras . " $multiarg{ 'duds' }" if ( defined $multiarg{ 'duds' } );
-    $extras =~ s/^\s+//;
+    $extras =~ s/^\s+// if ( defined $extras );
 
     my $is_extra_passed;
     $is_extra_passed = 1 if ( $extras );
@@ -630,6 +630,18 @@ sub remove() {
         print "working with 'all': $extras\n" if $opts->{debug};
     }
 
+    ## Are there any extras not removed dependant on base
+    if ( ( ! $extras ) and ( defined $distro ) ) {
+        my @extchk = &list_installed_extras( $opts, $distro );
+        foreach my $extchk (@extchk) {
+            if ( $extchk eq &get_distro_includes( $opts, $distro ) ) { next; }
+            if ( ! exists {map { $_ => 1 } @extras}->{$extchk} ) {
+                $opts->{LASTERROR} =  "cannot remove $distro:\n\t$extchk installed and depends on $distro\n";
+                return 1;
+            }
+        }
+    }
+
     # do we include anything in this distros
     unless ( ( $is_extra_passed ) and ( ! $opts->{all} ) ) {
         my $includes = &get_distro_includes( $opts, $distro );
@@ -644,15 +656,6 @@ sub remove() {
     }
     undef @extras;
     @extras = split( /\s+/, $extras );
-
-    ## Are there any extras not removed dependant on base
-    my @extchk = &list_installed_extras( $opts, $distro );
-    foreach my $extchk (@extchk) {
-        if ( ! exists {map { $_ => 1 } @extras}->{$extchk} ) {
-            $opts->{LASTERROR} =  "cannot remove $distro:\n\t$extchk installed and depends on $distro\n";
-            return 1;
-        }
-    }
 
     ## only check extras passed if not removing all
     if ( scalar @extras ) {
