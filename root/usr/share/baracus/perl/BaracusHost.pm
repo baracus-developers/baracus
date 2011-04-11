@@ -164,7 +164,8 @@ sub check_host_action
     # lookup by MAC
     $chkref = &get_db_data( $dbh, 'action', $eref->{mac} );
     if ( defined $chkref
-         and $eref->{hostname}
+         and defined $eref->{hostname}
+         and defined $chkref->{hostname}
          and $eref->{hostname} ne ''
          and $eref->{hostname} ne $chkref->{hostname} ) {
         $opts->{LASTERROR} = "Attempt to create entry for $eref->{hostname} with mac identical to existing 'action' entry $chkref->{hostname}\n";
