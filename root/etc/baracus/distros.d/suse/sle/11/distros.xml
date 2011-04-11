@@ -183,10 +183,10 @@
 
   <!-- SLES 11 HAE -->
 
-  <distro name="sles-11-hae-x86_64">
+  <distro name="sles-11-ha-x86_64">
     <os>sles</os>
     <release>11</release>
-    <addos>hae</addos>
+    <addos>ha</addos>
     <addrel/>
     <arch>x86_64</arch>
     <codename/>
