@@ -1458,7 +1458,6 @@ sub add_dud_initrd
            $ih->{isopath} );
 
     # match os
-    print "still need to filter this list down\n";
     my @filtered;
     my $prefix = qr|$ih->{isopath}|o;
     my $filt64 = qr'^.*(x86_64|amd64).*$';
@@ -1466,7 +1465,6 @@ sub add_dud_initrd
     foreach my $loc (@drvlist) {
         $loc =~ s|$prefix/||;
         if ( $loc =~ m/$bh->{os}/ ) {
-            print "using os match $loc\n";
             push (@filtered, $loc);
         }
     }
@@ -1478,12 +1476,10 @@ sub add_dud_initrd
         $loc =~ s|$prefix/||;
         if ($bh->{arch} eq "x86_64") {
             if ( $loc =~ m/$filt64/ ) {
-                print "using arch match $loc\n";
                 push (@filtered, $loc);
             }
         } else {
             if ( $loc =~ m/$filt32/ ) {
-                print "using arch match $loc\n";
                 push (@filtered, $loc);
             }
         }
