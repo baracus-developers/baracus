@@ -724,7 +724,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             # and that trigger has to show movement to the next state
             # because we serve the inventory pxe now
             $state = BA_ACTION_INVENTORY;
-            &action_state_change( $dbh, $state, $macref, $actref );
+            &action_state_change( $dbh, $state, $actref );
 
             &update_db_mac_state( $dbh, $input->{mac}, $state );
             if ( defined $chkref ) {
@@ -740,7 +740,12 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
         }
 
         # found a mac and action entry - get the pxenext
-        $pxenext = $actref->{pxenext};
+        if ( defined $actref->{pxenext} and $actref->{pxenext} ne "" ) {
+            $pxenext = $actref->{pxenext};
+        } else {
+            # if not set (odd) start with inventory
+            $pxenext = BA_ACTION_INVENTORY;
+        }
 
         # if admin is DISABLED or IGNORED then
         # do not care about serving anything
