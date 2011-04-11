@@ -122,6 +122,12 @@ baconfig add autobuild --name fedora-14-nfs-x86_64-dhcp \
 --file=/usr/share/baracus/templates/autobuild/fedora-14-nfs-x86_64-dhcp \
 --cert="fedora-14-x86_64"
 
+baconfig detail autobuild fedora-15-http-iscsi-x86_64-dhcp  &> /dev/null || \
+baconfig add autobuild --name fedora-15-http-iscsi-x86_64-dhcp \
+--description="fedora 15 http iscsi (dhcp)" \
+--file=/usr/share/baracus/templates/autobuild/fedora-15-http-iscsi-dhcp-x86_64 \
+--cert="fedora-15-x86_64"
+
 baconfig detail autobuild ubuntu-x86_64-dhcp &> /dev/null || \
 baconfig add autobuild --name ubuntu-x86_64-dhcp \
 --description="ubuntu 9.10/10.4 64bit (dhcp)" \
