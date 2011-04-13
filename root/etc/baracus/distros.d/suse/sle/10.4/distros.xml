@@ -1,4 +1,42 @@
 <?xml version='1.0'?>
+<!--
+x64 sled
+
+929fcd434cb865e97f5ccc14e5218589  /var/spool/baracus/isos/SLED-10-SP4-DVD-i386-GM-DVD1.iso
+
+http://download.novell.com/sendredirect?target=%2Fprot%2FaGfMAFiZRnA%7E%2FSLED-10-SP4-DVD-x86_64-GM-DVD1.iso&buildid=aGfMAFiZRnA~&fileid=InpBergPloM~&mirror=AkamaiHost&nohost=false
+
+x64 sles
+
+b07e59b7cba66b995f97eef42e28f5c3  /var/spool/baracus/isos/SLES-10-SP4-DVD-x86_64-GM-DVD1.iso
+
+http://download.novell.com/sendredirect?target=%2Fprot%2F2RH-u2YXFlc%7E%2FSLES-10-SP4-DVD-x86_64-GM-DVD1.iso&buildid=2RH-u2YXFlc~&fileid=F9oeUzeFPvE~&mirror=AkamaiHost&nohost=false
+
+x64 sdk
+
+e59f3570a968128098deac85a5d9bd02  /var/spool/baracus/isos/SLE-10-SP4-SDK-DVD-x86_64-GM-DVD1.iso
+
+http://download.novell.com/sendredirect?target=%2Fprot%2FJETn_0Tw_XM%7E%2FSLE-10-SP4-SDK-DVD-x86_64-GM-DVD1.iso&buildid=JETn_0Tw_XM~&fileid=yEZEhdZuhd4~&mirror=AkamaiHost&nohost=false
+
+i386 sled
+
+d116266a1f50446d351f22568bd7ae35  /var/spool/baracus/isos/SLED-10-SP4-DVD-x86_64-GM-DVD1.iso
+
+http://download.novell.com/sendredirect?target=%2Fprot%2FaGfMAFiZRnA%7E%2FSLED-10-SP4-DVD-i386-GM-DVD1.iso&buildid=aGfMAFiZRnA~&fileid=VFh3J09H4-8~&mirror=AkamaiHost&nohost=false
+
+i386 sles
+
+277912f7503df68322820c955c8adce8  /var/spool/baracus/isos/SLES-10-SP4-DVD-i386-GM-DVD1.iso
+
+http://download.novell.com/sendredirect?target=%2Fprot%2F9ctYibKWd7w%7E%2FSLES-10-SP4-DVD-i386-GM-DVD1.iso&buildid=9ctYibKWd7w~&fileid=Kj_ciKDIVOw~&mirror=AkamaiHost&nohost=false
+
+i386 sdk
+
+a9e2e136d9d578dad14e5af63f40c3f3  /var/spool/baracus/isos/SLE-10-SP4-SDK-DVD-i386-GM-DVD1.iso
+
+http://download.novell.com/sendredirect?target=%2Fprot%2FJETn_0Tw_XM%7E%2FSLE-10-SP4-SDK-DVD-i386-GM-DVD1.iso&buildid=JETn_0Tw_XM~&fileid=URh6Hh6K8gI~&mirror=AkamaiHost&nohost=false
+
+-->
 <config>
 
   <distro name="sles-10.4-x86_64">
@@ -12,14 +50,37 @@
     <autodownload>auth</autodownload>
 
     <product name="dvd">
-      <iso name="SLES-10-SP4-DVD-x86_64-RC2-DVD1.iso">
+      <iso name="SLES-10-SP4-DVD-x86_64-GM-DVD1.iso">
         <path/>
         <sharefiles>
           <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
           <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
         </sharefiles>
-        <md5>80ef92a51de722ee79899ae9bda5f7f0</md5>
-        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP4-DVD-x86_64-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=2xpO5QouT84~&mirror=AkamaiHost&nohost=false]]></url>
+        <md5>b07e59b7cba66b995f97eef42e28f5c3</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F2RH-u2YXFlc%7E%2FSLES-10-SP4-DVD-x86_64-GM-DVD1.iso&buildid=2RH-u2YXFlc~&fileid=F9oeUzeFPvE~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.4-x86_64_xen">
+    <os>sles</os>
+    <release>10.4</release>
+    <arch>x86_64_xen</arch>
+    <codename/>
+    <description>SUSE Linux Enterprise Server 10 SP4 64bit Xen</description>
+    <type>base</type>
+    <include>sles-10.4-sdk-x86_64_xen</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP4-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/vmlinuz-xen'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/initrd-xen'/>
+        </sharefiles>
+        <md5>b07e59b7cba66b995f97eef42e28f5c3</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F2RH-u2YXFlc%7E%2FSLES-10-SP4-DVD-x86_64-GM-DVD1.iso&buildid=2RH-u2YXFlc~&fileid=F9oeUzeFPvE~&mirror=AkamaiHost&nohost=false]]></url>
       </iso>
     </product>
   </distro>
@@ -37,36 +98,14 @@
     <autodownload>auth</autodownload>
 
     <product name="dvd">
-      <iso name="SLE-10-SP4-SDK-DVD-x86_64-RC2-DVD1.iso">
+      <iso name="SLE-10-SP4-SDK-DVD-x86_64-GM-DVD1.iso">
         <path/>
-        <md5>7f3bc894b03daa2b3672c6740ae3aba1</md5>
-        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP4-SDK-DVD-x86_64-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=KiIGteX_M54~&mirror=AkamaiHost&nohost=false]]></url>
+        <md5>e59f3570a968128098deac85a5d9bd02</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FJETn_0Tw_XM%7E%2FSLE-10-SP4-SDK-DVD-x86_64-GM-DVD1.iso&buildid=JETn_0Tw_XM~&fileid=yEZEhdZuhd4~&mirror=AkamaiHost&nohost=false]]></url>
       </iso>
     </product>
   </distro>
 
-  <distro name="sles-10.4-x86_64_xen">
-    <os>sles</os>
-    <release>10.4</release>
-    <arch>x86_64_xen</arch>
-    <codename/>
-    <description>SUSE Linux Enterprise Server 10 SP4 64bit Xen</description>
-    <type>base</type>
-    <include>sles-10.4-sdk-x86_64_xen</include>
-    <autodownload>auth</autodownload>
-
-    <product name="dvd">
-      <iso name="SLES-10-SP4-DVD-x86_64-RC2-DVD1.iso">
-        <path/>
-        <sharefiles>
-          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/vmlinuz-xen'/>
-          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/initrd-xen'/>
-        </sharefiles>
-        <md5>80ef92a51de722ee79899ae9bda5f7f0</md5>
-        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP4-DVD-x86_64-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=2xpO5QouT84~&mirror=AkamaiHost&nohost=false]]></url>
-      </iso>
-    </product>
-  </distro>
 
   <distro name="sles-10.4-sdk-x86_64_xen">
     <os>sles</os>
@@ -81,10 +120,10 @@
     <autodownload>auth</autodownload>
 
     <product name="dvd">
-      <iso name="SLE-10-SP4-SDK-DVD-x86_64-RC2-DVD1.iso">
+      <iso name="SLE-10-SP4-SDK-DVD-x86_64-GM-DVD1.iso">
         <path/>
-        <md5>7f3bc894b03daa2b3672c6740ae3aba1</md5>
-        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP4-SDK-DVD-x86_64-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=KiIGteX_M54~&mirror=AkamaiHost&nohost=false]]></url>
+        <md5>e59f3570a968128098deac85a5d9bd02</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FJETn_0Tw_XM%7E%2FSLE-10-SP4-SDK-DVD-x86_64-GM-DVD1.iso&buildid=JETn_0Tw_XM~&fileid=yEZEhdZuhd4~&mirror=AkamaiHost&nohost=false]]></url>
       </iso>
     </product>
   </distro>
@@ -100,14 +139,37 @@
     <autodownload>auth</autodownload>
 
     <product name="dvd">
-      <iso name="SLES-10-SP4-DVD-i386-RC2-DVD1.iso">
+      <iso name="SLES-10-SP4-DVD-i386-GM-DVD1.iso">
         <path/>
         <sharefiles>
           <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
           <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
         </sharefiles>
-        <md5>cc03499d8141d2276713ba0ef760aec8</md5>
-        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP4-DVD-i386-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=AdQfSs70M8E~&mirror=AkamaiHost&nohost=false]]></url>
+        <md5>277912f7503df68322820c955c8adce8</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F9ctYibKWd7w%7E%2FSLES-10-SP4-DVD-i386-GM-DVD1.iso&buildid=9ctYibKWd7w~&fileid=Kj_ciKDIVOw~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sles-10.4-x86_xen">
+    <os>sles</os>
+    <release>10.4</release>
+    <arch>x86_xen</arch>
+    <codename/>
+    <description>SUSE Linux Enterprise Server 10 SP4 32bit Xen</description>
+    <type>base</type>
+    <include>sles-10.4-sdk-x86_xen</include>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLES-10-SP4-DVD-i386-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/vmlinuz-xenpae'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/initrd-xenpae'/>
+        </sharefiles>
+        <md5>277912f7503df68322820c955c8adce8</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2F9ctYibKWd7w%7E%2FSLES-10-SP4-DVD-i386-GM-DVD1.iso&buildid=9ctYibKWd7w~&fileid=Kj_ciKDIVOw~&mirror=AkamaiHost&nohost=false]]></url>
       </iso>
     </product>
   </distro>
@@ -125,33 +187,10 @@
     <autodownload>auth</autodownload>
 
     <product name="dvd">
-      <iso name="SLE-10-SP4-SDK-DVD-i386-RC2-DVD1.iso">
+      <iso name="SLE-10-SP4-SDK-DVD-i386-GM-DVD1.iso">
         <path/>
-        <md5>e51e6cf5fc29ceed198d5987c76c2afa</md5>
-        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP3-SDK-DVD-i386-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=GNm-ml762fw~&mirror=AkamaiHost&nohost=false]]></url>
-      </iso>
-    </product>
-  </distro>
-
-  <distro name="sles-10.4-x86_xen">
-    <os>sles</os>
-    <release>10.4</release>
-    <arch>x86_xen</arch>
-    <codename/>
-    <description>SUSE Linux Enterprise Server 10 SP4 32bit Xen</description>
-    <type>base</type>
-    <include>sles-10.4-sdk-x86_xen</include>
-    <autodownload>auth</autodownload>
-
-    <product name="dvd">
-      <iso name="SLES-10-SP4-DVD-i386-RC2-DVD1.iso">
-        <path/>
-        <sharefiles>
-          <sharefile sharetype='tftp' name='kernel' file='boot/i386/vmlinuz-xenpae'/>
-          <sharefile sharetype='tftp' name='initrd' file='boot/i386/initrd-xenpae'/>
-        </sharefiles>
-        <md5>cc03499d8141d2276713ba0ef760aec8</md5>
-        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FZ4ysu62Q4gw%7E%2FSLES-10-SP4-DVD-i386-GM-DVD1.iso&buildid=Z4ysu62Q4gw~&fileid=AdQfSs70M8E~&mirror=AkamaiHost&nohost=false]]></url>
+        <md5>a9e2e136d9d578dad14e5af63f40c3f3</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FJETn_0Tw_XM%7E%2FSLE-10-SP4-SDK-DVD-i386-GM-DVD1.iso&buildid=JETn_0Tw_XM~&fileid=URh6Hh6K8gI~&mirror=AkamaiHost&nohost=false]]></url>
       </iso>
     </product>
   </distro>
@@ -169,10 +208,56 @@
     <autodownload>auth</autodownload>
 
     <product name="dvd">
-      <iso name="SLE-10-SP4-SDK-DVD-i386-RC2-DVD1.iso">
+      <iso name="SLE-10-SP4-SDK-DVD-i386-GM-DVD1.iso">
         <path/>
-        <md5>e51e6cf5fc29ceed198d5987c76c2afa</md5>
-        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FzpFecfuDXqI%7E%2FSLE-10-SP3-SDK-DVD-i386-GM-DVD1.iso&buildid=zpFecfuDXqI~&fileid=GNm-ml762fw~&mirror=AkamaiHost&nohost=false]]></url>
+        <md5>a9e2e136d9d578dad14e5af63f40c3f3</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FJETn_0Tw_XM%7E%2FSLE-10-SP4-SDK-DVD-i386-GM-DVD1.iso&buildid=JETn_0Tw_XM~&fileid=URh6Hh6K8gI~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sled-10.4-x86_64">
+    <os>sled</os>
+    <release>10.4</release>
+    <arch>x86_64</arch>
+    <codename/>
+    <description>SUSE Linux Enterprise Desktop 10 SP4 64bit</description>
+    <type>base</type>
+    <include/>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLED-10-SP4-DVD-x86_64-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/x86_64/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/x86_64/loader/initrd'/>
+        </sharefiles>
+        <md5>929fcd434cb865e97f5ccc14e5218589</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FaGfMAFiZRnA%7E%2FSLED-10-SP4-DVD-x86_64-GM-DVD1.iso&buildid=aGfMAFiZRnA~&fileid=InpBergPloM~&mirror=AkamaiHost&nohost=false]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="sled-10.4-x86">
+    <os>sled</os>
+    <release>10.4</release>
+    <arch>x86</arch>
+    <codename/>
+    <description>SUSE Linux Enterprise Desktop 10 SP4 32bit</description>
+    <type>base</type>
+    <include/>
+    <autodownload>auth</autodownload>
+
+    <product name="dvd">
+      <iso name="SLED-10-SP4-DVD-i386-GM-DVD1.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='boot/i386/loader/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='boot/i386/loader/initrd'/>
+        </sharefiles>
+        <md5>d116266a1f50446d351f22568bd7ae35</md5>
+        <url><![CDATA[http://download.novell.com/sendredirect?target=%2Fprot%2FaGfMAFiZRnA%7E%2FSLED-10-SP4-DVD-i386-GM-DVD1.iso&buildid=aGfMAFiZRnA~&fileid=VFh3J09H4-8~&mirror=AkamaiHost&nohost=false]]></url>
       </iso>
     </product>
   </distro>
