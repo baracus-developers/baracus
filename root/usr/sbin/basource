@@ -633,12 +633,19 @@ sub remove() {
     ## Are there any extras not removed dependant on base
     if ( ( ! $extras ) and ( defined $distro ) ) {
         my @extchk = &list_installed_extras( $opts, $distro );
+        my $extdep = 0;
         foreach my $extchk (@extchk) {
-            if ( $extchk eq &get_distro_includes( $opts, $distro ) ) { next; }
-            if ( ! exists {map { $_ => 1 } @extras}->{$extchk} ) {
-                $opts->{LASTERROR} =  "cannot remove $distro:\n\t$extchk installed and depends on $distro\n";
-                return 1;
+            next if ( $extchk eq &get_distro_includes( $opts, $distro ) );
+            if ( $extdep == 0 ) {
+                $extdep = 1;
+                $opts->{LASTERROR} = "Unable to remove $distro with dependent(s):\n";
             }
+            $opts->{LASTERROR} .= "\t$extchk\n";
+        }
+        if ( $extdep ) {
+            $opts->{LASTERROR} .= "\nTo remove this distro and all its dependents use:\n";
+            $opts->{LASTERROR} .= "\tbasource remove --distro $distro --all\n";
+            return 1;
         }
     }
 
