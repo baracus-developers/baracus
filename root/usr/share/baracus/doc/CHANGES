@@ -1,0 +1,106 @@
+
+-------------------------------------------------------------------
+- 2011-04-15 - release 1.8.0
+
+DUD support in basource – automatic initrd generation
+
+Improved Solaris 10 support for 10 u8 and u9
+
+Improved iSCSIbuild/boot support
+
+NFS build/boot support for sles 11 sp1
+
+Multicast image deloyment fully supported – bamcast tool added to manage multicast channels
+
+Clone image auto registration
+
+Improved baracus storage handling – clone and image type now supported with bastorage
+
+basource list now displays type (base/addon/sdk/dud)
+
+Supported for debian 6.0.0
+
+baconfig ‘tftp’ now baconfig ‘file’
+
+badistro.xml now broken up to /etc/baracus/distos.d/…/distros.xml files
+
+
+-------------------------------------------------------------------
+- 2011-02-14 - release 1.7.2
+
+IPMI support integrated into inventory workload – see settings in /etc/sysconfig/baracus
+
+XEN VM support SLES hosted with pypxeboot.baracus proxy service
+
+fusion and workstation VM remote power supported by bapower
+
+some http share handling fixes
+
+
+-------------------------------------------------------------------
+- 2011-01-17 - release 1.6.4
+
+debian 5.0.7 support
+
+introduces a very flexible source handler
+
+
+-------------------------------------------------------------------
+- 2011-01-10 - release 1.6.3
+
+new workload kernel/initrd – more hardware supported
+
+initial release with support for debian build targets
+
+
+-------------------------------------------------------------------
+- 2010-11-15 - release 1.6.2  
+
+several more hooks in ~baracus/hooks to for flexible integration with other tools 
+and notifications
+
+support for basic clone of a node’s disk as a raw image and upload to the Baracus server
+
+support for image of a node to install a .raw or .raw.gz(not .tar nor tar.gz) formatted files
+
+better consolidated logging to ~baracus/logs/baracusd
+
+bado build now uses “dhcp” for the —ip if that parameter is not provided on the command line
+
+removal of obsolete bado norescue and bahost ignore
+
+
+-------------------------------------------------------------------
+- earlier releases
+
+a new pxewait ssh shell to provide a poor-mans BMC/IPMI reboot command
+
+s390 support is very useable – thanks very much to Jan Blunck
+
+susestudio / kiwi raw image install to hard drive of build client now supported – bado image
+
+ESX 4 support and support for win 7 and 2008 both 32bit and 64bit network install 
+from single server
+
+baracus is not the required hostname for the server 
+(set your DHCP next-server to the baracus IP)
+
+SERVER_IP and SHARE_IP default to first link up interface IP for easier setup
+
+bapower has support for virsh and control of local or remote VM status 
+(with ssh keys or ssh-agent)
+
+bado localboot can direct the boot of any bootable partition (some foreknowledge needed)
+
+ISOs loop-back mounted, when possible, to speed up creation and conserve disk space 
+for install sources
+
+ubuntu, rhel family and suse family, naturally, supported with native installer automations
+
+many install scripts (autobuild files) to support both static and DHCP installs 
+of these distros
+
+
+-------------------------------------------------------------------
+enjoy the power
+
