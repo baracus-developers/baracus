@@ -59,9 +59,7 @@ BEGIN {
               do_localboot
               do_pxewait
               do_menu_lst
-              do_netboot
               do_rescue
-              read_grubconf
               is_inventory_still_required
           )]
        );
@@ -195,99 +193,6 @@ label menu.lst
     print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
     exit 0;
 
-}
-
-sub do_netboot_san() {
-    my $cgi = shift;
-    my $actref = shift;
-    my $serverip = shift;
-    my $output = qq|DEFAULT netboot
-PROMPT 0
-TIMEOUT 0
-LABEL netboot
-    kernel http://$serverip/ba/sanboot.c32
-    append $actref->{storageuri}
-|;
-
-    print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
-    exit 0;
-}
-
-sub do_netboot_nfs() {
-    my $cgi = shift;
-    my $actref = shift;
-    my $serverip = shift;
-
-    my $output = qq|DEFAULT netboot_nfs
-# NFS boot from: $actref->{storageid}
-PROMPT 0
-TIMEOUT 0
-LABEL netboot_nfs
-    kernel http://$serverip/ba/linux?mac=$actref->{mac}&nfsroot=$actref->{storageip}/$actref->{storage}
-    append initrd=http://$serverip/ba/initrd?mac=$actref->{mac}&nfsroot=$actref->{storageip}/$actref->{storage} root=/dev/nfs nfsroot=$actref->{storageuri}
-|;
-    print $cgi->header( -type => "text/plain", -content_length => length ($output)), $output;
-    exit 0;
-}
-
-sub do_netboot() {
-    my $cgi = shift;
-    my $actref = shift;
-    my $serverip = shift;
-
-    if ($actref->{type} == BA_STORAGE_NFS) {
-        &do_netboot_nfs( $cgi, $actref, $serverip );
-    } else {
-        &do_netboot_san( $cgi, $actref, $serverip );
-    }
-}
-
-sub read_grubconf() {
-
-    my $nfsroot=shift;
-    my $grubmenu=shift;
-    my $reqfile=shift;
-    my $fd;
-    my $line = 0;
-    my $g_default = 0;
-    my $titleno = -1;
-    my $g_name = undef;
-
-    open ($fd, "<", "$nfsroot/$grubmenu");
-	while(<$fd>) {
-	    $line++;
-#           if ($titleno != $g_default && m,^\s*title\s+(.*),i ) {
-            if ( m,^\s*default\s+(.*),i ) {
-		if ( defined $g_default ) {
-#                  printlog "$input->{mac} - ignoring default $_\n";
-		} else {
-                    $g_default = $1;
-#                    printlog "$input->{mac} - default boot: $g_default \n";
-		}
-		next;
-	    }
-	    if ( m,^\s*title\s+(.*),i ) {
-		$titleno++;
-#               printlog "$input->{mac} - title: $titleno: $1 \n";
-	    }
-	    if ( $titleno != $g_default ) {
-		next;
-	    }
-	    if ( m,^\s*kernel\s+\(.*\)(\S*),i && (not defined $g_name) &&
-		 ($reqfile eq "linux")) {
-		    $g_name = "$nfsroot/$1";
-		last;
-	        
-	    }
-	    if ( m,^\s*initrd\s+\(.*\)(\S*),i && (not defined $g_name) && 
-		($reqfile eq "initrd")) {
-		$g_name = "$nfsroot/$1";
-		last;
-	    }
-	}
-    close $fd;
-
-    return $g_name;
 }
 
 sub do_rescue() {

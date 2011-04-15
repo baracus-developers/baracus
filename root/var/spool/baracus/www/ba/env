@@ -43,6 +43,7 @@ use BaracusAux qw( :subs );
 use BaracusHost qw( :subs );
 use BaracusPower qw( :subs );
 use BaracusStorage qw( :vars :subs );
+use BaracusNetboot qw( :subs );
 
 use lib '/var/spool/baracus/www/modules';
 use BATools qw( :standard );
@@ -1664,7 +1665,7 @@ Address 'CMS' 'PURGE RDR ALL'
                                 -content_length => length
                                 ($output)
                                ), $output;
-                exit 0;
+                exit 1;
             }
 
 	    my $sref = &get_db_data( $dbh, 'storage', $actref->{storageid});
@@ -1676,63 +1677,48 @@ Address 'CMS' 'PURGE RDR ALL'
                                 -content_length => length
                                 ($output)
                                ), $output;
-                exit 0;
+                exit 1;
 	    }
 
             ## NFS boot 
 
-            my $nfs_script="$baDir{scripts}/mountnfs.sh";
-            my $nfs_base="$baDir{nfsroot}";
-	    my $nfsroot="$nfs_base/$sref->{storageip}/$sref->{storage}";
-            my $fn;
-            my $fd;
-            my $fdata;
+            if ( &mount_nfs(\%baDir, $sref) ) {
+                printlog "$input->{mac} - nfs_mount $sref->{storageid}\n";
+                exit 1;
+	    }
+            printlog "$input->{mac} - netboot $1 @ $actref->{storageid}\n";
+	    printlog "$input->{mac} Arch: $input->{arch}\n";
+	    my $nfsroot="$baDir{nfsroot}/$sref->{storageip}/$sref->{storage}";
 
-            printlog "netboot $actref->{storageid} $sref->{storageip} :: $1\n";
- 
-            my @args = ($nfs_script, "$nfs_base", "$sref->{storageip}", "$sref->{storage}");
-	    my $sysrc = system(@args);
-            unless ($sysrc == 0) {
-                printlog "system @args returns: $sysrc \n";
-            }
+            my $fn;
+            my $fdata;
+            my @binaries;
+
+            $fn = &read_grubconf("$baDir{nfsroot}/$sref->{storageip}/$sref->{storage}", "boot/grub/menu.lst", $file);
+	    printlog "read_grubconf returns $fn\n";
 
             if ($file eq "linux") {
-		my @kernels= ("vmlinuz","vmlinuz-xen");
-		foreach (@kernels)
-		{
-                    $fn = "$nfsroot/boot/$_";
-            	    if ((-f $fn) && (-r $fn)) {
-                        printlog "found: $fn \n";
-			last;
-		    }
+		@binaries= ($fn, "vmlinuz","vmlinuz-xen");
+	    } else { 
+		@binaries= ($fn, "initrd","initrd-xen");
+            }
+	    foreach (@binaries)
+	    {
+                $fn = "$nfsroot/boot/$_";
+            	if ((-f $fn) && (-r $fn)) {
+                    printlog "found: $fn \n";
+		    last;
 		}
-            } elsif ($file eq "initrd") {
-		my @initrds= ("initrd","initrd-xen");
-		foreach (@initrds)
-                {
-                    $fn = "$nfsroot/boot/$_";
-                    if ((-f $fn) && (-r $fn)) {
-                        printlog "found: $fn \n";
-                        last;
-                    }
-                }
-            }
+	    }
 
-            if ( -f $fn and -r $fn ) {
-                printlog "$fn found\n";
-            } else {
-                $fn = &read_grubconf("$nfs_base/$sref->{storageip}/$sref->{storage}", "boot/grub/menu.lst", $file);
-            }
             printlog "$input->{mac} - NFS boot $file @ $fn\n";
 
-            open ($fd, "<", $fn) || printlog "Error opening $fn";
-            {
-            binmode($fd);
-            undef $/;
-            $fdata=<$fd>;
-            $/ = "\n";
-            }
-            close $fd;
+            $fdata=&readfile($fn);
+
+            if ( &umount_nfs(\%baDir, $sref) ) {
+                printlog "$input->{mac} - umount_nfs: $sref->{storageid}\n";
+                exit 1;
+	    }
 
             my $flength = length( $fdata );
             printlog "$input->{mac} - read $fn length $flength bytes\n";
