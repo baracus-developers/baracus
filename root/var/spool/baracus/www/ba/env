@@ -778,7 +778,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
 
         if ( $pxenext eq BA_ACTION_NETBOOT ) {
 
-            printlog "$input->{mac} - netboot: $actref->{storageid}\n";
+            printlog "$input->{mac} - Netboot: $actref->{storageid}\n";
             &update_db_mac_state( $dbh, $macref->{mac}, $pxenext );
             if ( $actref->{oper} ne $pxenext or
                  $actref->{pxecurr} ne $pxenext
@@ -789,6 +789,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 &update_db_data( $dbh, 'action', $actref );
             }
             &load_storage( $opts, $dbh, $actref );
+
             &do_netboot( $cgi, $actref, $baVar{serverip} );
             # do_netboot exits
         }
@@ -1687,7 +1688,6 @@ Address 'CMS' 'PURGE RDR ALL'
                 exit 1;
 	    }
             printlog "$input->{mac} - NFSboot $1 @ $actref->{storageid}\n";
-	    printlog "$input->{mac} Arch: $input->{arch}\n";
 
             my $fn=&nfsbootfile($baDir{nfsroot}, $sref, $file);
              
