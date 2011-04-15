@@ -59,7 +59,7 @@ BEGIN {
               mount_nfs
               umount_nfs
               readfile
-              read_grubconf
+	      nfsbootfile
           )]
        );
   Exporter::export_ok_tags('subs');
@@ -209,7 +209,43 @@ sub read_grubconf() {
     return $g_name;
 }
 
+sub nfsbootfile() {
+    my $nfsbase=shift;
+    my $sref=shift;
+    my $file=shift;
+    my $nfsroot="$nfsbase/$sref->{storageip}/$sref->{storage}";
+    my $fn;
+    my $fdata;
+    my @binaries;
+
+    $fn = &read_grubconf($nfsroot, "boot/grub/menu.lst", $file);
+#            printlog "read_grubconf returns $fn\n";
+
+    if ($file eq "linux") {
+        @binaries= ($fn, "vmlinuz","vmlinuz-xen");
+    } else { 
+        @binaries= ($fn, "initrd","initrd-xen");
+    }
+    foreach (@binaries)
+    {
+    	$fn = "$nfsroot/boot/$_";
+        if ((-f $fn) && (-r $fn)) {
+#              printlog "found: $fn \n";
+            last;
+        }
+    }
+
+#    printlog "$input->{mac} - NFS boot $file @ $fn\n";
+
+#    $fdata=&readfile($fn);
+
+    return $fn;
+}
+
+
 1;
+
+
 
 __END__
 

@@ -1686,34 +1686,14 @@ Address 'CMS' 'PURGE RDR ALL'
                 printlog "$input->{mac} - nfs_mount $sref->{storageid}\n";
                 exit 1;
 	    }
-            printlog "$input->{mac} - netboot $1 @ $actref->{storageid}\n";
+            printlog "$input->{mac} - NFSboot $1 @ $actref->{storageid}\n";
 	    printlog "$input->{mac} Arch: $input->{arch}\n";
-	    my $nfsroot="$baDir{nfsroot}/$sref->{storageip}/$sref->{storage}";
 
-            my $fn;
-            my $fdata;
-            my @binaries;
+            my $fn=&nfsbootfile($baDir{nfsroot}, $sref, $file);
+             
+            printlog "$input->{mac} - NFSboot $file @ $fn\n";
 
-            $fn = &read_grubconf("$baDir{nfsroot}/$sref->{storageip}/$sref->{storage}", "boot/grub/menu.lst", $file);
-	    printlog "read_grubconf returns $fn\n";
-
-            if ($file eq "linux") {
-		@binaries= ($fn, "vmlinuz","vmlinuz-xen");
-	    } else { 
-		@binaries= ($fn, "initrd","initrd-xen");
-            }
-	    foreach (@binaries)
-	    {
-                $fn = "$nfsroot/boot/$_";
-            	if ((-f $fn) && (-r $fn)) {
-                    printlog "found: $fn \n";
-		    last;
-		}
-	    }
-
-            printlog "$input->{mac} - NFS boot $file @ $fn\n";
-
-            $fdata=&readfile($fn);
+            my $fdata=&readfile($fn);
 
             if ( &umount_nfs(\%baDir, $sref) ) {
                 printlog "$input->{mac} - umount_nfs: $sref->{storageid}\n";
@@ -1721,7 +1701,7 @@ Address 'CMS' 'PURGE RDR ALL'
 	    }
 
             my $flength = length( $fdata );
-            printlog "$input->{mac} - read $fn length $flength bytes\n";
+            printlog "$input->{mac} - NFSboot: $fn length $flength bytes\n";
             $output .= $fdata;
 	} else {
 
