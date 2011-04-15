@@ -106,9 +106,9 @@ sub do_netboot() {
     my $serverip = shift;
 
     if ($actref->{type} == BA_STORAGE_NFS) {
-        &do_netboot_nfs( $cgi, $actref, $serverip );
+	&do_netboot_nfs( $cgi, $actref, $serverip );
     } else {
-        &do_netboot_san( $cgi, $actref, $serverip );
+	&do_netboot_san( $cgi, $actref, $serverip );
     }
 }
 
@@ -215,11 +215,9 @@ sub nfsbootfile() {
     my $file=shift;
     my $nfsroot="$nfsbase/$sref->{storageip}/$sref->{storage}";
     my $fn;
-    my $fdata;
     my @binaries;
 
     $fn = &read_grubconf($nfsroot, "boot/grub/menu.lst", $file);
-#            printlog "read_grubconf returns $fn\n";
 
     if ($file eq "linux") {
         @binaries= ($fn, "vmlinuz","vmlinuz-xen");
@@ -230,14 +228,9 @@ sub nfsbootfile() {
     {
     	$fn = "$nfsroot/boot/$_";
         if ((-f $fn) && (-r $fn)) {
-#              printlog "found: $fn \n";
             last;
         }
     }
-
-#    printlog "$input->{mac} - NFS boot $file @ $fn\n";
-
-#    $fdata=&readfile($fn);
 
     return $fn;
 }
