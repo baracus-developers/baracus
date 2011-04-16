@@ -1544,6 +1544,7 @@ Arguments
 
 sub migrate
 {
+
     my $command = "migrate";
 
     unless ( scalar @_ ) {
@@ -1556,27 +1557,27 @@ sub migrate
     my $actref;
     my $sref;
 
-    my $disk = "0";
-    my $partition = "0";
-    my $vfstype="";
-
     my %entry;
     my $cols = lc get_cols( $baTbls{ action });
     foreach my $key (split(/[,\s*]/, $cols )) {
         $entry{$key} = '';
-	print "Key: $key\n";
+#	print "Key: $key\n";
     }
+    $entry{automigrate} = 0;
+    $entry{storageid} = "";
+    $entry{vfstype} = "";
 
     @ARGV = @_;
 
     GetOptions(
                'mac=s'          => \$entry{mac},
                'hostname=s'     => \$entry{hostname},
-               'hardware=s'     => \$entry{hardware},
                'storageid=s'    => \$entry{storageid},
+               'hardware=s'     => \$entry{hardware},
+               'automigrate'    => \$entry{automigrate},
                'disk=s'         => \$entry{disk},
                'partition=s'    => \$entry{partition},
-               'vfstype=s'	=> \$vfstype,
+               'vfstype=s'	=> \$entry{vfstype},
                );
 
     if ( scalar @ARGV ) {
@@ -1584,15 +1585,19 @@ sub migrate
         return 1;
     }
 
-    if ( $entry{storageid} ne "" ) {
-        # get and check for image based on id
-        $sref = &get_db_data( $dbh, 'storage', $entry{storageid} );
-        unless ( defined $sref ) {
-            $opts->{LASTERROR} = "storageid does not exist: $entry{storageid}\n";
-            return 1;
-        }
-    } else {
+    if ( $entry{storageid} eq "" ) {
+        $opts->{LASTERROR} = "Missing --storageid\n";
         $opts->{LASTERROR} = "--storageid is required\n";
+        return 1;
+    }
+
+    $sref = &get_db_data( $dbh, 'storage', $entry{storageid} );
+    unless ( defined $sref ) {
+            $opts->{LASTERROR} = "storageid doesn't exist: $entry{storageid}\n";
+            return 1;
+    }
+    if ( $sref->{type} != BA_STORAGE_NFS ) {
+        $opts->{LASTERROR} = "Storage specified has non-nfs type: $baStorageType{ $sref->{type} }\n";
         return 1;
     }
 
@@ -1622,19 +1627,19 @@ sub migrate
         }
     }
 
-    unless ( $disk =~ /^\d+$/ ) {
+    unless ( $entry{disk} =~ /^\d+$/ ) {
         $opts->{LASTERROR} = "--disk needs to be an integer\n";
         return 1;
     }
 
-    unless ( $partition =~ /\d+$/ ) {
+    unless ( $entry{partition} =~ /\d+$/ ) {
         $opts->{LASTERROR} = "--partition needs to be an integer\n";
         return 1;
     }
 
-    $actref->{disk} = $disk;
-    $actref->{partition} = $partition;
-    $actref->{storageid} = "";  # wipe the storageid info
+    $actref->{automigrate} = $entry{automigrate};
+    $actref->{disk} = $entry{disk};
+    $actref->{partition} = $entry{partition};
 
     # do not want any setting to override these values
 
@@ -1657,44 +1662,21 @@ sub migrate
 
     $hostref = &get_db_data_by( $dbh, 'host', $actref->{mac}, 'mac' );
     unless ( defined $hostref ) {
-        &add_db_data( $dbh, 'host', $actref );
+        $opts->{LASTERROR} = "host not found\n";
+        return 1;
     }
 
     # reset action_module join table list
     # now that modules have been checked and loaded
     # create the action_module entries and store ver
+    &action_state_change( $dbh, BA_ACTION_MIGRATE, $actref );
 
-
-    if ( defined $chkref and
-        $chkref->{pxenext} eq BA_ACTION_MIGRATE ) {
-        $opts->{LASTERROR} = "device already set to migrate.\n";
-        return 1;
-    }
+    &update_db_mac_state ( $dbh, $actref->{mac}, BA_ACTION_MIGRATE);
 
     ##
     ## ALL CHECKS DONE - DO MODS
 
-    $actref->{cmdline} = $entry{cmdline};
-    $actref->{mac} = $entry{mac};
-
-    # if passed both mac and hostname create a host table entry
-    if ( $entry{hostname} ne "" ) {
-        $actref->{hostname} = $entry{hostname};
-        unless ( &get_db_data( $dbh, 'host', $entry{hostname} ) ) {
-            &add_db_data( $dbh, 'host', $actref );
-        }
-    }
-
-    &action_state_change( $dbh, BA_ACTION_MIGRATE, $actref );
-
-    &update_db_mac_state( $dbh, $entry{mac}, BA_ACTION_MIGRATE );
-
-    # for proper command history update we update
-    if ( defined $chkref ) {
-        &update_db_data( $dbh, 'action', $actref );
-    } else {
-        &add_db_data( $dbh, 'action', $actref );
-    }
+    &update_db_data( $dbh, 'action', $actref );
 
     if ( $opts->{verbose} )
     {
