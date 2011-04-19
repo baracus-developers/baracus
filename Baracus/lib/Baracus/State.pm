@@ -25,7 +25,6 @@ package Baracus::State;
 ###########################################################################
 
 use 5.006;
-use Carp;
 use strict;
 use warnings;
 
@@ -103,10 +102,10 @@ BEGIN {
                 BA_CLONING
                 BA_CLONED
                 BA_CLONEFAIL
-		BA_MIGRATE
-		BA_MIGRATING
-		BA_MIGRATED
-		BA_MIGRATEFAIL
+                BA_MIGRATE
+                BA_MIGRATING
+                BA_MIGRATED
+                BA_MIGRATEFAIL
             )],
          admin =>
          [qw(
@@ -130,7 +129,7 @@ BEGIN {
                 BA_ACTION_IMAGE
                 BA_ACTION_MCAST
                 BA_ACTION_CLONE
-		BA_ACTION_MIGRATE
+                BA_ACTION_MIGRATE
             )],
          events =>
          [qw(
@@ -151,9 +150,9 @@ BEGIN {
                 BA_EVENT_CLONING
                 BA_EVENT_CLONED
                 BA_EVENT_CLONEFAIL
-		BA_EVENT_MIGRATING
-		BA_EVENT_MIGRATED
-		BA_EVENT_MIGRATEFAIL
+                BA_EVENT_MIGRATING
+                BA_EVENT_MIGRATED
+                BA_EVENT_MIGRATEFAIL
             )],
          );
     Exporter::export_ok_tags('vars');
@@ -175,7 +174,7 @@ use constant BA_IGNORED           => 5  ;
 use constant BA_NONE              => 6  ;
 use constant BA_INVENTORY         => 7  ;
 use constant BA_BUILD             => 8  ;
-use constant BA_DISKWIPE          => 9 ;
+use constant BA_DISKWIPE          => 9  ;
 use constant BA_RESCUE            => 10 ;
 use constant BA_NORESCUE          => 11 ;
 use constant BA_LOCALBOOT         => 12 ;
@@ -347,9 +346,9 @@ here we define a hash to make easy using the state constants easier
      33             => 'cloned'     ,
      34             => 'clonefail'  ,
      35             => 'migrate'    ,
-     36		    => 'migrating'  ,
-     37		    => 'migrated'   ,
-     38		    => 'migratefail'   ,
+     36	            => 'migrating'  ,
+     37	            => 'migrated'   ,
+     38	            => 'migratefail'   ,
 
      'added'        => BA_ADDED     ,
      'removed'      => BA_REMOVED   ,

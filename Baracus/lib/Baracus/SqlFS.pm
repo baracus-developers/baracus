@@ -25,13 +25,11 @@ package SqlFS;
 ###########################################################################
 
 use 5.006;
-use Carp;
 use strict;
 use warnings;
 
+use Dancer qw( :syntax );
 use DBI;
-
-use lib "/usr/share/baracus/perl";
 
 use Baracus::Config qw( :vars );
 use Baracus::Aux qw( :subs );
@@ -43,7 +41,7 @@ use constant BA_DBMAXLEN => 268435456; # 256 MB
 
 =head1 NAME
 
-SqlFS - rudimentary filesystem in a DBI fronted database
+B<Baracus::SqlFS> - rudimentary filesystem in a DBI fronted database
 
 =head1 SYNOPSIS
 

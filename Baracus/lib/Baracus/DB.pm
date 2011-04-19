@@ -25,7 +25,6 @@ package Baracus::DB;
 ###########################################################################
 
 use 5.006;
-use Carp;
 use strict;
 use warnings;
 use DBI;

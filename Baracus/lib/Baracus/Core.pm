@@ -25,7 +25,6 @@ package Baracus::Core;
 ###########################################################################
 
 use 5.006;
-use Carp;
 use strict;
 use warnings;
 

@@ -25,13 +25,10 @@ package Baracus::Sql;
 ###########################################################################
 
 use 5.006;
-use Carp;
 use strict;
 use warnings;
 
 use Tie::IxHash;
-
-use lib "/usr/share/baracus/perl";
 
 use Baracus::State qw ( :vars );
 

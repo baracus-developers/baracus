@@ -1,4 +1,4 @@
-package SqlTFTPd;
+package Baracus::SqlTFTPd;
 
 ###########################################################################
 #
@@ -28,14 +28,11 @@ package SqlTFTPd;
 ###########################################################################
 
 use 5.006;
-use Carp;
 use strict;
 use warnings;
 use IO::Socket;
 
-use lib "/usr/share/baracus/perl";
-
-use SqlFS;
+use Baracus::SqlFS;
 use Baracus::Config qw( :vars );
 
 require Exporter;

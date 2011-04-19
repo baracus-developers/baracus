@@ -25,7 +25,6 @@ package Baracus::Source;
 ###########################################################################
 
 use 5.006;
-use Carp;
 use strict;
 use warnings;
 
@@ -33,8 +32,6 @@ use File::Temp qw/ tempdir /;
 use File::Find;
 use File::Path;
 use File::Copy;
-
-use lib "/usr/share/baracus/perl";
 
 use Baracus::DB;
 use Baracus::Sql qw( :vars :subs );         # %baTbls && get_cols

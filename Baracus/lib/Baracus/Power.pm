@@ -25,7 +25,6 @@ package Baracus::Power;
 ###########################################################################
 
 use 5.006;
-use Carp;
 use strict;
 use warnings;
 

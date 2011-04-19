@@ -32,8 +32,6 @@ use File::Path;
 use File::Temp;
 use File::Find;
 
-use lib "/usr/share/baracus/perl";
-
 use Baracus::Config qw( :vars :subs );
 use Baracus::Source qw( :vars :subs );
 

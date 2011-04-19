@@ -25,11 +25,8 @@ package Baracus::Storage;
 ###########################################################################
 
 use 5.006;
-use Carp;
 use strict;
 use warnings;
-
-use lib "/usr/share/baracus/perl";
 
 use Baracus::Sql   qw( :subs :vars );
 use Baracus::State qw( :vars );

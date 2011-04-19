@@ -25,15 +25,15 @@ package Baracus::Config;
 ###########################################################################
 
 use 5.006;
-use Carp;
 use strict;
 use warnings;
 
 use Config::General;
+use Dancer qw( :syntax );
 
 =head1 NAME
 
-Baracus::Config - load /etc/sysconfig/baracus, other settings, and multiarg handler
+B<Baracus::Config> - load /etc/sysconfig/baracus, other settings, and multiarg handler
 
 =head1 SYNOPSIS
 
@@ -220,7 +220,7 @@ foreach my $bd (@bdirs) {
 $baDir{ root } = $baracusdir;
 $baDir{ buildroot } = $baDir{builds};
 
-$baDir{ data } = "/usr/share/baracus";
+$baDir{ data } = setting('appdir');
 $baDir{ templates } =  "$baDir{ data }/templates";
 $baDir{ scripts } =  "$baDir{ data }/scripts";
 
