@@ -25,3 +25,19 @@ show_errors: 1
 # DO NOT EVER USE THAT FEATURE IN PRODUCTION 
 # OR TINY KITTENS SHALL DIE WITH LOTS OF SUFFERING
 auto_reload: 0
+
+plugins:
+    Database:
+        driver: Pg
+        dbname: baracus
+        host:  127.0.0.1
+        port:  5162
+        username: 'dancer'
+        password: 'baractopus'
+        connectivity-check-threshold: 10
+        dbi_params:
+            RaiseError: 1
+            PrintError: 1
+            AutoCommit: 1
+#        on_connect_do: ["SET NAMES 'utf8'", "SET CHARACTER SET 'utf8'" ]
+# AutoCommit -> 0 and Transactions are comming soon...
