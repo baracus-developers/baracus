@@ -1,4 +1,4 @@
-package BaracusAux;
+package Baracus::Aux;
 
 ###########################################################################
 #
@@ -31,17 +31,17 @@ use warnings;
 
 use lib "/usr/share/baracus/perl";
 
-use BaracusSql    qw( :subs :vars );
-use BaracusState  qw( :vars :subs :states );
-use BaracusCore   qw( :subs );
-use BaracusConfig qw( :vars );
-use BaracusStorage qw( :subs );
+use Baracus::Sql    qw( :subs :vars );
+use Baracus::State  qw( :vars :subs :states );
+use Baracus::Core   qw( :subs );
+use Baracus::Config qw( :vars );
+use Baracus::Storage qw( :subs );
 
 =pod
 
 =head1 NAME
 
-B<BaracusAux> - auxillary routines for db reading and manipulation
+B<Baracus::Aux> - auxillary routines for db reading and manipulation
 
 =head1 SYNOPSIS
 

@@ -1,4 +1,4 @@
-package BaracusConfig;
+package Baracus::Config;
 
 ###########################################################################
 #
@@ -33,7 +33,7 @@ use Config::General;
 
 =head1 NAME
 
-BaracusConfig - load /etc/sysconfig/baracus, other settings, and multiarg handler
+Baracus::Config - load /etc/sysconfig/baracus, other settings, and multiarg handler
 
 =head1 SYNOPSIS
 

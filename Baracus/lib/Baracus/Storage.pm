@@ -1,4 +1,4 @@
-package BaracusStorage;
+package Baracus::Storage;
 
 ###########################################################################
 #
@@ -31,15 +31,15 @@ use warnings;
 
 use lib "/usr/share/baracus/perl";
 
-use BaracusSql   qw( :subs :vars );
-use BaracusState qw( :vars );
-use BaracusCore  qw( :subs );
+use Baracus::Sql   qw( :subs :vars );
+use Baracus::State qw( :vars );
+use Baracus::Core  qw( :subs );
 
 =pod
 
 =head1 NAME
 
-B<BaracusStorage> - subroutines for managing images and network bootable targets
+B<Baracus::Storage> - subroutines for managing images and network bootable targets
 
 =head1 SYNOPSIS
 

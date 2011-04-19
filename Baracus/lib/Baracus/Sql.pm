@@ -1,4 +1,4 @@
-package BaracusSql;
+package Baracus::Sql;
 
 ###########################################################################
 #
@@ -33,13 +33,13 @@ use Tie::IxHash;
 
 use lib "/usr/share/baracus/perl";
 
-use BaracusState qw ( :vars );
+use Baracus::State qw ( :vars );
 
 =pod
 
 =head1 NAME
 
-B<BaracusSql> - hash definitions and subroutines for managing Baracus sql
+B<Baracus::Sql> - hash definitions and subroutines for managing Baracus sql
 
 =head1 SYNOPSIS
 
@@ -315,7 +315,7 @@ sub get_baracus_tables
     # this tracks **ALL** admin, action, and events
 
     # build this set of columns dynamically
-    # based on the baStates array from BaracusState.pm
+    # based on the baStates array from Baracus::State.pm
     foreach my $col ( @baStates ) {
         $tbl_mac_cols{ $col } = 'TIMESTAMP';
     }
@@ -559,7 +559,7 @@ sub get_baracus_tables
         (
          'username'    => 'VARCHAR(255) PRIMARY KEY',  # htpasswd2 limit
          'password'    => 'VARCHAR(128)', # sha-1 160bit, but prefix & base64 enc
-         'encryption'  => 'INTEGER',      # mapping in BaracusAuth
+         'encryption'  => 'INTEGER',      # mapping in Baracus::Auth
          'status'      => 'BOOLEAN',
          'realm'       => 'VARCHAR(16)',  # useless here with only key username
          'creation'    => 'TIMESTAMP',    #   perhaps we need authrealm table

@@ -1,4 +1,4 @@
-package BaracusSource;
+package Baracus::Source;
 
 ###########################################################################
 #
@@ -36,18 +36,18 @@ use File::Copy;
 
 use lib "/usr/share/baracus/perl";
 
-use BaracusDB;
-use BaracusSql qw( :vars :subs );         # %baTbls && get_cols
-use BaracusConfig qw( :vars :subs );
-use BaracusState qw( :vars :states );     # %aState  && BA_ states
-use BaracusCore qw( :subs );
-use BaracusAux qw( :subs );
+use Baracus::DB;
+use Baracus::Sql qw( :vars :subs );         # %baTbls && get_cols
+use Baracus::Config qw( :vars :subs );
+use Baracus::State qw( :vars :states );     # %aState  && BA_ states
+use Baracus::Core qw( :subs );
+use Baracus::Aux qw( :subs );
 
 =pod
 
 =head1 NAME
 
-B<BaracusSource> - subroutines for managing Baracus source distros and repos
+B<Baracus::Source> - subroutines for managing Baracus source distros and repos
 
 =head1 SYNOPSIS
 
@@ -501,7 +501,7 @@ sub sqlfs_fetch
     my $file = shift;
 
     print "setting uid to $opts->{dbrole}\n" if ($opts->{debug} > 2);
-    my $uid = BaracusDB::su_user( $opts->{dbrole} );
+    my $uid = Baracus::DB::su_user( $opts->{dbrole} );
 
     my $sel = $opts->{sqlfsOBJ}->fetch( $file );
 
@@ -518,7 +518,7 @@ sub sqlfs_getstate
     my $file = shift;
     my $state = 0;
     print "setting uid to $opts->{dbrole}\n" if ($opts->{debug} > 2);
-    my $uid = BaracusDB::su_user( $opts->{dbrole} );
+    my $uid = Baracus::DB::su_user( $opts->{dbrole} );
 
     my $sel = $opts->{sqlfsOBJ}->detail( $file );
     if ( defined $sel ) {
@@ -541,7 +541,7 @@ sub sqlfs_store
     my $file = shift;
     my $status = 0;
     print "setting uid to $opts->{dbrole}\n" if ($opts->{debug} > 2);
-    my $uid = BaracusDB::su_user( $opts->{dbrole} );
+    my $uid = Baracus::DB::su_user( $opts->{dbrole} );
     $status = $opts->{sqlfsOBJ}->store( $file );
     if ( $status ) {
         warn "Store failed to store $file in sqlfs\n";
@@ -561,7 +561,7 @@ sub sqlfs_storeScalar
 
     my $status = 0;
     print "setting uid to $opts->{dbrole}\n" if ($opts->{debug} > 2);
-    my $uid = BaracusDB::su_user( $opts->{dbrole} );
+    my $uid = Baracus::DB::su_user( $opts->{dbrole} );
     $status = $opts->{sqlfsOBJ}->storeScalar( $file, $ref, $desc );
     if ( $status ) {
         warn "StoreScalar failed to store $file in sqlfs\n";
@@ -578,7 +578,7 @@ sub sqlfs_remove
     my $file = shift;
     my $status = 0;
     print "setting uid to $opts->{dbrole}\n" if ($opts->{debug} > 2);
-    my $uid = BaracusDB::su_user( $opts->{dbrole} );
+    my $uid = Baracus::DB::su_user( $opts->{dbrole} );
     $status = $opts->{sqlfsOBJ}->remove( $file );
     if ( $status ) {
         warn "Unable to remove $file from sqlfs\n";
@@ -2238,7 +2238,7 @@ sub source_register
     print "+++++ source_register\n" if ( $opts->{debug} > 1 );
 
     print "setting uid to $opts->{dbrole}\n" if ($opts->{debug} > 2);
-    my $uid = BaracusDB::su_user( $opts->{dbrole} );
+    my $uid = Baracus::DB::su_user( $opts->{dbrole} );
 
     my $dbh = $opts->{dbh};
 

@@ -1,4 +1,4 @@
-package BaracusState;
+package Baracus::State;
 
 ###########################################################################
 #
@@ -33,7 +33,7 @@ use warnings;
 
 =head1 NAME
 
-B<BaracusState> - Defines states and tools for Baracus
+B<Baracus::State> - Defines states and tools for Baracus
 
 =head1 SYNOPSIS
 

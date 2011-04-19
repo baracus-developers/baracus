@@ -36,7 +36,7 @@ use IO::Socket;
 use lib "/usr/share/baracus/perl";
 
 use SqlFS;
-use BaracusConfig qw( :vars );
+use Baracus::Config qw( :vars );
 
 require Exporter;
 

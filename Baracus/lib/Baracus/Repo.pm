@@ -1,4 +1,4 @@
-package BaracusREPO;
+package Baracus::Repo;
 
 ###########################################################################
 #
@@ -34,14 +34,14 @@ use File::Find;
 
 use lib "/usr/share/baracus/perl";
 
-use BaracusConfig qw( :vars :subs );
-use BaracusSource qw( :vars :subs );
+use Baracus::Config qw( :vars :subs );
+use Baracus::Source qw( :vars :subs );
 
 =pod
 
 =head1 NAME
 
-B<BaracusREPO> - subroutines for managing Baracus repos
+B<Baracus::Repo> - subroutines for managing Baracus repos
 
 =head1 SYNOPSIS
 

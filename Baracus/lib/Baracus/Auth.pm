@@ -1,4 +1,4 @@
-package BaracusAuth;
+package Baracus::Auth;
 
 ###########################################################################
 #
@@ -31,15 +31,15 @@ use warnings;
 
 use lib "/usr/share/baracus/perl";
 
-use BaracusSql   qw( :subs :vars );
-use BaracusState qw( :vars );
-use BaracusCore  qw( :subs );
+use Baracus::Sql   qw( :subs :vars );
+use Baracus::State qw( :vars );
+use Baracus::Core  qw( :subs );
 
 =pod
 
 =head1 NAME
 
-B<BaracusAuth> - subroutines for managing Baracus users
+B<Baracus::Auth> - subroutines for managing Baracus users
 
 =head1 SYNOPSIS
 

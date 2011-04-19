@@ -33,8 +33,8 @@ use DBI;
 
 use lib "/usr/share/baracus/perl";
 
-use BaracusConfig qw( :vars );
-use BaracusAux qw( :subs );
+use Baracus::Config qw( :vars );
+use Baracus::Aux qw( :subs );
 
 # for sql tftp db binary file chunking 1MB blobs
 use constant BA_DBMAXLEN => 268435456; # 256 MB

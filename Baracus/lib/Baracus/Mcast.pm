@@ -1,4 +1,4 @@
-package BaracusMcast;
+package Baracus::Mcast;
 
 ###########################################################################
 #
@@ -31,17 +31,17 @@ use warnings;
 
 use lib "/usr/share/baracus/perl";
 
-use BaracusSql   qw( :subs :vars );
-use BaracusState qw( :vars );
-use BaracusCore  qw( :subs );
-use BaracusConfig qw( :vars );
-use BaracusAux   qw( :subs );
+use Baracus::Sql   qw( :subs :vars );
+use Baracus::State qw( :vars );
+use Baracus::Core  qw( :subs );
+use Baracus::Config qw( :vars );
+use Baracus::Aux   qw( :subs );
 
 =pod
 
 =head1 NAME
 
-B<BaracusMcast> - subroutines for managing multicat channels
+B<Baracus::Mcast> - subroutines for managing multicat channels
 
 =head1 SYNOPSIS
 

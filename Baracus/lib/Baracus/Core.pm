@@ -1,4 +1,4 @@
-package BaracusCore;
+package Baracus::Core;
 
 ###########################################################################
 #
@@ -35,7 +35,7 @@ use Pod::Usage;
 
 =head1 NAME
 
-B<BaracusCore> - data generators and entry validation and manipulation
+B<Baracus::Core> - data generators and entry validation and manipulation
 
 =head1 SYNOPSIS
 

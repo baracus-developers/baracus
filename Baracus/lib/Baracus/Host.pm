@@ -1,4 +1,4 @@
-package BaracusHost;
+package Baracus::Host;
 
 ###########################################################################
 #
@@ -31,16 +31,16 @@ use warnings;
 
 use lib "/usr/share/baracus/perl";
 
-use BaracusSql   qw( :subs :vars );
-use BaracusState qw( :vars :admin );
-use BaracusCore  qw( :subs );
-use BaracusAux   qw( :subs );
+use Baracus::Sql   qw( :subs :vars );
+use Baracus::State qw( :vars :admin );
+use Baracus::Core  qw( :subs );
+use Baracus::Aux   qw( :subs );
 
 =pod
 
 =head1 NAME
 
-B<BaracusHost> - subroutines for managing Baracus host macs and templates
+B<Baracus::Host> - subroutines for managing Baracus host macs and templates
 
 =head1 SYNOPSIS
 

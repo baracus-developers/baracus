@@ -1,4 +1,4 @@
-package BaracusCgi;
+package Baracus::Cgi;
 
 ###########################################################################
 #
@@ -29,13 +29,13 @@ use Carp;
 use strict;
 use warnings;
 
-use BaracusConfig qw( :vars );
-use BaracusStorage qw( :vars :subs );
-use BaracusAux qw( :subs );
+use Baracus::Config qw( :vars );
+use Baracus::Storage qw( :vars :subs );
+use Baracus::Aux qw( :subs );
 
 =head1 NAME
 
-BaracusCgi - subroutines of use
+Baracus::Cgi - subroutines of use
 
 =head1 SYNOPSIS
 
