@@ -611,7 +611,7 @@ sub event_state_change
     elsif ( $event eq BA_EVENT_BUILDING ) {
         if ( defined $actref->{storageid} and $actref->{storageid} ne "" ) {
 	    if ( $actref->{automigrate} ) {
-		$actref->{pxecurr} = BA_ACTION_MIGRATE;
+		$actref->{pxenext} = BA_ACTION_MIGRATE;
 	    } else {
                 $actref->{pxenext} = BA_ACTION_NETBOOT;
             }
