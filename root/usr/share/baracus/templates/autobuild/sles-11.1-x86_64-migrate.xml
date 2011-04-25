@@ -482,13 +482,11 @@ cp /mnt/boot/grub/menu.lst /mnt/boot/grub/menu.chroot_pre
         <chrooted config:type="boolean">true</chrooted>
         <filename>chroot_post</filename>
         <source><![CDATA[
-echo "Testing the chroot (post) script" > /chroot_out2.txt
-#mv /boot/grub/menu.lst /boot/grub/menu.lst.linuxrc
-#mv /boot/grub/menu.chroot_pre /boot/grub/menu.lst
+echo "chroot (post) script" > /chroot_post.txt
 chmod o+r /boot/grub/menu.lst
-mkinitrd -f nfs -m nfs -D default
-echo "startmode='nfsroot'" >> /mnt/etc/sysconfig/network/ifcfg-eth0
-#sleep 1000]]></source>
+mv /etc/sysconfig/network/ifcfg-eth0 /etc/sysconfig/network/ifcfg-eth0.install
+sed -e "s/onboot/nfsroot/" < /etc/sysconfig/network/ifcfg-eth0.install > /etc/sysconfig/network/ifcfg-eth0
+mkinitrd -f nfs -m nfs -D default]]></source>
       </script>
     </chroot-scripts>
     <post-scripts config:type="list">
