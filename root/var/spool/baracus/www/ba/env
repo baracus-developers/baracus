@@ -931,7 +931,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                     $args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
                 }
                 if ( defined $actref->{type} and $actref->{type} == BA_STORAGE_NFS ) {
-                    $args .= qq| root=/dev/nfs nfsroot=$actref->{storageuri}|;
+                    $args .= qq| nfsroot=$actref->{storageuri} root=/dev/nfs insmod=nfs|;
                 }
                 if ( defined $hardref->{driverupdate} ) {
                     my $dudref = get_db_data( $dbh, 'distro', $hardref->{driverupdate} );
@@ -1126,7 +1126,7 @@ PROMPT 0
 TIMEOUT 0
 LABEL migrate
         kernel http://$baVar{serverip}/ba/$linux_wrkld
-        append initrd=http://$baVar{serverip}/ba/$initrd_wrkld root=/dev/ram0 install=exec:/usr/bin/baracus.migrate badstfs="$dstref->{storageip}:$dstref->{storage}" basrcfs="$hardref->{rootdisk}" automigrate=$actref->{automigrate} baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        append initrd=http://$baVar{serverip}/ba/$initrd_wrkld root=/dev/ram0 install=exec:/usr/bin/baracus.migrate badstfs="$dstref->{storageip}:$dstref->{storage}" basrcfs="$hardref->{rootdisk}$actref->{partition}" automigrate=$actref->{automigrate} baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
             }
 
