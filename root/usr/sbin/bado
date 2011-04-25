@@ -394,8 +394,9 @@ sub build
             }
         }
     }
-    if ( ($migrate) and $actref->{storageid} eq "" ) {
-        die "Need --storageid to run migrating build.\n"
+    $actref->{automigrate} = $migrate;
+    if (($migrate) and ( $actref->{storageid} eq "" )) {
+           die "Need --storageid to run migrating build.\n"
     }
 
     # distro file may be in profile *and* on command line
