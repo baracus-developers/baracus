@@ -28,6 +28,8 @@ use 5.006;
 use strict;
 use warnings;
 
+use Dancer qw( :syntax );
+
 use Baracus::Sql    qw( :subs :vars );
 use Baracus::State  qw( :vars :subs :states );
 use Baracus::Core   qw( :subs );
@@ -293,7 +295,7 @@ sub load_profile
 
     my $found = get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
     return 1 unless ( defined $found );
-    print $found . "\n" if ( $opts->{debug} > 1 );
+#    print $found . "\n" if ( $opts->{debug} > 1 );
 
     # getall is a destructive assignment - so use tmp
     my $conf = new Config::General( -String => $found->{'data'} );
@@ -302,8 +304,8 @@ sub load_profile
 
     while ( my ($key, $value) = each ( %$tmphref ) ) {
         if (ref($value) eq "ARRAY") {
-            print "$key has more than one entry or value specified\n";
-            print "Such ARRAYs are not supported.\n";
+            error "$key has more than one entry or value specified\n";
+            error "Such ARRAYs are not supported.\n";
             exit(1);
             #           foreach my $avalue (@{$aref->{$key}}){
             #               print "$avalue\n";
@@ -315,7 +317,7 @@ sub load_profile
         } else {
             $aref->{$key} = "";
         }
-        print "profile: $key => $aref->{$key}\n" if ( $opts->{debug} > 1 );
+#        print "profile: $key => $aref->{$key}\n" if ( $opts->{debug} > 1 );
     }
 
     # record the version from the entry for storage
@@ -339,7 +341,7 @@ sub load_storage
         $opts->{LASTERROR} = "Unable to find storage entry for $aref->{storageid}\n";
         return 1;
     }
-    print $found . "\n" if ( $opts->{debug} > 1 );
+#    print $found . "\n" if ( $opts->{debug} > 1 );
 
     while ( my ($key, $value) = each( %$found ) ) {
         if (defined $value) {
@@ -347,7 +349,7 @@ sub load_storage
         } else {
             $aref->{$key} = "";
         }
-        print "storage: $key => $aref->{$key}\n" if ( $opts->{debug} > 1 );
+#        print "storage: $key => $aref->{$key}\n" if ( $opts->{debug} > 1 );
     }
 
     # hash special cases
@@ -369,7 +371,7 @@ sub load_distro
         $opts->{LASTERROR} = "Unable to find distro entry for $aref->{distro}\n";
         return 1;
     }
-    print $found . "\n" if ( $opts->{debug} > 1 );
+#    print $found . "\n" if ( $opts->{debug} > 1 );
 
     while ( my ($key, $value) = each( %$found ) ) {
         if (defined $value) {
@@ -377,7 +379,7 @@ sub load_distro
         } else {
             $aref->{$key} = "";
         }
-        print "distro: $key => $aref->{$key}\n" if ( $opts->{debug} > 1 );
+#        print "distro: $key => $aref->{$key}\n" if ( $opts->{debug} > 1 );
     }
 
     return 0;
@@ -408,7 +410,7 @@ sub load_addons
     $opts->{LASTERROR} = "";
 
     foreach my $name ( @addonlist ) {
-        print "load_addons: working with $name\n" if ($opts->{debug} > 1);
+#        print "load_addons: working with $name\n" if ($opts->{debug} > 1);
         my $tref = { distro => "$name" };
         my $found = &get_distro( $opts, $dbh, $tref );
         if ( defined $found ) {
@@ -419,7 +421,7 @@ sub load_addons
                 }
                 $opts->{LASTERROR} .= "addon $name is for $addonbase not the specified $aref->{distro}\n";
             } else {
-                print $found . " addon\n" if ($opts->{debug} > 1);
+#                print $found . " addon\n" if ($opts->{debug} > 1);
 
                 $aref->{addon} .= "\n" if ( $aref->{addon} );
                 $aref->{addon} .="      <listentry>
@@ -436,7 +438,7 @@ sub load_addons
                 $aref->{addon} .="      </listentry>"
             }
         } elsif ( -d "$baDir{byum}/${name}" ) {
-            print $found . " repo\n" if ($opts->{debug} > 1);
+#            print $found . " repo\n" if ($opts->{debug} > 1);
             # so we have a 'repo' with this name
             $aref->{addon} .= "\n" if ( $aref->{addon} );
             $aref->{addon} .="      <listentry>
@@ -445,7 +447,7 @@ sub load_addons
         <product_dir>/</product_dir>\n";
             $aref->{addon} .="      </listentry>"
         } elsif ( $name =~ m%^(http|ftp)\:\/\/(([^/]+\/){1,4}).*% ) {
-            print $found . " url\n" if ($opts->{debug} > 1);
+#            print $found . " url\n" if ($opts->{debug} > 1);
             # so we have a 'URL'
             $aref->{addon} .= "\n" if ( $aref->{addon} );
             $aref->{addon} .="      <listentry>
@@ -474,7 +476,7 @@ sub load_hardware
 
     my $found = get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
     return 1 unless ( defined $found );
-    print $found . "\n" if ($opts->{debug} > 1);
+#    print $found . "\n" if ($opts->{debug} > 1);
 
     while ( my ($key, $value) = each( %$found ) ) {
         if (defined $value) {
@@ -482,7 +484,7 @@ sub load_hardware
         } else {
             $aref->{$key} = "";
         }
-        print "hware: $key => $aref->{$key}\n" if ( $opts->{debug} > 1 );
+#        print "hware: $key => $aref->{$key}\n" if ( $opts->{debug} > 1 );
     }
 
     # record the version from the entry for storage
@@ -502,11 +504,11 @@ sub load_autobuild
     my $name = $aref->{$type};
     my $vers = $aref->{"${type}_ver"};
 
-    print "load_autobuild name $name ver $vers\n" if ($opts->{debug} > 1);
+#    print "load_autobuild name $name ver $vers\n" if ($opts->{debug} > 1);
 
     my $found = get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
     return 1 unless ( defined $found );
-    print $found . "\n" if ($opts->{debug} > 1);
+#    print $found . "\n" if ($opts->{debug} > 1);
 
     # record the version from the entry for storage
     $aref->{autobuild_ver} = $found->{version};
@@ -536,7 +538,7 @@ sub load_modules
         push @modulelist, $aref->{modules};
     }
 
-    print "module list: " . join (", ", @modulelist) . "\n" if ( $opts->{debug} > 1 );
+#    print "module list: " . join (", ", @modulelist) . "\n" if ( $opts->{debug} > 1 );
 
     # incorporate modules passed into 'module' key for __MODULE__ autobuild sub
     $aref->{'module'} = "";
@@ -546,12 +548,12 @@ sub load_modules
 
         # get verison and name from possible compound
         my ( $name, $vers ) = get_name_version( $item );
-        print "working $item : $name + $vers\n" if ( $opts->{debug} > 1 );
+#        print "working $item : $name + $vers\n" if ( $opts->{debug} > 1 );
 
         my $found = get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
         return 1 unless ( defined $found );
-        print "found $item : $name + $found->{version}\n" if ( $opts->{debug} > 1 );
-        print $found . "\n" if ( $opts->{debug} > 1 );
+#        print "found $item : $name + $found->{version}\n" if ( $opts->{debug} > 1 );
+#        print $found . "\n" if ( $opts->{debug} > 1 );
 
         # hum... this format is only SUSE family
         # what about post insatll scripts for other distros ???
@@ -640,7 +642,7 @@ sub get_sysidcfg_expanded
     if ( $sysidcfg =~ m/__.*__/ ) {
         my $automac = $aref->{autobuild} . "-" . $aref->{autobuild_ver};
         my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
-        print "using tempdir $tdir\n" if ($opts->{debug} > 1);
+#        print "using tempdir $tdir\n" if ($opts->{debug} > 1);
         open(FILE, ">$tdir/$automac") or
             die "Cannot open file $tdir/$automac: $!\n";
         print FILE $sysidcfg;
@@ -648,7 +650,7 @@ sub get_sysidcfg_expanded
         warn "generated but some vars still need to be replaced in $automac\n";
         system "grep -Ene '__.*__' $tdir/$automac";
         unlink "$tdir/$automac";
-        print "removing tempdir $tdir\n" if ($opts->{debug} > 1);
+#        print "removing tempdir $tdir\n" if ($opts->{debug} > 1);
         rmdir $tdir;
     }
 
@@ -666,7 +668,7 @@ sub get_autobuild_expanded
     my $name = $aref->{autobuild};
     my $vers = $aref->{autobuild_ver};
 
-    print "get_autobuild_expanded name $name ver $vers\n" if ($opts->{debug} > 1);
+#    print "get_autobuild_expanded name $name ver $vers\n" if ($opts->{debug} > 1);
 
     my $abhref = &get_autobuild( $opts, $dbh, $aref, $vers );
 
@@ -716,7 +718,7 @@ sub get_autobuild_expanded
     if ( $abfile =~ m/__.*__/ ) {
         my $automac = $aref->{autobuild} . "-" . $aref->{autobuild_ver};
         my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
-        print "using tempdir $tdir\n" if ($opts->{debug} > 1);
+#        print "using tempdir $tdir\n" if ($opts->{debug} > 1);
         open(FILE, ">$tdir/$automac") or
             die "Cannot open file $tdir/$automac: $!\n";
         print FILE $abfile;
@@ -724,7 +726,7 @@ sub get_autobuild_expanded
         warn "generated but some vars still need to be replaced in $automac\n";
         system "grep -Ene '__.*__' $tdir/$automac";
         unlink "$tdir/$automac";
-        print "removing tempdir $tdir\n" if ($opts->{debug} > 1);
+#        print "removing tempdir $tdir\n" if ($opts->{debug} > 1);
         rmdir $tdir;
     }
 
@@ -747,7 +749,7 @@ sub remove_sqlFS_files
     my $list =  $sqlfsOBJ->list_start( "${mac}" );
     while ( $lhref = $sqlfsOBJ->list_next( $list ) ) {
         $sqlfsOBJ->remove( $lhref->{name} );
-        print "$lhref->{name} removed from file DB \n" if ( $opts->{debug} > 1 );
+#        print "$lhref->{name} removed from file DB \n" if ( $opts->{debug} > 1 );
     }
     $sqlfsOBJ->list_finish( $list );
 
@@ -807,7 +809,7 @@ sub check_enabled
                   AND version >= 1
                  |;
 
-    print $sql . "\n" if $opts->{debug};
+#    print $sql . "\n" if $opts->{debug};
 
     unless ( $sth = $dbh->prepare( $sql ) ) {
         $opts->{LASTERROR} =
@@ -915,7 +917,7 @@ sub check_distros
             return undef;
         }
         unless ( $findcount ) {
-            print "Unable to certify: $cert_in does not exist\n";
+            error "Unable to certify: $cert_in does not exist\n";
             $cert_status = 1;
             next;
         }
@@ -1027,7 +1029,8 @@ sub check_cert
         $cert_hash = get_certs_hash( $opts, $dbh, $type, $name );
 
         if ( defined $cert_hash and defined $cert_hash->{ $dist } ) {
-            print "$type $item is certified for $dist\n" if $opts->{debug};
+#            print "$type $item is certified for $dist\n" if $opts->{debug};
+            ;
         } else {
             if ( $status == 0 ) {
                 $status = 1;
@@ -1400,7 +1403,7 @@ sub redundant_data
     my $sth;
     my $href;
 
-    print "args type: $type name: $name\n" if ( $opts->{debug} );
+#    print "args type: $type name: $name\n" if ( $opts->{debug} );
 
     unless ( $type eq "hardware" or
              $type eq "module"   or
@@ -1501,7 +1504,7 @@ sub find_helper
                   WHERE distroid = '$name'
                  |;
     }
-    print $sql . "\n" if $opts->{debug};
+#    print $sql . "\n" if $opts->{debug};
 
     my $sth = $db2use->prepare( $sql );
     unless ( defined $sth ) {
@@ -1518,7 +1521,7 @@ sub find_helper
     my $rowcount = 0;
     while ( $sth->fetchrow_hashref() ) {
         $rowcount += 1;
-        print "rowcount +1 $rowcount\n" if $opts->{debug};
+#        print "rowcount +1 $rowcount\n" if $opts->{debug};
     }
 
     $sth->finish;
@@ -1538,7 +1541,7 @@ sub check_broadcast
 	use Net::Netmask;
 
 	my $block = new Net::Netmask ( $aref->{ip}, $aref->{netmask} );
-	print STDERR "Use broadcast address: " . $block->broadcast() . "\n" if ( $opts->{debug} > 1);
+#	print STDERR "Use broadcast address: " . $block->broadcast() . "\n" if ( $opts->{debug} > 1);
 	$aref->{broadcast} = $block->broadcast();
     }
 }

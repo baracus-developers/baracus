@@ -56,6 +56,8 @@ BEGIN {
         (
          subs   =>
          [qw(
+                bamstart
+                bamstop
                 get_free_mcast_port
                 start_mchannel
                 stop_mchannel
@@ -73,6 +75,53 @@ my $tbl = 'mcast';
 #
 # get_free_mcast_port( $dbh )
 #
+
+sub bamstart
+{
+    my $opts = shift;
+    my $dbh  = shift;
+    my $tbl  = shift;
+    my $idx  = shift;
+
+    my $sth = &list_start_data ( $opts, $dbh, $tbl, $idx );
+    while ( my $dbref = &list_next_data( $sth ) ) {
+        if ( $dbref->{status} ) {
+            ## start the mchannel
+            if ( $opts->{verbose} ) {
+                print "Starting mchannel id: $dbref->{mcastid} \n";
+            }
+            my $mcastref = &get_db_data( $dbh, $tbl, $dbref->{mcastid} );
+            $mcastref->{pid} = &start_mchannel( $dbh, $dbref->{mcastid} );
+            &update_db_data( $dbh, $tbl, $mcastref);
+        }
+    }
+    return 0;
+}
+
+sub bamstop
+{
+    my $opts = shift;
+    my $dbh  = shift;
+    my $tbl  = shift;
+    my $idx  = shift;
+
+    my $sth = &list_start_data ( $opts, $dbh, $tbl, "" );
+    while ( my $dbref = &list_next_data( $sth ) ) {
+        if ( $dbref->{status} ) {
+            ## start the mchannel
+            if ( $opts->{verbose} ) {
+                print "Stopping mchannel id: $dbref->{mcastid} \n";
+            }
+            my $ret = &stop_mchannel( $dbh, $dbref->{mcastid} );
+            if ( $ret == 1 ) {
+                $opts->{LASTERROR} = "error stopping $dbref->{mcastid}\n";
+                return 1;
+             }
+        }
+    }
+    return 0;
+}
+
 sub get_free_mcast_port
 {
     my $opts = shift;

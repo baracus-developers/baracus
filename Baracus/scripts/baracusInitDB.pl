@@ -30,10 +30,10 @@ use strict;
 use warnings;
 use File::Copy;
 
-use lib "/usr/share/baracus/perl";
+use lib "../lib";
 
-use BaracusDB;
-use BaracusSql;
+use Baracus::DB;
+use Baracus::Sql;
 
 # creates ROLES, DATABASES, TABLES, LANGUAGES for baracus
 # to be called on database startup - by baracusdb service
@@ -47,7 +47,7 @@ my $role = "baracus";
 my @args = qw( LOGIN SUPERUSER );
 
 my $db_baracus = "baracus";
-my $db_sqltftp = "sqltftp";
+my $db_sqltftp = "baracus";
 
 my $plpg = "plpgsql";
 
@@ -55,12 +55,13 @@ if ( defined $reverse_flag ) {
     &niam();
 } else {
     &main();
-    system ( "/usr/sbin/basource init --all -d -d -v" );
-    system ( "/usr/sbin/bamcast init -v");
-    system ( "/usr/sbin/basource prepdbwithxml" );
-    system ( "/usr/share/baracus/scripts/baconfig_load_autobuild" );
-    system ( "/usr/share/baracus/scripts/baconfig_load_hardware" );
-    system ( "/usr/share/baracus/scripts/baconfig_load_profile" );
+#    system ( "/usr/sbin/basource init --all -d -d -v" );
+#    system ( "/usr/sbin/basource prepdbwithxml" );
+#    system ( "/usr/sbin/bamcast init -v");
+    system ( "./basourceinitdb" );
+    system ( "./baconfig_load_autobuild" );
+    system ( "./baconfig_load_hardware" );
+    system ( "./baconfig_load_profile" );
     my $cifs_reload = &add_cifs_perl();
     my $perl_reload = &add_apache2_perl();
 #    my $listen_reload = &apache2_listen_conf();
@@ -86,41 +87,41 @@ sub main {
 
     # switch to user postgres and connect
 
-    $uid = BaracusDB::su_user( $pg_user );
-    die BaracusDB::errstr unless ( defined $uid );
+    $uid = Baracus::DB::su_user( $pg_user );
+    die Baracus::DB::errstr unless ( defined $uid );
 
-    $dbh = BaracusDB::connect_db( $pg_db, $pg_user );
-    die BaracusDB::errstr unless( $dbh );
+    $dbh = Baracus::DB::connect_db( $pg_db, $pg_user );
+    die Baracus::DB::errstr unless( $dbh );
 
-    $status = BaracusDB::exists_role( $dbh, $role );
-    die BaracusDB::errstr unless( defined $status );
+    $status = Baracus::DB::exists_role( $dbh, $role );
+    die Baracus::DB::errstr unless( defined $status );
     unless( $status ) {
-        die BaracusDB::errstr
-            unless( BaracusDB::create_role( $dbh, $role, @args ));
+        die Baracus::DB::errstr
+            unless( Baracus::DB::create_role( $dbh, $role, @args ));
     }
 
-    $status = BaracusDB::exists_role( $dbh, "wwwrun" );
-    die BaracusDB::errstr unless( defined $status );
+    $status = Baracus::DB::exists_role( $dbh, "wwwrun" );
+    die Baracus::DB::errstr unless( defined $status );
     unless( $status ) {
-        die BaracusDB::errstr
-            unless( BaracusDB::create_role( $dbh, "wwwrun", @args ));
+        die Baracus::DB::errstr
+            unless( Baracus::DB::create_role( $dbh, "wwwrun", @args ));
     }
 
-    $status = BaracusDB::exists_database( $dbh, $db_baracus);
-    die BaracusDB::errstr unless ( defined $status );
+    $status = Baracus::DB::exists_database( $dbh, $db_baracus);
+    die Baracus::DB::errstr unless ( defined $status );
     unless( $status ) {
-        die BaracusDB::errstr
-            unless( BaracusDB::create_database( $dbh, $db_baracus, $role));
+        die Baracus::DB::errstr
+            unless( Baracus::DB::create_database( $dbh, $db_baracus, $role));
     }
 
-    $status = BaracusDB::exists_database( $dbh, $db_sqltftp );
-    die BaracusDB::errstr unless( defined $status );
+    $status = Baracus::DB::exists_database( $dbh, $db_sqltftp );
+    die Baracus::DB::errstr unless( defined $status );
     unless( $status ) {
-        die BaracusDB::errstr
-            unless( BaracusDB::create_database( $dbh, $db_sqltftp, $role));
+        die Baracus::DB::errstr
+            unless( Baracus::DB::create_database( $dbh, $db_sqltftp, $role));
     }
 
-    die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+    die Baracus::DB::errstr unless Baracus::DB::disconnect_db( $dbh );
 
     # finished working as user postgres
 
@@ -130,79 +131,79 @@ sub main {
 
     # connect to sqltftp database
 
-    $uid = BaracusDB::su_user( $role );
-    die BaracusDB::errstr unless ( defined $uid );
+    $uid = Baracus::DB::su_user( $role );
+    die Baracus::DB::errstr unless ( defined $uid );
 
-    $dbh = BaracusDB::connect_db( $db_sqltftp, $role );
-    die BaracusDB::errstr unless( $dbh );
+    $dbh = Baracus::DB::connect_db( $db_sqltftp, $role );
+    die Baracus::DB::errstr unless( $dbh );
 
     my $hashoftbls;
 
-    $hashoftbls = BaracusSql::get_sqltftp_tables();
+    $hashoftbls = Baracus::Sql::get_sqltftp_tables();
 
     while( my ($tbl, $col) = each %{ $hashoftbls } ) {
-        $status = BaracusDB::exists_table( $dbh, $tbl );
-        die BaracusDB::errstr unless( defined $status );
+        $status = Baracus::DB::exists_table( $dbh, $tbl );
+        die Baracus::DB::errstr unless( defined $status );
         unless( $status ) {
             print STDOUT "user $role creating $tbl in db $db_sqltftp\n";
-            die BaracusDB::errstr
-                unless( BaracusDB::create_table( $dbh, $tbl,
-                BaracusSql::hash2columns( $col )));
+            die Baracus::DB::errstr
+                unless( Baracus::DB::create_table( $dbh, $tbl,
+                Baracus::Sql::hash2columns( $col )));
         }
     }
 
-    die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+    die Baracus::DB::errstr unless Baracus::DB::disconnect_db( $dbh );
 
     # connect to baracus database
 
-    $dbh = BaracusDB::connect_db( $db_baracus, $role );
-    die BaracusDB::errstr unless( $dbh );
+    $dbh = Baracus::DB::connect_db( $db_baracus, $role );
+    die Baracus::DB::errstr unless( $dbh );
 
-    $hashoftbls = BaracusSql::get_baracus_tables();
+    $hashoftbls = Baracus::Sql::get_baracus_tables();
 
     while( my ($tbl, $col) = each %{ $hashoftbls } ) {
-        $status = BaracusDB::exists_table( $dbh, $tbl );
-        die BaracusDB::errstr unless( defined $status );
+        $status = Baracus::DB::exists_table( $dbh, $tbl );
+        die Baracus::DB::errstr unless( defined $status );
         unless( $status ) {
             print STDOUT "user $role creating $tbl in db $db_baracus\n";
-            die BaracusDB::errstr
-                unless( BaracusDB::create_table( $dbh, $tbl,
-                BaracusSql::hash2columns( $col )));
+            die Baracus::DB::errstr
+                unless( Baracus::DB::create_table( $dbh, $tbl,
+                Baracus::Sql::hash2columns( $col )));
         }
     }
 
 
     # make sure the language we define functions in is loaded
 
-    $status = BaracusDB::exists_language( $dbh, $plpg );
-    die BaracusDB::errstr unless( defined $status );
+    $status = Baracus::DB::exists_language( $dbh, $plpg );
+    die Baracus::DB::errstr unless( defined $status );
     unless( $status ) {
-        die BaracusDB::errstr
-            unless( BaracusDB::create_language( $dbh, $plpg ));
+        die Baracus::DB::errstr
+            unless( Baracus::DB::create_language( $dbh, $plpg ));
     }
 
     # create/replace the functions for use by our triggers
 
-    my $hashoffuncs = BaracusSql::get_baracus_functions();
+    my $hashoffuncs = Baracus::Sql::get_baracus_functions();
     while( my ($name, $def) = each %{ $hashoffuncs } ) {
-        die BaracusDB::errstr
-            unless( BaracusDB::create_or_replace_function( $dbh, $name, $def ));
+        die Baracus::DB::errstr
+            unless( Baracus::DB::create_or_replace_function( $dbh, $name, $def ));
     }
 
     # add the triggers
 
-    my $hashoftgs = BaracusSql::get_baracus_triggers();
+    my $hashoftgs = Baracus::Sql::get_baracus_triggers();
 
     while( my ($tg, $sql) = each %{ $hashoftgs } ) {
-        $status = BaracusDB::exists_trigger( $dbh, $tg );
-        die BaracusDB::errstr unless( defined $status );
+        $status = Baracus::DB::exists_trigger( $dbh, $tg );
+        die Baracus::DB::errstr unless( defined $status );
         unless( $status ) {
-            die BaracusDB::errstr
-                unless( BaracusDB::create_trigger( $dbh, $tg, $sql ));
+            die Baracus::DB::errstr
+                unless( Baracus::DB::create_trigger( $dbh, $tg, $sql ));
         }
     }
 
-    die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+    die Baracus::DB::errstr unless Baracus::DB::disconnect_db( $dbh );
 
     # finished working as user baracus
 
@@ -217,40 +218,40 @@ sub niam {
 
     # switch to user postgres and connect
 
-    $uid = BaracusDB::su_user( $pg_user );
-    die BaracusDB::errstr unless ( defined $uid );
+    $uid = Baracus::DB::su_user( $pg_user );
+    die Baracus::DB::errstr unless ( defined $uid );
 
-    $dbh = BaracusDB::connect_db( $pg_db, $pg_user );
-    die BaracusDB::errstr unless( $dbh );
+    $dbh = Baracus::DB::connect_db( $pg_db, $pg_user );
+    die Baracus::DB::errstr unless( $dbh );
 
-    $status = BaracusDB::exists_database( $dbh, $db_baracus);
-    die BaracusDB::errstr unless ( defined $status );
+    $status = Baracus::DB::exists_database( $dbh, $db_baracus);
+    die Baracus::DB::errstr unless ( defined $status );
     if ( $status ) {
-        die BaracusDB::errstr
-            unless( BaracusDB::drop_database( $dbh, $db_baracus ));
+        die Baracus::DB::errstr
+            unless( Baracus::DB::drop_database( $dbh, $db_baracus ));
     }
 
-    $status = BaracusDB::exists_database( $dbh, $db_sqltftp );
-    die BaracusDB::errstr unless( defined $status );
+    $status = Baracus::DB::exists_database( $dbh, $db_sqltftp );
+    die Baracus::DB::errstr unless( defined $status );
     if ( $status ) {
-        die BaracusDB::errstr
-            unless( BaracusDB::drop_database( $dbh, $db_sqltftp, $role));
+        die Baracus::DB::errstr
+            unless( Baracus::DB::drop_database( $dbh, $db_sqltftp, $role));
     }
 
-    $status = BaracusDB::exists_role( $dbh, $role );
-    die BaracusDB::errstr unless( defined $status );
+    $status = Baracus::DB::exists_role( $dbh, $role );
+    die Baracus::DB::errstr unless( defined $status );
     if ( $status ) {
-        die BaracusDB::errstr
-            unless( BaracusDB::drop_role( $dbh, $role ));
+        die Baracus::DB::errstr
+            unless( Baracus::DB::drop_role( $dbh, $role ));
     }
 
-    die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+    die Baracus::DB::errstr unless Baracus::DB::disconnect_db( $dbh );
 }
 
 sub add_cifs_perl
 {
 
-    use BaracusConfig qw( :vars );
+    use Baracus::Config qw( :vars );
 
     my $startnet_in = "/usr/share/baracus/templates/startnet.cmd";
     my $startnet_out= "$baDir{builds}/winstall/install/startnet.cmd";
@@ -349,7 +350,7 @@ sub apache2_listen_conf
     my $listenconf_out = "/etc/apache2/listen.conf";
     my $restart = 0;
 
-    use BaracusConfig qw( %baVar );
+    use Baracus::Config qw( %baVar );
 
     if ( %baVar and $baVar{serverip} ) {
 	my $mods = $baVar{serverip};

@@ -28,6 +28,8 @@ use 5.006;
 use strict;
 use warnings;
 
+use Dancer qw( :syntax );
+
 =pod
 
 =head1 NAME
@@ -519,7 +521,7 @@ sub admin_state_change
         $actref->{pxenext} = BA_ACTION_NONE;
     }
     else {
-        print "Unknown admin value $event in attempt to change state.\n";
+        error "Unknown admin value $event in attempt to change state.\n";
     }
 }
 
@@ -708,7 +710,8 @@ sub get_previous_state
     # if count is 1 - all we have is 'rescue' - can't be...
     # must have some prior info about the entry and a host template
     unless ( $stack{count} > 1 ) {
-        croak "Impossible to have only 'rescue' state in the mac table";
+        error "Impossible to have only 'rescue' state in the mac table";
+        die;
     }
 
     # else skip back one (or if one back is "disabled" skip back two)

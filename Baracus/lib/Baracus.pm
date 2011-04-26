@@ -9,6 +9,7 @@ our $VERSION = '2.0.0';
 #    set appdir => '/opt/Baracus';
 
 use Dancer::Plugin::Database;
+use Dancer::Logger::Syslog;
 
 use Baracus::REST::Source  qw( :subs );
 #use Baracus::REST::Host    qw( :subs );
@@ -22,7 +23,7 @@ my $opts = {
             quiet      => 0,
             all        => 0,
             nolabels   => 0,
-            debug      => 3,
+            debug      => 0,
             execname   => "",
             LASTERROR  => "",
             baXML      => 0,
@@ -39,7 +40,7 @@ sub init_baracus_vars {
     unless ( $opts->{baXML} ) {
         use Baracus::Config qw( :vars );
         use Baracus::Source qw( :subs );
-        $opts->{baXML} = &baxml_load( $opts, "$baDir{'data'}/badistro.xml" );
+        $opts->{baXML} = &baxml_load_distros( $opts );
     }
 
     unless ( $opts->{sqlfsOBJ} ) {

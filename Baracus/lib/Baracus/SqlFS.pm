@@ -1,4 +1,4 @@
-package SqlFS;
+package Baracus::SqlFS;
 
 ###########################################################################
 #
@@ -105,13 +105,17 @@ sub new
     my %cfg = @_;
 
     # setting defaults
-    $cfg{'DataSource'} or croak "\nUsage: \$sqlfsOBJ = SqlFS->new( 'DataSource' => 'dbi data source url' [, 'TableName' => 'default is sqlfstable' ] [, ...] );";
-    $cfg{'User'} or $cfg{'User'} = "";
-    $cfg{'Password'} or $cfg{'Password'} = "";
+    $cfg{'dbh'} or error "\nUsage: \$sqlfsOBJ = SqlFS->new( 'dbh' => 'db handle' [, 'debug' => '<#>' );";
+    $dbh = $cfg{'dbh'};
+    debug "dbh = $dbh\n" if $debug;
+
+#    $cfg{'DataSource'} or error "\nUsage: \$sqlfsOBJ = SqlFS->new( 'DataSource' => 'dbi data source url' [, 'TableName' => 'default is sqlfstable' ] [, ...] );";
+#    $cfg{'User'} or $cfg{'User'} = "";
+#    $cfg{'Password'} or $cfg{'Password'} = "";
     $cfg{'TableName'} or $cfg{'TableName'} = "sqlfstable";
     if ( defined $cfg{'debug'} ) {
         $debug = $cfg{'debug'};
-        print "debug = $debug\n" if $debug;
+        debug "debug = $debug\n" if $debug;
     }
 
     # sql for file present check
@@ -153,12 +157,12 @@ sub new
 
 
     # connect to the DBI data source passed
-    if (not $dbh = DBI->connect( "$cfg{'DataSource'}",
-                                 "$cfg{'User'}",
-                                 "$cfg{'Password'}" ) ) {
-        carp("Error connecting to database $cfg{'DataSource'} : $DBI::errstr : $@\n");
-        return undef;
-    }
+#    if (not $dbh = DBI->connect( "$cfg{'DataSource'}",
+#                                 "$cfg{'User'}",
+#                                 "$cfg{'Password'}" ) ) {
+#        error("Error connecting to database $cfg{'DataSource'} : $DBI::errstr : $@\n");
+#        return undef;
+#    }
 
     $dbh->{'RaiseError'} = 1;
 
@@ -306,9 +310,7 @@ sub detail
     my $array_lol = $sth->fetchall_arrayref( );
 
     if (not scalar @{ $array_lol } ) {
-        if ($debug) {
-            carp "File $name not found in SqlFS db\n";
-        }
+        debug "File $name not found in SqlFS db\n" if ($debug);
         return undef;
     }
 
@@ -1038,13 +1040,13 @@ sub closeFH
     close $fh;
 }
 
-=item error
+=item last_error
 
 return the string holding the last error message
 
 =cut
 
-sub error
+sub last_error
 {
     return $LASTERROR;
 }

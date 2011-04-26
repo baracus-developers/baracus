@@ -427,7 +427,6 @@ sub list
                         0   => 'disabled',
                         1   => 'enabled',
                       );
-                 
 
     @ARGV = @_;
 
@@ -510,39 +509,11 @@ sub detail
 }
 
 sub init {
-    my $sth = &list_start_data ( $opts, $dbh, $tbl, "" );
-    while ( my $dbref = &list_next_data( $sth ) ) {
-        if ( $dbref->{status} ) {
-            ## start the mchannel
-            if ( $opts->{verbose} ) {
-                print "Starting mchannel id: $dbref->{mcastid} \n";
-            }
-            my $mcastref = &get_db_data( $dbh, $tbl, $dbref->{mcastid} );
-            $mcastref->{pid} = &start_mchannel( $dbh, $dbref->{mcastid} );
-            &update_db_data( $dbh, $tbl, $mcastref);
-        }
-    }
-
-    return 0;
+    &baminit( $opts, $dbh, $tbl, "");
 }
 
 sub destroy {
-    my $sth = &list_start_data ( $opts, $dbh, $tbl, "" );
-    while ( my $dbref = &list_next_data( $sth ) ) {
-        if ( $dbref->{status} ) {
-            ## start the mchannel
-            if ( $opts->{verbose} ) {
-                print "Stopping mchannel id: $dbref->{mcastid} \n";
-            }
-            my $ret = &stop_mchannel( $dbh, $dbref->{mcastid} );
-            if ( $ret == 1 ) {
-                $opts->{LASTERROR} = "error stopping $dbref->{mcastid}\n";
-                return 1;
-             }
-        }
-    }
-
-    return 0;
+    &bamstop( $opts, $dbh, $tbl, "" );
 }
 
 

@@ -29,6 +29,7 @@ use strict;
 use warnings;
 
 use Pod::Usage;
+use Dancer qw( :syntax );
 
 =pod
 
@@ -83,7 +84,7 @@ sub main
     $command = lc $command;
     &check_command( $opts, $cmds, $command );
 
-    printf "Executing $command with \"@_\".\n" if ( $opts->{debug} );
+#    printf "Executing $command with \"@_\".\n" if ( $opts->{debug} );
 
     $cmds->{ $command }( @_ );
 }
@@ -139,12 +140,12 @@ sub check_command
 
     my $list = join ', ', (sort keys %{$cmds});
     unless ( defined $command ) {
-        print "Requires <command> (e.g. $list)\n";
+        error "Requires <command> (e.g. $list)\n";
         &help( $opts, $cmds );
     }
 
     unless ( defined $cmds->{ $command } ) {
-        print "Invalid <command> '$command' please use:  $list\n";
+        error "Invalid <command> '$command' please use:  $list\n";
         exit 1;
     }
 }
@@ -186,11 +187,11 @@ sub check_ip
              ( $2 < 0 or $2 > 254 ) ||
              ( $3 < 0 or $3 > 254 ) ||
              ( $4 < 1 or $4 > 254 ) ) {
-            print "Invalid IP address value given: $ip\n";
+            error "Invalid IP address value given: $ip\n";
             exit 1;
         }
     } elsif ( $ip ne "dhcp" ) {
-        print "Invalid IPv4 address format or missing 'dhcp' string.\n";
+        error "Invalid IPv4 address format or missing 'dhcp' string.\n";
         exit 1;
     }
 }
@@ -203,7 +204,7 @@ sub check_mac
     $mac =~ s|[-.]|:|g;
     # check for mac format - normalize to %02X: format
     unless ( $mac =~ m|^([0-9A-F]{1,2})(:([0-9A-F]){1,2}){5}$| ) {
-        print "Invalid MAC address format or value string.\n";
+        error "Invalid MAC address format or value string.\n";
         exit 1;
 #        return undef;
     }

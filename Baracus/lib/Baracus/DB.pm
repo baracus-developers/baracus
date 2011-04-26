@@ -29,15 +29,17 @@ use strict;
 use warnings;
 use DBI;
 
+use Dancer qw( :syntax );
+use Dancer::Plugin::Database;
+
 # not a traditional module for object encapsulation
 # but more a collection of subroutines to interface
 # the database so that we can deal with highlevel
 # operations consistently (role, database, table).
 
-my $debug;
-my $dsprefix = "DBI:Pg:dbname";
+sub init_baracus_db {
 
-our $LASTERROR;
+}
 
 =item errstr
 
@@ -47,7 +49,7 @@ return the string holding the last error message
 
 sub errstr
 {
-    return $LASTERROR;
+    return (session('opts'))->{LASTERROR};
 }
 
 =item su_user
@@ -63,20 +65,270 @@ sub su_user {
     my $olduid = $>;
     my $uid;
 
+    my $opts = session('opts');
+
     unless( defined $user ) {
-        $LASTERROR = "Invalid su_user usage: username is required\n";
+        $opts->{LASTERROR} = "Invalid su_user usage: username is required\n";
         return '';
     }
 
-    print "su_user: \$user $user \$uid $uid\n" if $debug;
+    debug "su_user: \$user $user \$uid $uid\n" if $opts->{debug};
     unless ( $uid = ( getpwnam( $user ))[2] ) {
-        $LASTERROR = "Failed to find passwd entry for $user\n";
+        $opts->{LASTERROR} = "Failed to find passwd entry for $user\n";
         return undef;
     }
     $> = $uid;
-    print "\$uid now $uid\n" if $debug;
+    debug "\$uid now $uid\n" if $opts->{debug};
 
     return $olduid;
+}
+
+# creates ROLES, DATABASES, TABLES, LANGUAGES for baracus
+# to be called on database startup - by baracusdb service
+
+sub startup {
+
+    my $opts = vars->{opts};
+
+    use Baracus::Source qw( :subs );
+    use Baracus::Services qw( :subs );
+    use Baracus::Mcast qw( :subs );
+
+    my $status = 1;
+
+    my $reverse_flag = $ARGV[0];
+
+    my $pg_user = 'postgres';
+    my $pg_db = 'postgres';
+
+    my @args = qw( LOGIN SUPERUSER );
+
+
+    eval {
+        if ( defined $reverse_flag ) {
+            &apocalypse( $pg_user, $pg_db, @args );
+        } else {
+            &genesis( $pg_user, $pg_db, @args );
+
+            $status = Baracus::Source::init_mounter( $opts );
+            error "$opts->{LASTERROR} : mount failure\n" if ( $status == 0 ) and die;
+
+            $status = Baracus::Source::init_exporter( $opts );
+            error "$opts->{LASTERROR} : export failure\n" if ( $status == 0 ) and die;
+
+            $status = Baracus::Source::prepdbwithxml( $opts );
+            error "$opts->{LASTERROR} : prep xml failure\n" if ( $status == 0 ) and die;
+
+            $status = Baracus::Mcast::bamstart( $opts, database, "mcast", "" );
+            error "$opts->{LASTERROR} : mcast init failure\n" if ( $status != 0 ) and die;
+
+#            system ( "$baDir{data}/scripts//baconfig_load_autobuild" ) == 0 or die;
+#            system ( "$baDir{data}/scripts//baconfig_load_hardware" ) == 0 or die;
+#            system ( "$baDir{data}/scripts//baconfig_load_profile" ) == 0 or die;
+
+#            my $cifs_reload = &add_cifs_perl();
+#            my $modperl_reload = &add_apache2_perl();
+#            if ( $cifs_reload ) {
+#                start_or_reload_service( $opts, "smb" );
+#            }
+#            if ( $modperl_reload ) {
+#                start_or_reload_service( $opts, "http" );
+#            }
+#            &add_www_sudoers();
+        }
+    };
+    if ( $@ ) {
+        $opts->{LASTERROR} = $@;
+        error $opts->{LASTERROR};
+        return 0;
+    }
+    return 1;
+}
+
+sub genesis {
+    my $pg_user = shift;
+    my $pg_db   = shift;
+    my @args = @_;
+
+    my $plpg = "plpgsql";
+
+    my $role = "baracus";
+    my $db_baracus = "baracus";
+
+    my $status;
+    my $uid;
+    my $dbh;
+
+    # save current uid
+
+#    my $suid = $>;
+
+    # switch to user postgres and connect
+
+#    $uid = su_user( $pg_user );
+#    die errstr unless ( defined $uid );
+
+    $dbh = database; #connect_db( $pg_db, $pg_user );
+    die errstr unless( defined $dbh );
+
+    $status = exists_role( $dbh, $role );
+    die errstr unless( defined $status );
+    unless( $status ) {
+        die errstr
+            unless( create_role( $dbh, $role, @args ));
+    }
+
+#    $status = exists_role( $dbh, "wwwrun" );
+#    die errstr unless( defined $status );
+#    unless( $status ) {
+#        die errstr
+#            unless( create_role( $dbh, "wwwrun", @args ));
+#    }
+
+    $status = exists_database( $dbh, $db_baracus);
+    die errstr unless ( defined $status );
+    unless( $status ) {
+        die errstr
+            unless( create_database( $dbh, $db_baracus, $role));
+    }
+
+#    die errstr unless disconnect_db( $dbh );
+
+    # finished working as user postgres
+
+#    $> = $suid;
+
+    # switch to user baracus
+
+    # connect to sqltftp database
+
+#    $suid = su_user( $role );
+#    die errstr unless ( defined $suid );
+
+#    $dbh = connect_db( $db_sqltftp, $role );
+#    die errstr unless( $dbh );
+
+    my $hashoftbls;
+
+    $hashoftbls = Baracus::Sql::get_sqltftp_tables();
+
+    while( my ($tbl, $col) = each %{ $hashoftbls } ) {
+        $status = exists_table( $dbh, $tbl );
+        die errstr unless( defined $status );
+        unless( $status ) {
+            debug "user $role creating $tbl in db $db_baracus\n";
+            die errstr
+                unless( create_table( $dbh, $tbl,
+                Baracus::Sql::hash2columns( $col )));
+        }
+    }
+
+#    die errstr unless disconnect_db( $dbh );
+
+    # connect to baracus database
+
+#    $dbh = connect_db( $db_baracus, $role );
+#    die errstr unless( $dbh );
+
+    $hashoftbls = Baracus::Sql::get_baracus_tables();
+
+    while( my ($tbl, $col) = each %{ $hashoftbls } ) {
+        $status = exists_table( $dbh, $tbl );
+        die errstr unless( defined $status );
+        unless( $status ) {
+            debug "user $role creating $tbl in db $db_baracus\n";
+            die errstr
+                unless( create_table( $dbh, $tbl,
+                Baracus::Sql::hash2columns( $col )));
+        }
+    }
+
+
+    # make sure the language we define functions in is loaded
+
+    $status = exists_language( $dbh, $plpg );
+    die errstr unless( defined $status );
+    unless( $status ) {
+        die errstr
+            unless( create_language( $dbh, $plpg ));
+    }
+
+    # create/replace the functions for use by our triggers
+
+    my $hashoffuncs = Baracus::Sql::get_baracus_functions();
+    while( my ($name, $def) = each %{ $hashoffuncs } ) {
+        die errstr
+            unless( create_or_replace_function( $dbh, $name, $def ));
+    }
+
+    # add the triggers
+
+    my $hashoftgs = Baracus::Sql::get_baracus_triggers();
+
+    while( my ($tg, $sql) = each %{ $hashoftgs } ) {
+        $status = exists_trigger( $dbh, $tg );
+        die errstr unless( defined $status );
+        unless( $status ) {
+            die errstr
+                unless( create_trigger( $dbh, $tg, $sql ));
+        }
+    }
+
+#    die errstr unless disconnect_db( $dbh );
+
+    # finished working as user baracus
+
+#    $> = $suid;
+}
+
+sub apocalypse {
+    my $pg_user = shift;
+    my $pg_db   = shift;
+    my @args = @_;
+
+    my $plpg = "plpgsql";
+
+    my $role = "baracus";
+    my $db_baracus = "baracus";
+
+    my $status;
+    my $uid;
+    my $dbh;
+
+    # switch to user postgres and connect
+
+#    $uid = su_user( $pg_user );
+#    die errstr unless ( defined $uid );
+
+    $dbh = database; #connect_db( $pg_db, $pg_user );
+    die errstr unless( $dbh );
+
+    $status = exists_database( $dbh, $db_baracus);
+    die errstr unless ( defined $status );
+    if ( $status ) {
+        die errstr
+            unless( drop_database( $dbh, $db_baracus ));
+    }
+
+#    $status = exists_database( $dbh, $db_sqltftp );
+#    die errstr unless( defined $status );
+#    if ( $status ) {
+#        die errstr
+#            unless( drop_database( $dbh, $db_sqltftp, $role));
+#    }
+
+    $status = exists_role( $dbh, $role );
+    die errstr unless( defined $status );
+    if ( $status ) {
+        die errstr
+            unless( drop_role( $dbh, $role ));
+    }
+
+#    die errstr unless disconnect_db( $dbh );
+
+    # finished working as user postgres
+
+#    $> = $uid;
 }
 
 =item connect_db
@@ -92,23 +344,26 @@ sub connect_db
     my $user = shift;
     my $pass = shift;
 
+    my $opts = session('opts');
+
     unless( defined $dbase ) {
-        $LASTERROR = "Invalid connect_db usage: database name is required\n";
-        return '';
+        $opts->{LASTERROR} = "Invalid connect_db usage: database name is required\n";
+        return undef;
     }
 
-    my $datasource = "$dsprefix=$dbase;port=5162";
+    my $datasource = "DBI:Pg:dbname=$dbase;port=5162";
 
-    printf "\$datasource $datasource \$user %s \$pass %s\n",
+    my $str = sprintf "\$datasource $datasource \$user %s \$pass %s\n",
         defined $user ? $user : "",
-            defined $pass ? $pass : "" if $debug;
+            defined $pass ? $pass : "";
+
+    debug $str if $opts->{debug};
 
     my $dbh = DBI->connect( $datasource, $user, $pass );
     unless( $dbh ) {
-	    $LASTERROR = sprintf "Error connecting to db $datasource %s %s \n$DBI::errstr",
-            defined $user ? $user : "",
-                defined $pass ? $pass : "";
-        return '';
+	    $opts->{LASTERROR} = sprintf "Error connecting to $str: $!";
+        error $opts->{LASTERROR};
+        return undef;
     }
     return $dbh;
 }
@@ -124,14 +379,16 @@ sub disconnect_db
 {
     my $dbh = shift;
 
+    my $opts = session('opts');
+
     unless( defined $dbh ) {
-        $LASTERROR = "Invalid disconnect usage: database handle required\n";
-        return '';
+        $opts->{LASTERROR} = "Invalid disconnect usage: database handle required\n";
+        return undef;
     }
 
 	unless( $dbh->disconnect() ) {
-	    $LASTERROR = "disconnect failure\n" . $dbh->errstr;
-        return '';
+	    $opts->{LASTERROR} = "disconnect failure\n" . $dbh->errstr;
+        return undef;
     }
     return 1;
 }
@@ -147,27 +404,29 @@ sub exists_role {
     my $dbh = shift;
     my $role = shift;
 
+    my $opts = session('opts');
+
     unless( defined $dbh ) {
-        $LASTERROR = "Invalid exists_role usage: database handle required\n";
+        $opts->{LASTERROR} = "Invalid exists_role usage: database handle required\n";
         return undef;
     }
 
     unless( defined $role ) {
-        $LASTERROR = "Invalid exists_role usage: role is required\n";
+        $opts->{LASTERROR} = "Invalid exists_role usage: role is required\n";
         return undef;
     }
 
-    print "exists_role: \$dbh $dbh \$role $role\n" if $debug;
+    debug "exists_role: \$dbh $dbh \$role $role\n" if $opts->{debug};
 
     my $exists_role = qq|SELECT COUNT(*) FROM pg_roles WHERE rolname = ?|;
 
     my $sth = $dbh->prepare( $exists_role );
     unless( $sth ) {
-        $LASTERROR = "Unable to prepare exists role query:\n" . $dbh->errstr;
+        $opts->{LASTERROR} = "Unable to prepare exists role query:\n" . $dbh->errstr;
         return undef;
     }
     unless( $sth->execute( $role ) ) {
-        $LASTERROR = "Unable to execute exists role statement\n" . $sth->errstr;
+        $opts->{LASTERROR} = "Unable to execute exists role statement\n" . $sth->errstr;
         return undef;
     }
     my $row;
@@ -177,9 +436,9 @@ sub exists_role {
     $sth->finish;
     undef $sth;
 
-    print "\$row $row\n" if $debug;
+    debug "\$row $row\n" if $opts->{debug};
     unless( $row ) {
-        $LASTERROR = "Exists role query returned 0 results\n";
+        $opts->{LASTERROR} = "Exists role query returned 0 results\n";
         return '';
     }
 
@@ -200,19 +459,21 @@ sub create_role {
     my $role = shift;
     my $args = join(" ", @_);
 
+    my $opts = session('opts');
+
     unless( defined $dbh ) {
-        $LASTERROR = "Invalid create_role usage: database handle required\n";
+        $opts->{LASTERROR} = "Invalid create_role usage: database handle required\n";
         return '';
     }
     unless( defined $role ) {
-        $LASTERROR = "Invalid create_role usage: role is required\n";
+        $opts->{LASTERROR} = "Invalid create_role usage: role is required\n";
         return '';
     }
-    print "create_role: \$dbh $dbh \$role $role \$args $args\n" if $debug;
+    debug "create_role: \$dbh $dbh \$role $role \$args $args\n" if $opts->{debug};
 
     my $create_role = qq|CREATE ROLE $role $args|;
     unless( $dbh->do( $create_role )) {
-        $LASTERROR = "Unable to create role $role with attribs: $args\n" .
+        $opts->{LASTERROR} = "Unable to create role $role with attribs: $args\n" .
             $dbh->errstr;
         return '';
     }
@@ -230,19 +491,21 @@ sub drop_role {
     my $dbh  = shift;
     my $role = shift;
 
+    my $opts = session('opts');
+
     unless( defined $dbh ) {
-        $LASTERROR = "Invalid drop_role usage: database handle required\n";
+        $opts->{LASTERROR} = "Invalid drop_role usage: database handle required\n";
         return '';
     }
     unless( defined $role ) {
-        $LASTERROR = "Invalid drop_role usage: role is required\n";
+        $opts->{LASTERROR} = "Invalid drop_role usage: role is required\n";
         return '';
     }
-    print "drop_role: \$dbh $dbh \$role $role\n" if $debug;
+    debug "drop_role: \$dbh $dbh \$role $role\n" if $opts->{debug};
 
     my $drop_role = qq|DROP ROLE $role|;
     unless( $dbh->do( $drop_role )) {
-        $LASTERROR = "Unable to drop role $role\n" . $dbh->errstr;
+        $opts->{LASTERROR} = "Unable to drop role $role\n" . $dbh->errstr;
         return '';
     }
     return 1;
@@ -259,26 +522,28 @@ sub exists_database {
     my $dbh = shift;
     my $dbase = shift;
 
+    my $opts = session('opts');
+
     unless( defined $dbh ) {
-        $LASTERROR = "Invalid exists_database usage: database handle required\n";
+        $opts->{LASTERROR} = "Invalid exists_database usage: database handle required\n";
         return undef;
     }
     unless( defined $dbase ) {
-        $LASTERROR = "Invalid exists_database usage: database name required\n";
+        $opts->{LASTERROR} = "Invalid exists_database usage: database name required\n";
         return undef;
     }
-    print "exists_database: \$dbh $dbh \$dbase $dbase\n" if $debug;
+    debug "exists_database: \$dbh $dbh \$dbase $dbase\n" if $opts->{debug};
 
 	my $exists_database = qq|SELECT COUNT(*)
         FROM pg_catalog.pg_database WHERE datname = ?|;
 
     my $sth = $dbh->prepare( $exists_database );
     unless( $sth ) {
-        $LASTERROR = "Unable to prepare exists database query\n" . $dbh->errstr;
+        $opts->{LASTERROR} = "Unable to prepare exists database query\n" . $dbh->errstr;
         return undef;
     }
     unless( $sth->execute( $dbase )) {
-        $LASTERROR = "Unable to execute exists database statement\n" . $sth->errstr;
+        $opts->{LASTERROR} = "Unable to execute exists database statement\n" . $sth->errstr;
         return undef;
     }
     my $row;
@@ -288,9 +553,9 @@ sub exists_database {
     $sth->finish;
     undef $sth;
 
-    print "\$row $row\n" if $debug;
+    debug "\$row $row\n" if $opts->{debug};
     unless( $row ) {
-        $LASTERROR = "Exists database query returned 0 results\n";
+        $opts->{LASTERROR} = "Exists database query returned 0 results\n";
         return '';
     }
 
@@ -309,24 +574,26 @@ sub create_database {
     my $dbase = shift;
     my $owner = shift;
 
+    my $opts = session('opts');
+
     unless( defined $dbh ) {
-        $LASTERROR = "Invalid create_database usage: database handle required\n";
+        $opts->{LASTERROR} = "Invalid create_database usage: database handle required\n";
         return '';
     }
     unless( defined $dbase ) {
-        $LASTERROR = "Invalid create_database usage: database name required\n";
+        $opts->{LASTERROR} = "Invalid create_database usage: database name required\n";
         return '';
     }
     unless( defined $owner ) {
-        $LASTERROR = "Invalid create_database usage: database owner required\n";
+        $opts->{LASTERROR} = "Invalid create_database usage: database owner required\n";
         return '';
     }
-    print "create_database: \$dbh $dbh \$dbase $dbase \$owner $owner\n" if $debug;
+    debug "create_database: \$dbh $dbh \$dbase $dbase \$owner $owner\n" if $opts->{debug};
 
     # sql to create instance of database - syntax has issues with ?
     my $create_database = qq|CREATE DATABASE $dbase OWNER $owner|;
     unless( $dbh->do( $create_database )) {
-		$LASTERROR = "Unable to create database $dbase with owner $owner\n" .
+		$opts->{LASTERROR} = "Unable to create database $dbase with owner $owner\n" .
             $dbh->errstr;
         return '';
     }
@@ -344,20 +611,22 @@ sub drop_database {
     my $dbh = shift;
     my $dbase = shift;
 
+    my $opts = session('opts');
+
     unless( defined $dbh ) {
-        $LASTERROR = "Invalid drop_database usage: database handle required\n";
+        $opts->{LASTERROR} = "Invalid drop_database usage: database handle required\n";
         return '';
     }
     unless( defined $dbase ) {
-        $LASTERROR = "Invalid drop_database usage: database name required\n";
+        $opts->{LASTERROR} = "Invalid drop_database usage: database name required\n";
         return '';
     }
-    print "drop_database: \$dbh $dbh \$dbase $dbase\n" if $debug;
+    debug "drop_database: \$dbh $dbh \$dbase $dbase\n" if $opts->{debug};
 
     # sql to drop instance of database
     my $drop_database = qq|DROP DATABASE $dbase|;
     unless( $dbh->do( $drop_database )) {
-		$LASTERROR = "Unable to drop database $dbase\n" . $dbh->errstr;
+		$opts->{LASTERROR} = "Unable to drop database $dbase\n" . $dbh->errstr;
         return '';
     }
     return 1;
@@ -375,26 +644,28 @@ sub exists_table
     my $dbh = shift;
     my $tbl = shift;
 
+    my $opts = session('opts');
+
     unless( defined $dbh ) {
-        $LASTERROR = "Invalid exists_table usage: database handle required\n";
+        $opts->{LASTERROR} = "Invalid exists_table usage: database handle required\n";
         return undef;
     }
     unless( defined $tbl ) {
-        $LASTERROR = "Invalid exists_table usage: table name required\n";
+        $opts->{LASTERROR} = "Invalid exists_table usage: table name required\n";
         return undef;
     }
-    print "exists_table: \$dbh $dbh \$tbl $tbl\n" if $debug;
+    debug "exists_table: \$dbh $dbh \$tbl $tbl\n" if $opts->{debug};
 
     my $exist_table = qq|SELECT count(*)
         FROM pg_catalog.pg_tables WHERE tablename = ?|;
 
     my $sth = $dbh->prepare( $exist_table );
     unless( $sth ) {
-        $LASTERROR = "Unable to prepare exists table query\n" . $dbh->errstr;
+        $opts->{LASTERROR} = "Unable to prepare exists table query\n" . $dbh->errstr;
         return undef;
     }
     unless( $sth->execute( $tbl )) {
-        $LASTERROR = "Unable to execute exists table statement\n" . $sth->errstr;
+        $opts->{LASTERROR} = "Unable to execute exists table statement\n" . $sth->errstr;
         return undef;
     }
     my $row;
@@ -404,9 +675,9 @@ sub exists_table
     $sth->finish;
     undef $sth;
 
-    print "\$row $row\n" if $debug;
+    debug "\$row $row\n" if $opts->{debug};
     unless( $row ) {
-        $LASTERROR = "Exists table query returned 0 results\n";
+        $opts->{LASTERROR} = "Exists table query returned 0 results\n";
         return '';
     }
 
@@ -427,24 +698,26 @@ sub create_table
     my $tbl = shift;
     my $col = shift;
 
+    my $opts = session('opts');
+
     unless( defined $dbh ) {
-        $LASTERROR = "Invalid create_table usage: database handle required\n";
+        $opts->{LASTERROR} = "Invalid create_table usage: database handle required\n";
         return '';
     }
     unless( defined $tbl ) {
-        $LASTERROR = "Invalid create_table usage: table name required\n";
+        $opts->{LASTERROR} = "Invalid create_table usage: table name required\n";
         return '';
     }
     unless( defined $col ) {
-        $LASTERROR = "Invalid create_table usage: table columns required\n";
+        $opts->{LASTERROR} = "Invalid create_table usage: table columns required\n";
         return '';
     }
-    print "create_table: \$dbh $dbh \$tbl $tbl \$col $col\n" if $debug;
+    debug "create_table: \$dbh $dbh \$tbl $tbl \$col $col\n" if $opts->{debug};
 
     my $create_table = qq|CREATE TABLE $tbl ( $col )|;
 
     unless( $dbh->do( $create_table ) ) {
-		$LASTERROR = "Unable to create table $tbl with columns $col\n" .
+		$opts->{LASTERROR} = "Unable to create table $tbl with columns $col\n" .
             $dbh->errstr;
         return '';
     }
@@ -463,20 +736,22 @@ sub drop_table
     my $dbh = shift;
     my $tbl = shift;
 
+    my $opts = session('opts');
+
     unless( defined $dbh ) {
-        $LASTERROR = "Invalid drop_database usage: database handle required\n";
+        $opts->{LASTERROR} = "Invalid drop_database usage: database handle required\n";
         return '';
     }
     unless( defined $tbl ) {
-        $LASTERROR = "Invalid drop_database usage: table name required\n";
+        $opts->{LASTERROR} = "Invalid drop_database usage: table name required\n";
         return '';
     }
-    print "drop_table: \$dbh $dbh \$tbl $tbl\n" if $debug;
+    debug "drop_table: \$dbh $dbh \$tbl $tbl\n" if $opts->{debug};
 
     my $drop_table = qq|DROP TABLE $tbl|;
 
     unless( $dbh->do( $drop_table )) {
-		$LASTERROR = "Unable to drop table $tbl\n" . $dbh->errstr;
+		$opts->{LASTERROR} = "Unable to drop table $tbl\n" . $dbh->errstr;
         return '';
     }
     return 1;
@@ -493,26 +768,28 @@ sub exists_language {
     my $dbh = shift;
     my $lang = shift;
 
+    my $opts = session('opts');
+
     unless( defined $dbh ) {
-        $LASTERROR = "Invalid exists_language usage: database handle required\n";
+        $opts->{LASTERROR} = "Invalid exists_language usage: database handle required\n";
         return undef;
     }
     unless( defined $lang ) {
-        $LASTERROR = "Invalid exists_language usage: language name required\n";
+        $opts->{LASTERROR} = "Invalid exists_language usage: language name required\n";
         return undef;
     }
-    print "exists_language: \$dbh $dbh \$lang $lang\n" if $debug;
+    debug "exists_language: \$dbh $dbh \$lang $lang\n" if $opts->{debug};
 
 	my $exists_language = qq|SELECT COUNT(*)
         FROM pg_catalog.pg_language WHERE lanname = ?|;
 
     my $sth = $dbh->prepare( $exists_language );
     unless( $sth ) {
-        $LASTERROR = "Unable to prepare exists language query\n" . $dbh->errstr;
+        $opts->{LASTERROR} = "Unable to prepare exists language query\n" . $dbh->errstr;
         return undef;
     }
     unless( $sth->execute( $lang )) {
-        $LASTERROR = "Unable to execute exists language statement\n" . $sth->errstr;
+        $opts->{LASTERROR} = "Unable to execute exists language statement\n" . $sth->errstr;
         return undef;
     }
     my $row;
@@ -522,9 +799,9 @@ sub exists_language {
     $sth->finish;
     undef $sth;
 
-    print "\$row $row\n" if $debug;
+    debug "\$row $row\n" if $opts->{debug};
     unless( $row ) {
-        $LASTERROR = "Exists language query returned 0 results\n";
+        $opts->{LASTERROR} = "Exists language query returned 0 results\n";
         return '';
     }
 
@@ -542,20 +819,22 @@ sub create_language {
     my $dbh = shift;
     my $lang = shift;
 
+    my $opts = session('opts');
+
     unless( defined $dbh ) {
-        $LASTERROR = "Invalid create_language usage: database handle required\n";
+        $opts->{LASTERROR} = "Invalid create_language usage: database handle required\n";
         return '';
     }
     unless( defined $lang ) {
-        $LASTERROR = "Invalid create_language usage: language name required\n";
+        $opts->{LASTERROR} = "Invalid create_language usage: language name required\n";
         return '';
     }
-    print "create_language: \$dbh $dbh \$lang $lang\n" if $debug;
+    debug "create_language: \$dbh $dbh \$lang $lang\n" if $opts->{debug};
 
     # sql to create instance of language - syntax has issues with ?
     my $create_language = qq|CREATE LANGUAGE $lang |;
     unless( $dbh->do( $create_language )) {
-		$LASTERROR = "Unable to create language $lang\n" . $dbh->errstr;
+		$opts->{LASTERROR} = "Unable to create language $lang\n" . $dbh->errstr;
         return '';
     }
     return 1;
@@ -572,20 +851,22 @@ sub drop_language {
     my $dbh = shift;
     my $lang = shift;
 
+    my $opts = session('opts');
+
     unless( defined $dbh ) {
-        $LASTERROR = "Invalid drop_language usage: database handle required\n";
+        $opts->{LASTERROR} = "Invalid drop_language usage: database handle required\n";
         return '';
     }
     unless( defined $lang ) {
-        $LASTERROR = "Invalid drop_language usage: language name required\n";
+        $opts->{LASTERROR} = "Invalid drop_language usage: language name required\n";
         return '';
     }
-    print "drop_language: \$dbh $dbh \$lang $lang\n" if $debug;
+    debug "drop_language: \$dbh $dbh \$lang $lang\n" if $opts->{debug};
 
     # sql to drop instance of language
     my $drop_language = qq|DROP LANGUAGE $lang|;
     unless( $dbh->do( $drop_language )) {
-		$LASTERROR = "Unable to drop language $lang\n" . $dbh->errstr;
+		$opts->{LASTERROR} = "Unable to drop language $lang\n" . $dbh->errstr;
         return '';
     }
     return 1;
@@ -601,9 +882,11 @@ sub create_or_replace_function {
     my $dbh = shift;
     my $func = shift;
     my $def = shift;
+    my $opts = session('opts');
+
     my $create_or_replace_function = qq|CREATE OR REPLACE FUNCTION $func $def|;
     unless( $dbh->do( $create_or_replace_function )) {
-        $LASTERROR = "Unable to create/replace function $func\n" .
+        $opts->{LASTERROR} = "Unable to create/replace function $func\n" .
             "with definition\n $def\n" . $dbh->errstr;
         return '';
     }
@@ -621,27 +904,29 @@ sub exists_trigger {
     my $dbh = shift;
     my $trigger = shift;
 
+    my $opts = session('opts');
+
     unless( defined $dbh ) {
-        $LASTERROR = "Invalid exists_trigger usage: database handle required\n";
+        $opts->{LASTERROR} = "Invalid exists_trigger usage: database handle required\n";
         return undef;
     }
 
     unless( defined $trigger ) {
-        $LASTERROR = "Invalid exists_trigger usage: trigger is required\n";
+        $opts->{LASTERROR} = "Invalid exists_trigger usage: trigger is required\n";
         return undef;
     }
 
-    print "exists_trigger: \$dbh $dbh \$trigger $trigger\n" if $debug;
+    debug "exists_trigger: \$dbh $dbh \$trigger $trigger\n" if $opts->{debug};
 
     my $exists_trigger = qq|SELECT COUNT(*) FROM pg_catalog.pg_trigger WHERE tgname = ?|;
 
     my $sth = $dbh->prepare( $exists_trigger );
     unless( $sth ) {
-        $LASTERROR = "Unable to prepare exists trigger query:\n" . $dbh->errstr;
+        $opts->{LASTERROR} = "Unable to prepare exists trigger query:\n" . $dbh->errstr;
         return undef;
     }
     unless( $sth->execute( $trigger ) ) {
-        $LASTERROR = "Unable to execute exists trigger statement\n" . $sth->errstr;
+        $opts->{LASTERROR} = "Unable to execute exists trigger statement\n" . $sth->errstr;
         return undef;
     }
     my $row;
@@ -651,9 +936,9 @@ sub exists_trigger {
     $sth->finish;
     undef $sth;
 
-    print "\$row $row\n" if $debug;
+    debug "\$row $row\n" if $opts->{debug};
     unless( $row ) {
-        $LASTERROR = "Exists trigger query returned 0 results\n";
+        $opts->{LASTERROR} = "Exists trigger query returned 0 results\n";
         return '';
     }
 
@@ -672,23 +957,25 @@ sub create_trigger {
     my $trigger = shift;
     my $sql = shift;
 
+    my $opts = session('opts');
+
     unless( defined $dbh ) {
-        $LASTERROR = "Invalid create_trigger usage: database handle required\n";
+        $opts->{LASTERROR} = "Invalid create_trigger usage: database handle required\n";
         return '';
     }
     unless( defined $trigger ) {
-        $LASTERROR = "Invalid create_trigger usage: trigger is required\n";
+        $opts->{LASTERROR} = "Invalid create_trigger usage: trigger is required\n";
         return '';
     }
     unless( defined $sql ) {
-        $LASTERROR = "Invalid create_trigger usage: sql is required\n";
+        $opts->{LASTERROR} = "Invalid create_trigger usage: sql is required\n";
         return '';
     }
-    print "create_trigger: \$dbh $dbh \$trigger $trigger \$sql $sql\n" if $debug;
+    debug "create_trigger: \$dbh $dbh \$trigger $trigger \$sql $sql\n" if $opts->{debug};
 
     my $create_trigger = qq|CREATE TRIGGER $trigger $sql|;
     unless( $dbh->do( $create_trigger )) {
-        $LASTERROR = "Unable to create trigger $trigger with sql $sql\n" .
+        $opts->{LASTERROR} = "Unable to create trigger $trigger with sql $sql\n" .
             $dbh->errstr;
         return '';
     }
@@ -706,23 +993,26 @@ sub drop_trigger {
     my $dbh  = shift;
     my $trigger = shift;
 
+    my $opts = session('opts');
+
     unless( defined $dbh ) {
-        $LASTERROR = "Invalid drop_trigger usage: database handle required\n";
+        $opts->{LASTERROR} = "Invalid drop_trigger usage: database handle required\n";
         return '';
     }
     unless( defined $trigger ) {
-        $LASTERROR = "Invalid drop_trigger usage: trigger is required\n";
+        $opts->{LASTERROR} = "Invalid drop_trigger usage: trigger is required\n";
         return '';
     }
-    print "drop_trigger: \$dbh $dbh \$trigger $trigger\n" if $debug;
+    debug "drop_trigger: \$dbh $dbh \$trigger $trigger\n" if $opts->{debug};
 
     my $drop_trigger = qq|DROP TRIGGER $trigger|;
     unless( $dbh->do( $drop_trigger )) {
-        $LASTERROR = "Unable to drop trigger $trigger\n" . $dbh->errstr;
+        $opts->{LASTERROR} = "Unable to drop trigger $trigger\n" . $dbh->errstr;
         return '';
     }
     return 1;
 }
 
-1;
+true;
+
 __END__

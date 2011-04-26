@@ -4,7 +4,7 @@ use 5.006;
 use strict;
 use warnings;
 
-use Dancer;
+use Dancer qw( :syntax);
 
 use Baracus::State  qw( :vars :admin );
 use Baracus::Source qw( :vars :subs );

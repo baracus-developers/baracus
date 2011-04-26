@@ -71,7 +71,38 @@ BEGIN {
 
 our $VERSION = '2.01';
 
-# return filename and state 0-missing 1-found for service config mods
+sub solaris_nfs_waround
+{
+    my $opts = shift;
+    my $share = shift;
+
+    my $nfsroot = "/var/lib/nfs/v4-root";
+    my $nfsdir;
+
+    eval {
+        unless ( -d $nfsroot ) {
+            mkdir $nfsroot, 0755 or die;
+        }
+
+        my $not_exported = system("showmount -e localhost | grep \"$nfsroot \" >& /dev/null");
+        if ( $not_exported ) {
+            system("exportfs -o fsid=root,nohide *:$nfsroot") == 0 or die;
+        }
+
+        $nfsdir = $nfsroot . $share;
+        mkpath( $nfsdir, { verbose => 0, mode => 0755} ) or die;
+        system("mount -o bind,nfsexp $share $nfsdir") == 0 or die;
+    };
+    if ( $@ ) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+        return undef;
+    }
+    return $nfsdir;
+}
+
+# return $file, $confdir, $template, $share, $state;
+#  state -1-error 0-missing 1-found
 sub check_service_product
 {
     my $opts      = shift;
@@ -79,41 +110,42 @@ sub check_service_product
     my $product   = shift;
     my $sharetype = shift;
 
-#    print "+++++ check_serviceconfig\n" if ( $opts->{debug} > 1 );
-
-    my ($share, $name) = &get_distro_share( $opts, $distro );
+    my ($shares, $name) = &get_distro_share( $opts, $distro );
+    my $share = @$shares[0];
 
     my $confdir = "";
     my $file = "";
     my $template = "";
+
     my $state = 0;
 
-    if ($sharetype eq "nfs") {
-        $file = "nfs export";
-        eval {
-            my @return = qx|showmount -e localhost| or die "Can't get mounts from showmount : $!";
-            foreach(@return){
-                $state = 1 if ( m/$share/ );
+    eval {
+        if ($sharetype eq "nfs") {
+            $file = "nfs export";
+            my @return = qx|showmount -e localhost| ;
+            die if ( $? != 0 );
+            foreach (@return) {
+                $state = 1 if(/$share/);
             }
-        };
-        if ( $@ ) {
-            $opts->{LASTERROR} = subroutine_name." : ".$@;
-            warning $opts->{LASTERROR};
         }
+        if ($sharetype eq "http") {
+            $confdir = "$baDir{root}/http";
+            $file = "${confdir}/$name.conf";
+            $template = "$baDir{data}/templates/inst_server.conf.in";
+            $state = 1 if ( -f $file);
+        }
+        if ($sharetype eq "cifs") {
+            $confdir = "$baDir{root}/cifs";
+            $file = "${confdir}/$name.conf";
+            $template = "$baDir{data}/templates/samba.conf.in";
+            $state = 1 if ( -f $file);
+        }
+    };
+    if ( $@ ) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+        return undef, undef, undef, undef, -1;
     }
-    if ($sharetype eq "http") {
-        $confdir = "$baDir{root}/http/";
-        $file = "${confdir}$name.conf";
-        $template = "$baDir{data}/templates/inst_server.conf.in";
-        $state = 1 if ( -f $file);
-    }
-    if ($sharetype eq "cifs") {
-        $confdir = "$baDir{root}/cifs/";
-        $file = "${confdir}$name.conf";
-        $template = "$baDir{data}/templates/samba.conf.in";
-        $state = 1 if ( -f $file);
-    }
-
     return $file, $confdir, $template, $share, $state;
 }
 
@@ -127,10 +159,18 @@ sub enable_service
 
     $sharetype =~ s/cifs/smb/;
     $sharetype =~ s/http/apache2/;
-    $sharetype =~ s/nfs/nfsserver/;
+    $sharetype =~ s/^nfs$/nfsserver/;
     eval {
-        system("chkconfig $sharetype on") == 0 or die;
-        system("/etc/init.d/$sharetype start") == 0 or die;
+        system("chkconfig $sharetype on >& /dev/null") == 0 or die;
+        if ( check_service( $opts, $sharetype ) == 0 ) {
+            # could have also done this to avoid nfs reload
+            # need avoidance check here anyway... else bad
+            if ( $sharetype !~ m/(nfs|nfsserver)/ ) {
+                system("/etc/init.d/$sharetype reload") == 0 or die;
+            }
+        } else {
+            system("/etc/init.d/$sharetype start");
+        }
     };
     if ( $@ ) {
         $opts->{LASTERROR} = subroutine_name." : ".$@;
@@ -150,10 +190,12 @@ sub disable_service
 
     $sharetype =~ s/cifs/smb/;
     $sharetype =~ s/http/apache2/;
-    $sharetype =~ s/nfs/nfsserver/;
+    $sharetype =~ s/^nfs$/nfsserver/;
     eval {
-        system("chkconfig $sharetype off") == 0 or die;
-        system("/etc/init.d/$sharetype stop") == 0 or die;
+        system("chkconfig $sharetype off >& /dev/null") == 0 or die;
+        if ( check_service( $opts, $sharetype) == 0 ) {
+            system("/etc/init.d/$sharetype stop") == 0 or die;
+        }
     };
     if ( $@ ) {
         $opts->{LASTERROR} = subroutine_name." : ".$@;
@@ -162,6 +204,7 @@ sub disable_service
     }
     return $status;
 }
+
 
 # status returns 0 if enabled
 sub check_service

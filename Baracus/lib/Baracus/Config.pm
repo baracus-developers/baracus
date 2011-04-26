@@ -73,6 +73,7 @@ BEGIN {
        [qw(
               multiarg_handler
               get_xml_filelist
+              subroutine_name
           )],
        );
   Exporter::export_ok_tags('vars');
@@ -138,8 +139,8 @@ my %tmpHash = $conf->getall;
 
 while ( my ($key, $value) = each %tmpHash ) {
     if (ref($value) eq "ARRAY") {
-        print "$key has more than one entry or value specified\n";
-        print "Such ARRAYs are not supported.\n";
+        error "$key has more than one entry or value specified\n";
+        error "Such ARRAYs are not supported.\n";
         exit(1);
         #           foreach my $avalue (@{$aref->{$key}}){
         #               print "$avalue\n";
@@ -183,11 +184,11 @@ if ( length($baVar{shareip}) == 0 ) {
 }
 
 
-if ($baVar{ bdoptions } =~ m|debug|i) {
-    while( my ($key, $val) = each %baVar ) {
-        printf "sysconfig $key => %s\n", defined $val ? $val : "";
-    }
-}
+#if ($baVar{ bdoptions } =~ m|debug|i) {
+#    while( my ($key, $val) = each %baVar ) {
+#        printf "sysconfig $key => %s\n", defined $val ? $val : "";
+#    }
+#}
 
 my $baracusdir =  $baVar{ 'base_dir' };
 
@@ -224,7 +225,7 @@ $baDir{ data } = setting('appdir');
 $baDir{ templates } =  "$baDir{ data }/templates";
 $baDir{ scripts } =  "$baDir{ data }/scripts";
 
-my $baconfigdir = "/etc/baracus";
+my $baconfigdir = "$baDir{data}/etc/baracus";
 $baDir{ bcdir } = $baconfigdir;
 
 my @bcdirs = qw( distros.d repos.d );
@@ -285,7 +286,7 @@ sub get_xml_filelist
     find ( { wanted =>
              sub {
                  if ($_ =~ m/^.*\.xml$/ ) {
-                     print "found $File::Find::name\n" if $opts->{debug};
+#                     print "found $File::Find::name\n" if $opts->{debug};
                      push @xmlfiles, $File::Find::fullname;
                  }
              },
@@ -295,6 +296,8 @@ sub get_xml_filelist
 
     return @xmlfiles;
 }
+
+sub subroutine_name { (caller(1))[3]; }
 
 ###########################################################################
 

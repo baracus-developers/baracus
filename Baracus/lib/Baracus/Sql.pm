@@ -30,7 +30,9 @@ use warnings;
 
 use Tie::IxHash;
 
+use Dancer qw( :syntax );
 use Baracus::State qw ( :vars );
+
 
 =pod
 
@@ -224,7 +226,7 @@ sub get_cols
     } elsif ( defined $sqltftptbls ) {
         return keys2columns( $sqltftptbls );
     } else {
-        carp "Internal database table/name usage error.\n";
+        error "Internal database table/name usage error.\n";
         return undef;
     }
 }
@@ -246,7 +248,7 @@ sub get_col_type_href
     } elsif ( defined $sqltftptbls ) {
         return keys2shorthashdef( $sqltftptbls );
     } else {
-        carp "Internal database table/name usage error.\n";
+        error "Internal database table/name usage error.\n";
         return undef;
     }
 }
