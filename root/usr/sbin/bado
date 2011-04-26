@@ -244,6 +244,7 @@ And further <...> optional parameters include
   --partition <num>        Partition number to boot [ default 0 (first)]
 
   --storageid <storageid>  The storage id for a network root build
+  --migrate		   build on local disk then migrate to network root
 
   --usevnc                 allow vnc build access
   --vncpass                defines vnc password for remote access
@@ -283,7 +284,7 @@ sub build
     my $serialbaud="";
     my $disk      = "0";
     my $partition = "0";
-    my $migrate = "";
+    my $migrate = "0";
 
     my %entry;
     my $cols = lc get_cols( $baTbls{ action });
