@@ -1,0 +1,96 @@
+<?xml version='1.0'?>
+<config>
+
+  <!-- Ubuntu Server 10.10 -->
+
+  <distro name="ubuntu-11.04-x86">
+    <os>ubuntu</os>
+    <release>11.04</release>
+    <arch>x86</arch>
+    <description>Ubuntu Server Edition 11.04 32bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+    <sharetype>http</sharetype>
+
+    <product name="dvd">
+      <iso name="ubuntu-11.04-server-i386.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='install/netboot/ubuntu-installer/i386/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='install/netboot/ubuntu-installer/i386/initrd.gz'/>
+        </sharefiles>
+        <md5>b1a479c6593a90029414d201cb83a9cc</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="ubuntu-11.04-x86_64">
+    <os>ubuntu</os>
+    <release>11.04</release>
+    <arch>x86_64</arch>
+    <description>Ubuntu Server Edition 11.04 64bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+    <sharetype>http</sharetype>
+
+    <product name="dvd">
+      <iso name="ubuntu-11.04-server-amd64.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='install/netboot/ubuntu-installer/amd64/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='install/netboot/ubuntu-installer/amd64/initrd.gz'/>
+        </sharefiles>
+        <md5>355ca2417522cb4a77e0295bf45c5cd5</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+ <!-- Ubuntu Desktop 10.10 -->
+
+  <distro name="ubuntu_desktop-11.04-x86">
+    <os>ubuntu_desktop</os>
+    <release>11.04</release>
+    <arch>x86</arch>
+    <description>Ubuntu Desktop Edition 11.04 32bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+    <sharetype>http</sharetype>
+
+    <product name="dvd">
+      <iso name="ubuntu-11.04-alternate-i386.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='install/netboot/ubuntu-installer/i386/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='install/netboot/ubuntu-installer/i386/initrd.gz'/>
+        </sharefiles>
+        <md5>e6a29ce3dccb0ab12332036dcff7d9e4</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+  <distro name="ubuntu_desktop-11.04-x86_64">
+    <os>ubuntu_desktop</os>
+    <release>11.04</release>
+    <arch>x86_64</arch>
+    <description>Ubuntu Desktop Edition 11.04 64bit</description>
+    <type>base</type>
+    <autodownload>open</autodownload>
+    <sharetype>http</sharetype>
+
+    <product name="dvd">
+      <iso name="ubuntu-11.04-alternate-amd64.iso">
+        <path/>
+        <sharefiles>
+          <sharefile sharetype='tftp' name='kernel' file='install/netboot/ubuntu-installer/amd64/linux'/>
+          <sharefile sharetype='tftp' name='initrd' file='install/netboot/ubuntu-installer/amd64/initrd.gz'/>
+        </sharefiles>
+        <md5>8468300a61ea1e3b7607f46f7643b57a</md5>
+        <url><![CDATA[]]></url>
+      </iso>
+    </product>
+  </distro>
+
+</config>
