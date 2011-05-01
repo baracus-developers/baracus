@@ -1117,6 +1117,10 @@ LABEL clone
             } elsif ( $pxenext eq BA_ACTION_MIGRATE ) {
                 printlog "$input->{mac} - serving migrate workload\n";
                 $state = BA_EVENT_MIGRATING;
+
+                $actref->{oper} = $pxenext;
+                $actref->{pxecurr} = $pxenext;
+                &update_db_data( $dbh, 'action', $actref );
                 $actref->{cmdline} = "# pxeboot directing migrate disk image";
 
                 $dstref = &get_db_data( $dbh, 'storage', $actref->{storageid} );
@@ -1685,6 +1689,7 @@ Address 'CMS' 'PURGE RDR ALL'
 
             if ( &mount_nfs(\%baDir, $sref) ) {
                 printlog "$input->{mac} - nfs_mount $sref->{storageid}\n";
+#		recurse to pxewait?
                 exit 1;
 	    }
             printlog "$input->{mac} - NFSboot $1 @ $actref->{storageid}\n";
