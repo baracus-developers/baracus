@@ -209,8 +209,9 @@ sub create_repo_apt {
 
     my $dh = &baxml_distro_gethash( $opts, $distro );
     my $arch     = $dh->{arch};
-    $arch =~ s/x86_64/amd64/ if ($arch eq "x86_64");
     my $codename = $dh->{codename};
+
+    $arch =~ s/x86_64/amd64/;
 
     my @packages = split( /\s+/, $packages );
     my $base = basename ( $repo );

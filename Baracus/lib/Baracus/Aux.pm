@@ -29,11 +29,12 @@ use strict;
 use warnings;
 
 use Dancer qw( :syntax );
+use Dancer::Plugin::Database;
 
 use Baracus::Sql    qw( :subs :vars );
 use Baracus::State  qw( :vars :subs :states );
 use Baracus::Core   qw( :subs );
-use Baracus::Config qw( :vars );
+use Baracus::Config qw( :subs :vars );
 use Baracus::Storage qw( :subs );
 
 =pod
@@ -1267,20 +1268,28 @@ sub update_db_data
 
 sub get_db_data
 {
-    my $dbh = shift;
-    my $tbl = shift;
-    my $id  = shift;
+    my $opts  = shift;
+    my $tbl   = shift;
+    my $id    = shift;
     my $index = shift;
+    my $href  = undef;
 
     $index = $baTblId{ $tbl } unless (defined $index);
 
     my $sql = qq|SELECT * FROM $baTbls{ $tbl } WHERE $index = '$id' |;
 
-    my $sth;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    return $sth->fetchrow_hashref();
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
+        $href = $sth->fetchrow_hashref();
+        $sth->finish;
+        undef $sth;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
+    return $href;
 }
 
 #

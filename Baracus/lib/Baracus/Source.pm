@@ -2154,6 +2154,83 @@ sub init_exporter
     return $status;
 }
 
+sub solaris_nfs_waround
+{
+    my $opts = shift;
+    my $share = shift;
+
+    my $nfsroot = "/var/lib/nfs/v4-root";
+    my $nfsdir;
+
+    eval {
+        unless ( -d $nfsroot ) {
+            mkdir $nfsroot, 0755 or die;
+        }
+
+        my $not_exported = system("showmount -e localhost | grep \"$nfsroot \" >& /dev/null");
+        if ( $not_exported ) {
+            system("exportfs -o fsid=root,nohide *:$nfsroot") == 0 or die;
+        }
+
+        $nfsdir = $nfsroot . $share;
+        mkpath( $nfsdir, { verbose => 0, mode => 0755} ) or die;
+        system("mount -o bind,nfsexp $share $nfsdir") == 0 or die;
+    };
+    if ( $@ ) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+        return undef;
+    }
+    return $nfsdir;
+}
+
+# return $file, $confdir, $template, $share, $state;
+#  state -1-error 0-missing 1-found
+sub check_service_product
+{
+    my $opts      = shift;
+    my $distro    = shift;
+    my $product   = shift;
+    my $sharetype = shift;
+
+    my ($shares, $name) = &get_distro_share( $opts, $distro );
+    my $share = @$shares[0];
+
+    my $confdir = "";
+    my $file = "";
+    my $template = "";
+
+    my $state = 0;
+
+    eval {
+        if ($sharetype eq "nfs") {
+            $file = "nfs export";
+            my @return = qx|showmount -e localhost| ;
+            die if ( $? != 0 );
+            foreach (@return) {
+                $state = 1 if(/$share/);
+            }
+        }
+        if ($sharetype eq "http") {
+            $confdir = "$baDir{root}/http";
+            $file = "${confdir}/$name.conf";
+            $template = "$baDir{data}/templates/inst_server.conf.in";
+            $state = 1 if ( -f $file);
+        }
+        if ($sharetype eq "cifs") {
+            $confdir = "$baDir{root}/cifs";
+            $file = "${confdir}/$name.conf";
+            $template = "$baDir{data}/templates/samba.conf.in";
+            $state = 1 if ( -f $file);
+        }
+    };
+    if ( $@ ) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+        return undef, undef, undef, undef, -1;
+    }
+    return $file, $confdir, $template, $share, $state;
+}
 
 ###########################################################################
 # distro_cfg - basource state relation

@@ -43,7 +43,7 @@ our $VERSION = '0.01';
 sub source_list() {
 
     my $distro = params->{distro};
-    $distro = &normalize_verb( $distro );
+#    $distro = &normalize_verb( $distro );
 
     my $opts = vars->{opts};
     unless ( $opts ) {
