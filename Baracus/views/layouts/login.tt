@@ -1,0 +1,15 @@
+<html>
+<head>
+<META HTTP-EQUIV="Expires" CONTENT="Tue, 04 Dec 1993 21:29:02 GMT">
+<STYLE type="text/css">
+    div.splash { position:relative; top:200; }
+    input.username { border:none; }
+    input.password { border:none; }
+    input.loginsubmit { }
+</STYLE>
+</head>
+
+<body>
+<% content %>
+</body>
+</html>

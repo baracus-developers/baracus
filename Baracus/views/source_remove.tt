@@ -1,0 +1,25 @@
+<form name='remove' action='/source/remove' method="POST">
+<h1><% status %></h1>
+
+<center>
+<div class='splash'>
+<tr>
+<td height='150'></td>
+<td></td>
+</tr>
+<tr>
+<td>
+</td>
+<td height='28' align='right'>
+    <input type='text' name='distro' value='' size='19'>&nbsp;&nbsp;
+</td>
+</tr>
+<tr>
+</td>
+<td align='right'>
+    <input type='submit' name='submit' value='Remove'>&nbsp;&nbsp;
+</td>
+</tr>
+</table>
+</div>
+</center>
