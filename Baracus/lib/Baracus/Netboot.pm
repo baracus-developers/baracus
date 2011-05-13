@@ -1,4 +1,4 @@
-package BaracusNetboot;
+package Baracus::Netboot;
 
 ###########################################################################
 #
@@ -29,15 +29,18 @@ use Carp;
 use strict;
 use warnings;
 
+use Dancer qw( :syntax);
+use Dancer::Plugin::Database;
+
 use File::Path;
 
-use BaracusConfig qw( :vars );
-use BaracusStorage qw( :vars :subs );
-use BaracusAux qw( :subs );
+use Baracus::Config qw( :vars );
+use Baracus::Storage qw( :vars :subs );
+use Baracus::Aux qw( :subs );
 
 =head1 NAME
 
-BaracusNetboot - subroutines of use
+B<Baracus::Netboot> - subroutines of use for netboot CGI
 
 =head1 SYNOPSIS
 
