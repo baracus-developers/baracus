@@ -611,9 +611,9 @@ sub event_state_change
     }
     elsif ( $event eq BA_EVENT_BUILDING ) {
         if ( defined $actref->{storageid} and $actref->{storageid} ne "" ) {
-	    if ( $actref->{automigrate} ) {
-		$actref->{pxenext} = BA_ACTION_MIGRATE;
-	    } else {
+            if ( $actref->{automigrate} ) {
+                $actref->{pxenext} = BA_ACTION_MIGRATE;
+            } else {
                 $actref->{pxenext} = BA_ACTION_NETBOOT;
             }
         } else {
@@ -625,11 +625,11 @@ sub event_state_change
               $event eq BA_EVENT_SPOOFED
              ) {
         if ( defined $actref->{storageid} and $actref->{storageid} ne "" ) {
-	    if ( $actref->{automigrate} ) {
-		$actref->{pxecurr} = BA_ACTION_MIGRATE;
-	    } else {
+            if ( $actref->{automigrate} ) {
+	            $actref->{pxecurr} = BA_ACTION_MIGRATE;
+            } else {
                 $actref->{pxecurr} = BA_ACTION_NETBOOT;
-	    }
+            }
         } else {
             $actref->{pxecurr} = BA_ACTION_LOCALBOOT;
         }
