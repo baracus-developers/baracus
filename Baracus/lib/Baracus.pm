@@ -12,6 +12,7 @@ use Dancer::Plugin::Database;
 use Dancer::Logger::Syslog;
 
 use Baracus::REST::Source  qw( :subs );
+use Baracus::REST::User    qw( :subs );
 #use Baracus::REST::Host    qw( :subs );
 #use Baracus::REST::Do      qw( :subs );
 #use Baracus::REST::Power   qw( :subs );
@@ -295,6 +296,50 @@ post '/ba/winst'          => sub { $gpxe_verbs->{'winst'}          };
 post '/ba/wipe'           => sub { $gpxe_verbs->{'wipe'}           };
 
 ###########################################################################
+##
+## User Routing
+
+my $user_verbs = {
+                    'list'    => \&user_list,
+                    'add'     => \&user_add,
+                    'remove'  => \&user_remove,
+                    'update'  => \&user_update,
+                    'verify'  => \&user_verify,
+                    'enable'  => \&user_enable,
+                    'disable' => \&user_disable,
+                   };
+
+sub user_wrapper() {
+    my $verb = shift;
+    my $template = shift;
+    my $method = request->method;
+
+    if ( request->{accept} eq 'text/xml' ) {
+        to_xml( $user_verbs->{$verb}( @_ ) );
+    } else {
+        layout 'main';
+        if ( ( $method eq "GET") && ( ! defined vars->{exec} ) ) {
+            template "$template", { user => session('user') };
+        } elsif ( ( $method eq "POST") || ( defined vars->{exec} ) ) {
+            template "$template", { user => session('user'), data => $user_verbs->{$verb}( @_ ) };
+        }
+    }
+}
+
+get    '/user/list/:user'   => sub { var exec => ""; &user_wrapper( "list", "user_list" );      };
+get    '/user/verify/:user' => sub { var exec => ""; &user_wrapper( "verify", "user_verify" );  };
+get    '/user/add'            => sub { &user_wrapper( "add", "user_add" );                        };
+post   '/user/add'            => sub { &user_wrapper( "add", "user_response" );                   };
+get    '/user/remove'         => sub { &user_wrapper( "remove", "user_remove" );                  };
+post   '/user/remove'         => sub { &user_wrapper( "remove", "user_response" );                };
+get    '/user/update'         => sub { &user_wrapper( "update", "user_update" );                  };
+post   '/user/update'         => sub { &user_wrapper( "update", "user_response" );                };
+get    '/user/enable'         => sub { &user_wrapper( "update", "user_enable" );                  };
+post   '/user/enable'         => sub { &user_wrapper( "enable", "user_response" );                };
+get    '/user/disable'        => sub { &user_wrapper( "update", "user_disable" );                 };
+post   '/user/disable'        => sub { &user_wrapper( "disable", "user_response" );               };
+
+###########################################################################
 ##                                                                       ##
 ##                           NON-Verb Routing                            ##
 ##                                                                       ## 
@@ -305,8 +350,12 @@ post '/ba/wipe'           => sub { $gpxe_verbs->{'wipe'}           };
 ## Main Page Placeholder
 
 get '/' => sub {
-    layout 'main';
-    template 'main', { user => session('user') };
+    if ( session('user') ) {
+        layout 'main';
+        template 'main', { user => session('user') };
+    } else {
+        redirect '/login';
+    }
 };
 
 ###########################################################################
@@ -327,9 +376,7 @@ get '/login' => sub {
 
 post '/login' => sub {
     use Crypt::SaltedHash;
-    my $sth = database->prepare ('select * from auth where username = ?');
-    $sth->execute(params->{username});
-    my $user = $sth->fetchrow_hashref();
+    my $user = database()->selectrow_hashref('select * from auth where username = ?', {}, params->{username} );
 
     if (!$user) {
         warning "Failed login for unrecognised user " . params->{username};
@@ -339,7 +386,7 @@ post '/login' => sub {
             debug "Password correct";
             # Logged in successfully
             session user => $user->{username};
-#            redirect params->{path} || '/';  # cookbook has this ... bad.
+#           redirect params->{path} || '/';  # cookbook has this ... bad.
             redirect params->{requested_path} || '/';
         } else {
             debug("Login failed - password incorrect for " . params->{username});

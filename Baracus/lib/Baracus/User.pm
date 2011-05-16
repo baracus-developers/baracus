@@ -1,4 +1,4 @@
-package Baracus::Auth;
+package Baracus::User;
 
 ###########################################################################
 #
@@ -28,9 +28,13 @@ use 5.006;
 use strict;
 use warnings;
 
+use Dancer qw( :syntax );
+use Dancer::Plugin::Database;
+
 use Baracus::Sql   qw( :subs :vars );
 use Baracus::State qw( :vars );
 use Baracus::Core  qw( :subs );
+use Baracus::Config qw( :subs :vars );
 
 =pod
 
@@ -145,52 +149,109 @@ use vars qw ( @baAuths %baAuth %encrypt2cmdopt );
 # Subs
 
 #
-# add_db_user($dbh, $hashref)
+# sub is_user($opts, $username)
+#
+sub is_user
+{
+    my $opts     = shift;
+    my $username = shift;
+
+    my $href = undef;
+    my $sql = qq|SELECT username FROM $baTbls{ user } WHERE username='$username'|;
+
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
+        $href = $sth->fetchrow_hashref();
+        $sth->finish;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
+
+    if ( $href ) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+    
+
+#
+# add_db_user($opts, $href)
 #
 
 sub add_db_user
 {
-    my $dbh     = shift;
-    my $hashref = shift;
-    my %Hash    = %{$hashref};
+    my $opts = shift;
+    my $href = shift;
+
+   ## Does user already exist
+   if ( &is_user( $opts,  $href->{username} ) ) { return 1; }
+
+    use POSIX;
+    use Crypt::SaltedHash;
+    my $csh = Crypt::SaltedHash->new(algorithm => 'SHA-1');
+    $csh->add($href->{password});
+    my $salted = $csh->generate;
+
+    $href->{creation} = strftime("%m-%d-%Y %H:%M:%S\n", localtime);
+    $href->{password} = $salted;
+
+    my %Hash = %{$href};
 
     my $fields = lc get_cols( $baTbls{ user } );
     $fields =~ s/[ \t]*//g;
     my @fields = split( /,/, $fields );
-    my $values = join(', ', (map { $dbh->quote($_) } @Hash{@fields}));
+    my $values = join(', ', (map { database->quote($_) } @Hash{@fields}));
 
     my $sql = qq|INSERT INTO $baTbls{ user } ( $fields ) VALUES ( $values )|;
-    my $sth;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-    $sth->finish;
-    undef $sth;
+
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
+        $sth->finish;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
+
+    return 0;
 }
 
 #
-# remove_db_user($dbh, $username)
+# remove_db_user($opts, $username)
 #
 
 sub remove_db_user
 {
-    my $dbh = shift;
+    my $opts = shift;
     my $username = shift;
 
     my $sql = qq|DELETE FROM $baTbls{'user'} WHERE username='$username'|;
-    my $sth;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-    $sth->finish();
-    undef $sth;
+
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
+        $sth->finish;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
+
+    return 0;
 }
 
 #
-# update_db_user($dbh, $hashref)
+# update_db_user($opts, $hashref)
 #
 
 sub update_db_user
 {
-    my $dbh  = shift;
+    my $opts  = shift;
     my $href = shift;
     my %Hash = %{$href};
 
@@ -205,7 +266,7 @@ sub update_db_user
         push @fields, $field;
     }
     $fields = join(', ', @fields);
-    my $values = join(', ', (map { $dbh->quote($_) } @Hash{@fields}));
+    my $values = join(', ', (map { database->quote($_) } @Hash{@fields}));
 
     $fields .= ", change";
     $values .= ", CURRENT_TIMESTAMP(0)";
@@ -214,35 +275,52 @@ sub update_db_user
                 SET ( $fields ) = ( $values )
                 WHERE username = '$href->{username}' |;
 
-    my $sth;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
+        $sth->finish;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
+
+    return 0;
 }
 
 #
-# get_db_user($dbh, $username)
+# get_db_user($opts, $username)
 #
 
 sub get_db_user
 {
-    my $dbh      = shift;
+    my $opts     = shift;
     my $username = shift;
 
+    my $href = undef;
     my $sql = qq|SELECT * FROM $baTbls{ user } WHERE username = '$username' |;
-    my $sth;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
 
-    return $sth->fetchrow_hashref();
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
+        $href = $sth->fetchrow_hashref();
+        $sth->finish;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
+
+    return $href;
 }
 
 #
-# list_start_user($dbh, $username_filter)
+# list_start_user($opts, $username_filter)
 #
 
 sub list_start_user
 {
-    my $dbh  = shift;
+    my $opts  = shift;
     my $fval = shift;
     my $fkey;
     my $is_fkey_valid = 0;
@@ -283,19 +361,36 @@ sub list_start_user
     my $sql = qq|SELECT * FROM user WHERE $fkey = '$fval' ORDER BY username|;
 
     my $sth;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
+        $sth->finish;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
 
     return $sth;
 }
 
+#
+# list_next_user($opts, $sth)
+#
+
 sub list_next_user
 {
-
+    my $opts = shift;
     my $sth = shift;
     my $href;
 
-    $href = $sth->fetchrow_hashref();
+    eval {
+        $href = $sth->fetchrow_hashref();
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
 
     unless ($href) {
         $sth->finish;

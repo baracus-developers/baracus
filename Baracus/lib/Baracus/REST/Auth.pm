@@ -35,7 +35,22 @@ BEGIN {
 ##
 ## Main Source REST Subroutines (list/add/remove/update/verify)
 
-sub auth_user() {
+sub add_user {
+    my $hef = {};
+    my $href->{username} = params->{username};
+    my $href->{password} = params->{password};
+    my $href->{status} = 1;
+    my $href->{realm} = 1;
+    my $href->{creation} = "001";
+
+    if ( &add_user( $opts, $hashref ) == 0 ) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+sub auth_user {
     my $username = params->{username};
     my $password = params->{password};
     my $ret = 0;
