@@ -73,46 +73,45 @@ my $tbl = 'mcast';
 # Subs
 
 #
-# get_free_mcast_port( $dbh )
+# bamstart ( $opts, $tbl, $idx )
 #
 
 sub bamstart
 {
     my $opts = shift;
-    my $dbh  = shift;
     my $tbl  = shift;
     my $idx  = shift;
 
-    my $sth = &list_start_data ( $opts, $dbh, $tbl, $idx );
+    my $sth = &list_start_data ( $opts, $tbl, $idx );
     while ( my $dbref = &list_next_data( $sth ) ) {
         if ( $dbref->{status} ) {
             ## start the mchannel
             if ( $opts->{verbose} ) {
                 print "Starting mchannel id: $dbref->{mcastid} \n";
             }
-            my $mcastref = &get_db_data( $dbh, $tbl, $dbref->{mcastid} );
-            $mcastref->{pid} = &start_mchannel( $dbh, $dbref->{mcastid} );
-            &update_db_data( $dbh, $tbl, $mcastref);
+            my $mcastref = &get_db_data( $opts, $tbl, $dbref->{mcastid} );
+            $mcastref->{pid} = &start_mchannel( $opts, $dbref->{mcastid} );
+            &update_db_data( $opts, $tbl, $mcastref);
         }
     }
+    &list_finish_data( $sth );
     return 0;
 }
 
 sub bamstop
 {
     my $opts = shift;
-    my $dbh  = shift;
     my $tbl  = shift;
     my $idx  = shift;
 
-    my $sth = &list_start_data ( $opts, $dbh, $tbl, "" );
+    my $sth = &list_start_data ( $opts, $tbl, "" );
     while ( my $dbref = &list_next_data( $sth ) ) {
         if ( $dbref->{status} ) {
             ## start the mchannel
             if ( $opts->{verbose} ) {
                 print "Stopping mchannel id: $dbref->{mcastid} \n";
             }
-            my $ret = &stop_mchannel( $dbh, $dbref->{mcastid} );
+            my $ret = &stop_mchannel( $opts, $dbref->{mcastid} );
             if ( $ret == 1 ) {
                 $opts->{LASTERROR} = "error stopping $dbref->{mcastid}\n";
                 return 1;
@@ -122,17 +121,20 @@ sub bamstop
     return 0;
 }
 
+#
+# get_free_mcast_port ( $opts, 
+#
+
 sub get_free_mcast_port
 {
     my $opts = shift;
-    my $dbh = shift;
+    my $tbl  = shift;
 
-    my $sth = &list_start_data ( $opts, $dbh, $tbl, "" );
+    my $sth = &list_start_data ( $opts, $tbl, "" );
 
     my $port = "9000";
     my $dbref;
     while ( $dbref = &list_next_data( $sth )  ) {
-        print "DEBUG: channel=$dbref->{mcastid}\n";
         if ( $dbref->{port} > $port ) {
             $port = $dbref->{port};
         }
@@ -143,12 +145,12 @@ sub get_free_mcast_port
 }
 
 #
-# start_mchannel( $dbh, $mcastid )
+# start_mchannel( $opts, $mcastid )
 #
 
 sub start_mchannel
 {
-    my $dbh     = shift;
+    my $opts    = shift;
     my $mcastid = shift;
 
     my $udpsender = qx|which udp-sender| or die ("Can't find udp-sender : ".$!);
@@ -159,9 +161,9 @@ sub start_mchannel
         exit 1;
     }
 
-    my $mcastref = &get_db_data( $dbh, $tbl, $mcastid );
+    my $mcastref = &get_db_data( $opts, $tbl, $mcastid );
     # get storage hash to supply image filename
-    my $imgref = &get_db_data( $dbh, 'storage', $mcastref->{storageid} );
+    my $imgref = &get_db_data( $opts, 'storage', $mcastref->{storageid} );
 
     # exec the udp-sender
     #
@@ -193,15 +195,15 @@ sub start_mchannel
 }
 
 #
-# stop_channel( $dbh, 4mcastid )
+# stop_channel( $opts, 4mcastid )
 #
 
 sub stop_mchannel
 {
-    my $dbh     = shift;
+    my $opts    = shift;
     my $mcastid = shift;
 
-    my $mcastref = &get_db_data( $dbh, $tbl, $mcastid ); 
+    my $mcastref = &get_db_data( $opts, $tbl, $mcastid ); 
     if ( defined $mcastref->{pid} ) {
         my $ret = `kill $mcastref->{pid}`;
     } else {

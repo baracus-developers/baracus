@@ -20,6 +20,15 @@
     <input type='submit' name='submit' value='Add'>&nbsp;&nbsp;
 </td>
 </tr>
+
+
+<select>
+<% FOREACH opt IN formdata %>
+<option value="<% opt.key %>"><% opt.value %></option>
+<% END %>
+</select>
+
+
 </table>
 </div>
 </center>

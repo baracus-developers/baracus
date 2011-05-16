@@ -19,6 +19,8 @@ use Baracus::REST::User    qw( :subs );
 #use Baracus::REST::Storage qw( :subs );
 #use Baracus::REST::Auth    qw( :subs );
 
+use Baracus::REST::Source_formdata qw( :subs );
+
 my $opts = {
             verbose    => 1,
             quiet      => 0,
@@ -67,15 +69,26 @@ sub init_baracus_vars {
 ##
 ## Source Routing
 
+## Main verb REST stubs
 my $source_verbs = {
                     'list'    => \&source_list,
                     'add'     => \&source_add,
                     'remove'  => \&source_remove,
                     'update'  => \&source_update,
                     'verify'  => \&source_verify,
+                    'detail'  => \&source_detail,
                     'enable'  => \&source_enable,
                     'disable' => \&source_disable,
                    };
+
+## Helper subs to generate form data
+my $source_verbs_formdata = {
+                              'add'     => \&source_formdata_add,
+                              'remove'  => \&source_formdata_remove,
+                              'update'  => \&source_formdata_update,
+                              'enable'  => \&source_formdata_enable,
+                              'disable' => \&source_formdata_disable,
+                            };
 
 sub source_wrapper() {
     my $verb = shift;
@@ -83,11 +96,12 @@ sub source_wrapper() {
     my $method = request->method;
 
     if ( request->{accept} eq 'text/xml' ) {
+        header('Content-Type' => 'text/xml');
         to_xml( $source_verbs->{$verb}( @_ ) );
     } else {
         layout 'main';
         if ( ( $method eq "GET") && ( ! defined vars->{exec} ) ) {
-            template "$template", { user => session('user') };
+            template "$template", { user => session('user'), formdata => $source_verbs_formdata->{$verb}( @_ ) };
         } elsif ( ( $method eq "POST") || ( defined vars->{exec} ) ) {
             template "$template", { user => session('user'), data => $source_verbs->{$verb}( @_ ) };
         }
@@ -96,6 +110,7 @@ sub source_wrapper() {
 
 get    '/source/list/:distro'   => sub { var exec => ""; &source_wrapper( "list", "source_list" );      };
 get    '/source/verify/:distro' => sub { var exec => ""; &source_wrapper( "verify", "source_verify" );  };
+get    '/source/detail/:distro' => sub { var exec => ""; &source_wrapper( "detail", "source_detail" );  };
 get    '/source/add'            => sub { &source_wrapper( "add", "source_add" );                        };
 post   '/source/add'            => sub { &source_wrapper( "add", "source_response" );                   };
 get    '/source/remove'         => sub { &source_wrapper( "remove", "source_remove" );                  };
@@ -365,6 +380,12 @@ get '/' => sub {
 get '/login' => sub {
     # Display a login page; the original URL they requested is available as
     # vars->{requested_path} which is in a hidden field in login.tt
+#    my $login_url = request->uri_for('/login');
+#    if ($login_url->scheme() ne "https") {
+#        $login_url->scheme('https');
+#        redirect $login_url;
+#    }
+  
     if ( params->{failed} ) {
         var status => "Login Failed";
     } else {
@@ -386,7 +407,6 @@ post '/login' => sub {
             debug "Password correct";
             # Logged in successfully
             session user => $user->{username};
-#           redirect params->{path} || '/';  # cookbook has this ... bad.
             redirect params->{requested_path} || '/';
         } else {
             debug("Login failed - password incorrect for " . params->{username});

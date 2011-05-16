@@ -1345,15 +1345,13 @@ sub list_start_data
 
     my $sth;
     eval {
-        database->prepare( $sql );
+        $sth = database->prepare( $sql );
         $sth->execute;
-        $sth->finish;
     };
     if ($@) {
         $opts->{LASTERROR} = subroutine_name." : ".$@;
         error $opts->{LASTERROR};
     }
-
     return $sth;
 }
 

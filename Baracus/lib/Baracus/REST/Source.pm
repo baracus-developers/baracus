@@ -8,6 +8,8 @@ use Dancer qw( :syntax);
 
 use Baracus::State  qw( :vars :admin );
 use Baracus::Source qw( :vars :subs );
+use Baracus::Config qw( :vars :subs );
+use Baracus::Services qw( :subs );
 use Baracus::Aux qw( :subs );
 
 #use Baracus::REST::Aux qw( :subs );
@@ -27,6 +29,7 @@ BEGIN {
                 source_remove
                 source_update
                 source_verify
+                source_detail
                 source_enable
                 source_disable
          )],
@@ -75,26 +78,32 @@ sub source_list() {
         if ( ($adistro eq $distro) && ($status ne $baState{ BA_NONE }) && ($status ne $baState{ BA_ADMIN_REMOVED }) ) {
             $returnList .= "$adistro $status $dh->{description} <br>";
             $returnHash{$adistro}{status} = $status;
+            $returnHash{$adistro}{type} = $dh->{type};
             $returnHash{$adistro}{description} = $dh->{description};
         } elsif ( ($distro eq "disabled") && ($status eq ($baState{ BA_DISABLED })) ) {
             $returnList .= "$adistro $status $dh->{description} <br>";
             $returnHash{$adistro}{status} = $status;
+            $returnHash{$adistro}{type} = $dh->{type};
             $returnHash{$adistro}{description} = $dh->{description};
         } elsif ( ($distro eq "enabled") && ($status eq ($baState{ BA_ADMIN_ENABLED })) ) {
             $returnList .= "$adistro $status $dh->{description} <br>";
             $returnHash{$adistro}{status} = $status;
+            $returnHash{$adistro}{type} = $dh->{type};
             $returnHash{$adistro}{description} = $dh->{description};
         } elsif ( ($distro eq "removed") && ($status eq ($baState{ BA_REMOVED })) ) {
             $returnList .= "$adistro $status $dh->{description} <br>";
             $returnHash{$adistro}{status} = $status;
+            $returnHash{$adistro}{type} = $dh->{type};
             $returnHash{$adistro}{description} = $dh->{description};
         } elsif ( ($distro eq "none") && ($status eq ($baState{ BA_NONE })) ) {
             $returnList .= "$adistro $status $dh->{description} <br>";
             $returnHash{$adistro}{status} = $status;
+            $returnHash{$adistro}{type} = $dh->{type};
             $returnHash{$adistro}{description} = $dh->{description};
         } elsif ( $distro eq "all" ) {
             $returnList .= "$adistro $status $dh->{description} <br>";
             $returnHash{$adistro}{status} = $status;
+            $returnHash{$adistro}{type} = $dh->{type};
             $returnHash{$adistro}{description} = $dh->{description};
         }
     }
@@ -113,7 +122,6 @@ sub source_list() {
 sub source_add() {
 
     my $distro = params->{distro};
-    #    $distro = &normalize_verb( $distro );
 
     my $opts = vars->{opts};
     unless ( $opts ) {
@@ -126,7 +134,18 @@ sub source_add() {
     my $isos;
     my $check = 0;
     my $checkhr = {};
+
+    # Build up extras (ie. addons, sdks and duds)
     my $extras = "";
+#    $extras = $extras . " $multiarg{ addons }" if ( defined $multiarg{ addons } );
+#    $extras = $extras . " $multiarg{ sdks }" if ( defined $multiarg{ sdks } );
+#    $extras = $extras . " $multiarg{ duds }" if ( defined $multiarg{ duds } );
+#    $extras =~ s/^\s+//;
+
+    if ( $extras ) {
+        debug "Calling routine to verify additional source(s) passed\n" if $opts->{verbose};
+        return 1 if &check_extras( $opts, $distro, $extras );
+    }
 
     # my $rtype = vars->{rtype};
     my $includes = &get_distro_includes( $opts, $distro );
@@ -138,14 +157,14 @@ sub source_add() {
         }  # else include is already present in distro table
     }
 
-    my $daisohr = &verify_iso( $opts, $distro, $addons, $isos, $check, $checkhr );
+    my $daisohr = &verify_iso( $opts, $distro, $extras, $isos, $check, $checkhr );
 
     unless ( defined $daisohr ) {
         status 'error';
         return $opts->{LASTERROR};
     }
 
-    unless ( &make_paths( $opts, $distro, $addons, $daisohr, $loopback ) ) {
+    unless ( &make_paths( $opts, $distro, $extras, $daisohr, $loopback ) ) {
         status 'error';
         return $opts->{LASTERROR};
     }
@@ -213,155 +232,153 @@ sub source_remove() {
     use File::Path;
 
     my $distro = params->{distro};
-#    $distro = &normalize_verb( $distro );
 
     my $opts = vars->{opts};
     unless ( $opts ) {
-        status 'error';
-        return "internal 'vars' not properly initialized";
+        $opts->{LASTERROR} = "'vars' not properly initialized";
+        error $opts->{LASTERROR};
     }
-
-    #  my $rtype = vars->{rtype};
 
     my $distroList = "";
     my @distroArray;
 
     my $command = "remove";
-    my $addons = "";
-    my @addons;
-    my $share;
+    my $extras = "";
+    my @extras;
+    my $shares;
     my $is_loopback = "";
     my $ret = 0;
 
     @ARGV = @_;
 
-#    $addons = $multiarg{ 'addons' } if (defined $multiarg{ 'addons' });
+    # Build up extras
+#    $extras = $extras . " $multiarg{ 'addons' }" if ( defined $multiarg{ 'addons' } );
+#    $extras = $extras . " $multiarg{ 'sdks' }" if ( defined $multiarg{ 'sdks' } );
+#    $extras = $extras . " $multiarg{ 'duds' }" if ( defined $multiarg{ 'duds' } );
+#    $extras =~ s/^\s+// if ( defined $extras );
+
+    my $is_extra_passed;
+    $is_extra_passed = 1 if ( $extras );
 
     ## Test if selection is valid
     ##
     $distro = lc $distro;
     unless ( &check_distro( $opts, $distro ) )  {
         status 'error';
-        return $opts->{LASTERROR};
+        error $opts->{LASTERROR};
     }
 
-    # tempting - but don't put sdk in $addons here or it will be
-    # removed even if only a different addon was to be removed leaving
-    # the base and maybe other addons in place
-    #
-
-#    if ( ( $distro eq "all" ) and $addons ) {
-#        $distroList = "Unsafe mix of --all and --addon <addon> usage";
-#        return 1;
-#    }
+    my $dh =  &baxml_distro_gethash( $opts, $distro );
 
     if ( $distro eq "all" ) {
-        my $dh =  &baxml_distro_gethash( $opts, $distro );
-        @addons = @{$dh->{basedisthash}->{addons}};
-        $addons = join " ", @addons;
-#        print "working with 'all': $addons\n" if $opts->{debug};
-    } else {
-        @addons = split( /\s+/, $addons );
+        @extras = @{$dh->{basedisthash}->{addons}} if (defined $dh->{basedisthash}->{addons} );
+        foreach my $item ( @extras ) {
+            if ( &is_source_installed( $opts, $item ) ) {
+                $extras = $extras . " $item";
+            }
+        }
+        $extras =~ s/^\s+//;
+        debug "working with 'all': $extras\n" if $opts->{debug};
+    } 
 
-        # only check addons passed if not removing all
-        if ( scalar @addons ) {
-#            print "Calling routine to verify addon(s) passed\n";
-            unless ( &check_addons( $opts, $distro, $addons ) ) {
-                status 'error';
-                return $opts->{LASTERROR};
+    ## Are there any extras not removed dependant on base
+    if ( ( ! $extras ) and ( defined $distro ) ) {
+        my @extchk = &list_installed_extras( $opts, $distro );
+        foreach my $extchk (@extchk) {
+            if ( $extchk eq &get_distro_includes( $opts, $distro ) ) { next; }
+            if ( ! exists {map { $_ => 1 } @extras}->{$extchk} ) {
+                $opts->{LASTERROR} =  "cannot remove $distro:\n\t$extchk installed and depends on $distro\n";
+                error $opts->{LASTERROR};;
             }
         }
     }
 
-    if ( scalar @addons ) {
-        foreach my $addon ( @addons ) {
-            my @shares;
-#            print "Removing addon $addon\n";
-            ($share, undef) = &get_distro_share( $opts, $addon );
-            $is_loopback = &get_loopback( $opts, $share );
-            unless (defined $is_loopback) {
-                status 'error';
-                return $opts->{LASTERROR};
-            }
-            unless (&remove_build_service( $opts, "", $addons) ) {
-                status 'error';
-                return $opts->{LASTERROR};
-            }
-
-#            print "$share ... removing\n" if $opts->{verbose};
-            debug "is_loopback $is_loopback for share $share";
-
-            # you know - we get out of sync sometimes...
-            # and it doesn't hurt to umount a non-mounted dir
-
-            system("umount $share");
-            rmtree($share);
+    # do we include anything in this distros
+    unless ( ( $is_extra_passed ) and ( ! $opts->{all} ) ) {
+        my $includes = &get_distro_includes( $opts, $distro );
+        if ( ( defined $includes ) and
+             ( ! grep $includes, @extras ) ) {
+            my $incchk = &get_db_data( $opts, 'distro', $includes );
+            unless ( defined $incchk->{state} ) {
+                $extras = "$extras "  . $includes;
+                $extras =~ s/^\s+//;
+            }  # else include is already present in distro table
         }
-        unless ( &source_register( $opts, $command, "", $addons) ) {
-            status 'error';
-            return $opts->{LASTERROR};
+    }
+    undef @extras;
+    @extras = split( /\s+/, $extras );
+
+    ## only check extras passed if not removing all
+    if ( scalar @extras ) {
+        debug "Calling routine to verify extra(s) passed\n" if $opts->{verbose};
+        return 1 if &check_extras( $opts, $distro, $extras );
+    }
+
+    ## Remove all extras
+    if ( scalar @extras ) {
+        foreach my $extra ( @extras ) {
+            if ( &is_extra_dependant( $opts, $distro, $extra ) ) {
+                debug "Leaving $extra - required for other installed distro\n" if $opts->{verbose};
+            } else {
+                if ( &is_source_installed( $opts, $extra ) ) {
+                    debug "Removing extra $extra\n" if $opts->{verbose};
+                    ($shares, undef) = &get_distro_share( $opts, $extra );
+                    $is_loopback = &is_loopback( $opts, @$shares[0] );
+                    if ( &remove_build_service( $opts, "", $extra ) ) {
+                        $opts->{LASTERROR} = "";
+                    }
+                    debug "@$shares[0] ... removing\n" if $opts->{verbose};
+                    if ( $is_loopback ) {
+                        my $mntchk = `sudo mount | grep @$shares[0] | grep -v ^@$shares[0]`;
+                        $mntchk = (split / /, $mntchk)[2];
+                        if ( ( defined $mntchk ) and
+                             (  $mntchk eq @$shares[0] ) ) {
+                            $ret = system("sudo umount @$shares[0]");
+                            if ( $ret > 0 ) {
+                                $opts->{LASTERROR} = "loopback unmount failed\n";
+                                error $opts->{LASTERROR};
+                            }
+                        }
+                        rmdir(@$shares[0]);
+                    } else {
+                        rmtree(@$shares[0]);
+                    }
+                    my $dudh = &get_db_data( $opts, 'distro', $extra );
+                    if ( $dudh->{type} == BA_SOURCE_DUD ) {
+                        &remove_dud_initrd( $opts, $extra )
+                    }
+                    &source_register( $opts, $command, $extra );
+                }
+            }
         }
     }
 
-    # only remove base if no addons specified or --all passed
-    if ( not scalar @addons or $opts->{all} ) {
-        my $dh = &baxml_distro_gethash( $opts, $distro );
-
-        # need to check if removing base which has dependent add-ons
-        my @addons = &list_installed_addons( $opts, $distro );
-
-        # handle default 'unspecified' sdk as transparent member of base
-        my $sdk = &get_distro_sdk( $opts, $distro );
-
-        if ( ( scalar @addons > 1 ) or
-             ( scalar @addons and not defined $sdk ) or
-             ( scalar @addons and $addons[0] ne $sdk ) ) {
-            $opts->{LASTERROR} = "Remove these addons before removing $distro (or use --all)\n\t" . join ("\n\t", @addons ) . "\n";
-            status 'error';
-            return $opts->{LASTERROR};
+    ## Remove base distro
+    unless ( ( $is_extra_passed ) and ( ! $opts->{all} ) ) {
+        ($shares,undef) = &get_distro_share( $opts, $distro );
+        if ( &remove_build_service( $opts, $distro, "" ) ) {
+            debug "$opts->{LASTERROR}\n";
+            $opts->{LASTERROR} = "";
         }
-        if ( scalar @addons and defined $sdk and $addons[0] eq $sdk ) {
-            ($share,undef) = &get_distro_share( $opts, $sdk );
-            $is_loopback = &get_loopback( $opts, $share );
-            unless ( defined $is_loopback )  {
-                status 'error';
-                return $opts->{LASTERROR};
-            }
-            unless (&remove_build_service( $opts, "", $sdk) ) {
-                status 'error';
-                return $opts->{LASTERROR};
-            }
-            debug "is_loopback $is_loopback for share $share";
+        foreach my $share ( @$shares ) {
+            $is_loopback = &is_loopback( $opts, $share );
             debug "$share ... removing\n" if $opts->{verbose};
-
-            # you know - we get out of sync sometimes...
-            # and it doesn't hurt to umount a non-mounted dir
-
-            system("umount $share");
-            rmtree($share);
-
-            &source_register( $opts, $command, "", $sdk);
+            if ( $is_loopback ) {
+                my $mntchk = `mount | grep $share| grep -v ^$share`;
+                $mntchk = (split / /, $mntchk)[2];
+                if ( ( defined $mntchk ) and
+                     ( $mntchk eq $share ) ) {
+                    $ret = system("sudo umount $share");
+                    if ( $ret > 0 ) {
+                        $opts->{LASTERROR} = "loopback unmount failed\n";
+                        error $opts->{LASTERROR};
+                    }
+                }
+                rmdir($share);
+            }
         }
-        ($share,undef) = &get_distro_share( $opts, $distro );
-        $is_loopback = &get_loopback( $opts,  $share );
-        &remove_build_service( $opts, $distro, $addons);
-        debug "is_loopback $is_loopback for share $share";
-        debug "$share ... removing\n" if $opts->{verbose};
-
-        # you know - we get out of sync sometimes...
-        # and it doesn't hurt to umount a non-mounted dir
-
-        system("umount $share");
-        rmtree($share);
-
-        unless ( &remove_bootloader_files( $opts, $distro ) ) {
-            status 'error';
-            return $opts->{LASTERROR};
-        }
-        unless ( &source_register( $opts, $command, $distro, $addons) ) {
-            status 'error';
-            return $opts->{LASTERROR};
-        }
+        &remove_bootloader_files( $opts, $distro );
+        &source_register( $opts, $command, $distro);
     }
 
     if ( request->{accept} =~ m|text/html| ) {
@@ -378,7 +395,11 @@ sub source_remove() {
 sub source_update() {
 
     my $distro = params->{distro};
-    #    $distro = &normalize_verb( $distro );
+    my $sharetype = params->{sharetype};
+    my $shareip = params->{shareip};
+
+    my $returnString = "";
+    my %returnHash;
 
     my $opts = vars->{opts};
     unless ( $opts ) {
@@ -386,133 +407,149 @@ sub source_update() {
         return "internal 'vars' not properly initialized";
     }
 
-    my $sharetype = params->{sharetype};
-    my $shareip = params->{shareip};
-
-    # my $rtype = vars->{rtype};
-
-    my $returnString = "";
-    my %returnHash;
-
-    my $addons = "";
-    my @addons;
+    my $extras = "";
+    my @extras;
     my $dbref;
     my $ret = 0;
 
-    ## Test if selection is valid
-    ##
-    #    $distro = lc $distro;
-    #    &check_distro( $opts, $distro );
+    # Build up extras (ie. addons, sdks and duds)
+#    $extras = $extras . " $multiarg{ addons }" if ( defined $multiarg{ addons } );
+#    $extras = $extras . " $multiarg{ sdks }" if ( defined $multiarg{ sdks } );
+#    $extras = $extras . " $multiarg{ duds }" if ( defined $multiarg{ duds } );
+#    $extras =~ s/^\s+//;
 
-    # unless (( $shareip ne "" ) || ( $sharetype ne "" ))  {
-    #    $opts->{LASTERROR} = "update requires either --sharetype or --shareip\n";
-    #    return 1;
-    # }
+    my $is_extra_passed;
+    $is_extra_passed = 1 if ( $extras );	
 
-    # $addons = $multiarg{ 'addons' } if (defined $multiarg{ 'addons' });
+    ## Check if extras installed and not updated
+    if ( ( ! $is_extra_passed ) and ( ! $opts->{all} ) ) {
+        my @extchk = &list_installed_extras( $opts, $distro );
+        if ( scalar @extchk > 1 ) {
+            $opts->{LASTERROR} = "Update these extras before updating $distro (or use --all)\n\t" . join ("\n\t", @extchk ) . "\n";
+            error $opts->{LASTERROR};
+        }
+    }
 
-    # if ( $opts->{all} and $addons ) {
-    #         $opts->{LASTERROR} = "Unsafe mix of --all and --addon <addon> usage\n";
-    #         return 1;
-    # }
+    if ( $extras ) {
+        debug "Calling routine to verify additional source(s) passed\n" if $opts->{verbose};
+        if ( &check_extras( $opts, $distro, $extras ) ) {
+            error "extra is not valid\n";
+        }
+    }
 
-    # if ( $sharetype ne "") {
-    #     unless (( $sharetype eq "nfs" ) || ( $sharetype eq "http" )) {
-    #         $opts->{LASTERROR} = "$sharetype not valid. (supported types: nfs/http) \n";
-    #         return 1;
-    #     }
-    # }
+    unless (( $shareip ne "" ) || ( $sharetype ne "" ))  {
+        $opts->{LASTERROR} = "update requires either sharetype or shareip to be passed\n";
+        error $opts->{LASTERROR};
+    }
 
-    # if ( $opts->{all} ) {
-    #      my $dh =  &baxml_distro_gethash( $opts, $distro );
-    #      @addons = @{$dh->{basedisthash}->{addons}};
-    #      $addons = join " ", @addons;
-    #      print "working with 'all': $addons\n" if $opts->{debug};
-    #  } else {
-    #      @addons = split( /\s+/, $addons );
 
-    # only check addons passed if not removing all
-    #      if ( scalar @addons ) {
-    #          print "Calling routine to verify addon(s) passed\n";
-    #          return 1 if &check_addons( $opts, $distro, $addons );
-    #      }
-    #  }
+    if ( $opts->{all} and $extras ) {
+            $opts->{LASTERROR} = "Unsafe mix of all and addon\n";
+            error 1;
+    }
 
-    if ( scalar @addons ) {
-        foreach my $addon ( @addons ) {
+    if ( $sharetype ne "") {
+        unless (( $sharetype eq "nfs" ) || ( $sharetype eq "http" )) {
+            $opts->{LASTERROR} = "$sharetype not valid. (supported types: nfs/http) \n";
+            error $opts->{LASTERROR};
+        }
+    }
+
+    my $dh =  &baxml_distro_gethash( $opts, $distro );
+
+    if ( $opts->{all} ) {
+        @extras = @{$dh->{basedisthash}->{addons}} if (defined $dh->{basedisthash}->{addons} );
+        foreach my $item ( @extras ) {
+            if ( &is_source_installed( $opts, $item ) ) {
+                $extras = $extras . " $item";
+            }
+        }
+        $extras =~ s/^\s+//;
+        debug "working with 'all': $extras\n" if $opts->{debug};
+    }
+
+    # do we include anything in this distros
+    unless ( ( $is_extra_passed ) and ( ! $opts->{all} ) ) {
+        my $includes = &get_distro_includes( $opts, $distro );
+        if ( ( defined $includes ) and
+             ( ! grep $includes, @extras ) ) {
+            my $incchk = &get_db_data( $opts, 'distro', $includes );
+            unless ( defined $incchk->{state} ) {
+                $extras = "$extras "  . $includes;
+                $extras =~ s/^\s+//;
+            }  # else include is already present in distro table
+        }
+    }
+    undef @extras;
+    @extras = split( /\s+/, $extras );
+
+     # Update extras
+    if ( scalar @extras ) {
+        foreach my $extra ( @extras ) {
             my @shares;
-            #          print "Updating addon $addon\n";
+            debug "Updating extra $extra\n";
             if ( $sharetype ne "" ) {
-                $dbref = &get_db_source_entry( $opts, $addon );
-                &remove_build_service( $opts, $addon );
-                &update_db_source_entry( $opts, $sharetype, "", $addon);
-                &update_db_iso_entry( $opts, $addon, $sharetype );
-                #      &remove_build_service( $opts, $addon );
-                &add_build_service( $opts, $addon );
-                print "$sharetype ... Updated\n" if $opts->{verbose};
+                $dbref = &get_db_source_entry( $opts, $extra );
+                if ( &remove_build_service( $opts, $extra ) ) {
+                    debug "$opts->{LASTERROR}\n";
+                    $opts->{LASTERROR} = "";
+                }
+                &update_db_source_entry( $opts, $sharetype, "", $extra);
+                &update_db_iso_entry( $opts, $extra, $sharetype );
+                if ( &add_build_service( $opts, $extra ) ) {
+                    debug "$opts->{LASTERROR}\n";
+                    $opts->{LASTERROR} = "";
+                }
+                debug "$sharetype ... Updated\n" if $opts->{verbose};
             }
             if ( $shareip ne "" ) {
-                #              print "Update ShareIP\n";
-                &update_db_source_entry( $opts, "", $shareip, $addon);
+                &update_db_source_entry( $opts, "", $shareip, $extra);
+                debug "$shareip ... Updated\n" if $opts->{verbose};
             }
         }
     }
 
-    # only update base if no addons specified or --all passed
-    if ( not scalar @addons or $opts->{all} ) {
+    # Update base
+    unless ( ( $is_extra_passed ) and ( ! $opts->{all} ) ) {
         my $dh = &baxml_distro_gethash( $opts, $distro );
 
-        # need to check if updating base which has dependent add-ons
-        my @addons = &list_installed_addons( $opts, $distro );
-
-        # handle default 'unspecified' sdk as transparent member of base
-        #  my $sdk = &get_distro_sdk( $opts, $distro );
-        my $sdk;
-
-        if ( ( scalar @addons > 1 ) or
-             ( scalar @addons and not defined $sdk ) or
-             ( scalar @addons and $addons[0] ne $sdk ) ) {
-            $opts->{LASTERROR} = "Update these addons before Updating $distro (or use --all)\n\t" . join ("\n\t", @addons ) . "\n";
-            return 1;
-        }
-        if ( scalar @addons and defined $sdk and $addons[0] eq $sdk ) {
-            if ( $sharetype ne "" ) {
-                $dbref = &get_db_source_entry( $opts, $sdk );
-                &remove_build_service( $opts, $sdk );
-                &update_db_source_entry( $opts, $sharetype, "", $sdk);
-                &update_db_iso_entry( $opts, $sdk, $sharetype );
-                # &remove_build_service( $opts, $sdk );
-                &add_build_service( $opts, $sdk );
-                #              print "$sharetype ... updated\n" if $opts->{verbose};
-            }
-            if ( $shareip ne "" ) {
-                #              print "Update ShareIP\n";
-                &update_db_source_entry( $opts, "", $shareip, $sdk);
-            }
-        }
         if ( $sharetype ne "" ) {
             $dbref = &get_db_source_entry( $opts, $distro );
-            &remove_build_service( $opts, $distro );
+
+            if ( &remove_build_service( $opts, $distro ) ) {
+                debug "$opts->{LASTERROR}\n";
+                $opts->{LASTERROR} = "";
+            }
             &update_db_source_entry( $opts, $sharetype, "", $distro );
             &update_db_iso_entry( $opts, $distro, $sharetype );
-            #         &remove_build_service( $opts, $distro );
-            &add_build_service( $opts, $distro );
-            #          print "$sharetype ... updated\n" if $opts->{verbose};
+
+            if ( &add_build_service( $opts, $distro ) ) {
+                debug "$opts->{LASTERROR}\n";
+                $opts->{LASTERROR} = "";
+            }
+            debug "$sharetype ... updated\n" if $opts->{verbose};
         }
         if ( $shareip ne "" ) {
-            #              print "Update ShareIP\n";
-            &update_db_source_entry( $opts, "", $shareip, $distro );
+                debug "Update ShareIP\n";
+                &update_db_source_entry( $opts, "", $shareip, $distro );
         }
     }
 
-    return 0;
+    if ( request->{accept} =~ m|text/html| ) {
+        return "Updated $distro<br>"
+    } elsif ( request->{accept} eq "text/xml" ) {
+        my @returnArray = ("Updated", "$distro");
+        return \@returnArray;
+    } else {
+        status 'error';
+        return $opts->{LASTERROR};
+    }
 
 }
 
 sub source_verify() {
 
     my $distro = params->{distro};
-    #    $distro = &normalize_verb( $distro );
 
     my $opts = vars->{opts};
     unless ( $opts ) {
@@ -634,10 +671,107 @@ sub source_verify() {
 
 }
 
+sub source_detail() {
+
+    my $distro = params->{distro};
+    my $status = undef;
+
+    use File::Find;
+
+    my $opts = vars->{opts};
+    unless ( $opts ) {
+        status 'error';
+        return "internal 'vars' not properly initialized";
+    }
+
+    # my $rtype = vars->{rtype};
+
+    my $returnString = "";
+    my %returnHash;
+
+    $distro = lc $distro;
+
+    my $dbref = &get_db_source_entry( $opts, $distro );
+    unless ( defined $dbref and
+             $dbref->{status} and
+             $dbref->{status} != BA_ADMIN_REMOVED ) {
+        $opts->{LASTERROR} = "No entry found for $distro\n";
+        return 1;
+    }
+    
+    if ( defined $dbref and
+         defined $dbref->{status} )
+    {
+        $status = $baState{ $dbref->{status} };
+    } else {
+        $status = $baState{ BA_NONE };
+    }
+
+    my $dh = &baxml_distro_gethash( $opts, $distro );
+    my $bh = $dh->{basedisthash};
+
+    my %iodhash;
+
+    find ( { wanted =>
+             sub {
+                 $iodhash{$_} .= "$File::Find::name ";
+             },
+             follow => 1
+            },
+           $baDir{isos} );
+
+    $returnString = "Details for $distro<br>";
+    $returnHash{distro} = $distro;
+    $returnString .= "With current status '$status'<br>";
+    $returnHash{status} = $status;
+    if ($dh->{requires}) {
+        $returnString .=  "Add-on product extending $dh->{basedist}<br>";
+        $returnHash{basedist} = $dh->{basedist};
+    } else {
+        $returnString .= "Base product";
+        if ( $bh->{addons} and scalar @{$bh->{addons}} ) {
+            $returnString .= " supporting extension(s):  " .
+                join (", ", (sort @{$bh->{addons}} ) );
+            $returnHash{extensions} = join (", ", (sort @{$bh->{addons}} ) );
+        }
+        $returnString .= "\n";
+    }
+
+        $returnString .= "Based on product(s):  " .
+        join (", ", ( sort &baxml_products_getlist( $opts, $distro ) ) ) . "<br>";
+    foreach my $product ( sort &baxml_products_getlist( $opts,  $distro ) ) {
+        $returnString .= "Detail for $product<br>";
+        my $ph = &baxml_product_gethash( $opts, $distro, $product );
+        foreach my $iso ( sort &baxml_isos_getlist( $opts, $distro, $product ) ) {
+            my $ih = &baxml_iso_gethash( $opts, $distro, $product, $iso );
+            my $builds = $ih->{isopath};
+            my $isoexist = "-";
+            my $direxist = "-";
+            $isoexist = "+" if ( $iodhash{$iso} );
+            $direxist = "+" if ( -d $builds );
+
+            $builds =~ s|$baDir{builds}/||og;
+            $returnString .=  " + $iso  =>  + $builds<br>", $isoexist, $direxist;
+            $returnHash{product} = $product;
+            $returnHash{iso} = $iso;
+            $returnHash{builds} = $builds;
+            $returnHash{mntdir} = $direxist;
+        }
+    }
+
+    if ( request->{accept} =~ m|text/html| ) {
+        return $returnString;
+    } elsif ( request->{accept} eq "text/xml" ) {
+        return \%returnHash;
+    } else {
+        error;
+    }
+
+}
+
 sub source_enable() {
 
     my $distro = params->{distro};
-    #    $distro = &normalize_verb( $distro );
 
     my $opts = vars->{opts};
     unless ( $opts ) {

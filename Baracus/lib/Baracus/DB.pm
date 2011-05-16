@@ -111,16 +111,16 @@ sub startup {
             &genesis( $pg_user, $pg_db, @args );
 
             $status = Baracus::Source::init_mounter( $opts );
-            error "$opts->{LASTERROR} : mount failure\n" if ( $status == 0 ) and die;
+            error "$opts->{LASTERROR} : mount failure\n" if ( $status == 0 ) and die $!;
 
             $status = Baracus::Source::init_exporter( $opts );
-            error "$opts->{LASTERROR} : export failure\n" if ( $status == 0 ) and die;
+            error "$opts->{LASTERROR} : export failure\n" if ( $status == 0 ) and die $!;
 
             $status = Baracus::Source::prepdbwithxml( $opts );
-            error "$opts->{LASTERROR} : prep xml failure\n" if ( $status == 0 ) and die;
+            error "$opts->{LASTERROR} : prep xml failure\n" if ( $status == 0 ) and die $!;
 
-            $status = Baracus::Mcast::bamstart( $opts, database, "mcast", "" );
-            error "$opts->{LASTERROR} : mcast init failure\n" if ( $status != 0 ) and die;
+            $status = Baracus::Mcast::bamstart( $opts, "mcast", "" );
+            error "$opts->{LASTERROR} : mcast init failure\n" if ( $status != 0 ) and die $!;
 
 #            system ( "$baDir{data}/scripts//baconfig_load_autobuild" ) == 0 or die;
 #            system ( "$baDir{data}/scripts//baconfig_load_hardware" ) == 0 or die;

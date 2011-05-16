@@ -60,6 +60,7 @@ BEGIN {
                 add_apache2_perl
                 apache2_listen_conf
                 add_www_sudoers
+                check_service
             )],
          );
 

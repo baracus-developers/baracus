@@ -119,6 +119,7 @@ BEGIN {
                 init_exporter
                 init_mounter
                 get_enabled_distro_list
+                get_inactive_distro_list
                 solaris_nfs_waround
             )],
          );
@@ -538,8 +539,7 @@ sub sqlfs_getstate
 {
     my $opts = shift;
     my $file = shift;
-   # my $state = -1;
-    my $state = 0;
+    my $state = -1;
 
     eval {
         #        debug "setting uid to $opts->{dbrole}\n" if ($opts->{debug} > 2);
@@ -560,7 +560,7 @@ sub sqlfs_getstate
         error $opts->{LASTERROR};
         $state = 0;
     }
-debug "DEBUG: state=$state \n";
+debug "DEBUG: state=$state\n";
     return $state;
 }
 
@@ -1438,7 +1438,7 @@ sub make_paths
                     }
                     unless ( $is_mounted ) {
                         $SIG{CHLD} = '';
-                        system( "mount -o loop $isofile $idir" ) == 0 or die $!;
+                        system( "sudo mount -o loop $isofile $idir" ) == 0 or die $!;
                         &add_db_iso_entry($opts, $da, $iname, $idir, 1);
                     }
                 }
@@ -1636,6 +1636,7 @@ sub add_bootloader_files
     my $opts   = shift;
     my $distro = shift;
 
+    my $state = undef;
     my $status = 1;
 
     #    print "+++++ add_bootloader_files\n" if ( $opts->{debug} > 1 );
@@ -1699,7 +1700,9 @@ then try this basource command again.
                     die;
                 }
                 my $stname = "${fname}-${arch}";
-                if ( &sqlfs_fetch( $opts, "$tdir/$stname" ) == 0 ) {
+                $state = undef;
+                $state = &sqlfs_fetch( $opts, "$tdir/$stname" );
+                if ( ( $state == 1 ) or ( $state == 2 ) ) {
                     # file found and written out for compare
                     my $result = system("diff $fh->{file} $tdir/$stname >& /dev/null");
                     if ( $result == 0 ) { # same as what we'd add
@@ -1723,46 +1726,67 @@ then try this basource command again.
             }
         } elsif ( $distro =~ m/(xenserver|solaris)/i ) {
             while ( my ($fname, $fh) = each ( %{$bh->{baseshares}} ) ) {
-                if ( &sqlfs_getstate( $opts, $fname ) ) {
-                    debug "found $fname in file database\n" if $opts->{verbose};
+                $state = undef;
+                $state = &sqlfs_getstate( $opts, $fname );
+                if ( $state ) {
+                    if ( $state != -1 ) {
+                        debug "found $fname in file database\n" if $opts->{verbose};
+                    } else {
+                        debug "cp from $fh->{file} to $tdir/$fname\n" if ( $opts->{debug} > 1 );
+                        # we don't go from $fh->{file} to sqlfs_store directly
+                        # there may be a name change / difference from $fname
+                        copy($fh->{file},"$tdir/$fname") or die;
+                        &sqlfs_store( $opts, "$tdir/$fname" );
+                        unlink( "$tdir/$fname" ) or die;
+                    }
                 } else {
-                    debug "cp from $fh->{file} to $tdir/$fname\n" if ( $opts->{debug} > 1 );
-                    # we don't go from $fh->{file} to sqlfs_store directly
-                    # there may be a name change / difference from $fname
-                    copy($fh->{file},"$tdir/$fname") or die;
-                    &sqlfs_store( $opts, "$tdir/$fname" );
-                    unlink( "$tdir/$fname" ) or die;
+                    $opts->{LASTERROR} = "error looking up $fname in file database\n";
+                    error $opts->{LASTERROR};
                 }
             }
         } else {
-            if ( &sqlfs_getstate( $opts, "linux.$distro" ) ) {
-                debug "found bootloader linux.$basedist in file database\n" if $opts->{verbose};
+            $state = undef;
+            $state = &sqlfs_getstate( $opts, "linux.$basedist" ) or die;
+            if ( $state ) {
+                if ( $state != -1 ) {
+                    debug "found bootloader linux.$basedist in file database\n" if $opts->{verbose};
+                } else {
+                    debug "cp from $bh->{baselinux} to $tdir/linux.$basedist\n" if ( $opts->{debug} > 1 );
+                    copy($bh->{baselinux},"$tdir/linux.$basedist") or die;
+                    &sqlfs_store( $opts, "$tdir/linux.$basedist" );
+                    unlink ( "$tdir/linux.$basedist" ) or die;
+                }
             } else {
-                debug "cp from $bh->{baselinux} to $tdir/linux.$basedist\n" if ( $opts->{debug} > 1 );
-debug "DEBUG: cp from $bh->{baselinux} to $tdir/linux.$basedist\n";
-                copy($bh->{baselinux},"$tdir/linux.$basedist") or die;
-                &sqlfs_store( $opts, "$tdir/linux.$basedist" );
-                unlink ( "$tdir/linux.$basedist" ) or die;
-	        }
-	        if ( &sqlfs_getstate( $opts, "initrd.$basedist" ) ) {
-                debug "found bootloader initrd.$basedist in file database\n" if $opts->{verbose};
-	        } else {
-                debug "cp from $bh->{baseinitrd} to $tdir/initrd.gz\n" if ( $opts->{debug} > 1 );
-	            copy($bh->{baseinitrd},"$tdir/initrd.gz") or die;
-	            if ( $distro =~ /sles-11/ ) {
-		            system("gunzip", "$tdir/initrd.gz") == 0 or die;
-		            copy("$baDir{data}/gpghome/.gnupg/my-key.gpg", "$tdir/my-key.gpg") or die;
-                    my $result = `cd $tdir; find my-key.gpg | cpio --quiet -o -A -F initrd -H newc >> /dev/null`;
-		            unlink( "$tdir/my-key.gpg" ) or die;
-		            system("gzip", "$tdir/initrd") == 0 or die;
-	            }
-        	    debug "cp from $tdir/initrd.gz to $tdir/initrd.$basedist\n" if ( $opts->{debug} > 1 );
-	            copy("$tdir/initrd.gz", "$tdir/initrd.$basedist") or die;
-	            unlink( "$tdir/initrd.gz" ) or die;
+                $opts->{LASTERROR} = "error looking up linux.$distro in file database\n";
+                error $opts->{LASTERROR};
+            }
 
-	            &sqlfs_store( $opts, "$tdir/initrd.$basedist" );
-	            unlink( "$tdir/initrd.$basedist" ) or die;
+            $state = undef;
+            $state = &sqlfs_getstate( $opts, "initrd.$basedist" ) or die;
+            if ( $state ) {
+                if ( $state != -1 ) {
+                    debug "found bootloader initrd.$basedist in file database\n" if $opts->{verbose};
+                } else {
+                    debug "cp from $bh->{baseinitrd} to $tdir/initrd.gz\n" if ( $opts->{debug} > 1 );
+                    copy($bh->{baseinitrd},"$tdir/initrd.gz") or die;
+                    if ( $distro =~ /sles-11/ ) {
+                        system("gunzip", "$tdir/initrd.gz") == 0 or die;
+                        copy("$baDir{data}/gpghome/.gnupg/my-key.gpg", "$tdir/my-key.gpg") or die;
+                        my $result = `cd $tdir; find my-key.gpg | cpio --quiet -o -A -F initrd -H newc >> /dev/null`;
+                        unlink( "$tdir/my-key.gpg" ) or die;
+                        system("gzip", "$tdir/initrd") == 0 or die;
+                    }
+                    debug "cp from $tdir/initrd.gz to $tdir/initrd.$basedist\n" if ( $opts->{debug} > 1 );
+                    copy("$tdir/initrd.gz", "$tdir/initrd.$basedist") or die;
+                    unlink( "$tdir/initrd.gz" ) or die;
+
+                    &sqlfs_store( $opts, "$tdir/initrd.$basedist" );
+                    unlink( "$tdir/initrd.$basedist" ) or die;
 	        }
+            } else {
+                $opts->{LASTERROR} = "error looking up initrd.$distro in file database\n";
+                error $opts->{LASTERROR};
+            }
         }
         debug "removing tempdir $tdir\n" if ($opts->{debug} > 1);
         rmdir $tdir;
@@ -2129,35 +2153,38 @@ sub init_exporter
 
         $href = $sth->fetchrow_hashref();
 
-        # if here then have need nfs shares so make sure have nfsserver
-        enable_service( $opts, "nfs" ) if ( defined $href );
+        if ( defined $href ) {
 
-        my @share = qx|showmount -e localhost|;
+            # if here then have need nfs shares so make sure have nfsserver
+            enable_service( $opts, "nfs" ) if ( defined $href );
 
-        do {
+            my @share = qx|showmount -e localhost|;
 
-            unless ( -d $href->{'mntpoint'} ) {
-                $opts->{LASTERROR} = "Distro share point does not exist: $href->{'mntpoint'}: $!";
-                error $opts->{LASTERROR};
-                next;
-            }
+            do {
 
-            my $is_shared = 0;
-            foreach ( @share ) {
-                if (/$href->{'mntpoint'}/) {
-                    debug "Already exported: $href->{'mntpoint'}\n" if ( $opts->{verbose} );
-                    $is_shared = 1;
+                unless ( -d $href->{'mntpoint'} ) {
+                    $opts->{LASTERROR} = "Distro share point does not exist: $href->{'mntpoint'}: $!";
+                    error $opts->{LASTERROR};
+                    next;
                 }
-            }
-            next if ( $is_shared );
+    
+                my $is_shared = 0;
+                foreach ( @share ) {
+                    if (/$href->{'mntpoint'}/) {
+                        debug "Already exported: $href->{'mntpoint'}\n" if ( $opts->{verbose} );
+                        $is_shared = 1;
+                    }
+                }
+                next if ( $is_shared );
 
-            # Solaris NFSv4 workaround
-            $href->{'mntpoint'} = &solaris_nfs_waround( $opts, $href->{'mntpoint'} ) if ( $href->{distroid} =~ /solaris/ );
+                # Solaris NFSv4 workaround
+                $href->{'mntpoint'} = &solaris_nfs_waround( $opts, $href->{'mntpoint'} ) if ( $href->{distroid} =~ /solaris/ );
 
-            debug "exporting $href->{'mntpoint'} \n" if ( $opts->{verbose} );
-            system("exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$href->{'mntpoint'}") == 0 or die;
+                debug "exporting $href->{'mntpoint'} \n" if ( $opts->{verbose} );
+                system("exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$href->{'mntpoint'}") == 0 or die;
 
-        } while ( $href = $sth->fetchrow_hashref() );
+            } while ( $href = $sth->fetchrow_hashref() );
+        }
     };
     if ( $@ ) {
         $opts->{LASTERROR} = subroutine_name." : ".$@;
@@ -2386,6 +2413,41 @@ sub get_enabled_distro_list
         $sth->execute( $status );
         while ( my $distro = $sth->fetchrow_array() ) {
             push @distros, $distro;
+        }
+        $sth->finish;
+        undef $sth;
+    };
+    if ( $@ ) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+        return @distros;
+    }
+
+    return @distros;
+}
+
+sub get_inactive_distro_list
+{
+    my $opts  = shift;
+    my @distros = ();
+
+    my $sql = qq|SELECT distroid, status
+                 FROM $baTbls{'distro'}
+                |;
+
+    my $sth;
+    my $href;
+
+    eval {
+        $sth = database->prepare( $sql );
+        $sth->execute( );
+        while ( $href = $sth->fetchrow_hashref() ) {
+            unless ( defined $href->{status} ) {
+                push @distros, $href->{distroid};
+            }
+            if ( ( defined $href->{status} ) and ( $href->{status} == 3 ) ) {
+                push @distros, $href->{distroid};
+            }
         }
         $sth->finish;
         undef $sth;

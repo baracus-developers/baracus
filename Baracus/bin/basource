@@ -1,49 +1,21 @@
 #!/usr/bin/perl -w
 
-###########################################################################
-#
-# Baracus build and boot management framework
-#
-# Copyright (C) 2010 Novell, Inc, 404 Wyman Street, Waltham, MA 02451, USA.
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the Artistic License 2.0, as published
-# by the Perl Foundation, or the GNU General Public License 2.0
-# as published by the Free Software Foundation; your choice.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  Both the Artistic
-# Licesnse and the GPL License referenced have clauses with more details.
-#
-# You should have received a copy of the licenses mentioned
-# along with this program; if not, write to:
-#
-# FSF, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110, USA.
-# The Perl Foundation, 6832 Mulderstraat, Grand Ledge, MI 48837, USA.
-#
-###########################################################################
-
 use strict;
 
 use Getopt::Long qw( :config pass_through );
 use Pod::Usage;
-use File::Find;
-use File::Path;
+use LWP;
+use HTTP::Cookies;
+use Term::ReadKey;
+use XML::Simple;
 
 use lib "/usr/share/baracus/perl";
 
-use SqlFS;
-use BaracusDB;
 use BaracusCore   qw( :subs );
 use BaracusConfig qw( :vars :subs );
 use BaracusState  qw( :vars :admin );
 use BaracusSource qw( :vars :subs );
-use BaracusAux    qw( :subs );
 
-my $source_handlers;
-BEGIN { $source_handlers = '/usr/share/baracus/source_handlers'; }
-use lib $source_handlers;
 
 =pod
 
@@ -88,10 +60,6 @@ This tool assists with the downloading of distribution iso files, the creation o
 =over 4
 
 =item -v --verbose Be verbose with output
-
-=item -q --quiet  Be as quiet as possible
-
-=item -n --nolabels  Do not print headers/footers
 
 =back
 
@@ -143,58 +111,61 @@ GetOptions(
 if ($ARGV[0] eq "man"  ) { &man(); }
 if ($ARGV[0] eq "help" ) { shift @ARGV; &help( $opts, $cmds, @ARGV ); }
 
-# wait till here to barf on this so help is available even with bad sysconfig
-unless ($baVar{serverip}) {
-    print "Please edit /etc/sysconfig/baracus and set SERVER_IP=<server>\n";
+## Setup base URL and PORT
+my $port = undef;
+if ( $baVar{port} ) {
+    $port = $baVar{port};
+} else {
+    $port = "80";
+}
+
+my $baseurl = undef;
+if ( $baVar{url} ) {
+    $baseurl = $baVar{url};
+} elsif ( $baVar{serverip} ) {
+    $baseurl = $baVar{serverip};
+} else {
+    print "Edit /etc/sysconfig/baracus to include a ServerIP or URL\n";
     exit 1;
 }
 
-my $dbname = "baracus";
-my $dbrole = $dbname;
+print "Using: $baseurl \n" if ($opts->{debug});
+print "Using: $port\n" if ($opts->{debug});
 
-my $dbtftp = "sqltftp";
+# Setup LWP
+my $browser = LWP::UserAgent->new( );
+$browser->cookie_jar( {} );
+$browser->agent('baracus');
+$browser->default_header('Accept' => 'text/xml');
 
-print "setting uid to $dbrole\n" if ($opts->{debug} > 2);
-
-my $uid = BaracusDB::su_user( $dbrole );
-die BaracusDB::errstr unless ( defined $uid );
-
-my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
-die BaracusDB::errstr unless( $dbh );
-
-print "basource debug=$opts->{debug}\n" if $opts->{debug};
-my $deepdebug = $opts->{debug} > 2 ? 1 : 0;
-my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp;port=5162",
-                           'User' => "baracus",
-                           'debug' => $deepdebug )
-    or die "Unable to create new instance of SqlFS\n";
-
-# connected as baracus - continue as root
-# and swithc to baracus as needed in subroutines
-print "setting uid back to $uid\n" if ($opts->{debug} > 2);
-$> = $uid;
-
-$opts->{dbh}      = $dbh;
-$opts->{dbrole}   = $dbrole;
-$opts->{sqlfsOBJ} = $sqlfsOBJ;
-$opts->{baXML}    = &baxml_load_distros( $opts );
-
-my $status;
-# sidestep list of cmds - provide
-if ( $ARGV[0] eq "prepdbwithxml" ) {
-    # unadvertised method to initialize distro relations
-    $status = &prepdbwithxml( $opts );
-} elsif ( $ARGV[0] eq "purgedbofxml" ) {
-    # unadvertised method to purge distro relations
-    $status = &purgedbofxml( $opts );
+## Authenticate request
+my $username = "";
+my $password = "";
+if ( -f "$ENV{HOME}/.barc") {
+    print "We have a file\n" if ($opts->{debug});
+    open(FILE, "<$ENV{HOME}/.barc");
+    while (<FILE>) {
+        if (/username/) { chomp ( $username = (split /=/, $_)[1] ); }
+        if (/password/) { chomp ( $password = (split /=/, $_)[1] ); }
+    }
 } else {
-    $status = &main( $opts, $cmds, @ARGV );
+    print "enter username: ";
+    chomp($username = ReadLine 0);
+
+    print "enter password: ";
+    ReadMode 'noecho';
+    chomp($password = ReadLine 0);
+    ReadMode 'normal';
+    print "\n";
 }
-$sqlfsOBJ->discard();
+my $login_url = "http://$baseurl:$port/login?username=$username&password=$password";
+my $login_response = $browser->post( $login_url );
 
-die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+my $status = &main( $opts, $cmds, @ARGV );
 
-print $opts->{LASTERROR} if $status;
+my $logout_url = "http://$baseurl:$port/logout";
+my $logout_response = $browser->get( $logout_url );
+print $logout_response->content;
 
 exit $status;
 
@@ -211,14 +182,10 @@ Where
 
   --distro <name>  specifies the full name of the base distribution
                    to use, e.g., sles-11-x86_64, sles-10.2-x86_64,
-                   opensuse-11.1-x86
+                   opensuse-11.1-i586
 
-  --addons <name>  specifies any addon(s) to layer over the base
-                   distribution sles-10.2-rt-x86_64, sles-11-ha-x86
-
-  --sdks   <name>  specifies any sdk(s) to layer over the base
-
-  --duds <name>    specifies any addon(s) to layer over the base
+  --addon <name>   specifies any addon(s) to layer over the base
+                   distribution sles-10.2-rt-x86_64, sles-11-hae-i586
 
   --no-loopback    Force source trees to be synced to local directory
   --check          Force check of the ISOs already present
@@ -229,156 +196,58 @@ Where
 
 sub add() {
 
-    my $command = 'add';
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $distro  = "";
-    my $addons  = "";
-    my $sdks    = "";
-    my $duds    = "";
+    my $verb = 'add';
+    my $distro = "";
+    my $addons = "";
     my $proxy;
     my $check;
     my $isos;
     my $loopback = 1;
 
-    @ARGV = @_;
-
     GetOptions(
                'distro=s'  => \$distro,
                'addons=s'  => \&multiarg_handler,
-               'sdks=s'    => \&multiarg_handler,
-               'duds=s'    => \&multiarg_handler,  
                'proxy'     => \$proxy,
                'check'     => \$check,
                'isos|i'    => \$isos,
-               'loopback!' => \$loopback,
                );
 
+    unless ( defined $distro ) {
+        print "--distro <distro> required\n";
+        return 1;
+    }
+
     if ( scalar @ARGV ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &help( $opts, $cmds, $command );
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
     }
 
-    ## Test if selection is valid
-    ##
-    $distro = lc $distro;
-    &check_distro( $opts, $distro );
+    my $url = "http://$baseurl:$port/source/$verb";
+    $url .= "?distro=$distro";
 
-    # Build up extras (ie. addons, sdks and duds)
-    my $extras = "";
-    $extras = $extras . " $multiarg{ addons }" if ( defined $multiarg{ addons } );
-    $extras = $extras . " $multiarg{ sdks }" if ( defined $multiarg{ sdks } );
-    $extras = $extras . " $multiarg{ duds }" if ( defined $multiarg{ duds } );
-    $extras =~ s/^\s+//;
+    my $response = $browser->post( $url );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
 
-    if ( $extras ) {
-        print "Calling routine to verify additional source(s) passed\n" if $opts->{verbose};
-        return 1 if &check_extras( $opts, $distro, $extras );
-    }
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
 
-    # do we include anything in this distros
-    my $includes = &get_distro_includes( $opts, $distro );
-    if ( defined $includes ) {
-        my $incchk = &get_db_data( $dbh, 'distro', $includes );
-        unless ( defined $incchk->{state} ) { 
-            $extras = "$extras "  . $includes;
-            $extras =~ s/^\s+//;
-        }  # else include is already present in distro table
-    }
-
-    my $checkhr = {};
-    if ( $isos ) {
-        return 1 if &download_iso( $opts, $distro, $extras, $proxy, $checkhr );
-    }
-
-    print "Calling routine to locate ISO files\n" if $opts->{verbose};
-
-    my $daisohr = &verify_iso( $opts, $distro, $extras, $isos, $check, $checkhr );
-
-    print "Calling routines to generate build tree\n" if $opts->{verbose};
-    if ( &make_paths( $opts, $distro, $extras, $daisohr, $loopback ) ) {
-        print "$opts->{LASTERROR}\n";
-        $opts->{LASTERROR} = "";
-    }
-
-    # Check to see if any extras are already installed
-    my @extras = split( /\s+/, $extras );
-    foreach my $item ( @extras ) {
-        if ( &is_source_installed( $opts, $item) ) {
-            $extras =~ s/$item\s*//;
-        }
-    }
-    undef @extras;
-    @extras = split( /\s+/, $extras );
-
-    if ( &add_build_service( $opts, $distro, $extras ) ) {
-        print "$opts->{LASTERROR}\n";
-        $opts->{LASTERROR} = "";
-    }
-
-    ## Call to external post add scriptlets
-    my $dhandler = ucfirst $distro;
-    $dhandler =~ s/\.//g;
-    $dhandler =~ s/-/_/g;
-    $dhandler = $dhandler . ".pm";
-    if (-e "$source_handlers/$dhandler") {
-        require $dhandler;
-        $dhandler =~ s/\.pm//g;
-        $dhandler->import(qw(external_source_handler));
-        print "loading external source handler $distro function: $command\n" if $opts->{verbose};
-        &external_source_handler( "preadd", $opts, $distro );
-    }
-
-    # Add base distro
-    unless ( &is_source_installed( $opts, $distro ) ) {
-        print "Calling routine to configure bootloader\n" if $opts->{verbose};
-        &add_bootloader_files( $opts, $distro );
-        &source_register( $opts, $command, $distro );
-        $dhandler = $dhandler . ".pm";
-        if (-e "$source_handlers/$dhandler") {
-            require $dhandler;
-            $dhandler =~ s/\.pm//g;
-            $dhandler->import(qw(external_source_handler));
-            print "loading external source handler $distro function: $command\n" if $opts->{verbose};
-            &external_source_handler( "postadd", $opts, $distro );
-        }
-    }
-
-    # Add all extras
-    foreach my $extra ( @extras ) {
-        my $eh = &get_db_data( $dbh, 'distro', $extra );
-        if ( $eh->{type} == BA_SOURCE_DUD ) {
-            print "Calling routine to configure DUD bootloader\n" if $opts->{verbose};
-            &add_dud_initrd( $opts, $distro, $extra )
-        }
-        &source_register( $opts, $command, $extra );
-    }
+    print $response->content;
 
     return 0;
+
 }
 
-=head2 update --distro <name> [--addon <addos> ...] { [ --sharetype <type> ] [--shareip <ip> ] }
+=head2 update --distro <name> [--addon <addos> [--addon ...]] [ --all ]
 
 Where
 
   --distro <name>  specifies the full name of the base distribution
                    to update, e.g., sles-11-x86_64, sles-10.2-x86_64,
-                   opensuse-11.1-x86
+                   opensuse-11.1-i586
 
-  --addons <name>  specifies the addon(s) to be updated. like these
-                   distributions sles-10.2-rt-x86_64, sles-11-ha-x86
-
-  --sdks <name>    specifies the sdk(s) to be updated. like these
-
-  --duda <name>    specifies the addon(s) to be updated. like these
-
-  --sharetype <type> where type is nfs or http
-
-  --shareip <ip>   where the ip is that of the sharetype server for
-                   the distro (and addons) specified.
+  --addon <name>   specifies the addon(s) to be updated. like these
+                   distributions sles-10.2-rt-x86_64, sles-11-hae-i586
 
   --all            update all the addons and the base distro.
 
@@ -388,163 +257,46 @@ Without specifying --all, update will not update the base distro if it has any a
 
 sub update() {
 
-    my $command = 'update';
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
+    my $verb = 'update';
     my $distro;
-    my $extras = "";
-    my @extras;
     my $sharetype = "";
     my $shareip = "";
-    my $dbref;
-    my $ret = 0;
 
     @ARGV = @_;
 
     GetOptions(
                'distro=s'    => \$distro,
                'addons=s'    => \&multiarg_handler,
-               'sdks=s'      => \&multiarg_handler,
-               'duds=s'      => \&multiarg_handler,
                'sharetype=s' => \$sharetype,
                'shareip=s'   => \$shareip,
                );
 
-    if ( scalar @ARGV ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &help( $opts, $cmds, $command );
-    }
-
-    ## Test if selection is valid
-    ##
-    $distro = lc $distro;
-    &check_distro( $opts, $distro );
-
-     # Build up extras (ie. addons, sdks and duds)
-    $extras = $extras . " $multiarg{ addons }" if ( defined $multiarg{ addons } );
-    $extras = $extras . " $multiarg{ sdks }" if ( defined $multiarg{ sdks } );
-    $extras = $extras . " $multiarg{ duds }" if ( defined $multiarg{ duds } );
-    $extras =~ s/^\s+//;
-
-    my $is_extra_passed;
-    $is_extra_passed = 1 if ( $extras );
-
-    ## Check if extras installed and not updated
-    if ( ( ! $is_extra_passed ) and ( ! $opts->{all} ) ) {
-        my @extchk = &list_installed_extras( $opts, $distro );
-        if ( scalar @extchk > 1 ) {
-            $opts->{LASTERROR} = "Update these extras before updating $distro (or use --all)\n\t" . join ("\n\t", @extchk ) . "\n";
-             return 1;
-        }
-    }
-
-    if ( $extras ) {
-        print "Calling routine to verify additional source(s) passed\n" if $opts->{verbose};
-        return 1 if &check_extras( $opts, $distro, $extras );
-    }
-
-    unless (( $shareip ne "" ) || ( $sharetype ne "" ))  {
-        $opts->{LASTERROR} = "update requires either --sharetype or --shareip\n";
+    unless ( defined $distro ) {
+        print "--distro <distro> required\n";
         return 1;
     }
 
-
-    if ( $opts->{all} and $extras ) {
-            $opts->{LASTERROR} = "Unsafe mix of --all and --addon <addon> usage\n";
-            return 1;
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
     }
 
-    if ( $sharetype ne "") {
-        unless (( $sharetype eq "nfs" ) || ( $sharetype eq "http" )) {
-            $opts->{LASTERROR} = "$sharetype not valid. (supported types: nfs/http) \n";
-            return 1;
-        }
-    }
+    my $url = "http://$baseurl:$port/source/$verb";
+    $url .= "?distro=$distro";
+    $url .= "&sharetype=$sharetype" if (defined $sharetype);
+    $url .= "&shareip=$shareip" if (defined $shareip);
 
-    my $dh =  &baxml_distro_gethash( $opts, $distro );
+    my $response = $browser->post( $url );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
 
-    if ( $opts->{all} ) {
-        @extras = @{$dh->{basedisthash}->{addons}} if (defined $dh->{basedisthash}->{addons} );
-        foreach my $item ( @extras ) {
-            if ( &is_source_installed( $opts, $item ) ) {
-                $extras = $extras . " $item";
-            }
-        }
-        $extras =~ s/^\s+//;
-        print "working with 'all': $extras\n" if $opts->{debug};
-    }
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
 
-    # do we include anything in this distros
-    unless ( ( $is_extra_passed ) and ( ! $opts->{all} ) ) {
-        my $includes = &get_distro_includes( $opts, $distro );
-        if ( ( defined $includes ) and
-             ( ! grep $includes, @extras ) ) {
-            my $incchk = &get_db_data( $dbh, 'distro', $includes );
-            unless ( defined $incchk->{state} ) {
-                $extras = "$extras "  . $includes;
-                $extras =~ s/^\s+//;
-            }  # else include is already present in distro table
-        }
-    }
-    undef @extras;
-    @extras = split( /\s+/, $extras );
-
-    # Update extras
-    if ( scalar @extras ) {
-        foreach my $extra ( @extras ) {
-            my @shares;
-            print "Updating extra $extra\n";
-            if ( $sharetype ne "" ) {
-                $dbref = &get_db_source_entry( $opts, $extra );
-                if ( &remove_build_service( $opts, $extra ) ) {
-                    print "$opts->{LASTERROR}\n";
-                    $opts->{LASTERROR} = "";
-                }
-                &update_db_source_entry( $opts, $sharetype, "", $extra);
-                &update_db_iso_entry( $opts, $extra, $sharetype );
-                if ( &add_build_service( $opts, $extra ) ) {
-                    print "$opts->{LASTERROR}\n";
-                    $opts->{LASTERROR} = "";
-                }
-                print "$sharetype ... Updated\n" if $opts->{verbose};
-            }
-            if ( $shareip ne "" ) {
-                &update_db_source_entry( $opts, "", $shareip, $extra);
-                print "$shareip ... Updated\n" if $opts->{verbose};
-            }
-        }
-    }
-
-    # Update base
-    unless ( ( $is_extra_passed ) and ( ! $opts->{all} ) ) {
-        my $dh = &baxml_distro_gethash( $opts, $distro );
-
-        if ( $sharetype ne "" ) {
-            $dbref = &get_db_source_entry( $opts, $distro );
-
-            if ( &remove_build_service( $opts, $distro ) ) {
-                print "$opts->{LASTERROR}\n";
-                $opts->{LASTERROR} = "";
-            }
-            &update_db_source_entry( $opts, $sharetype, "", $distro );
-            &update_db_iso_entry( $opts, $distro, $sharetype );
-
-            if ( &add_build_service( $opts, $distro ) ) {
-                print "$opts->{LASTERROR}\n";
-                $opts->{LASTERROR} = "";
-            }
-            print "$sharetype ... updated\n" if $opts->{verbose};
-        }
-        if ( $shareip ne "" ) {
-                print "Update ShareIP\n";
-                &update_db_source_entry( $opts, "", $shareip, $distro );
-        }
-    } 
+    print $response->content;
 
     return 0;
+
 }
 
 =head2 remove --distro <name> [--addon <addos> [--addon ...]] [ --all ]
@@ -553,14 +305,10 @@ Where
 
   --distro <name>  specifies the full name of the base distribution
                    to remove, e.g., sles-11-x86_64, sles-10.2-x86_64,
-                   opensuse-11.1-x86
+                   opensuse-11.1-i586
 
   --addon <name>   specifies the addon(s) to be removed. like these
-                   distributions sles-10.2-rt-x86_64, sles-11-ha-x86
-
-  --sdks <name>    specifies the sdks to be removed
-
-  --duds <name>    specifies the duds to be removed
+                   distributions sles-10.2-rt-x86_64, sles-11-hae-i586
 
   --all            remove all the addons and the base distro.
 
@@ -570,195 +318,40 @@ Without specifying --all, remove will not remove the base distro if it has any a
 
 sub remove() {
 
-    my $command = 'remove';
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
+    my $verb = 'remove';
     my $distro;
-    my $extras = "";
-    my @extras;
-    my $shares;
-    my $is_loopback = "";
-    my $ret = 0;
 
     @ARGV = @_;
 
     GetOptions(
                'distro=s'  => \$distro,
                'addons=s'  => \&multiarg_handler,
-               'sdks=s'    => \&multiarg_handler,
-               'duds=s'    => \&multiarg_handler,
                );
 
-    if ( scalar @ARGV ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &help( $opts, $cmds, $command );
-    }
-
-    # Build up extras
-    $extras = $extras . " $multiarg{ 'addons' }" if ( defined $multiarg{ 'addons' } );
-    $extras = $extras . " $multiarg{ 'sdks' }" if ( defined $multiarg{ 'sdks' } );
-    $extras = $extras . " $multiarg{ 'duds' }" if ( defined $multiarg{ 'duds' } );
-    $extras =~ s/^\s+// if ( defined $extras );
-
-    my $is_extra_passed;
-    $is_extra_passed = 1 if ( $extras );
-
-    ## Test if selection is valid
-    $distro = lc $distro;
-    &check_distro( $opts, $distro );
-
-    if ( ( $opts->{all} and $multiarg{ 'addons' } ) or
-         ( $opts->{all} and $multiarg{ 'sdks' } ) or
-         ( $opts->{all} and $multiarg{ 'duds' } ) ) {
-        $opts->{LASTERROR} = "Unsafe mix of --all and --addon/--sdk/--dud  usage\n";
+    unless ( defined $distro ) {
+        print "--distro <distro> required\n";
         return 1;
     }
 
-    my $dh =  &baxml_distro_gethash( $opts, $distro );
-
-    if ( $opts->{all} ) {
-        @extras = @{$dh->{basedisthash}->{addons}} if (defined $dh->{basedisthash}->{addons} );
-        foreach my $item ( @extras ) {
-            if ( &is_source_installed( $opts, $item ) ) {
-                $extras = $extras . " $item";
-            }
-        }
-        $extras =~ s/^\s+//;
-        print "working with 'all': $extras\n" if $opts->{debug};
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
     }
 
-    ## Are there any extras not removed dependant on base
-    if ( ( ! $extras ) and ( defined $distro ) ) {
-        my @extchk = &list_installed_extras( $opts, $distro );
-        my $extdep = 0;
-        foreach my $extchk (@extchk) {
-            next if ( $extchk eq &get_distro_includes( $opts, $distro ) );
-            if ( $extdep == 0 ) {
-                $extdep = 1;
-                $opts->{LASTERROR} = "Unable to remove $distro with dependent(s):\n";
-            }
-            $opts->{LASTERROR} .= "\t$extchk\n";
-        }
-        if ( $extdep ) {
-            $opts->{LASTERROR} .= "\nTo remove this distro and all its dependents use:\n";
-            $opts->{LASTERROR} .= "\tbasource remove --distro $distro --all\n";
-            return 1;
-        }
-    }
+    my $url = "http://$baseurl:$port/source/$verb";
+    $url .= "?distro=$distro";
 
-    # do we include anything in this distros
-    unless ( ( $is_extra_passed ) and ( ! $opts->{all} ) ) {
-        my $includes = &get_distro_includes( $opts, $distro );
-        if ( ( defined $includes ) and
-             ( ! grep $includes, @extras ) ) {
-            my $incchk = &get_db_data( $dbh, 'distro', $includes );
-            unless ( defined $incchk->{state} ) {
-                $extras = "$extras "  . $includes;
-                $extras =~ s/^\s+//;
-            }  # else include is already present in distro table
-        }
-    }
-    undef @extras;
-    @extras = split( /\s+/, $extras );
+    my $response = $browser->post( $url );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
 
-    ## only check extras passed if not removing all
-    if ( scalar @extras ) {
-        print "Calling routine to verify extra(s) passed\n" if $opts->{verbose};
-        return 1 if &check_extras( $opts, $distro, $extras );
-    }
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
 
-    ## Call to external post add scriptlets for base distro
-    my $dhandler = ucfirst $distro;
-    $dhandler =~ s/\.//g;
-    $dhandler =~ s/-/_/g;
-    $dhandler = $dhandler . ".pm";
-    if (-e "$source_handlers/$dhandler") {
-        require $dhandler;
-        $dhandler =~ s/\.pm//g;
-        $dhandler->import(qw(external_source_handler));
-        print "loading external source handler $distro function: $command\n" if $opts->{verbose};
-        &external_source_handler( "preremove", $opts, $distro );
-    }
-
-    ## Remove all extras
-    if ( scalar @extras ) {
-        foreach my $extra ( @extras ) {
-            if ( &is_extra_dependant( $opts, $distro, $extra ) ) {
-                print "Leaving $extra - required for other installed distro\n" if $opts->{verbose};
-            } else {
-                if ( &is_source_installed( $opts, $extra ) ) {
-                    print "Removing extra $extra\n" if $opts->{verbose};
-                    ($shares, undef) = &get_distro_share( $opts, $extra );
-                    $is_loopback = &is_loopback( $opts, @$shares[0] );
-                    if ( &remove_build_service( $opts, "", $extra ) ) {
-                        $opts->{LASTERROR} = "";
-                    }
-                    print "@$shares[0] ... removing\n" if $opts->{verbose};
-                    if ( $is_loopback ) {
-                        my $mntchk = `mount | grep @$shares[0] | grep -v ^@$shares[0]`;
-                        $mntchk = (split / /, $mntchk)[2];
-                        if ( ( defined $mntchk ) and
-                             (  $mntchk eq @$shares[0] ) ) {
-                            $ret = system("umount @$shares[0]");
-                            if ( $ret > 0 ) {
-                                $opts->{LASTERROR} = "loopback unmount failed\n";
-                                return 1;
-                            }
-                        }
-                        rmdir(@$shares[0]);
-                    } else {
-                        rmtree(@$shares[0]);
-                    }
-                    my $dudh = &get_db_data( $dbh, 'distro', $extra );
-                    if ( $dudh->{type} == BA_SOURCE_DUD ) {
-                        &remove_dud_initrd( $opts, $extra )
-                    }
-                    &source_register( $opts, $command, $extra );
-                }
-            } 
-        }
-    }
-
-    ## Remove base distro
-    unless ( ( $is_extra_passed ) and ( ! $opts->{all} ) ) {
-        ($shares,undef) = &get_distro_share( $opts, $distro );
-        if ( &remove_build_service( $opts, $distro, "" ) ) {
-            print "$opts->{LASTERROR}\n";
-            $opts->{LASTERROR} = "";
-        }
-        foreach my $share ( @$shares ) {
-            $is_loopback = &is_loopback( $opts, $share );
-            print "$share ... removing\n" if $opts->{verbose};
-            if ( $is_loopback ) {
-                my $mntchk = `mount | grep $share| grep -v ^$share`;
-                $mntchk = (split / /, $mntchk)[2];
-                if ( ( defined $mntchk ) and 
-                     ( $mntchk eq $share ) ) {
-                    $ret = system("umount $share");
-                    if ( $ret > 0 ) {
-                        $opts->{LASTERROR} = "loopback unmount failed\n";
-                        return 1;
-                    }
-                }
-                rmdir($share);
-            } 
-        }
-        &remove_bootloader_files( $opts, $distro );
-        &source_register( $opts, $command, $distro);
-        $dhandler = $dhandler . ".pm";
-        if (-e "$source_handlers/$dhandler") {
-            require $dhandler;
-            $dhandler =~ s/\.pm//g;
-            $dhandler->import(qw(external_source_handler));
-            print "loading external source handler $distro function: $command\n" if $opts->{verbose};
-            &external_source_handler( "postremove", $opts, $distro );
-        }
-    }
+    print $response->content;
 
     return 0;
+
 }
 
 =head2 enable { --distro <name> | --addon <name> }
@@ -771,12 +364,8 @@ Where
 
 sub enable() {
 
-    my $command = 'enable';
+    my $verb = 'enable';
     my $distro;
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
 
     @ARGV = @_;
 
@@ -785,38 +374,30 @@ sub enable() {
                'addon=s'   => \$distro,
                );
 
+    unless ( defined $distro ) {
+        print "--distro <distro> required\n";
+        return 1;
+    }
+
     if ( scalar @ARGV ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &help( $opts, $cmds, $command );
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
     }
+    
+    my $url = "http://$baseurl:$port/source/$verb";
+    $url .= "?distro=$distro";
 
-    $distro = lc $distro;
-    &check_either( $opts, $distro );
+    my $response = $browser->post( $url );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
 
-    my $dbref = &get_db_source_entry( $opts, $distro );
-    unless ( defined $dbref->{distroid} and
-             ( $dbref->{distroid} eq $distro ) ) {
-        $opts->{LASTERROR} = "Unable to find entry for $distro to enable\n";
-        return 1;
-    }
-    unless ( defined $dbref->{status} and
-             ( $dbref->{status} != BA_ADMIN_REMOVED ) ) {
-        $opts->{LASTERROR} = "Unable to enable $distro not yet added.\n";
-        return 1;
-    }
-    if ( $dbref->{status} != BA_ADMIN_DISABLED ) {
-        $opts->{LASTERROR} = "Unable to enable $distro not disabled.\n";
-        return 1;
-    }
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
 
-    print "Enabling $distro\n";
+    print $response->content;
 
-    if ( &add_build_service( $opts, $distro ) ) {
-        print "$opts->{LASTERROR}\n";
-        $opts->{LASTERROR} = "";
-    }
+    return 0;
 
-    &source_register( $opts, $command, $distro );
 }
 
 =head2 disable { --distro <name> | --addon <name> }
@@ -825,18 +406,14 @@ Where
 
   --distro <name>  specifies the full name of the distribution to
                    use, e.g., sles-11-x86_64, sles-10.2-rt-x86_64,
-                   opensuse-11.1-x86, sles-11-ha-x86
+                   opensuse-11.1-i586, sles-11-hae-i586
 
 =cut
 
 sub disable() {
 
-    my $command = 'disable';
+    my $verb = 'disable';
     my $distro;
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
 
     @ARGV = @_;
 
@@ -845,40 +422,32 @@ sub disable() {
                'addon=s'   => \$distro,
                );
 
+    unless ( defined $distro ) {
+        print "--distro <distro> required\n";
+        return 1;
+    }
+
     if ( scalar @ARGV ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &help( $opts, $cmds, $command );
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
     }
 
-    $distro = lc $distro;
-    &check_either( $opts, $distro );
+    my $url = "http://$baseurl:$port/source/$verb";
+    $url .= "?distro=$distro";
 
-    my $dbref = &get_db_source_entry( $opts, $distro );
-    unless ( defined $dbref->{distroid} and
-             ( $dbref->{distroid} eq $distro ) ) {
-        $opts->{LASTERROR} = "Unable to find entry for $distro to enable\n";
-        return 1;
-    }
-    unless ( defined $dbref->{status} and
-             ( $dbref->{status} != BA_ADMIN_REMOVED ) ) {
-        $opts->{LASTERROR} = "Unable to disable $distro not yet added.\n";
-        return 1;
-    }
-    if ( $dbref->{status} != BA_ADMIN_ENABLED ) {
-        $opts->{LASTERROR} = "Unable to disable $distro not enabled.\n";
-        return 1;
-    }
+    my $response = $browser->post( $url );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
 
-    print "Disabling $distro\n";
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
 
-    if ( &remove_build_service( $opts, $distro ) ) {
-        print "$opts->{LASTERROR}\n";
-        $opts->{LASTERROR} = "";
-    }
-    &source_register( $opts, $command, $distro);
+    print $response->content;
+
+    return 0;
 }
 
-=head2 verify { --distro <name> | --addon <name> | --sdk <name> | --dud <name> }
+=head2 verify { --distro <name> | --addon <name> }
 
 Verify some details for the distro or addon specified
 
@@ -886,118 +455,53 @@ Verify some details for the distro or addon specified
 
 sub verify() {
 
-    my $command = 'verify';
+    my $verb = 'verify';
     my $distro;
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
 
     @ARGV = @_;
 
     GetOptions(
                'distro=s'  => \$distro,
                'addon=s'   => \$distro,
-               'sdk=s'     => \$distro,
-               'dud=s'     => \$distro,
                );
 
-    if ( scalar @ARGV ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &help( $opts, $cmds, $command );
-    }
-
-    $distro = lc $distro;
-    &check_either( $opts, $distro );
-
-    my $dbref = &get_db_source_entry( $opts, $distro );
-
-    unless ( defined $dbref and
-             $dbref->{status} and
-             $dbref->{status} != BA_ADMIN_REMOVED ) {
-        $opts->{LASTERROR} = "No entry found for $distro\n";
+    unless ( defined $distro ) {
+        print "--distro <distro> required\n";
         return 1;
     }
 
-    if ( $opts->{debug} > 2 ) {
-        while ( my ($key, $val) = each %{$dbref} ) {
-            print "dbref $key => $val\n";
-        }
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
     }
 
-    print "Target:\t\t$dbref->{distroid}\n";
-    print "Created:\t$dbref->{creation}\n";
-    print "Modified:\t$dbref->{change}\n" if defined $dbref->{change};
-    print "Status:\t\t$baState{ $dbref->{status}}\n";
-    print "Service:\t$dbref->{sharetype}";
-    if ( &check_service( $opts, $dbref->{sharetype} ) ) {
-        print " not running";
-    } elsif ( $opts->{verbose} ) {
-        print " ok";
-    }
-    print "\n";
-    print "Share IP:\t$dbref->{shareip}\n";
+    my $url = "http://$baseurl:$port/source/$verb/$distro";
 
-    my $oldshare = "";
+    my $response = $browser->get( $url );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
 
-    if ($dbref->{sharetype} eq "nfs") {
-        &start_iff_needed_service( $opts, $dbref->{sharetype} );
-    }
-    foreach my $prod ( &baxml_products_getlist( $opts, $distro ) ) {
-        my ($netcfg, $share, $state) = &check_service_product( $opts, $distro, $prod, $dbref->{sharetype} );
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
 
-        if ( $oldshare ne $share ) {
-            $oldshare = $share;
+    my $xml = new XML::Simple;
+    my $data = $xml->XMLin( $response->content );
 
-            print "Share:\t\t$netcfg";
-            if ( not $state ) {
-                print " missing";
-            } elsif ( $opts->{verbose} ) {
-                print " ok";
-            }
-            print "\n";
+    printf "%-14s $data->{target}\n", "Target:";
+    printf "%-14s $data->{creation}\n", "Created:";
+    printf "%-14s $data->{change}\n", "Modified:" if (defined $data->{change});
+    printf "%-14s $baState{ $data->{status} }\n", "Status:";
+    printf "%-14s $data->{sharetype}\n", "Service:";
+    printf "%-14s $data->{shareip}\n", "Share IP:";
+    printf "%-14s $data->{share} $data->{sharestatus}\n", "Share:";
+    printf "%-14s $data->{path}\n", "Path:";
+    printf "%-14s $data->{kernel} $data->{kernelstatus}\n", "kernel:";
+    printf "%-14s $data->{initrd} $data->{ramdiskstatus}\n", "ramdisk:";
 
-            print "Path:\t\t$share";
-            if ( not -d $share ) {
-                print " missing";
-            } elsif ( $opts->{verbose} ) {
-                print " ok";
-            }
-            print "\n";
-        }
-    }
-
-    my $dh = &baxml_distro_gethash( $opts, $distro );
-    my $base = $dh->{basedist};
-
-    my $state = &sqlfs_getstate( $opts, "linux.$base" );
-    print "kernel:\t\tlinux.$base";
-    if ( not $state ) {
-        print " missing";
-    } else {
-        if ( $state != 1 ) {
-            print " disabled";
-        } elsif ( $opts->{verbose} ) {
-            print " ok";
-        }
-    }
-    print "\n";
-
-    $state = &sqlfs_getstate( $opts, "initrd.$base" );
-    print "ramdisk:\tinitrd.$base";
-    if ( not $state ) {
-        print " missing";
-    } else {
-        if ( $state != 1 ) {
-            print " disabled";
-        } elsif ( $opts->{verbose} ) {
-            print " ok";
-        }
-    }
-    print "\n";
+    return 0;
 }
 
-=head2 detail { --distro <name> | --addon <name> | --sdk <name> | --dud <name> }
+=head2 detail { --distro <name> | --addon <name> }
 
 Displays many details for the distribution specified
 
@@ -1005,82 +509,38 @@ Displays many details for the distribution specified
 
 sub detail() {
 
-    my $command = 'detail';
+    my $verb = 'detail';
     my $distro;
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
 
     @ARGV = @_;
 
     GetOptions(
                'distro=s'  => \$distro,
                'addon=s'   => \$distro,
-               'sdk=s'     => \$distro,
-               'dud=s'     => \$distro,
                );
 
+    unless ( defined $distro ) {
+        print "--distro <distro> required\n";
+        return 1;
+    }
+
     if ( scalar @ARGV ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &help( $opts, $cmds, $command );
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
     }
 
-    $distro = lc $distro;
-    &check_either( $opts, $distro );
+    my $url = "http://$baseurl:$port/source/$verb/$distro";
 
-    my $dbref = &get_db_source_entry( $opts, $distro );
-    if ( defined $dbref and
-         defined $dbref->{status} )
-    {
-        $status = $baState{ $dbref->{status} };
-    } else {
-        $status = $baState{ BA_NONE };
-    }
+    my $response = $browser->get( $url );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
 
-    my $dh = &baxml_distro_gethash( $opts, $distro );
-    my $bh = $dh->{basedisthash};
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
 
-    my %iodhash;
+    print $response->content;
 
-    find ( { wanted =>
-             sub {
-                 $iodhash{$_} .= "$File::Find::name ";
-             },
-             follow => 1
-            },
-           $baDir{isos} );
-
-    print "\nDetails for $distro\n";
-    print "With current status '$status'\n";
-    if ($dh->{requires}) {
-        print "Add-on product extending $dh->{basedist}\n";
-    } else {
-        print "Base product";
-        if ( $bh->{addons} and scalar @{$bh->{addons}} ) {
-            print " supporting extension(s):  " .
-                join (", ", (sort @{$bh->{addons}} ) );
-        }
-        print "\n";
-    }
-
-    print "Based on product(s):  " .
-        join (", ", ( sort &baxml_products_getlist( $opts, $distro ) ) ) . "\n";
-    foreach my $product ( sort &baxml_products_getlist( $opts,  $distro ) ) {
-        print "Detail for $product\n";
-        my $ph = &baxml_product_gethash( $opts, $distro, $product );
-        foreach my $iso ( sort &baxml_isos_getlist( $opts, $distro, $product ) ) {
-            my $ih = &baxml_iso_gethash( $opts, $distro, $product, $iso );
-            my $builds = $ih->{isopath};
-            my $isoexist = "-";
-            my $direxist = "-";
-            $isoexist = "+" if ( $iodhash{$iso} );
-            $direxist = "+" if ( -d $builds );
-
-            $builds =~ s|$baDir{builds}/||og;
-            printf "  %s $iso  =>  %s $builds\n", $isoexist, $direxist;
-        }
-    }
+    return 0;
 }
 
 =head2 list  [ base | addon ] [ --distro <name> | --addon <name> ] [ --all ]
@@ -1103,130 +563,52 @@ Options
 
 sub list() {
 
-    my $command = 'list';
-
+    my $verb = "list";
     my $distro;
-    my $base = "";
-    my $addon = "";
-    my $sdk = "";
-    my $dud = "";
-    my $wildcard = 0;
 
     @ARGV = @_;
 
     GetOptions(
                'distro=s'  => \$distro,
                'addon=s'   => \$distro,
-               'sdk=s'     => \$distro,
-               'dud=s'     => \$distro,
                );
 
-    if ( defined $distro ) {
-        $distro = lc $distro ;
-        if ( $distro =~ m|\*| ) {
-            $distro =~ s|\*|.*|g;
-            $wildcard = 1;
-        }
-    } else {
-        $distro = "";
+    unless ( defined $distro ) {
+        print "--distro <distro> required\n";
+        return 1;
     }
 
-    my $name = "distro";
     if ( scalar @ARGV ) {
-        if ( $ARGV[0] eq "base" ) {
-            $base = shift @ARGV;
-            $name = "base";
-        }
-        elsif ( $ARGV[0] eq "addon" ) {
-            $addon = shift @ARGV;
-            $name = "addon";
-        }
-        elsif ( $ARGV[0] eq "sdk" ) {
-            $sdk = shift @ARGV;
-            $name = "sdk";
-        }
-        elsif ( $ARGV[0] eq "dud" ) {
-            $dud = shift @ARGV;
-            $name = "dud";
-        }
-
-        if ( scalar @ARGV ) {
             printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-            &help( $opts, $cmds, $command );
-        }
+            &help( $opts, $cmds, $verb );
     }
 
-    #
-    # more like barepo than bahost this tools list relies on the
-    # badistro.xml and the populated builds and isos directories.
-    #
+    my $url = "http://$baseurl:$port/source/$verb/$distro";
 
+    my $response = $browser->get( $url );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
+
+    my $xml = new XML::Simple;
+    my $data = $xml->XMLin( $response->content );
+
+    ## Format and print
     unless ( $opts->{quiet} || $opts->{nolabels} ) {
-        print "--------------------------------------------------------------------------------------\n";
-        printf "%-28s %-8s %-8s description\n", $name, "type", "status";
-        print "--------------------------------------------------------------------------------------\n";
+        print "--------------------------------------------------------------------------------\n";
+        printf "%-28s %-8s %-8s description\n", "distro", "type", "status";
+        print "--------------------------------------------------------------------------------\n";
+    }
+    for my $distro ( sort keys %$data ) {
+        printf "%-28s %-8s %-8s $data->{$distro}->{description}\n", "$distro", "$data->{$distro}->{type}", "$data->{$distro}->{status}";
     }
 
-    foreach my $adistro ( reverse sort &baxml_distros_getlist( $opts ) ) {
-        my $dh = &baxml_distro_gethash( $opts, $adistro );
-        if ( $base ) {
-            next if ( $dh->{type} ne $badistroType{ BA_SOURCE_BASE } );
-        }
-        unless ( $addon or $sdk or $dud ) {
-            if ( $distro ) {
-                if ( $wildcard ) {
-                    next unless ( $adistro =~ m|$distro|o );
-                } else {
-                    next unless ( $adistro eq $distro );
-                }
-            }
-        }
-        if ( $addon or $sdk or $dud ) {
-            next if ($addon and $dh->{type} ne $badistroType{BA_SOURCE_ADDON} );
-            next if ($sdk   and $dh->{type} ne $badistroType{BA_SOURCE_SDK} );
-            next if ($dud   and $dh->{type} ne $badistroType{BA_SOURCE_DUD} );
-
-            if ( $distro ) {
-                if ( $wildcard ) {
-                    next unless ( $dh->{basedist} =~ m|$distro|o );
-                } else {
-                    next unless ( $dh->{basedist} eq $distro );
-                }
-            }
-        }
-        my $dbref = &get_db_source_entry( $opts, $adistro );
-        my $status;
-
-
-        if ( defined $dbref and
-             defined $dbref->{status} )
-        {
-            $status = $baState{ $dbref->{status} };
-        } else {
-            $status = $baState{ BA_NONE };
-        }
-
-        if ( ($status ne $baState{ BA_NONE }) and
-             ($status ne $baState{ BA_ADMIN_REMOVED })
-            )
-        {
-            printf "%-28s ", $adistro;
-            unless ( $opts->{quiet} ) {
-                printf "%-8s %-8s %s", $dh->{type}, $status, $dh->{description};
-            }
-            print "\n";
-        } elsif ( $opts->{all} ) {
-            printf "%-28s ", $adistro;
-            unless ( $opts->{quiet} ) {
-                printf "%-8s %-8s %s", $dh->{type}, $status, $dbref->{description};
-            }
-            print "\n";
-        }
-    }
     return 0;
 }
 
-=head2 init
+=head2 init [ --exports | --mounts] [ --all ]
 
   Initialize or sync distro share media mount/exports to internal table.
 
@@ -1236,40 +618,31 @@ sub list() {
   of the system boot initialization of Baracus but can be called explictly
   if media seems to be missing.
 
+Options
+
+    --exports        Export any media marked for export that is not already
+    --mounts         Mount and media marked for mount that is not already
+    --all            check for both out of sync exports and mounts
+
 =cut
 
 sub init() {
 
     my $command = 'init';
 
+    my $exports = 0;
+    my $mounts = 0;
+    my $all;
     my $ret = 0;
 
-    print "init mounts\n" if $opts->{debug};
-    $ret = &init_mounter( $opts );
-    $opts->{LASTERROR} .= "mount failure\n" if ( $ret > 0);
+    @ARGV = @_;
 
-    print "init exports\n" if $opts->{debug};
-    $ret = 0;
-    $ret = &init_exporter( $opts );
-    $opts->{LASTERROR} .= "export failure\n" if ( $ret > 0);
+    GetOptions(
+               'exports!'  => \$exports,
+               'mounts!'   => \$mounts,
+               );
 
-    ## Call to external post add scriptlets
-    my @distroarray = &get_enabled_distro_list( $opts );
-    foreach my $distro ( &get_enabled_distro_list( $opts ) ) {
-        my $dhandler = ucfirst $distro;
-        $dhandler =~ s/\.//g;
-        $dhandler =~ s/-/_/g;
-        $dhandler = $dhandler . ".pm";
-        if (-e "$source_handlers/$dhandler") {
-            require $dhandler;
-            $dhandler =~ s/\.pm//g;
-            $dhandler->import(qw(external_source_handler));
-            print "loading external source handler $distro function: $command\n" if $opts->{verbose};
-            &external_source_handler( $command, "", "" );
-        }
-    }
-
-    return $ret;
+    return 0;
 }
 
 =head2 service { --start [service] | --stop [service] }
@@ -1306,24 +679,6 @@ sub service() {
         &help( $opts, $cmds, $command );
     }
 
-    $startlist = $multiarg{ 'start' } if (defined $multiarg{ 'start' });
-    $stoplist  = $multiarg{ 'stop'  } if (defined $multiarg{ 'stop'  });
-
-
-    unless ( $startlist or $stoplist ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    if ( defined $startlist ) {
-        foreach my $serv ( split(/\s+/, $startlist ) ) {
-            &enable_service( $opts, $serv );
-        }
-    }
-    if ( defined $stoplist ) {
-        foreach my $serv ( split(/\s+/, $stoplist ) ) {
-            &disable_service( $opts, $serv );
-        }
-    }
     return 0
 }
 

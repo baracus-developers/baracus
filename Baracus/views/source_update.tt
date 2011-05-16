@@ -18,6 +18,13 @@
 </td>
 </tr>
 <tr>
+<td>
+</td>
+<td height='28' align='right'>
+   Share IP: <input type='text' name='shareip' value='' size='19'>&nbsp;&nbsp;
+</td>
+</tr>
+<tr>
 </td>
 <td align='right'>
     <input type='submit' name='submit' value='Update'>&nbsp;&nbsp;
