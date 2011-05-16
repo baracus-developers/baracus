@@ -31,7 +31,6 @@ use warnings;
 use Dancer qw( :syntax );
 
 use Baracus::Config qw( :vars :subs );
-use Baracus::Source qw( :subs );
 
 =pod
 
@@ -57,7 +56,6 @@ BEGIN {
          [qw(
                 enable_service
                 disable_service
-                check_service_product
                 add_cifs_perl
                 add_apache2_perl
                 apache2_listen_conf
@@ -83,7 +81,7 @@ sub enable_service
     $sharetype =~ s/http/apache2/;
     $sharetype =~ s/^nfs$/nfsserver/;
     eval {
-        system("chkconfig $sharetype on >& /dev/null") == 0 or die;
+       # system("chkconfig $sharetype on >& /dev/null") == 0 or die;
         if ( check_service( $opts, $sharetype ) == 0 ) {
             # could have also done this to avoid nfs reload
             # need avoidance check here anyway... else bad

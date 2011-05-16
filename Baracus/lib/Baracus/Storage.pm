@@ -31,6 +31,7 @@ use warnings;
 use Baracus::Sql   qw( :subs :vars );
 use Baracus::State qw( :vars );
 use Baracus::Core  qw( :subs );
+use Baracus::Config qw( :subs :vars );
 
 =pod
 
@@ -116,17 +117,24 @@ here we define a hash to make easy using the state constants easier
 
 sub get_db_storage_uri
 {
-    my $dbh      = shift;
+    my $opts      = shift;
     my $storageid = shift; ## netroot
 
     my $uri;
-    my $sth;
 
+    my $href = undef;
     my $sql = qq|SELECT * FROM $baTbls{ storage } WHERE storageid = '$storageid' |;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
 
-    my $href = $sth->fetchrow_hashref();
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
+        my $href = $sth->fetchrow_hashref();
+        $sth->finish;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
 
     if ( $href->{type} == BA_STORAGE_NFS ) {
         $uri = "$href->{'storageip'}" . ":" . "$href->{'storage'}";
@@ -137,6 +145,7 @@ sub get_db_storage_uri
     } else {
         $uri = "null";
     }
+
     return $uri;
 }
 

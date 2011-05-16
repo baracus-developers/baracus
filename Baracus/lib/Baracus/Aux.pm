@@ -141,76 +141,78 @@ sub get_distro() {
     my $type = "distro";
 
     my $opts = shift;
-    my $dbh  = shift;
     my $aref = shift;
 
     my $name = $aref->{$type};
 
+    my $href = undef;
     my $sql = qq|SELECT * FROM $baTbls{$type} WHERE $baTblId{$type} = '$name'|;
-    my $sth;
 
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute(  ) );
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
+        $href = $sth->fetchrow_hashref();
+        $sth->finish;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
 
-    return $sth->fetchrow_hashref( );
+    return $href;
 }
 
 sub get_hardware() {
     my $type = "hardware";
 
     my $opts = shift;
-    my $dbh  = shift;
     my $aref = shift;
     my $vers = shift;
 
     my $name = $aref->{$type};
 
-    return get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
+    return get_version_or_enabled( $opts, $type, $name, $vers );
 }
 
 sub get_autobuild() {
     my $type = "autobuild";
 
     my $opts = shift;
-    my $dbh  = shift;
     my $aref = shift;
     my $vers = shift;
 
     my $name = $aref->{$type};
 
-    return get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
+    return get_version_or_enabled( $opts, $type, $name, $vers );
 }
 
 sub get_profile() {
     my $type = "profile";
 
     my $opts = shift;
-    my $dbh  = shift;
     my $aref = shift;
     my $vers = shift;
 
     my $name = $aref->{$type};
 
-    return get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
+    return get_version_or_enabled( $opts, $type, $name, $vers );
 }
 
 sub get_module() {
     my $type = "module";
 
     my $opts = shift;
-    my $dbh  = shift;
     my $aref = shift;
     my $vers = shift;
 
     my $name = $aref->{$type};
 
-    return get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
+    return get_version_or_enabled( $opts, $type, $name, $vers );
 }
 
 sub get_version_or_enabled
 {
     my $opts = shift;
-    my $dbh  = shift;
     my $type = shift;
     my $name = shift;
     my $vers = shift;
@@ -219,7 +221,7 @@ sub get_version_or_enabled
 
     $vers = 0 unless ( defined $vers );
 
-    my ($vref, $href, $eref) = &get_versions( $opts, $dbh, $type, $name, $vers);
+    my ($vref, $href, $eref) = &get_versions( $opts, $type, $name, $vers);
     return undef unless ( defined $vref or defined $href or defined $eref );
 
     # if no highest version found - no entry at all was found
@@ -288,13 +290,12 @@ sub load_profile
     my $type = "profile";
 
     my $opts = shift;
-    my $dbh  = shift;
     my $aref = shift;
 
     my $name = $aref->{$type};
     my $vers = $aref->{"${type}_ver"};
 
-    my $found = get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
+    my $found = get_version_or_enabled( $opts, $type, $name, $vers );
     return 1 unless ( defined $found );
 #    print $found . "\n" if ( $opts->{debug} > 1 );
 
@@ -330,14 +331,13 @@ sub load_profile
 sub load_storage
 {
     my $opts = shift;
-    my $dbh  = shift;
     my $aref = shift;
 
     unless ( $aref->{storageid} ) {
         return 0;
     }
 
-    my $found = &get_db_data( $dbh, 'storage', $aref->{storageid} );
+    my $found = &get_db_data( $opts, 'storage', $aref->{storageid} );
     unless ( defined $found ) {
         $opts->{LASTERROR} = "Unable to find storage entry for $aref->{storageid}\n";
         return 1;
@@ -354,7 +354,7 @@ sub load_storage
     }
 
     # hash special cases
-    $aref->{storageuri} = &get_db_storage_uri( $dbh, $aref->{storageid} );
+    $aref->{storageuri} = &get_db_storage_uri( $opts, $aref->{storageid} );
     delete $aref->{username};
     delete $aref->{passwd};
 
@@ -469,13 +469,12 @@ sub load_hardware
     my $type = "hardware";
 
     my $opts = shift;
-    my $dbh  = shift;
     my $aref = shift;
 
     my $name = $aref->{$type};
     my $vers = $aref->{"${type}_ver"};
 
-    my $found = get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
+    my $found = get_version_or_enabled( $opts, $type, $name, $vers );
     return 1 unless ( defined $found );
 #    print $found . "\n" if ($opts->{debug} > 1);
 
@@ -499,7 +498,6 @@ sub load_autobuild
     my $type = "autobuild";
 
     my $opts = shift;
-    my $dbh  = shift;
     my $aref = shift;
 
     my $name = $aref->{$type};
@@ -507,7 +505,7 @@ sub load_autobuild
 
 #    print "load_autobuild name $name ver $vers\n" if ($opts->{debug} > 1);
 
-    my $found = get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
+    my $found = get_version_or_enabled( $opts, $type, $name, $vers );
     return 1 unless ( defined $found );
 #    print $found . "\n" if ($opts->{debug} > 1);
 
@@ -522,7 +520,6 @@ sub load_modules
     my $type = "module";
 
     my $opts = shift;
-    my $dbh  = shift;
     my $aref = shift;
 
     my $sth;
@@ -551,7 +548,7 @@ sub load_modules
         my ( $name, $vers ) = get_name_version( $item );
 #        print "working $item : $name + $vers\n" if ( $opts->{debug} > 1 );
 
-        my $found = get_version_or_enabled( $opts, $dbh, $type, $name, $vers );
+        my $found = get_version_or_enabled( $opts, $type, $name, $vers );
         return 1 unless ( defined $found );
 #        print "found $item : $name + $found->{version}\n" if ( $opts->{debug} > 1 );
 #        print $found . "\n" if ( $opts->{debug} > 1 );
@@ -609,7 +606,6 @@ sub get_sysidcfg_expanded
     use File::Temp qw/ tempdir /;
 
     my $opts = shift;
-    my $dbh  = shift;
     my $aref = shift;
 
     my $sysidcfg_file="/usr/share/baracus/templates/jumpstart/solaris-10.8-sysidcfg";
@@ -762,12 +758,11 @@ sub get_mandatory_modules
     my $type = "module";
 
     my $opts = shift;
-    my $dbh  = shift;
     my $dist = shift;
 
     my @modarray;
 
-    my $cert_href = &cert_for_distro( $opts, $dbh, $type, $dist );
+    my $cert_href = &cert_for_distro( $opts, $type, $dist );
     return undef unless ( defined $cert_href );
 
     while ( my ($key, $man) = each %$cert_href ) {
@@ -789,12 +784,8 @@ sub get_mandatory_modules
 sub check_enabled
 {
     my $opts = shift;
-    my $dbh  = shift;
     my $type = shift;
     my $id   = shift;
-
-    my $sth;
-    my $href;
 
     unless ( $type eq "hardware" or
              $type eq "module"   or
@@ -804,34 +795,30 @@ sub check_enabled
         die "Expected 'module', 'autobuild' or 'hardware'\n";
     }
 
+    my $href = undef;
     my $sql = qq| SELECT status, version
                   FROM $baTbls{ $type }
                   WHERE $baTblId{ $type } = '$id'
                   AND version >= 1
                  |;
 
-#    print $sql . "\n" if $opts->{debug};
 
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $opts->{LASTERROR} =
-            "Unable to prepare 'check_enabled' statement\n" . $dbh->errstr;
-        return undef;
-    }
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
 
-    unless( $sth->execute( ) ) {
-        $opts->{LASTERROR} =
-            "Unable to execute 'check_enabled' statement\n" . $sth->err;
-        return undef;
-    }
-
-    while ( $href = $sth->fetchrow_hashref( ) ) {
-        if ( $href->{status} ) {
-            return $href->{version};
+        while ( $href = $sth->fetchrow_hashref( ) ) {
+            if ( $href->{status} ) {
+                return $href->{version};
+            }
         }
-    }
 
-    $sth->finish;
-    undef $sth;
+        $sth->finish;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
 
     return 0;
 }
@@ -847,38 +834,31 @@ sub check_enabled
 sub check_mandatory
 {
     my $opts     = shift;
-    my $dbh      = shift;
     my $moduleid = shift;
 
-    my $sth;
-    my $href;
-
+    my $href = undef;
     my $sql = qq| SELECT mandatory, distroid
                   FROM $baTbls{ modcert }
                   WHERE moduleid = '$moduleid'
                 |;
 
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $opts->{LASTERROR} =
-            "Unable to prepare 'check_mandatory' statement\n" . $dbh->errstr;
-        return undef;
-    }
-
-    unless( $sth->execute( ) ) {
-        $opts->{LASTERROR} =
-            "Unable to execute 'check_mandatory' statement\n" . $sth->err;
-        return undef;
-    }
-
     my @mancerts;
-    while ( $href = $sth->fetchrow_hashref( ) ) {
-        if ($href->{'mandatory'}) {
-            push @mancerts, $href->{'distroid'}
-        }
-    }
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
 
-    $sth->finish;
-    undef $sth;
+        while ( $href = $sth->fetchrow_hashref( ) ) {
+            if ($href->{'mandatory'}) {
+                push @mancerts, $href->{'distroid'}
+            }
+        }
+
+        $sth->finish;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
 
     return \@mancerts if ( scalar @mancerts > 0 );
 
@@ -897,7 +877,6 @@ sub check_mandatory
 sub check_distros
 {
     my $opts  = shift;
-    my $dbh   = shift;
     my $tftph = shift;
     my $certs = shift;
 
@@ -911,7 +890,7 @@ sub check_distros
     my $cert_status = 0;
 
     foreach my $cert_in ( @certlist ) {
-        my $findcount = &find_helper( $opts, $dbh, $tftph, "distro", $cert_in );
+        my $findcount = &find_helper( $opts, $tftph, "distro", $cert_in );
         unless ( defined $findcount ) {
             # &find call failed
             $opts->{LASTERROR} = "Failed in check_distros\n" . $opts->{LASTERROR};
@@ -938,18 +917,16 @@ sub check_distros
 sub get_certs_hash
 {
     my $opts = shift;
-    my $dbh  = shift;
     my $type = shift;
     my $name = shift;
 
     my %cert_hash;
 
-    my $sth;
-    my $href;
     my $sql;
 
     return \%cert_hash if ( not defined $name or $name eq "" );
 
+    my $href = undef;
     if ( $type eq "hardware" ) {
         $sql = qq| SELECT distroid
                    FROM $baTblCert{ $type }
@@ -969,30 +946,26 @@ sub get_certs_hash
         die "Expected 'module', 'autobuild' or 'hardware'\n";
     }
 
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $opts->{LASTERROR} =
-            "Unable to prepare 'get_certs_hash' statement\n" . $dbh->errstr;
-        return undef;
-    }
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
 
-    unless( $sth->execute( ) ) {
-        $opts->{LASTERROR} =
-            "Unable to execute 'get_certs_hash' statement\n" . $sth->err;
-        return undef;
-    }
-
-    while ( $href = $sth->fetchrow_hashref( ) ) {
-        # the fact that the distro is a key means
-        # this type is certified for this distro
-        if ( defined $href->{mandatory} ) {
-            $cert_hash{ $href->{'distroid'} }= $href->{mandatory};
-        } else {
-            $cert_hash{ $href->{'distroid'} }= 0;
+        while ( $href = $sth->fetchrow_hashref( ) ) {
+            # the fact that the distro is a key means
+            # this type is certified for this distro
+            if ( defined $href->{mandatory} ) {
+                $cert_hash{ $href->{'distroid'} }= $href->{mandatory};
+            } else {
+                $cert_hash{ $href->{'distroid'} }= 0;
+            }
         }
-    }
 
-    $sth->finish;
-    undef $sth;
+        $sth->finish;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
 
     return \%cert_hash;
 }
@@ -1001,7 +974,6 @@ sub get_certs_hash
 sub check_cert
 {
     my $opts = shift;
-    my $dbh  = shift;
     my $dist = shift;
     my $type = shift;
     my $list = shift;  # this is a string not an array - w.s. seperated values
@@ -1027,7 +999,7 @@ sub check_cert
         # not the most efficient call for this - but
         # code reuse overrides efficiency
         # at this level of perf impact for sure
-        $cert_hash = get_certs_hash( $opts, $dbh, $type, $name );
+        $cert_hash = get_certs_hash( $opts, $type, $name );
 
         if ( defined $cert_hash and defined $cert_hash->{ $dist } ) {
 #            print "$type $item is certified for $dist\n" if $opts->{debug};
@@ -1054,14 +1026,11 @@ sub check_cert
 sub cert_for_distro
 {
     my $opts = shift;
-    my $dbh  = shift;
     my $type = shift;
     my $dist = shift;
 
-    my $sth;
-    my $href;
     my $sql;
-
+    my $href = undef;
     if ( $type eq "hardware" ) {
         $sql = qq| SELECT hardwareid AS name
                    FROM $baTbls{ "hwcert" }
@@ -1079,29 +1048,21 @@ sub cert_for_distro
                  |;
     }
 
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $opts->{LASTERROR} =
-            "Unable to prepare 'cert_for_distro' statement\n" . $dbh->errstr;
-        return undef;
-    }
-
-    unless( $sth->execute( ) ) {
-        $opts->{LASTERROR} =
-            "Unable to execute 'cert_for_distro' statement\n" . $sth->err;
-        return undef;
-    }
-
     my %cert_hash;
-    while ( $href = $sth->fetchrow_hashref( ) ) {
-        if ( defined $href->{mandatory} ) {
-            $cert_hash{ $href->{name} }= $href->{mandatory};
-        } else {
-            $cert_hash{ $href->{name} }= 0;
-        }
-    }
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
 
-    $sth->finish;
-    undef $sth;
+        while ( $href = $sth->fetchrow_hashref( ) ) {
+            if ( defined $href->{mandatory} ) {
+                $cert_hash{ $href->{name} }= $href->{mandatory};
+            } else {
+                $cert_hash{ $href->{name} }= 0;
+            }
+        }
+
+        $sth->finish;
+    };
 
     return \%cert_hash;
 }
@@ -1116,14 +1077,13 @@ sub cert_for_distro
 sub get_versions
 {
     my $opts = shift;
-    my $dbh  = shift;
     my $type = shift;
     my $name = shift;
     my $vers = shift;
 
-    my $version_href;
-    my $highest_href;
-    my $enabled_href;
+    my $version_href = undef;
+    my $highest_href = undef;
+    my $enabled_href = undef;
 
     $vers = 0 unless ( defined $vers );
 
@@ -1136,46 +1096,44 @@ sub get_versions
         die "Expected 'module', 'profile', 'autobuild' or 'hardware'\n";
     }
 
+    my $href = undef;
     my $sql_cols = lc get_cols( $baTbls{ $type } );
     my $sql = qq| SELECT $sql_cols FROM $baTbls{ $type } WHERE $baTblId{ $type } = '$name' ORDER BY version|;
 
 
-    my $sth;
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $opts->{LASTERROR} = "Unable to prepare 'get_entry' statement\n" . $dbh->errstr;
-        return ( undef, undef, undef );
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
+
+        while ( $href = $sth->fetchrow_hashref( ) ) {
+            $version_href = $href if ( $href->{'version'} == $vers);
+            $highest_href = $href;
+            $enabled_href = $href if ( $href->{'status'} == 1 );
+        }
+        $sth->finish;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
     }
 
-    unless( $sth->execute() ) {
-        $opts->{LASTERROR} = "Unable to execute 'get_entry' statement\n" . $sth->err;
-        return ( undef, undef, undef );
+    unless ( defined $version_href or
+             defined $highest_href or
+             defined $enabled_href ) {
+        $opts->{LASTERROR} = "Unable to find $type entry for $name\n";
+        error $opts->{LASTERROR};
     }
-
-    my $href;
-    while ( $href = $sth->fetchrow_hashref( ) ) {
-        $version_href = $href if ( $href->{'version'} == $vers);
-        $highest_href = $href;
-        $enabled_href = $href if ( $href->{'status'} == 1 );
-    }
-
-    $sth->finish;
-    undef $sth;
-
-    $opts->{LASTERROR} = "Unable to find $type entry for $name\n"
-        unless ( defined $version_href or
-                 defined $highest_href or
-                 defined $enabled_href );
 
     return ( $version_href, $highest_href, $enabled_href );
 }
 
 #
-# add_db_data( $dbh, $tbl, $hashref )
+# add_db_data(  $opts, $tbl, $hashref )
 #
 
 sub add_db_data
 {
-    my $dbh     = shift;
+    my $opts    = shift;
     my $tbl     = shift;
     my $hashref = shift;
     my %Hash    = %{$hashref};
@@ -1190,54 +1148,73 @@ sub add_db_data
         push @fields, $field;
     }
     $fields = join(', ', @fields);
-    my $values = join(', ', (map { $dbh->quote($_) } @Hash{@fields}));
+    my $values = join(', ', (map { database->quote($_) } @Hash{@fields}));
 
+    my $href = undef;
     my $sql = qq|INSERT INTO $baTbls{ $tbl } ( $fields ) VALUES ( $values )|;
 
-    my $sth;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-    $sth->finish;
-    undef $sth;
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
+        $sth->finish;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
+
+    return 0;
 }
 
 #
-# remove_db_data( $dbh, $tbl, $id )
+# remove_db_data( $opts, $tbl, $id )
 #
 
 sub remove_db_data
 {
-    my $dbh = shift;
-    my $tbl = shift;
-    my $id  = shift;
+    my $opts  = shift;
+    my $tbl   = shift;
+    my $id    = shift;
     my $index = shift;
 
     $index = $baTblId{ $tbl } unless (defined $index);
 
+    my $href = undef;
     my $sql = qq|DELETE FROM $baTbls{ $tbl } WHERE $index = '$id'|;
-    my $sth;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-    $sth->finish();
-    undef $sth;
+
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
+        $sth->finish;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
+
+    return 0;
 }
 
 #
-# update_db_data( $dbh, $tbl, $hashref )
+# update_db_data( $opts, $tbl, $hashref )
 #
 
 sub update_db_data
 {
-    my $dbh     = shift;
+    my $opts    = shift;
     my $tbl     = shift;
     my $hashref = shift;
     my %Hash    = %{$hashref};
 
     # limit to table defined columns
     my $valid = get_cols( $baTbls{ $tbl  } );
+    unless ( defined $valid ) {
+        status 'error';
+        return $opts->{LASTERROR};
+    }
     $valid =~ s/[ \t]*//g;
-    my @fields;
 
+    my @fields;
     foreach my $field ( split(/,/, $valid ) ) {
         next unless ( defined $Hash{ $field } ); # skip all but fields passed
         next if ( $field eq $baTblId{ $tbl } );  # skip key
@@ -1246,7 +1223,7 @@ sub update_db_data
         push @fields, $field;
     }
     my $fields = join(', ', @fields);
-    my $values = join(', ', (map { $dbh->quote($_) } @Hash{@fields}));
+    my $values = join(', ', (map { database->quote($_) } @Hash{@fields}));
 
     if ( $valid =~ /\bchange\b/ ) {
         $fields .= ", change";
@@ -1257,13 +1234,23 @@ sub update_db_data
                 SET ( $fields ) = ( $values )
                 WHERE $baTblId{ $tbl } = '$hashref->{ $baTblId{ $tbl } }' |;
 
-    my $sth;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
+        $sth->finish;
+    };
+
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
+
+    return 0;
+
 }
 
 #
-# get_db_data( $dbh, $tbl, $id )
+# get_db_data( $tbl, $id )
 #
 
 sub get_db_data
@@ -1293,43 +1280,42 @@ sub get_db_data
 }
 
 #
-# get_db_data_by( $dbh, $tbl, $id, $index )
+# get_db_data_by( $tbl, $id, $index )
 #
 
 sub get_db_data_by
 {
-    my $dbh   = shift;
+    my $opts  = shift;
     my $tbl   = shift;
     my $id    = shift;
     my $index = shift;
 
-    my $href = &get_db_data( $dbh, $tbl, $id, $index);
+    my $href = &get_db_data( $opts, $tbl, $id, $index);
 
     return $href;
 }
 
 #
-# remove_db_data_by( $dbh, $tbl, $id, $index )
+# remove_db_data_by( $opts, $tbl, $id, $index )
 #
 
 sub remove_db_data_by
 {
-    my $dbh   = shift;
+    my $opts   = shift;
     my $tbl   = shift;
     my $id    = shift;
     my $index = shift;
 
-    &remove_db_data( $dbh, $tbl, $id, $index );
+    &remove_db_data( $opts, $tbl, $id, $index );
 }
 
 #
-# list_start_data ( $opts, $dbh, $filter, $fkey )
+# list_start_data ( $opts, $filter, $fkey )
 #
 
 sub list_start_data
 {
     my $opts = shift;
-    my $dbh  = shift;
     my $tbl  = shift;
     my $filter = shift;
 
@@ -1358,8 +1344,15 @@ sub list_start_data
     my $sql = qq|SELECT * FROM $tbl WHERE CAST($fkey as TEXT) LIKE '$filter' ORDER BY $baTblId{ $tbl }|;
 
     my $sth;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
+    eval {
+        database->prepare( $sql );
+        $sth->execute;
+        $sth->finish;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
 
     return $sth;
 }
@@ -1404,15 +1397,9 @@ sub list_finish_data
 sub redundant_data
 {
     my $opts = shift;
-    my $dbh  = shift;
     my $type = shift;
     my $name = shift;
     my $data = shift;
-
-    my $sth;
-    my $href;
-
-#    print "args type: $type name: $name\n" if ( $opts->{debug} );
 
     unless ( $type eq "hardware" or
              $type eq "module"   or
@@ -1423,44 +1410,40 @@ sub redundant_data
         die "Expected 'module', 'profile', 'autobuild' or 'hardware'\n";
     }
 
+    my $href = undef;
     my $sql_cols = lc get_cols( $baTbls{ $type } );
     my $sql = qq| SELECT $sql_cols FROM $baTbls{ $type } WHERE $baTblId{ $type } = '$name' ORDER BY version;|;
 
-    unless ( $sth = $dbh->prepare( $sql ) ) {
-        $opts->{LASTERROR} =
-            "Unable to prepare 'redundant_data' statement\n" . $dbh->errstr;
-        return 1;
-    }
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
 
-    unless( $sth->execute( ) ) {
-        $opts->{LASTERROR} =
-            "Unable to execute 'redundant_data' statement\n" . $sth->err;
-        return 1;
-    }
-
-    while ( $href = $sth->fetchrow_hashref( ) ) {
-        # hardware we compare values of params
-        # other items are stored as files / blobs
-        # so compared 'data' directly
-        if (
-            ( ( $type eq "hardware" ) and
-              (
-               ( $href->{'hwdriver'} eq $data->{'hwdriver'} ) and
-               ( $href->{'bootargs'} eq $data->{'bootargs'} ) and
-               ( $href->{'rootdisk'} eq $data->{'rootdisk'} ) and
-               ( $href->{'rootpart'} eq $data->{'rootpart'} )
-               )
-             ) or
-            ( ( $type ne "hardware" ) and ( $href->{'data'} eq $data ) )
-            ) {
-            $opts->{LASTERROR} =
-                "Reject adding new version with content identical to this version: $href->{'version'}\n";
-            return 1;
+        while ( $href = $sth->fetchrow_hashref( ) ) {
+            # hardware we compare values of params
+            # other items are stored as files / blobs
+            # so compared 'data' directly
+            if (
+                ( ( $type eq "hardware" ) and
+                  (
+                   ( $href->{'hwdriver'} eq $data->{'hwdriver'} ) and
+                   ( $href->{'bootargs'} eq $data->{'bootargs'} ) and
+                   ( $href->{'rootdisk'} eq $data->{'rootdisk'} ) and
+                   ( $href->{'rootpart'} eq $data->{'rootpart'} )
+                   )
+                 ) or
+                ( ( $type ne "hardware" ) and ( $href->{'data'} eq $data ) )
+                ) {
+                $opts->{LASTERROR} =
+                    "Reject adding new version with content identical to this version: $href->{'version'}\n";
+                return 1;
+            }
         }
+        $sth->finish;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
     }
-
-    $sth->finish;
-    undef $sth;
 
     return 0;
 }
@@ -1471,15 +1454,12 @@ sub redundant_data
 sub find_helper
 {
     my $opts  = shift;
-    my $dbh   = shift;
     my $tftph = shift;
     my $type  = shift;
     my $name  = shift;
 
     my $sql;
-
-    my $db2use = $dbh;
-
+    my $href=undef;
     if ( $type eq "hardware" ) {
         $sql = qq|SELECT hardwareid as name
                   FROM $baTbls{ $type }
@@ -1506,35 +1486,24 @@ sub find_helper
                   WHERE name = '$name'
                   ORDER BY id
                  |;
-        $db2use = $tftph;
     } elsif ( $type eq "distro" ) {
         $sql = qq|SELECT distroid as name
                   FROM $baTbls{ $type }
                   WHERE distroid = '$name'
                  |;
     }
-#    print $sql . "\n" if $opts->{debug};
-
-    my $sth = $db2use->prepare( $sql );
-    unless ( defined $sth ) {
-        $opts->{LASTERROR} = "Unable to prepare 'find' $type statement\n" .
-            $db2use->errstr;
-        return undef;
-    }
-
-    unless( $sth->execute( ) ) {
-        $opts->{LASTERROR} = "Unable to execute 'find' $type query" . $sth->err;
-        return undef;
-    }
 
     my $rowcount = 0;
-    while ( $sth->fetchrow_hashref() ) {
-        $rowcount += 1;
-#        print "rowcount +1 $rowcount\n" if $opts->{debug};
-    }
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
 
-    $sth->finish;
-    undef $sth;
+        while ( $sth->fetchrow_hashref() ) {
+            $rowcount += 1;
+        }
+
+        $sth->finish;
+    };
 
     return $rowcount;
 }

@@ -119,6 +119,7 @@ BEGIN {
                 init_exporter
                 init_mounter
                 get_enabled_distro_list
+                solaris_nfs_waround
             )],
          );
 
@@ -537,7 +538,8 @@ sub sqlfs_getstate
 {
     my $opts = shift;
     my $file = shift;
-    my $state = -1;
+   # my $state = -1;
+    my $state = 0;
 
     eval {
         #        debug "setting uid to $opts->{dbrole}\n" if ($opts->{debug} > 2);
@@ -558,6 +560,7 @@ sub sqlfs_getstate
         error $opts->{LASTERROR};
         $state = 0;
     }
+debug "DEBUG: state=$state \n";
     return $state;
 }
 
@@ -1078,8 +1081,8 @@ sub download_iso
     my $found = 0;
 
     eval {
+        $SIG{CHLD} = '';
         ## create directory for iso files if not present
-
         unless ( -d $baDir{builds} ) {
             mkdir $baDir{builds}, 0755 or die;
         }
@@ -1408,6 +1411,7 @@ sub make_paths
     ## Create /tmp/directory to mount iso files for copy
     ##
     eval {
+        $SIG{CHLD} = '';
         my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
         debug "using tempdir $tdir\n" if ($opts->{debug} > 1);
         unless ( -d $tdir ) {
@@ -1433,7 +1437,8 @@ sub make_paths
                         $is_mounted = 1 if (/$idir/);
                     }
                     unless ( $is_mounted ) {
-                        system( "mount -o loop $isofile $idir" ) == 0 or die;
+                        $SIG{CHLD} = '';
+                        system( "mount -o loop $isofile $idir" ) == 0 or die $!;
                         &add_db_iso_entry($opts, $da, $iname, $idir, 1);
                     }
                 }
@@ -1481,6 +1486,7 @@ sub add_dud_initrd
     my $ih = &baxml_iso_gethash( $opts, $dud, $ph, $il[0] );
 
     eval {
+        $SIG{CHLD} = '';
         if ( &sqlfs_getstate( $opts, "initrd.$basedist" ) ) {
             debug "found bootloader initrd.$basedist in file database\n" if $opts->{verbose};
         } else {
@@ -1491,7 +1497,9 @@ sub add_dud_initrd
 
         my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
         debug "using tempdir $tdir\n" if ($opts->{debug} > 1);
-        mkdir $tdir, 0777 or die;
+        unless ( -d $tdir ) {
+            mkdir ($tdir,0777) or die;
+        }
 
         debug "extract base distro initrd from db to $tdir/initrd.gz\n" if ( $opts->{debug} > 1 );
         copy($bh->{baseinitrd},"$tdir/initrd.gz") or die;
@@ -1633,9 +1641,12 @@ sub add_bootloader_files
     #    print "+++++ add_bootloader_files\n" if ( $opts->{debug} > 1 );
 
     eval {
+        $SIG{CHLD} = '';
         my $tdir = tempdir( "baracus.XXXXXX", TMPDIR => 1, CLEANUP => 1 );
         debug "using tempdir $tdir\n" if ($opts->{debug} > 1);
-        mkdir $tdir, 0777 or die;
+        unless ( -d $tdir ) {
+            mkdir ($tdir,0777) or die;
+        }
 
         my $dh = &baxml_distro_gethash( $opts, $distro );
         my $bh = $dh->{basedisthash};
@@ -1728,6 +1739,7 @@ then try this basource command again.
                 debug "found bootloader linux.$basedist in file database\n" if $opts->{verbose};
             } else {
                 debug "cp from $bh->{baselinux} to $tdir/linux.$basedist\n" if ( $opts->{debug} > 1 );
+debug "DEBUG: cp from $bh->{baselinux} to $tdir/linux.$basedist\n";
                 copy($bh->{baselinux},"$tdir/linux.$basedist") or die;
                 &sqlfs_store( $opts, "$tdir/linux.$basedist" );
                 unlink ( "$tdir/linux.$basedist" ) or die;
