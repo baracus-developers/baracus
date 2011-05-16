@@ -8,6 +8,7 @@ use Dancer qw( :syntax);
 
 use Baracus::State  qw( :vars :admin );
 use Baracus::Source qw( :vars :subs );
+use Baracus::Aux qw( :subs );
 
 #use Baracus::REST::Aux qw( :subs );
 
@@ -125,20 +126,16 @@ sub source_add() {
     my $isos;
     my $check = 0;
     my $checkhr = {};
+    my $extras = "";
 
     # my $rtype = vars->{rtype};
-
-    my $sdk = get_distro_sdk( $opts, $distro );
-
-    # do we have an sdk for this base
-    if ( defined $sdk ) {
-        if ( not $addons ) {
-            # no other addons specified
-            $addons = $sdk;
-        } elsif ( $addons !~ m/$sdk/ ) {
-            # add sdk not specified in addons
-            $addons = "$sdk " . $addons;
-        }
+    my $includes = &get_distro_includes( $opts, $distro );
+    if ( defined $includes ) {
+        my $incchk = &get_db_data( $opts, 'distro', $includes );
+        unless ( defined $incchk->{state} ) {
+            $extras = "$extras "  . $includes;
+            $extras =~ s/^\s+//;
+        }  # else include is already present in distro table
     }
 
     my $daisohr = &verify_iso( $opts, $distro, $addons, $isos, $check, $checkhr );
@@ -153,32 +150,51 @@ sub source_add() {
         return $opts->{LASTERROR};
     }
 
-    unless ( &create_build( $opts, $distro ) )  {
-        status 'error';
-        return $opts->{LASTERROR};
-    }
-
-    unless ( $loopback ) {
-        unless ( &streamline_install( $opts, $distro ) ) {
-            status 'error';
-            return $opts->{LASTERROR};
+    # Check to see if any extras are already installed
+    my @extras = split( /\s+/, $extras );
+    foreach my $item ( @extras ) {
+        if ( &is_source_installed( $opts, $item) ) {
+            $extras =~ s/$item\s*//;
         }
     }
+    undef @extras;
+    @extras = split( /\s+/, $extras );
 
     unless ( &add_build_service( $opts, $distro, $addons ) ) {
         status 'error';
         return $opts->{LASTERROR};
     }
 
-    unless ( &add_bootloader_files( $opts, $distro ) )  {
-        status 'error';
-        return $opts->{LASTERROR};
+    # Add base distro
+    unless ( &is_source_installed( $opts, $distro ) ) {
+        unless ( &add_bootloader_files( $opts, $distro ) ) {
+            status 'error';
+            return $opts->{LASTERROR};
+        }
+        unless ( &source_register( $opts, 'add', $distro ) ) {
+            status 'error';
+            return $opts->{LASTERROR};
+        }
     }
 
+    # Add all extras
+    foreach my $extra ( @extras ) {
+        my $eh = &get_db_data( $opts, 'distro', $extra );
+        unless ( defined $eh ) {
+            status 'error';
+            return $opts->{LASTERROR};
+        }
 
-    unless ( &source_register( $opts, 'add', $distro, $addons ) )  {
-        status 'error';
-        return $opts->{LASTERROR};
+        if ( $eh->{type} == BA_SOURCE_DUD ) {
+            unless ( &add_dud_initrd( $opts, $distro, $extra ) ) {
+                status 'error';
+                return $opts->{LASTERROR};
+            }
+        }
+        unless ( &source_register( $opts, 'add', $extra ) ) {
+            status 'error';
+            return $opts->{LASTERROR};
+        }
     }
 
     if ( request->{accept} =~ m|text/html| ) {

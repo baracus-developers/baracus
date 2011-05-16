@@ -40,7 +40,7 @@ use Baracus::DB;
 use Baracus::Sql qw( :vars :subs ); # %baTbls && get_cols
 use Baracus::Config qw( :vars :subs );
 use Baracus::State qw( :vars :states ); # %aState  && BA_ states
-use Baracus::Services qw ( :subs );
+use Baracus::Services qw( :subs );
 use Baracus::Core qw( :subs );
 use Baracus::Aux qw( :subs );
 
@@ -103,6 +103,7 @@ BEGIN {
                 remove_bootloader_files
                 add_build_service
                 remove_build_service
+                check_service_product
                 source_register
                 is_loopback
                 get_mntcheck

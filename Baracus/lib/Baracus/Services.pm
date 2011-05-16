@@ -31,6 +31,7 @@ use warnings;
 use Dancer qw( :syntax );
 
 use Baracus::Config qw( :vars :subs );
+use Baracus::Source qw( :subs );
 
 =pod
 
@@ -56,7 +57,7 @@ BEGIN {
          [qw(
                 enable_service
                 disable_service
-                check_service
+                check_service_product
                 add_cifs_perl
                 add_apache2_perl
                 apache2_listen_conf
