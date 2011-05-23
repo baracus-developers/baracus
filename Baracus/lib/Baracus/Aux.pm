@@ -734,21 +734,15 @@ sub remove_sqlFS_files
 {
     my $opts    = shift;
     my $mac     = shift;
-    my $dbtftp  = "sqltftp";
 
     my $lhref;
-    my $deepdebug = $opts->{debug} > 2 ? 1 : 0;
-    my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp;port=5162",
-                               'User' => "baracus",
-                               'debug' => $deepdebug )
-        or die "Unable to create new instance of SqlFS\n";
 
-    my $list =  $sqlfsOBJ->list_start( "${mac}" );
-    while ( $lhref = $sqlfsOBJ->list_next( $list ) ) {
-        $sqlfsOBJ->remove( $lhref->{name} );
+    my $list =  $opts->{sqlfsOBJ}->list_start( "${mac}" );
+    while ( $lhref = $opts->{sqlfsOBJ}->list_next( $list ) ) {
+        $opts->{sqlfsOBJ}->remove( $lhref->{name} );
 #        print "$lhref->{name} removed from file DB \n" if ( $opts->{debug} > 1 );
     }
-    $sqlfsOBJ->list_finish( $list );
+    $opts->{sqlfsOBJ}->list_finish( $list );
 
 }
 

@@ -11,7 +11,11 @@
 <td>
 </td>
 <td height='28' align='right'>
-   Distro:  <input type='text' name='distro' value='' size='19'>&nbsp;&nbsp;
+    Distro: <select name='distro'>
+    <% FOREACH opt IN formdata %>
+    <option value="<% opt.key %>"><% opt.value %></option>
+    <% END %>
+    </select>
 </td>
 <td height='28' align='right'>
    Share Type: <input type='text' name='sharetype' value='' size='19'>&nbsp;&nbsp;

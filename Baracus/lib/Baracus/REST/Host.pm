@@ -1,19 +1,48 @@
 package Baracus::REST::Host;
 
+###########################################################################
+#
+# Baracus build and boot management framework
+#
+# Copyright (C) 2010 Novell, Inc, 404 Wyman Street, Waltham, MA 02451, USA.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the Artistic License 2.0, as published
+# by the Perl Foundation, or the GNU General Public License 2.0
+# as published by the Free Software Foundation; your choice.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  Both the Artistic
+# Licesnse and the GPL License referenced have clauses with more details.
+#
+# You should have received a copy of the licenses mentioned
+# along with this program; if not, write to:
+#
+# FSF, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110, USA.
+# The Perl Foundation, 6832 Mulderstraat, Grand Ledge, MI 48837, USA.
+#
+###########################################################################
+
+
 use 5.006;
 use Carp;
 use strict;
 use warnings;
 
+use Dancer qw( :syntax);
+use Dancer::Plugin::Database;
+
 use Baracus::DB;
+use Baracus::SqlFS;
+use Baracus::Sql    qw( :subs :vars );
+use Baracus::Host   qw( :subs );
 use Baracus::Core   qw( :subs );
 use Baracus::Config qw( :vars :subs );
 use Baracus::State  qw( :vars :admin );
 use Baracus::Source qw( :vars :subs );
+use Baracus::Aux    qw( :subs );
 
-use Baracus::REST::Aux qw( :subs );
-
-use Dancer qw( :syntax );
 
 BEGIN {
     use Exporter ();
@@ -39,29 +68,8 @@ BEGIN {
 
 our $VERSION = '0.01';
 
-my $opts = {
-            verbose    => 0,
-            quiet      => 0,
-            all        => 0,
-            nolabels   => 0,
-            debug      => 0,
-            execname   => "",
-            LASTERROR  => "",
-           };
-
-my $dbname = "baracus";
-my $dbrole = $dbname;
-
-my $uid = Baracus::DB::su_user( $dbrole );
-die Baracus::DB::errstr unless ( defined $uid );
-
-my $dbh = Baracus::DB::connect_db( $dbname, $dbrole );
-die Baracus::DB::errstr unless( $dbh );
-
-$opts->{dbh}      = $dbh;
-
-my $baXML = &baxml_load( $opts, "$baDir{'data'}/badistro.xml" );
-$opts->{baXML}    = $baXML;
+#my $baXML = &baxml_load( $opts, "$baDir{'data'}/badistro.xml" );
+#$opts->{baXML}    = $baXML;
 
 
 ###########################################################################
@@ -69,6 +77,116 @@ $opts->{baXML}    = $baXML;
 ## Main Host REST Subroutines (list/detail/add/remove/enable/disable)
 
 sub host_list() {
+
+    my $command    = "list";
+    my $subcommand = params->{listtype};
+    my $filter     = params->{filter};
+    unless ( defined $filter ) {  $filter = ""; }
+
+    my $opts = vars->{opts};
+    unless ( $opts ) {
+        status 'error';
+        return "internal 'vars' not properly initialized";
+    }
+
+    my $returnList = "";
+    my %returnHash;
+
+    $subcommand = lc $subcommand;
+
+    my $sth = &db_list_start( $opts, $subcommand, $filter );
+
+    unless( defined $sth ) {
+     #   return 1;
+    }
+
+    my $dbref;
+
+    if ( $subcommand eq "templates" ) {
+        ## List build templates associated with nodes
+        ##
+        while ( $dbref = &db_list_next( $sth ) ) {
+            my $name;
+            my $auto = "none";
+
+            $name = $dbref->{'hostname'}  if ( defined $dbref->{'hostname'} );
+            $auto = $dbref->{'autobuild'} if ( defined $dbref->{'autobuild'} );
+            $returnList .= "$dbref->{mac} $name $auto <br>";
+            $returnHash{$dbref->{mac}}{name} = $name;
+            $returnHash{$dbref->{mac}}{auto} = $auto;
+        }
+    }
+    elsif ( $subcommand eq "states" ) {
+        ## List macs and show state and when time of that state
+        ##
+        while ( $dbref = &db_list_next( $sth ) ) {
+
+            my $active_str  = "" ;
+            my $state_str   = "" ;
+            my $pxecurr_str = "" ;
+            my $pxenext_str = "" ;
+            my $hostname    = "<null>" ;
+            $hostname    = $dbref->{hostname} if $dbref->{hostname};
+            $active_str  = $baState{ $dbref->{admin}   } if $dbref->{admin};
+            $state_str   = $baState{ $dbref->{oper}    } if $dbref->{oper};
+            $pxecurr_str = $baState{ $dbref->{pxecurr} } if $dbref->{pxecurr};
+            $pxenext_str = $baState{ $dbref->{pxenext} } if $dbref->{pxenext};
+
+            if ( $dbref->{active} and
+                 $dbref->{active} ne BA_ADMIN_ENABLED and
+                 $dbref->{active} ne BA_ADMIN_DISABLED ) {
+                $active_str .= "*";
+            }
+            $returnList .= "$dbref->{ $state_str } $dbref->{'mac'} $hostname $pxecurr_str $pxenext_str $state_str $active_str <br>";
+            $returnHash{$dbref->{mac}}{hostname} = $hostname;
+            $returnHash{$dbref->{mac}}{pxecurr_str} = $pxecurr_str;
+            $returnHash{$dbref->{mac}}{pxenext_str} = $pxenext_str;
+            $returnHash{$dbref->{mac}}{state_str} = $state_str;
+            $returnHash{$dbref->{mac}}{active_str} = $active_str;
+        }
+    }
+    elsif ( $subcommand eq "nodes" ) {
+        ## List macs and show nodes
+        ##
+        my $inventory = "";
+        my $inventory_st = "";
+        my $sel;
+        my $bstate;
+
+        while ( $dbref = &db_list_next( $sth ) ) {
+            $inventory = $dbref->{'mac'} . ".inventory";
+            $sel = $opts->{sqlfsOBJ}->detail( $inventory );
+            if ( defined $sel ) {
+                $inventory_st = "yes";
+            } else {
+                $inventory_st = "no";
+            }
+
+                unless ( defined $dbref->{hostname} ) {
+                    $dbref->{hostname} = "<null>";
+                }
+                if ( defined $dbref->{admin} ) {
+                    $bstate = $baState{ $dbref->{admin} };
+                } else {
+                    $bstate = " ";
+                }
+                $returnList .= "$dbref->{'mac'} $dbref->{hostname} $inventory $inventory_st $bstate <br>";
+                $returnHash{$dbref->{mac}}{hostname} = $dbref->{hostname};
+                $returnHash{$dbref->{mac}}{inventory} = $inventory;
+                $returnHash{$dbref->{mac}}{inventory_st} = $inventory_st;
+                $returnHash{$dbref->{mac}}{bstate} = $bstate;
+        }
+    }
+    &db_list_finish( $sth );
+
+    if ( request->{accept} =~ m|text/html| ) {
+        return $returnList;
+    } elsif ( request->{accept} eq 'text/xml' ) {
+        return \%returnHash;
+    } else {
+        status 'error';
+        return $opts->{LASTERROR};
+    }
 
 }
 

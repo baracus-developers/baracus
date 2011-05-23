@@ -1,44 +1,21 @@
 #!/usr/bin/perl -w
 
-###########################################################################
-#
-# Baracus build and boot management framework
-#
-# Copyright (C) 2010 Novell, Inc, 404 Wyman Street, Waltham, MA 02451, USA.
-#
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the Artistic License 2.0, as published
-# by the Perl Foundation, or the GNU General Public License 2.0
-# as published by the Free Software Foundation; your choice.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  Both the Artistic
-# Licesnse and the GPL License referenced have clauses with more details.
-#
-# You should have received a copy of the licenses mentioned
-# along with this program; if not, write to:
-#
-# FSF, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110, USA.
-# The Perl Foundation, 6832 Mulderstraat, Grand Ledge, MI 48837, USA.
-#
-###########################################################################
-
 use strict;
 
 use Getopt::Long qw( :config pass_through );
 use Pod::Usage;
+use LWP;
+use HTTP::Cookies;
+use Term::ReadKey;
+use XML::Simple;
 
 use lib "/usr/share/baracus/perl";
 
-use SqlFS;
-use BaracusDB;
-use BaracusSql qw( :vars :subs );
-use BaracusConfig qw( :vars );
-use BaracusCore qw( :subs );
-use BaracusHost qw( :subs );
-use BaracusState qw( :vars :admin :actions :subs );
-use BaracusAux qw( :subs );
+use BaracusCore   qw( :subs );
+use BaracusConfig qw( :vars :subs );
+use BaracusState  qw( :vars :admin );
+use BaracusSource qw( :vars :subs );
+
 
 =pod
 
@@ -61,7 +38,7 @@ Where E<lt>commandE<gt> is one of
   list states            list state data on registered node entries
   list templates         list build templates assigned to node entries
 
-  detail node <...>      display detailed state data for a physical node entry 
+  detail node <...>      display detailed state data for a physical node entry
   detail inventory <...> display hardware inventory for a physical node entry
 
 And, where <...> indicates additional required arguments.
@@ -88,94 +65,108 @@ Active physical device entries must be assigned an 'action' via bado to boot acc
 
 =cut
 
-my $man      = 0;
-my $help     = 0;
+my $man  = 0;
+my $help = 0;
 
-my $cmds =
-{
- 'add'       => \&add,
- 'remove'    => \&remove,
- 'list'      => \&list,
- 'detail'    => \&detail,
- 'inventory' => \&inventory,
- 'enable'    => \&enable,
- 'disable'   => \&disable,
- };
+my $cmds = {
+            'add'       => \&add,
+            'remove'    => \&remove,
+            'list'      => \&list,
+            'detail'    => \&detail,
+            'inventory' => \&inventory,
+            'enable'    => \&enable,
+            'disable'   => \&disable
+            };
 
-my $opts =
-{
- 'verbose'   => 0,
- 'quiet'     => 0,
- 'all'       => 0,
- 'nolabels'  => 0,
- 'debug'     => 0,
- 'execname'  => "",
- 'LASTERROR' => "",
- };
+my $opts = {
+            verbose    => 0,
+            quiet      => 0,
+            all        => 0,
+            nolabels   => 0,
+            debug      => 0,
+            execname   => "",
+            LASTERROR  => "",
+            };
 
 # Build command line for help, historical reference and point-in-time rebuilding
 $opts->{execname} = $0;
 $opts->{execname} = $1 if ( $0 =~ m|^.*/([^/].+)| );
-my $cmdline = join '::', $opts->{execname}, @ARGV;
 
-GetOptions
-    (
-     'verbose'   => \$opts->{verbose},
-     'quiet'     => \$opts->{quiet},
-     'all'       => \$opts->{all},
-     'nolabels'  => \$opts->{nolabels},
-     'debug+'    => \$opts->{debug},
-     'man'       => \$man,
-     'help|?'    => \$help,
-     );
+GetOptions(
+           'verbose'   => \$opts->{verbose},
+           'quiet'     => \$opts->{quiet},
+           'all'       => \$opts->{all},
+           'nolabels'  => \$opts->{nolabels},
+           'debug+'    => \$opts->{debug},
+           'man'       => \$man,
+           'help|?'    => \$help,
+           );
 
-&man( )  if $man;
+&man()  if $man;
 &help( $opts, $cmds ) if $help;
 &help( $opts, $cmds ) unless ( scalar @ARGV );
-if ($ARGV[0] eq "man"  ) { &man( ); }
-if ($ARGV[0] eq "help" ) { shift @ARGV; &help( $opts, $cmds, @ARGV); }
+if ($ARGV[0] eq "man"  ) { &man(); }
+if ($ARGV[0] eq "help" ) { shift @ARGV; &help( $opts, $cmds, @ARGV ); }
 
-# wait here to barf on this so help is available even with bad sysconfig
-unless ($baVar{serverip}) {
-    print "Please edit /etc/sysconfig/baracus and set SERVER_IP=<server>\n";
+## Setup base URL and PORT
+my $port = undef;
+if ( $baVar{port} ) {
+    $port = $baVar{port};
+} else {
+    $port = "80";
+}
+
+my $baseurl = undef;
+if ( $baVar{url} ) {
+    $baseurl = $baVar{url};
+} elsif ( $baVar{serverip} ) {
+    $baseurl = $baVar{serverip};
+} else {
+    print "Edit /etc/sysconfig/baracus to include a ServerIP or URL\n";
     exit 1;
 }
 
-my $dbname = "baracus";
-my $dbrole = $dbname;
+print "Using: $baseurl \n" if ($opts->{debug});
+print "Using: $port\n" if ($opts->{debug});
 
-my $dbtftp = "sqltftp";
+# Setup LWP
+my $browser = LWP::UserAgent->new( );
+$browser->cookie_jar( {} );
+$browser->agent('baracus');
+$browser->default_header('Accept' => 'text/xml');
 
-print "setting uid to $dbrole\n" if ($opts->{debug} > 2);
+## Authenticate request
+my $username = "";
+my $password = "";
+if ( -f "$ENV{HOME}/.barc") {
+    print "We have a file\n" if ($opts->{debug});
+    open(FILE, "<$ENV{HOME}/.barc");
+    while (<FILE>) {
+        if (/username/) { chomp ( $username = (split /=/, $_)[1] ); }
+        if (/password/) { chomp ( $password = (split /=/, $_)[1] ); }
+    }
+} else {
+    print "enter username: ";
+    chomp($username = ReadLine 0);
 
-my $uid = BaracusDB::su_user( $dbrole );
-die BaracusDB::errstr unless ( defined $uid );
-
-my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
-die BaracusDB::errstr unless( $dbh );
-
-my $tftph = BaracusDB::connect_db( $dbtftp, $dbrole );
-die BaracusDB::errstr unless( $tftph );
-
-print "bahost debug=$opts->{debug}\n" if $opts->{debug};
-my $deepdebug = $opts->{debug} > 2 ? 1 : 0;
-my $sqlfsOBJ = SqlFS->new( 'DataSource' => "DBI:Pg:dbname=$dbtftp;port=5162",
-                           'User' => "baracus",
-                           'debug' => $deepdebug )
-    or die "Unable to create new instance of SqlFS\n";
+    print "enter password: ";
+    ReadMode 'noecho';
+    chomp($password = ReadLine 0);
+    ReadMode 'normal';
+    print "\n";
+}
+my $login_url = "http://$baseurl:$port/login?username=$username&password=$password";
+my $login_response = $browser->post( $login_url );
 
 my $status = &main( $opts, $cmds, @ARGV );
 
-$sqlfsOBJ->discard();
-
-die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
-die BaracusDB::errstr unless BaracusDB::disconnect_db( $tftph );
-
-print $opts->{LASTERROR} if $status;
+my $logout_url = "http://$baseurl:$port/logout";
+my $logout_response = $browser->get( $logout_url );
+print $logout_response->content;
 
 exit $status;
 
-die "DOES NOT EXECUTE";
+die "DOES NOT EXECUTE\n";
 
 ###########################################################################
 ##
@@ -198,74 +189,49 @@ Option
 
 =cut
 
-sub add()
-{
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, "add" );
-    }
 
-    my $hostref;
-    my $macref;
-    my $actref;
-    my $chkref;
+sub add() {
 
-    my $mac = "";
-    my $hostname = "";
+    my $verb = 'add';
+    my $distro = "";
+    my $addons = "";
+    my $proxy;
+    my $check;
+    my $isos;
+    my $loopback = 1;
 
-    @ARGV = @_;
     GetOptions(
-                'mac=s'      => \$mac,
-                'hostname=s' => \$hostname,
+               'distro=s'  => \$distro,
+               'addons=s'  => \&multiarg_handler,
+               'proxy'     => \$proxy,
+               'check'     => \$check,
+               'isos|i'    => \$isos,
                );
 
+    unless ( defined $distro ) {
+        print "--distro <distro> required\n";
+        return 1;
+    }
+
     if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
     }
 
-    # this routine checks for mac and hostname args
-    # and if hostname passed finds related mac entry
-    # returns undef on error (e.g., unable to find hostname)
-    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
-    unless ( defined $mac ) {
-        # $opts->{LASTERROR} set in subroutine
-        return 1;
-    }
+    my $url = "http://$baseurl:$port/source/$verb";
+    $url .= "?distro=$distro";
 
-    $macref = get_db_data( $dbh, 'mac', $mac );
-    unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
-    }
+    my $response = $browser->post( $url );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
 
-    $chkref = &get_db_data( $dbh, 'action', $mac );
-    if ( defined $chkref ) {
-        if ( $opts->{debug} > 1 ) {
-            while ( my ($key, $val) = each %{$chkref} ) {
-                print "check $key => " . $val eq "" ? "" : $val . "\n";
-            }
-        }
-        # store a copy of the ref found for modification
-        $actref = $chkref;
-    }
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
 
-    $actref->{cmdline} = $cmdline;
-    $actref->{mac} = $mac;
-
-    # if passed both mac and hostname create a host table entry
-    if ( $hostname ne "" ) {
-        $actref->{hostname} = $hostname;
-        unless ( &get_db_data( $dbh, 'host', $hostname ) ) {
-            &add_db_data( $dbh, 'host', $actref );
-        }
-    }
-
-    unless ( defined $chkref ) {
-        $macref = &get_db_data( $dbh, 'mac', $mac ) unless ( defined $macref );
-        &admin_state_change( $dbh, BA_ADMIN_ADDED, $macref, $actref );
-        &add_db_data( $dbh, 'action', $actref );
-    }
+    print $response->content;
 
     return 0;
+
 }
 
 =head2 remove { --mac <mac> | --hostname <name> }
@@ -276,57 +242,7 @@ Remove host entry from Baracus.  Specify the device by --mac or if a hostname ha
 
 sub remove()
 {
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, "remove" );
-    }
 
-    my $mac = "";
-    my $hostname = "",
-
-    @ARGV = @_;
-    GetOptions(
-               'mac=s'      => \$mac,
-               'hostname=s' => \$hostname,
-              );
-
-    if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
-    }
-
-    # this routine checks for mac and hostname args
-    # and if hostname passed finds related mac entry
-    # returns undef on error (e.g., unable to find hostname)
-    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
-    unless ( defined $mac ) {
-        # $opts->{LASTERROR} set in subroutine
-        return 1;
-    }
-
-    update_db_mac_state( $dbh, $mac, BA_ADMIN_REMOVED );
-
-    my $actref = &get_db_data( $dbh, 'action', $mac );
-    if ( defined $actref ) {
-        admin_state_change( $dbh, BA_ADMIN_REMOVED, undef, $actref );
-        $actref->{cmdline} = $cmdline;
-        &update_db_data( $dbh, 'action', $actref );
-        &remove_db_data( $dbh, 'action', $mac );
-    }
-
-    # must come before removal of mac relation
-    my $hostref = &get_db_data_by( $dbh, 'host', $mac, 'mac' );
-    if ( defined $hostref ) {
-        &remove_db_data_by(  $dbh, 'host', $mac, 'mac');
-    }
-
-    remove_sqlFS_files( $opts, $mac );
-
-    my $macref = &get_db_data( $dbh, 'mac', $mac );
-    if ( defined $macref ) {
-       &remove_db_data( $dbh, 'mac', $mac );
-    }
-
-    return 0;
 }
 
 =head2 list { nodes | states | templates } [ --filter <spec> ]
@@ -350,152 +266,7 @@ Where <spec> is of format:
 
 sub list
 {
-    my $command = "list";
-    my $subcommand = shift;
 
-    my $filter = "";
-    my $name;
-
-    $name = "t" if ( ! $opts->{quiet} );
-
-    $subcommand = lc $subcommand;
-    &check_type( $opts, $command, $subcommand);
-
-    @ARGV = @_;
-    GetOptions(
-               'filter=s'       => \$filter,
-               );
-
-    if ( scalar @ARGV ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &help( $command );
-    }
-
-    my $sth = db_list_start ( $subcommand, $filter );
-
-    unless( defined $sth ) {
-        # $opts->{LASTERROR} returned from db_list_start
-        return 1;
-    }
-
-    my $dbref;
-
-    if ( $subcommand eq "templates" ) {
-        ## List available build templates filtered by hostname if provided
-        ##
-
-        unless ( $opts->{quiet} || $opts->{nolabels} ) {
-            print "---------------------------------------------------------------------------\n";
-            printf "%-17s %-17s %-9s\n", "mac", "hostname", "autobuild";
-            print "---------------------------------------------------------------------------\n";
-        }
-
-        while ( $dbref = &db_list_next( $sth ) ) {
-            my $name = "";
-            my $auto = "none";
-
-            $name = $dbref->{'hostname'}  if ( defined $dbref->{'hostname'} );
-            $auto = $dbref->{'autobuild'} if ( defined $dbref->{'autobuild'} );
-            printf "%-17s %-17s %s\n", $dbref->{'mac'}, $name, $auto;
-        }
-    }
-    elsif ( $subcommand eq "states" ) {
-        ## List macs and show state and when time of that state
-        ##
-
-        if ( not ( $opts->{quiet} or $opts->{nolabels} ) )
-        {
-            my $line = "------------------------------------------------------------";
-            if ( $opts->{verbose} ) {
-                $line .= "--------------------------";
-            }
-            if ( $name ) {
-                $line .= "-----------------";
-            }
-            print $line . "\n";
-            if ( $opts->{verbose} ) {
-                printf "%-28s", "time ";
-            }
-            printf "%-17s ", "mac";
-            if ( $name ) {
-                printf "%-17s ", "hostname";
-            }
-            printf "%-10s %-10s %-9s %-9s\n",
-                "pxecurr", "pxenext", "state", "active";
-            print $line . "\n";
-        }
-
-        while ( $dbref = &db_list_next( $sth ) ) {
-
-            my $active_str  = "" ;
-            my $state_str   = "" ;
-            my $pxecurr_str = "" ;
-            my $pxenext_str = "" ;
-            my $hostname    = "<null>" ;
-            $hostname    = $dbref->{hostname} if $dbref->{hostname};
-            $active_str  = $baState{ $dbref->{admin}   } if $dbref->{admin};
-            $state_str   = $baState{ $dbref->{oper}    } if $dbref->{oper};
-            $pxecurr_str = $baState{ $dbref->{pxecurr} } if $dbref->{pxecurr};
-            $pxenext_str = $baState{ $dbref->{pxenext} } if $dbref->{pxenext};
-
-            if ( $dbref->{active} and
-                 $dbref->{active} ne BA_ADMIN_ENABLED and
-                 $dbref->{active} ne BA_ADMIN_DISABLED ) {
-                $active_str .= "*";
-            }
-
-            if ( $opts->{verbose} ) {
-                printf "%-28s", $dbref->{ $state_str };
-            }
-            printf "%-17s ", $dbref->{'mac'};
-            if ( $name ) {
-                printf "%-17s ", $hostname;
-            }
-            printf "%-10s %-10s %-9s %-9s\n", $pxecurr_str, $pxenext_str, $state_str, $active_str;
-        }
-    }
-    elsif ( $subcommand eq "nodes" ) {
-        if (not ( $opts->{quiet} or $opts->{nolabels} ) ) {
-            print "---------------------------------------------------------------\n";
-            printf "%-17s %-17s %-10s %-9s\n", "mac", "hostname", "inventory", "active";
-            print "---------------------------------------------------------------\n";
-        }
-
-        my $inventory = "";
-        my $inventory_st = "";
-        my $sel;
-
-        while ( $dbref = &db_list_next( $sth ) ) {
-
-            printf "%-17s ", $dbref->{'mac'};
-
-            if ( not $opts->{quiet} ) {
-                $inventory = $dbref->{'mac'} . ".inventory";
-                $sel = $sqlfsOBJ->detail( $inventory );
-                if ( defined $sel ) {
-                    $inventory_st = "yes";
-                } else {
-                    $inventory_st = "no";
-                }
-
-                if (defined $dbref->{'hostname'} ) {
-                    printf "%-17s ", $dbref->{'hostname'};
-                } else {
-                    printf "%-17s ", "<null>";
-                }
-                printf "%-10s ", $inventory_st;
-                if (defined $dbref->{'admin'} ) {
-                    printf "%-9s", $baState{ $dbref->{'admin'} };
-                } else {
-                    printf "%-9s", " ";
-                }
-            }
-            printf "\n";
-        }
-    }
-    &db_list_finish( $sth );
-
-    return 0;
 }
 
 =head2 detail { node | inventory } { --mac <mac> | --hostname <name> }
@@ -515,134 +286,7 @@ Argument
 
 sub detail
 {
-    my $command = "detail";
-    my $subcommand = shift;
 
-    my $filter = "";
-    my $hostname = "";
-    my $mac = "";
-    my $name = $mac;
-
-    $subcommand = lc $subcommand;
-    &check_type( $opts, $command, $subcommand);
-
-    @ARGV = @_;
-    GetOptions(
-               'mac=s'      => \$mac,
-               'hostname=s' => \$hostname,
-               );
-
-    if ( scalar @ARGV ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &help( $opts, $command );
-    }
-
-    # this routine checks for mac and hostname args
-    # and if hostname passed finds related mac entry
-    # returns undef on error (e.g., unable to find hostname)
-    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
-    unless ( defined $mac ) {
-        # $opts->{LASTERROR} set in subroutine
-        return 1;
-    }
-
-    my $dbref;
-
-    if ( $subcommand eq "node" ) {
-
-        my $filter = "mac::$mac";
-
-        my $sth = &db_list_start( $subcommand, $filter );
-
-        unless( defined $sth ) {
-            # $opts->{LASTERROR} returned from db_list_start
-            return 1;
-        }
-
-        while ( $dbref = &db_list_next( $sth ) ) {
-            print "Host Entry:\n";
-            print "-----------\n";
-            printf "%-11s", "MAC:";      print "$dbref->{'mac'}" if $dbref->{'mac'}; print "\n";
-            printf "%-11s", "Hostname:"; print "$dbref->{hostname}" if $dbref->{'hostname'}; print "\n";
-            printf "%-11s", "IP Addr:";  print "$dbref->{ip}" if $dbref->{'ip'}; print "\n";
-            print "\n";
-            print "Status: \n";
-            print "------- \n";
-            printf "%-10s", "state:";   print" $baState{ $dbref->{oper} }" if $dbref->{oper}; print "\n";
-            printf "%-10s", "active:";  print" $baState{ $dbref->{admin} }" if $dbref->{admin}; print "\n";
-            printf "%-10s", "pxecurr:"; print" $baState{ $dbref->{pxecurr} }" if $dbref->{pxecurr}; print "\n";
-            printf "%-10s", "pxenext:"; print" $baState{ $dbref->{pxenext} }" if $dbref->{pxenext}; print "\n";
-            print "\n";
-            print "Build\n";
-            print "-----\n";
-            printf "%-18s", "distro:";            print " $dbref->{distro}" if $dbref->{distro}; print "\n";
-            printf "%-18s", "addons:";            print " $dbref->{addons}" if $dbref->{addons}; print "\n";
-            printf "%-18s", "hardware:";          print " (ver $dbref->{hardware_ver}) $dbref->{hardware}" if $dbref->{hardware}; print "\n";
-            printf "%-18s", "profile:";           print " (ver $dbref->{profile_ver}) $dbref->{profile}" if $dbref->{profile}; print "\n";
-            my $abuild = &get_db_data( $dbh, 'actabld', $dbref->{mac});
-            if (defined $abuild)
-            {
-                printf "%-18s", "autobuild:";     print " (ver $abuild->{autobuild_ver}) $abuild->{autobuild}\n";
-            } else {
-                printf "%-18s", "autobuild:";     print " none\n";
-            }
-            printf "%-18s", "vars:";              print " $dbref->{vars}" if $dbref->{vars}; print "\n";
-
-            print "\n";
-            print "Build Modules\n";
-            print "-------------\n";
-            printf "%-18s", "modules:";
-            my $modules = &get_action_modules_hash( $dbh, $dbref->{mac});
-            if (defined $modules)
-            {
-                while ( my ($mkey, $mver) = each( %{$modules} ) ) {
-                    printf "\n%-18s (ver $mver) $mkey", "";
-                }
-            }
-            print "\n";
-            print "\n";
-
-            if ( $dbref->{storageid} ) {
-                print "Storage\n";
-                print "-------\n";
-                printf "%-18s", "StorageID:"; print " $dbref->{storageid}";
-                print "\n";
-                print "\n";
-            }
-
-            if ( $dbref->{mcastid} ) {
-                print "MCast\n";
-                print "-----\n";
-                printf "%-18s", "MultiCastID:"; print " $dbref->{mcastid}";
-                print "\n";
-                print "\n";
-            }
-
-            print "Additional Details\n";
-            print "------------------\n";
-            printf "%-18s", "Loghost:";           print " $dbref->{loghost}" if $dbref->{loghost}; print "\n";
-            printf "%-18s", "Remote Access:";     print " $dbref->{raccess}" if $dbref->{raccess}; print "\n";
-            printf "%-18s", "Auto Wipe:";         print " $dbref->{autonuke}"  if $dbref->{autonuke}; print "\n";
-            printf "%-18s", "Entry Creation:";    print " $dbref->{creation}" if $dbref->{creation}; print "\n";
-            printf "%-18s", "Last Modification:"; print " $dbref->{change}" if $dbref->{change}; print "\n";
-
-        }
-        &db_list_finish( $sth );
-
-    } elsif ( $subcommand eq "inventory" ) {
-
-        my $inventory = $mac . ".inventory";
-        my $inventoryFH = $sqlfsOBJ->readFH( $inventory );
-        unless ( defined $inventoryFH ) {
-            $opts->{LASTERROR} = "Unable to find $inventory\n";
-            return 1;
-        }
-        while ( <$inventoryFH> ) {
-            print $_;
-        }
-    }
-
-    return 0;
 }
 
 =head2 enable { --mac <addr> | --hostname <name> }
@@ -664,250 +308,11 @@ sub disable { &_enable_disable_( "disable", @_ );}
 
 sub _enable_disable_
 {
-    my $command = shift;
 
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $macref;
-    my $actref;
-    my $chkref;
-
-    my $hostname="";
-    my $mac = "";
-
-    @ARGV = @_;
-
-    GetOptions(
-               'mac=s'          => \$mac,
-               'hostname=s'     => \$hostname,
-               );
-
-    if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
-    }
-
-    # this routine checks for mac and hostname args
-    # and if hostname passed finds related mac entry
-    # returns undef on error (e.g., unable to find hostname)
-    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
-    unless ( defined $mac ) {
-        # $opts->{LASTERROR} set in subroutine
-        return 1;
-    }
-
-    $macref = &get_db_data( $dbh, 'mac', $mac );
-    unless ( defined $macref ) {
-        &add_db_mac( $dbh, $mac, BA_ADMIN_ADDED );
-        $macref = &get_db_data( $dbh, 'mac', $mac );
-    }
-    if ( $opts->{debug} > 1 ) {
-        while ( my ($key, $val) = each %{$macref} ) {
-            print "mac $key => " . $val eq "" ? "" : $val . "\n";
-        }
-    }
-
-    $chkref = &get_db_data( $dbh, 'action', $mac );
-    if ( defined $chkref ) {
-        if ( $opts->{debug} > 1 ) {
-            while ( my ($key, $val) = each %{$chkref} ) {
-                print "check $key => " . $val eq "" ? "" : $val . "\n";
-            }
-        }
-        # store a copy of the ref found for modification
-        $actref = $chkref;
-    } else {
-        # for creation of entry with enable/disable
-        $actref->{oper}    = BA_ADMIN_ADDED;
-        $actref->{pxecurr} = BA_ACTION_NONE;
-        $actref->{pxenext} = BA_ACTION_INVENTORY;
-    }
-
-    my $admin = $command eq "enable" ? BA_ADMIN_ENABLED : BA_ADMIN_DISABLED;
-
-    if ( defined $chkref and $chkref->{admin} eq $admin ) {
-        $opts->{LASTERROR} = "device admin state already $baState{ $admin }\n";
-        return 1;
-    }
-
-    $actref->{cmdline} = $cmdline;
-
-    my $state   = $command eq "enable" ? "ready" : "disabled";
-    my $enabled = $command eq "enable" ? 1 : 0;  # tftp state is bool
-
-    &admin_state_change( $dbh, $admin, $macref, $actref );
-    &update_db_mac_state( $dbh, $mac, $admin );
-    &update_db_data( $dbh, 'action', $actref );
-
-    if ( $opts->{verbose} ) {
-        printf "State of %s host entry and related files now %s.\n",
-            $hostname ne "" ? $hostname : $mac, $baState{ $admin };
-    }
-
-    return 0;
 }
 
-# the db_list routines break up the db operations for better large db handling
-# using 'fetchrow_hashref' vs 'fetchall_arrayref' so we have names vs indexing
 
-sub db_list_start
-{
-    my $type  = shift;  # 'templates' or 'history'
-    my $filter = shift;
-
-    my $sql;
-    my $sth;
-    my $fkey;
-
-    if ( $filter eq "" ) {
-        $fkey = "mac";
-        $filter = "%";
-    } else {
-        if ( $filter =~ m/::/ ) {
-            ( $fkey, $filter ) = split ( /::/, $filter, 2 );
-        } else {
-            $fkey = "mac";
-        }
-        if ( $filter =~ m{\*|\?} ) {
-            print "handling wildcard to postgres expression\n" if $opts->{debug};
-            $filter =~ s|\*|%|g;
-            $filter =~ s|\?|_|g;
-        }
-    }
-
-    unless ( $fkey eq "mac" or $fkey eq "hostname" ) {
-        print "Filter key not valid.\n";
-        exit 1;
-    }
-
-    print "db_list_start key: $fkey filter: $filter\n" if $opts->{debug};
-
-    if ( $type eq "templates" ) {
-
-        $sql = qq|SELECT hostname, action.mac AS mac, action_autobuild.autobuild AS autobuild
-                  FROM $baTbls{'action'} LEFT OUTER JOIN $baTbls{actabld}
-                  ON ( action.mac = action_autobuild.mac )
-                  WHERE action.$fkey LIKE ? |;
-
-    } elsif ( $type eq "states" ) {
-
-        $fkey= "action.$fkey";
-
-        my $maccols = lc get_cols( $baTbls{'mac'} );
-        $maccols = join "mac.", (split('\s', $maccols));
-
-        $sql = qq|SELECT
-                $maccols,
-                action.pxecurr,
-                action.pxenext,
-                action.admin,
-                action.oper,
-                action.hostname
-                FROM mac
-                LEFT OUTER JOIN action
-                ON mac.mac = action.mac
-                WHERE $fkey LIKE ?
-                ORDER BY $fkey |;
-
-    } elsif ( $type eq "nodes" ) {
-
-        $fkey= "action.$fkey";
-
-        my $maccols = lc get_cols( $baTbls{'mac'} );
-        $maccols = join "mac.", (split('\s', $maccols));
-
-        $sql = qq|SELECT
-                  $maccols,
-                  action.hostname,
-                  action.admin
-                  FROM mac
-                  LEFT OUTER JOIN action
-                  ON mac.mac = action.mac
-                  WHERE $fkey LIKE ?
-                  ORDER BY $fkey |;
-
-    } elsif ( $type eq "node" ) {
-
-        $sql = qq|SELECT *
-                  FROM $baTbls{'action'} 
-                  WHERE mac LIKE ?|;
-
-    }
-
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( $filter ) );
-
-    return $sth;
-}
-
-sub db_list_next
-{
-    my $sth = shift;
-
-    return $sth->fetchrow_hashref();
-}
-
-sub db_list_finish
-{
-    my $sth = shift;
-    $sth->finish;
-    undef $sth;
-}
-
-###########################################################################
-#
-# baconfig specific aux commands
-#
-
-# return 1 if ok to proceed with help on sub-type (perl doc for $cmd $type avail)
-# return 0 if no sub-type help available so generic help presented
-
-sub check_type_help
-{
-    my $opts    = shift;
-    my $command = shift;
-    my $type    = shift;
-
-#    if ( defined $type and ( $command eq "list" or $command eq "detail" ) ) {
-#        return 1;
-#    } else {
-        return 0;
-#    }
-}
-sub check_type
-{
-    my $opts = shift;
-    my $command = shift;
-    my $type = shift;
-
-    my %type_list =
-        (
-         list   => "nodes, states, templates",
-         detail => "node, inventory",
-         );
-
-    unless ( defined $command and $command ne "" ) {
-        print "requires <command> (e.g. list or detail)\n";
-        exit 1;
-    }
-    print "check_type - have command '$command'\n" if $opts->{debug};
-    unless ( $command eq "list" or $command eq "detail" ) {
-        print "Command $command not expecting any type.\n";
-        exit 1;
-    }
-    print "check_type - list or detail: '$command'\n" if $opts->{debug};
-    unless ( defined $type and $type ne "" ) {
-        print "Command $command requires <type> (e.g. $type_list{$command})\n";
-        exit 1;
-    }
-    print "check_type - have type '$type'\n" if $opts->{debug};
-    unless ( $type_list{$command} =~ m/\b$type\b/ ) {
-        print "Invalid <type> '$type' for <command> '$command' (use $type_list{$command})\n";
-        exit 1;
-    }
-}
+######################################################################
 
 die "ABSOLUTELY DOES NOT EXECUTE";
 

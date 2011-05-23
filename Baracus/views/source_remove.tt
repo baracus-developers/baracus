@@ -11,7 +11,11 @@
 <td>
 </td>
 <td height='28' align='right'>
-    <input type='text' name='distro' value='' size='19'>&nbsp;&nbsp;
+    <select name='distro'>
+    <% FOREACH opt IN formdata %>
+    <option value="<% opt.key %>"><% opt.value %></option>
+    <% END %>
+    </select>
 </td>
 </tr>
 <tr>
@@ -20,6 +24,7 @@
     <input type='submit' name='submit' value='Remove'>&nbsp;&nbsp;
 </td>
 </tr>
+
 </table>
 </div>
 </center>

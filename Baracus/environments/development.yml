@@ -34,7 +34,7 @@ plugins:
         host:  127.0.0.1
         port:  5162
         username: 'dancer'
-        password: 'baractopus'
+        password: 'baracus'
         connectivity-check-threshold: 60
         dbi_params:
             RaiseError: 1

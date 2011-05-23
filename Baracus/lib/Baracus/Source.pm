@@ -118,7 +118,7 @@ BEGIN {
                 is_source_installed
                 init_exporter
                 init_mounter
-                get_enabled_distro_list
+                get_enabled_disabled_distro_list  
                 get_inactive_distro_list
                 solaris_nfs_waround
             )],
@@ -560,7 +560,7 @@ sub sqlfs_getstate
         error $opts->{LASTERROR};
         $state = 0;
     }
-debug "DEBUG: state=$state\n";
+
     return $state;
 }
 
@@ -2203,6 +2203,7 @@ sub solaris_nfs_waround
     my $nfsdir;
 
     eval {
+        $SIG{CHLD} = '';
         unless ( -d $nfsroot ) {
             mkdir $nfsroot, 0755 or die;
         }
@@ -2393,10 +2394,10 @@ sub is_loopback
     return ( defined $href ) ? $href->{'is_loopback'} : 0;
 }
 
-sub get_enabled_distro_list
+sub get_enabled_disabled_distro_list
 {
-    my $opts  = shift;
-    my $status  = 3;            ## enabled
+    my $opts    = shift;
+    my $status  = shift;            ## enabled
     my @distros = ();
     my $dbh = $opts->{dbh};
 
@@ -2445,7 +2446,7 @@ sub get_inactive_distro_list
             unless ( defined $href->{status} ) {
                 push @distros, $href->{distroid};
             }
-            if ( ( defined $href->{status} ) and ( $href->{status} == 3 ) ) {
+            if ( ( defined $href->{status} ) and ( $href->{status} != 3 ) ) {
                 push @distros, $href->{distroid};
             }
         }

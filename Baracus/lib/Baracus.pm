@@ -13,13 +13,13 @@ use Dancer::Logger::Syslog;
 
 use Baracus::REST::Source  qw( :subs );
 use Baracus::REST::User    qw( :subs );
-#use Baracus::REST::Host    qw( :subs );
+use Baracus::REST::Host    qw( :subs );
 #use Baracus::REST::Do      qw( :subs );
 #use Baracus::REST::Power   qw( :subs );
 #use Baracus::REST::Storage qw( :subs );
 #use Baracus::REST::Auth    qw( :subs );
 
-use Baracus::REST::Source_formdata qw( :subs );
+use Baracus::FORMDATA::Source_formdata qw( :subs );
 
 my $opts = {
             verbose    => 1,
@@ -108,19 +108,19 @@ sub source_wrapper() {
     }
 }
 
-get    '/source/list/:distro'   => sub { var exec => ""; &source_wrapper( "list", "source_list" );      };
-get    '/source/verify/:distro' => sub { var exec => ""; &source_wrapper( "verify", "source_verify" );  };
-get    '/source/detail/:distro' => sub { var exec => ""; &source_wrapper( "detail", "source_detail" );  };
-get    '/source/add'            => sub { &source_wrapper( "add", "source_add" );                        };
-post   '/source/add'            => sub { &source_wrapper( "add", "source_response" );                   };
-get    '/source/remove'         => sub { &source_wrapper( "remove", "source_remove" );                  };
-post   '/source/remove'         => sub { &source_wrapper( "remove", "source_response" );                };
-get    '/source/update'         => sub { &source_wrapper( "update", "source_update" );                  };
-post   '/source/update'         => sub { &source_wrapper( "update", "source_response" );                };
-get    '/source/enable'         => sub { &source_wrapper( "update", "source_enable" );                  };
-post   '/source/enable'         => sub { &source_wrapper( "enable", "source_response" );                };
-get    '/source/disable'        => sub { &source_wrapper( "update", "source_disable" );                 };
-post   '/source/disable'        => sub { &source_wrapper( "disable", "source_response" );               };
+get   '/source/list/:distro'   => sub { var exec => ""; &source_wrapper( "list", "source_list" );      };
+get   '/source/verify/:distro' => sub { var exec => ""; &source_wrapper( "verify", "source_verify" );  };
+get   '/source/detail/:distro' => sub { var exec => ""; &source_wrapper( "detail", "source_detail" );  };
+get   '/source/add'            => sub { &source_wrapper( "add", "source_add" );                        };
+post  '/source/add'            => sub { &source_wrapper( "add", "source_response" );                   };
+get   '/source/remove'         => sub { &source_wrapper( "remove", "source_remove" );                  };
+post  '/source/remove'         => sub { &source_wrapper( "remove", "source_response" );                };
+get   '/source/update'         => sub { &source_wrapper( "update", "source_update" );                  };
+post  '/source/update'         => sub { &source_wrapper( "update", "source_response" );                };
+get   '/source/enable'         => sub { &source_wrapper( "enable", "source_enable" );                  };
+post  '/source/enable'         => sub { &source_wrapper( "enable", "source_response" );                };
+get   '/source/disable'        => sub { &source_wrapper( "disable", "source_disable" );                 };
+post  '/source/disable'        => sub { &source_wrapper( "disable", "source_response" );               };
 
 ###########################################################################
 ##
@@ -135,12 +135,43 @@ my $host_verbs = {
                   'disable' => \&host_disable,
                  };
 
-get '/host/list/:host'    => sub { $host_verbs->{'list'}( @_ );         };
-get '/host/detail/:host'  => sub { $host_verbs->{'detail'}( @_ );       };
-get '/host/add/:host'     => sub { $host_verbs->{'add'}( @_ );          };
-get '/host/remove/:host'  => sub { $host_verbs->{'remove'}( @_ );       };
-get '/host/enable/:host'  => sub { $host_verbs->{'enable'}( @_ );       };
-get '/host/disable/:host' => sub { $host_verbs->{'disable'}( @_ );      };
+## Helper subs to generate form data
+my $host_verbs_formdata = {
+                            'add'     => \&host_formdata_add,
+                            'remove'  => \&host_formdata_remove,
+                            'update'  => \&host_formdata_update,
+                            'enable'  => \&host_formdata_enable,
+                            'disable' => \&host_formdata_disable,
+                          };
+
+sub host_wrapper() {
+    my $verb = shift;
+    my $template = shift;
+    my $method = request->method;
+
+    if ( request->{accept} eq 'text/xml' ) {
+        header('Content-Type' => 'text/xml');
+        to_xml( $host_verbs->{$verb}( @_ ) );
+    } else {
+        layout 'main';
+        if ( ( $method eq "GET") && ( ! defined vars->{exec} ) ) {
+            template "$template", { user => session('user'), formdata => $host_verbs_formdata->{$verb}( @_ ) };
+        } elsif ( ( $method eq "POST") || ( defined vars->{exec} ) ) {
+            template "$template", { user => session('user'), data => $host_verbs->{$verb}( @_ ) };
+        }
+    }
+}
+
+get  '/host/list/:listtype' => sub { var exec => ""; &host_wrapper( "list", "host_list" );        };
+get  '/host/detail/:host'   => sub { var exec => ""; &host_wrapper( "detail", "host_detail" );    };
+get  '/host/add/'           => sub { &host_wrapper( "add", "host_add" );                          };
+post '/host/add'            => sub { &host_wrapper( "add", "host_response" );                     };
+get  '/host/remove'         => sub { &host_wrapper( "remove", "host_remove" );                    };
+post '/host/remove'         => sub { &host_wrapper( "remove", "host_response" );                  };
+get  '/host/enable'         => sub { &host_wrapper( "enable", "host_enable" );                    };
+post '/host/enable'         => sub { &host_wrapper( "enable", "host_response" );                  };
+get  '/host/disable'        => sub { &host_wrapper( "disable", "host_disable" );                  };
+post '/host/disable'        => sub { &host_wrapper( "disable", "host_response" );                 };
 
 ###########################################################################
 ##
