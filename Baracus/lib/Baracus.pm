@@ -98,6 +98,9 @@ sub source_wrapper() {
     if ( request->{accept} eq 'text/xml' ) {
         header('Content-Type' => 'text/xml');
         to_xml( $source_verbs->{$verb}( @_ ) );
+    } elsif ( request->{accept} eq 'application/json' ) {
+        header('Content-Type' => 'application/json');
+        to_json( $source_verbs->{$verb}( @_ ) );
     } else {
         layout 'main';
         if ( ( $method eq "GET") && ( ! defined vars->{exec} ) ) {
@@ -152,6 +155,9 @@ sub host_wrapper() {
     if ( request->{accept} eq 'text/xml' ) {
         header('Content-Type' => 'text/xml');
         to_xml( $host_verbs->{$verb}( @_ ) );
+    } elsif ( request->{accept} eq 'application/json' ) {
+        header('Content-Type' => 'application/json');
+        to_json( $source_verbs->{$verb}( @_ ) );
     } else {
         layout 'main';
         if ( ( $method eq "GET") && ( ! defined vars->{exec} ) ) {
