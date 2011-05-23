@@ -119,7 +119,7 @@ get   '/source/update'         => sub { &source_wrapper( "update", "source_updat
 post  '/source/update'         => sub { &source_wrapper( "update", "source_response" );                };
 get   '/source/enable'         => sub { &source_wrapper( "enable", "source_enable" );                  };
 post  '/source/enable'         => sub { &source_wrapper( "enable", "source_response" );                };
-get   '/source/disable'        => sub { &source_wrapper( "disable", "source_disable" );                 };
+get   '/source/disable'        => sub { &source_wrapper( "disable", "source_disable" );                };
 post  '/source/disable'        => sub { &source_wrapper( "disable", "source_response" );               };
 
 ###########################################################################

@@ -266,7 +266,56 @@ Where <spec> is of format:
 
 sub list
 {
+    my $verb = "list";
+    my $subcommand = shift; 
 
+    my $filter = "";
+
+    @ARGV = @_;
+
+    GetOptions(
+               'filter=s'  => \$filter,
+               );
+
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
+    }
+
+    my $url = "http://$baseurl:$port/host/$verb/$subcommand";
+
+    my $response = $browser->get( $url );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
+
+    my $xml = new XML::Simple;
+    my $data = $xml->XMLin( $response->content );
+
+    if ( $subcommand eq "templates" ) {
+        ## List available build templates filtered by hostname if provided
+        ##
+#print $response->content . "\n";  
+        unless ( $opts->{quiet} || $opts->{nolabels} ) {
+            print "---------------------------------------------------------------------------\n";
+            printf "%-17s %-17s %-9s\n", "mac", "hostname", "autobuild";
+            print "---------------------------------------------------------------------------\n";
+        }
+
+        for my $node ( sort keys %$data ) {
+            printf "%-17s %-17s %-9s \n", "$node", "$data->{$node}->{name}", "$data->{$node}->{auto}";
+        }
+
+    } elsif ( $subcommand eq "states" ) {
+        ## List macs and show state and when time of that state
+        ##
+    } elsif ( $subcommand eq "nodes" ) {
+
+    }
+
+    return 0;  
 }
 
 =head2 detail { node | inventory } { --mac <mac> | --hostname <name> }
