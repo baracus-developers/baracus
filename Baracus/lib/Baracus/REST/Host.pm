@@ -39,7 +39,7 @@ use Baracus::Sql    qw( :subs :vars );
 use Baracus::Host   qw( :subs );
 use Baracus::Core   qw( :subs );
 use Baracus::Config qw( :vars :subs );
-use Baracus::State  qw( :vars :admin );
+use Baracus::State  qw( :vars :subs :admin );
 use Baracus::Source qw( :vars :subs );
 use Baracus::Aux    qw( :subs );
 
@@ -181,7 +181,7 @@ sub host_list() {
 
     if ( request->{accept} =~ m|text/html| ) {
         return $returnList;
-    } elsif ( request->{accept} eq 'text/xml' ) {
+    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
         return \%returnHash;
     } else {
         status 'error';
@@ -195,6 +195,77 @@ sub host_detail() {
 }
 
 sub host_add() {
+
+    my $command  = "list";
+    my $mac      = params->{mac};
+    my $hostname = params->{hostname};
+
+    my $opts = vars->{opts};
+    unless ( $opts ) {
+        status 'error';
+        return "internal 'vars' not properly initialized";
+    }
+
+    my $hostref;
+    my $macref;
+    my $actref;
+    my $chkref;
+
+    my $returnList = "";
+    my %returnHash;
+
+     # this routine checks for mac and hostname args
+    # and if hostname passed finds related mac entry
+    # returns undef on error (e.g., unable to find hostname)
+    $mac = &get_mac_by_hostname( $opts, $mac, $hostname );
+    unless ( defined $mac ) {
+        $opts->{LASTERROR} = "mac required";
+        error $opts->{LASTERROR};
+    }
+
+    $macref = &get_db_data( $opts, 'mac', $mac );
+    unless ( defined $macref ) {
+        &add_db_mac( $opts, $mac, BA_ADMIN_ADDED );
+    }
+
+    $chkref = &get_db_data( $opts, 'action', $mac );
+    if ( defined $chkref ) {
+        if ( $opts->{debug} > 1 ) {
+            while ( my ($key, $val) = each %{$chkref} ) {
+                debug "check $key => " . $val eq "" ? "" : $val . "\n";
+            }
+        }
+        # store a copy of the ref found for modification
+        $actref = $chkref;
+    }
+
+#    $actref->{cmdline} = $cmdline;
+    $actref->{cmdline} = "yikes";
+    $actref->{mac} = $mac;
+
+    # if passed both mac and hostname create a host table entry
+    if ( $hostname ne "" ) {
+        $actref->{hostname} = $hostname;
+        unless ( &get_db_data( $opts, 'host', $hostname ) ) {
+            &add_db_data( $opts, 'host', $actref );
+        }
+    }
+
+    unless ( defined $chkref ) {
+        $macref = &get_db_data( $opts, 'mac', $mac ) unless ( defined $macref );
+        &admin_state_change( $opts, BA_ADMIN_ADDED, $macref, $actref );
+        &add_db_data( $opts, 'action', $actref );
+    }
+
+    if ( request->{accept} =~ m|text/html| ) {
+            return "Added $mac<br>";
+    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
+        my @returnArray = ("Added", "$mac");
+        return \@returnArray;
+    } else {
+        status 'error';
+        return $opts->{LASTERROR};
+    }
 
 }
 

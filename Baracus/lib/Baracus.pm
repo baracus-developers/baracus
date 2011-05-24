@@ -20,6 +20,7 @@ use Baracus::REST::Host    qw( :subs );
 #use Baracus::REST::Auth    qw( :subs );
 
 use Baracus::FORMDATA::Source_formdata qw( :subs );
+use Baracus::FORMDATA::Host_formdata qw( :subs );
 
 my $opts = {
             verbose    => 1,
@@ -170,7 +171,7 @@ sub host_wrapper() {
 
 get  '/host/list/:listtype' => sub { var exec => ""; &host_wrapper( "list", "host_list" );        };
 get  '/host/detail/:host'   => sub { var exec => ""; &host_wrapper( "detail", "host_detail" );    };
-get  '/host/add/'           => sub { &host_wrapper( "add", "host_add" );                          };
+get  '/host/add'            => sub { &host_wrapper( "add", "host_add" );                          };
 post '/host/add'            => sub { &host_wrapper( "add", "host_response" );                     };
 get  '/host/remove'         => sub { &host_wrapper( "remove", "host_remove" );                    };
 post '/host/remove'         => sub { &host_wrapper( "remove", "host_response" );                  };

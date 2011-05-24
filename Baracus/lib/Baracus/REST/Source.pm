@@ -110,7 +110,7 @@ sub source_list() {
 
     if ( request->{accept} =~ m|text/html| ) {
         return $returnList;
-    } elsif ( request->{accept} eq 'text/xml' ) {
+    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
         return \%returnHash;
     } else {
         status 'error';
@@ -217,8 +217,8 @@ sub source_add() {
     }
 
     if ( request->{accept} =~ m|text/html| ) {
-        return "Added $distro<br>"
-    } elsif ( request->{accept} eq "text/xml" ) {
+        return "Added $distro<br>";
+    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
         my @returnArray = ("Added", "$distro");
         return \@returnArray;
     } else {
@@ -383,7 +383,7 @@ sub source_remove() {
 
     if ( request->{accept} =~ m|text/html| ) {
         return "Removed $distro<br>"
-    } elsif ( request->{accept} eq "text/xml" ) {
+    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
         my @returnArray = ("Removed", "$distro");
         return \@returnArray;
     } else {
@@ -537,7 +537,7 @@ sub source_update() {
 
     if ( request->{accept} =~ m|text/html| ) {
         return "Updated $distro<br>"
-    } elsif ( request->{accept} eq "text/xml" ) {
+    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
         my @returnArray = ("Updated", "$distro");
         return \@returnArray;
     } else {
@@ -663,7 +663,7 @@ sub source_verify() {
 
     if ( request->{accept} =~ m|text/html| ) {
         return $returnString;
-    } elsif ( request->{accept} eq "text/xml" ) {
+    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
         return \%returnHash;
     } else {
         return "error";
@@ -761,7 +761,7 @@ sub source_detail() {
 
     if ( request->{accept} =~ m|text/html| ) {
         return $returnString;
-    } elsif ( request->{accept} eq "text/xml" ) {
+    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
         return \%returnHash;
     } else {
         error;
@@ -804,7 +804,7 @@ sub source_enable() {
 
     if ( request->{accept} =~ m|text/html| ) {
         return "Enabled $distro<br>"
-    } elsif ( request->{accept} eq "text/xml" ) {
+    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
         my @returnArray = ("Enabled", "$distro");
         return \@returnArray;
     } else {
@@ -849,7 +849,7 @@ sub source_disable() {
 
     if ( request->{accept} =~ m|text/html| ) {
         return "Disabled $distro<br>"
-    } elsif ( request->{accept} eq "text/xml" ) {
+    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
         my @returnArray = ("Disabled", "$distro");
         return \@returnArray;
     } else {
