@@ -9,14 +9,6 @@ use HTTP::Cookies;
 use Term::ReadKey;
 use XML::Simple;
 
-use lib "/usr/share/baracus/perl";
-
-use BaracusCore   qw( :subs );
-use BaracusConfig qw( :vars :subs );
-use BaracusState  qw( :vars :admin );
-use BaracusSource qw( :vars :subs );
-
-
 =pod
 
 =head1 NAME

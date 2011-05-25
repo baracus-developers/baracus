@@ -88,6 +88,10 @@ sub get_mac_by_hostname
     my $mac      = shift;
     my $hostname = shift;
 
+    unless ( defined $hostname ) {
+        $hostname = "";
+    }
+
     if ( $mac eq "" and  $hostname eq "" ) {
         $opts->{LASTERROR} = "Requires --mac or --hostname.\n";
         return undef;
@@ -326,11 +330,13 @@ sub get_action_modules_hash
     eval {
         $sth = database->prepare( $sql );
         $sth->execute;
-        $sth->finish;
 
         while ( my $href = $sth->fetchrow_hashref() ) {
             $modules{ $href->{module} }= $href->{module_ver};
         }
+
+        $sth->finish;
+        undef $sth;
     };
     if ( $@ ) {
         $opts->{LASTERROR} = subroutine_name." : ".$@;

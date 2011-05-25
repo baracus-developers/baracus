@@ -62,7 +62,6 @@ sub host_formdata_add() {
 
 sub host_formdata_remove() {
 
-    my $distro = params->{distro};
     my $fdata = {};
 
     my $opts = vars->{opts};
@@ -71,12 +70,17 @@ sub host_formdata_remove() {
         return "internal 'vars' not properly initialized";
     }
 
+    my $sth = &list_start_data ( $opts, 'host', "" );
+    while ( my $dbref = &list_next_data( $sth ) ) {
+        $fdata->{$dbref->{mac}} = "$dbref->{mac} $dbref->{hostname}";
+    }
+
     return $fdata;
 
 }
 
 sub host_formdata_update() {
-    my $distro = params->{distro};
+
     my $fdata = {};
 
      my $opts = vars->{opts};
@@ -89,7 +93,7 @@ sub host_formdata_update() {
 }
 
 sub host_formdata_enable() {
-    my $distro = params->{distro};
+
     my $fdata = {};
 
     my $opts = vars->{opts};
@@ -98,17 +102,31 @@ sub host_formdata_enable() {
         return "internal 'vars' not properly initialized";
     }
 
+    my $sth = &list_start_data ( $opts, 'action', "" );
+    while ( my $dbref = &list_next_data( $sth ) ) {
+        if ( $dbref->{admin} == 4 ) {
+            $fdata->{$dbref->{mac}} = "$dbref->{mac} $dbref->{hostname}";
+        }
+    }
+
     return $fdata;
 }
 
 sub host_formdata_disable() {
-    my $distro = params->{distro};
+
     my $fdata = {};
 
     my $opts = vars->{opts};
     unless ( $opts ) {
         status 'error';
         return "internal 'vars' not properly initialized";
+    }
+
+    my $sth = &list_start_data ( $opts, 'action', "" );
+    while ( my $dbref = &list_next_data( $sth ) ) {
+        if ( $dbref->{admin} == 3 ) {
+            $fdata->{$dbref->{mac}} = "$dbref->{mac} $dbref->{hostname}";
+        }
     }
 
     return $fdata;

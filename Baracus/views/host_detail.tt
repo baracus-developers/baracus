@@ -1,0 +1,44 @@
+<br>
+
+Host Entry: <br>
+----------- <br>
+MAC:       <% data.mac %>    <br>
+Hostname:  <% data.hostname %>    <br>
+IP Addr:   <% data.ip %>    <br>
+
+Status:  <br>
+-------  <br>
+state:     <% data.oper %>       <br>
+active:    <% data.admin %>      <br>
+pxecurr:   <% data.pxecurr %>    <br>
+pxenext:   <% data.pxenext %>    <br>
+
+Build <br>
+----- <br>
+distro:            <% data.distro %>       <br>
+addons:           
+hardware:          (ver <% data.hardware_ver %>)   <% data.hardware %>   <br>
+profile:           (ver <% data.profile_ver %>)    <% data.profile %>    <br>
+autobuild:         (ver <% data.autobuild_ver %>)  <% data.autobuild %>  <br>
+vars:              <% data.vars %> <br>
+
+Build Modules <br>
+------------- <br>
+modules: <br>
+                   (ver 1) openstack_OS11.4 <br>
+
+Storage: <br>
+-------- <br>
+StorageID:         <% data.storageid %> <br>
+
+Multicast Channel: <br>
+------------------ <br>
+McastID:           <% data.mcastid %> <br>
+
+Additional Details <br>
+------------------ <br>
+Loghost:           <% data.loghost %>  <br>
+Remote Access:     <% data.raccess %>  <br>
+Auto Wipe:         <% data.autonuke %> <br>
+Entry Creation:    <% data.creation %> <br>
+Last Modification: <% data.change %>   <br>

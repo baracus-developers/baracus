@@ -1,0 +1,29 @@
+<form name='enable' action='/host/enable' method="POST">
+<h1><% status %></h1>
+
+<center>
+<div class='splash'>
+<tr>
+<td height='150'></td>
+<td></td>
+</tr>
+<tr>
+<td>
+</td>
+<td height='28' align='right'>
+    <select name='mac'>
+    <% FOREACH opt IN formdata %>
+    <option value="<% opt.key %>"><% opt.value %></option>
+    <% END %>
+</select>
+</td>
+</tr>
+<tr>
+</td>
+<td align='right'>
+    <input type='submit' name='submit' value='Enable'>&nbsp;&nbsp;
+</td>
+</tr>
+</table>
+</div>
+</center>

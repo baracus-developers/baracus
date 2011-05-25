@@ -131,12 +131,13 @@ post  '/source/disable'        => sub { &source_wrapper( "disable", "source_resp
 ## Host Routing
 
 my $host_verbs = {
-                  'list'    => \&host_list,
-                  'detail'  => \&host_detail,
-                  'add'     => \&host_add,
-                  'remove'  => \&host_remove,
-                  'enable'  => \&host_enable,
-                  'disable' => \&host_disable,
+                  'list'      => \&host_list,
+                  'detail'    => \&host_detail,
+                  'inventory' => \&host_inventory,
+                  'add'       => \&host_add,
+                  'remove'    => \&host_remove,
+                  'enable'    => \&host_enable,
+                  'disable'   => \&host_disable,
                  };
 
 ## Helper subs to generate form data
@@ -169,16 +170,17 @@ sub host_wrapper() {
     }
 }
 
-get  '/host/list/:listtype' => sub { var exec => ""; &host_wrapper( "list", "host_list" );        };
-get  '/host/detail/:host'   => sub { var exec => ""; &host_wrapper( "detail", "host_detail" );    };
-get  '/host/add'            => sub { &host_wrapper( "add", "host_add" );                          };
-post '/host/add'            => sub { &host_wrapper( "add", "host_response" );                     };
-get  '/host/remove'         => sub { &host_wrapper( "remove", "host_remove" );                    };
-post '/host/remove'         => sub { &host_wrapper( "remove", "host_response" );                  };
-get  '/host/enable'         => sub { &host_wrapper( "enable", "host_enable" );                    };
-post '/host/enable'         => sub { &host_wrapper( "enable", "host_response" );                  };
-get  '/host/disable'        => sub { &host_wrapper( "disable", "host_disable" );                  };
-post '/host/disable'        => sub { &host_wrapper( "disable", "host_response" );                 };
+get  '/host/list/:listtype'  => sub { var exec => ""; &host_wrapper( "list", "host_list" );           };
+get  '/host/detail/:mac'     => sub { var exec => ""; &host_wrapper( "detail", "host_detail" );       };
+get  '/host/inventory/:mac'  => sub { var exec => ""; &host_wrapper( "inventory", "host_inventory" ); };
+get  '/host/add'             => sub { &host_wrapper( "add", "host_add" );                             };
+post '/host/add'             => sub { &host_wrapper( "add", "host_response" );                        };
+get  '/host/remove'          => sub { &host_wrapper( "remove", "host_remove" );                       };
+post '/host/remove'          => sub { &host_wrapper( "remove", "host_response" );                     };
+get  '/host/enable'          => sub { &host_wrapper( "enable", "host_enable" );                       };
+post '/host/enable'          => sub { &host_wrapper( "enable", "host_response" );                     };
+get  '/host/disable'         => sub { &host_wrapper( "disable", "host_disable" );                     };
+post '/host/disable'         => sub { &host_wrapper( "disable", "host_response" );                    };
 
 ###########################################################################
 ##

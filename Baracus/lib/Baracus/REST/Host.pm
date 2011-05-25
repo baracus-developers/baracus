@@ -39,7 +39,7 @@ use Baracus::Sql    qw( :subs :vars );
 use Baracus::Host   qw( :subs );
 use Baracus::Core   qw( :subs );
 use Baracus::Config qw( :vars :subs );
-use Baracus::State  qw( :vars :subs :admin );
+use Baracus::State  qw( :vars :subs :admin :actions );
 use Baracus::Source qw( :vars :subs );
 use Baracus::Aux    qw( :subs );
 
@@ -56,6 +56,7 @@ BEGIN {
          [qw(
                 host_list
                 host_detail
+                host_inventory
                 host_add
                 host_remove
                 host_enable
@@ -70,7 +71,6 @@ our $VERSION = '0.01';
 
 #my $baXML = &baxml_load( $opts, "$baDir{'data'}/badistro.xml" );
 #$opts->{baXML}    = $baXML;
-
 
 ###########################################################################
 ##
@@ -106,21 +106,24 @@ sub host_list() {
         ## List build templates associated with nodes
         ##
         while ( $dbref = &db_list_next( $sth ) ) {
+            my $mac = $dbref->{mac};
+            $mac =~ s/://g;
             my $name;
             my $auto = "none";
 
             $name = $dbref->{'hostname'}  if ( defined $dbref->{'hostname'} );
             $auto = $dbref->{'autobuild'} if ( defined $dbref->{'autobuild'} );
             $returnList .= "$dbref->{mac} $name $auto <br>";
-            $returnHash{$dbref->{mac}}{name} = $name;
-            $returnHash{$dbref->{mac}}{auto} = $auto;
+            $returnHash{$mac}{name} = $name;
+            $returnHash{$mac}{auto} = $auto;
         }
     }
     elsif ( $subcommand eq "states" ) {
         ## List macs and show state and when time of that state
         ##
         while ( $dbref = &db_list_next( $sth ) ) {
-
+            my $mac = $dbref->{mac};
+            $mac =~ s/://g;
             my $active_str  = "" ;
             my $state_str   = "" ;
             my $pxecurr_str = "" ;
@@ -138,11 +141,11 @@ sub host_list() {
                 $active_str .= "*";
             }
             $returnList .= "$dbref->{ $state_str } $dbref->{'mac'} $hostname $pxecurr_str $pxenext_str $state_str $active_str <br>";
-            $returnHash{$dbref->{mac}}{hostname} = $hostname;
-            $returnHash{$dbref->{mac}}{pxecurr_str} = $pxecurr_str;
-            $returnHash{$dbref->{mac}}{pxenext_str} = $pxenext_str;
-            $returnHash{$dbref->{mac}}{state_str} = $state_str;
-            $returnHash{$dbref->{mac}}{active_str} = $active_str;
+            $returnHash{$mac}{hostname} = $hostname;
+            $returnHash{$mac}{pxecurr_str} = $pxecurr_str;
+            $returnHash{$mac}{pxenext_str} = $pxenext_str;
+            $returnHash{$mac}{state_str} = $state_str;
+            $returnHash{$mac}{active_str} = $active_str;
         }
     }
     elsif ( $subcommand eq "nodes" ) {
@@ -154,6 +157,8 @@ sub host_list() {
         my $bstate;
 
         while ( $dbref = &db_list_next( $sth ) ) {
+            my $mac = $dbref->{mac};
+            $mac =~ s/://g;
             $inventory = $dbref->{'mac'} . ".inventory";
             $sel = $opts->{sqlfsOBJ}->detail( $inventory );
             if ( defined $sel ) {
@@ -171,10 +176,10 @@ sub host_list() {
                     $bstate = " ";
                 }
                 $returnList .= "$dbref->{'mac'} $dbref->{hostname} $inventory $inventory_st $bstate <br>";
-                $returnHash{$dbref->{mac}}{hostname} = $dbref->{hostname};
-                $returnHash{$dbref->{mac}}{inventory} = $inventory;
-                $returnHash{$dbref->{mac}}{inventory_st} = $inventory_st;
-                $returnHash{$dbref->{mac}}{bstate} = $bstate;
+                $returnHash{$mac}{hostname} = $dbref->{hostname};
+                $returnHash{$mac}{inventory} = $inventory;
+                $returnHash{$mac}{inventory_st} = $inventory_st;
+                $returnHash{$mac}{bstate} = $bstate;
         }
     }
     &db_list_finish( $sth );
@@ -192,11 +197,132 @@ sub host_list() {
 
 sub host_detail() {
 
+    my $command  = "add";
+
+    my $mac        = params->{mac};
+    my $hostname   = params->{hostname};
+
+    my $opts = vars->{opts};
+    unless ( $opts ) {
+        status 'error';
+        return "internal 'vars' not properly initialized";
+    }
+
+    my $returnList = "";
+    my %returnHash;
+
+    # this routine checks for mac and hostname args
+    # and if hostname passed finds related mac entry
+    # returns undef on error (e.g., unable to find hostname)
+    $mac = &get_mac_by_hostname( $opts, $mac, $hostname );
+    unless ( defined $mac ) {
+        $opts->{LASTERROR} = "mac required \n";
+        error $opts->{LASTERROR};
+    }
+
+    my $dbref;
+    my $filter = "mac::$mac";
+
+    my $sth = &db_list_start( $opts, 'node', $filter );
+
+    unless( defined $sth ) {
+        # $opts->{LASTERROR} returned from db_list_start
+        return 1;
+    }
+
+    while ( $dbref = &db_list_next( $sth ) ) {
+        $returnHash{mac}      = $dbref->{mac};
+        $returnHash{hostname} = $dbref->{hostname};
+        $returnHash{ip}       = $dbref->{ip};
+        $returnHash{oper}     = $dbref->{oper} if $dbref->{oper};
+        $returnHash{admin}    = $dbref->{admin} if $dbref->{admin};
+        $returnHash{pxecurr}  = $dbref->{pxecurr} if $dbref->{pxecurr};
+        $returnHash{pxenext}  = $dbref->{pxenext} if $dbref->{pxenext};
+        $returnHash{distro}   = $dbref->{distro} if $dbref->{distro};
+        $returnHash{addons}   = $dbref->{addons} if $dbref->{addons};
+        $returnHash{hardware_ver} = $dbref->{hardware_ver} if $dbref->{hardware_ver};
+        $returnHash{hardware}     = $dbref->{hardware} if $dbref->{hardware};
+        $returnHash{profile_ver}  = $dbref->{profile_ver} if $dbref->{profile_ver};
+        $returnHash{profile}      = $dbref->{profile} if $dbref->{profile};
+        my $abuild = &get_db_data( $opts, 'actabld', $dbref->{mac});
+        if (defined $abuild) {
+            $returnHash{autobuild_ver} = $abuild->{autobuild_ver};
+            $returnHash{autobuild}     = $abuild->{autobuild};
+            $returnHash{vars}          = $abuild->{vars};
+        }
+        my $modules = &get_action_modules_hash( $opts, $dbref->{mac});
+        if (defined $modules) {
+            my @modarray;
+            while ( my ($mkey, $mver) = each( %{$modules} ) ) {
+                push @modarray, "$mkey $mver";
+            }
+            $returnHash{modules} = @modarray;
+        }
+        $returnHash{storageid} = $dbref->{storageid} if $dbref->{storageid};
+        $returnHash{mcastid}   = $dbref->{mcastid} if $dbref->{mcastid};
+        $returnHash{loghost}   = $dbref->{loghost} if $dbref->{loghost};
+        $returnHash{raccess}   = $dbref->{raccess} if $dbref->{raccess};
+        $returnHash{autonuke}  = $dbref->{autonuke} if $dbref->{autonuke};
+        $returnHash{creation}  = $dbref->{creation} if $dbref->{creation};
+        $returnHash{change}    = $dbref->{change} if $dbref->{change};
+    }
+    &db_list_finish( $sth );
+
+    if ( request->{accept} =~ m|text/html| ) {
+        return \%returnHash;
+    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
+        return \%returnHash;
+    } else {
+        status 'error';
+        return $opts->{LASTERROR};
+    }
+
+}
+
+sub host_inventory() {
+
+    my $command  = "inventory";
+
+    my $mac      = params->{mac};
+    my $hostname = params->{hostname};
+
+    my $opts = vars->{opts};
+    unless ( $opts ) {
+        status 'error';
+        return "internal 'vars' not properly initialized";
+    }
+
+    my $data = "";
+    my $returnList = "";
+    my %returnHash;
+
+    my $inventory = $mac . ".inventory";
+    my $inventoryFH = $opts->{sqlfsOBJ}->readFH( $inventory );
+    unless ( defined $inventoryFH ) {
+        $opts->{LASTERROR} = "Unable to find $inventory\n";
+        error $opts->{LASTERROR};
+    }
+
+    while ( <$inventoryFH> ) {
+        $data = join '', $_;
+    }
+
+    $returnHash{$mac} = $data;
+
+    if ( request->{accept} =~ m|text/html| ) {
+        return \%returnHash;
+    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
+        return \%returnHash;
+    } else {
+        status 'error';
+        return $opts->{LASTERROR};
+    }
+
 }
 
 sub host_add() {
 
-    my $command  = "list";
+    my $command  = "add";
     my $mac      = params->{mac};
     my $hostname = params->{hostname};
 
@@ -214,12 +340,12 @@ sub host_add() {
     my $returnList = "";
     my %returnHash;
 
-     # this routine checks for mac and hostname args
+    # this routine checks for mac and hostname args
     # and if hostname passed finds related mac entry
     # returns undef on error (e.g., unable to find hostname)
     $mac = &get_mac_by_hostname( $opts, $mac, $hostname );
     unless ( defined $mac ) {
-        $opts->{LASTERROR} = "mac required";
+        $opts->{LASTERROR} = "mac required \n";
         error $opts->{LASTERROR};
     }
 
@@ -239,7 +365,7 @@ sub host_add() {
         $actref = $chkref;
     }
 
-#    $actref->{cmdline} = $cmdline;
+#   $actref->{cmdline} = $cmdline;
     $actref->{cmdline} = "yikes";
     $actref->{mac} = $mac;
 
@@ -258,10 +384,11 @@ sub host_add() {
     }
 
     if ( request->{accept} =~ m|text/html| ) {
-            return "Added $mac<br>";
+        return "Added $mac<br>";
     } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
         my @returnArray = ("Added", "$mac");
         return \@returnArray;
+return "hello";
     } else {
         status 'error';
         return $opts->{LASTERROR};
@@ -271,14 +398,156 @@ sub host_add() {
 
 sub host_remove() {
 
+    my $command  = "remove";
+    my $mac      = params->{mac};
+    my $hostname = params->{hostname};
+
+    my $opts = vars->{opts};
+    unless ( $opts ) {
+        status 'error';
+        return "internal 'vars' not properly initialized";
+    }
+
+    unless ( defined $hostname ) {
+        $hostname = "";
+    }
+
+    # this routine checks for mac and hostname args
+    # and if hostname passed finds related mac entry
+    # returns undef on error (e.g., unable to find hostname)
+    $mac = &get_mac_by_hostname( $opts, $mac, $hostname );
+    unless ( defined $mac ) {
+        $opts->{LASTERROR} = "mac required \n";
+        error $opts->{LASTERROR};
+    }
+
+    &update_db_mac_state( $opts, $mac, BA_ADMIN_REMOVED );
+
+    my $actref = &get_db_data( $opts, 'action', $mac );
+    if ( defined $actref ) {
+        &admin_state_change( $opts, BA_ADMIN_REMOVED, undef, $actref );
+#       $actref->{cmdline} = $cmdline;
+        $actref->{cmdline} = "zonks";
+        &update_db_data( $opts, 'action', $actref );
+        &remove_db_data( $opts, 'action', $mac );
+    }
+
+    # must come before removal of mac relation
+    my $hostref = &get_db_data_by( $opts, 'host', $mac, 'mac' );
+    if ( defined $hostref ) {
+        &remove_db_data_by(  $opts, 'host', $mac, 'mac');
+    }
+
+    &remove_sqlFS_files( $opts, $mac );
+
+    my $macref = &get_db_data( $opts, 'mac', $mac );
+    if ( defined $macref ) {
+       &remove_db_data( $opts, 'mac', $mac );
+    }
+
+    if ( request->{accept} =~ m|text/html| ) {
+        return "Removed $mac<br>";
+    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
+        my @returnArray = ("Removed", "$mac");
+        return \@returnArray;
+    } else {
+        status 'error';
+        return $opts->{LASTERROR};
+    }
+
 }
 
-sub host_enable() {
+sub host_enable  { &_enable_disable_( "enable",  params->{mac}, params->{hostname} );}
+sub host_disable { &_enable_disable_( "disable", params->{mac}, params->{hostname} );}
+
+sub _enable_disable_
+{
+    my $command  = shift;
+    my $mac      = shift;
+    my $hostname = shift;
+
+    my $opts = vars->{opts};
+    unless ( $opts ) {
+        status 'error';
+        return "internal 'vars' not properly initialized";
+    }
+
+    unless ( defined $hostname ) {
+        $hostname = "";
+    }
+
+    my $macref;
+    my $actref;
+    my $chkref;
+
+    # this routine checks for mac and hostname args
+    # and if hostname passed finds related mac entry
+    # returns undef on error (e.g., unable to find hostname)
+    $mac = &get_mac_by_hostname( $opts, $mac, $hostname );
+    unless ( defined $mac ) {
+        $opts->{LASTERROR} = "mac required \n";
+        error $opts->{LASTERROR};
+    }
+
+    $macref = &get_db_data( $opts, 'mac', $mac );
+    unless ( defined $macref ) {
+        &add_db_mac( $opts, $mac, BA_ADMIN_ADDED );
+        $macref = &get_db_data( $opts, 'mac', $mac );
+    }
+    if ( $opts->{debug} > 1 ) {
+        while ( my ($key, $val) = each %{$macref} ) {
+            debug "mac $key => " . $val eq "" ? "" : $val . "\n";
+        }
+    }
+
+    $chkref = &get_db_data( $opts, 'action', $mac );
+    if ( defined $chkref ) {
+        if ( $opts->{debug} > 1 ) {
+            while ( my ($key, $val) = each %{$chkref} ) {
+                debug "check $key => " . $val eq "" ? "" : $val . "\n";
+            }
+        }
+        # store a copy of the ref found for modification
+        $actref = $chkref;
+    } else {
+        # for creation of entry with enable/disable
+        $actref->{oper}    = BA_ADMIN_ADDED;
+        $actref->{pxecurr} = BA_ACTION_NONE;
+        $actref->{pxenext} = BA_ACTION_INVENTORY;
+    }
+
+    my $admin = $command eq "enable" ? BA_ADMIN_ENABLED : BA_ADMIN_DISABLED;
+
+    if ( defined $chkref and $chkref->{admin} eq $admin ) {
+        $opts->{LASTERROR} = "device admin state already $baState{ $admin }\n";
+        return 1;
+    }
+#    $actref->{cmdline} = $cmdline;
+    $actref->{cmdline} = "double zonkers";
+
+    my $state   = $command eq "enable" ? "ready" : "disabled";
+    my $enabled = $command eq "enable" ? 1 : 0;  # tftp state is bool
+
+    &admin_state_change( $opts, $admin, $macref, $actref );
+    &update_db_mac_state( $opts, $mac, $admin );
+    &update_db_data( $opts, 'action', $actref );
+
+    if ( $opts->{verbose} ) {
+        debug "State of %s host entry and related files now %s.\n",
+            $hostname ne "" ? $hostname : $mac, $baState{ $admin };
+    }
+
+    if ( request->{accept} =~ m|text/html| ) {
+            return $command . "d $mac<br>";
+    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
+        my @returnArray = ("$command", "$mac");
+        return \@returnArray;
+    } else {
+        status 'error';
+        return $opts->{LASTERROR};
+    }
 
 }
 
-sub host_disable() {
-
-}
 
 1;

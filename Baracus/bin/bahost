@@ -193,23 +193,18 @@ Option
 sub add() {
 
     my $verb = 'add';
-    my $distro = "";
-    my $addons = "";
-    my $proxy;
-    my $check;
-    my $isos;
-    my $loopback = 1;
 
+    my $mac;
+    my $hostname;
+
+    @ARGV = @_;
     GetOptions(
-               'distro=s'  => \$distro,
-               'addons=s'  => \&multiarg_handler,
-               'proxy'     => \$proxy,
-               'check'     => \$check,
-               'isos|i'    => \$isos,
+               'mac=s'      => \$mac,
+               'hostname=s' => \$hostname,
                );
 
-    unless ( defined $distro ) {
-        print "--distro <distro> required\n";
+    unless ( ( defined $mac ) or ( defined $hostname ) ) {
+        print "--mac <mac> or --hostname <hostname> required\n";
         return 1;
     }
 
@@ -218,8 +213,8 @@ sub add() {
             &help( $opts, $cmds, $verb );
     }
 
-    my $url = "http://$baseurl:$port/source/$verb";
-    $url .= "?distro=$distro";
+    my $url = "http://$baseurl:$port/host/$verb";
+    $url .= "?mac=$mac";
 
     my $response = $browser->post( $url );
     die "Can't get $url -- ", $response->status_line
@@ -242,6 +237,46 @@ Remove host entry from Baracus.  Specify the device by --mac or if a hostname ha
 
 sub remove()
 {
+
+    my $verb = 'remove';
+
+    my $mac;
+    my $hostname;
+
+    @ARGV = @_;
+    GetOptions(
+               'mac=s'      => \$mac,
+               'hostname=s' => \$hostname,
+               );
+
+    unless ( ( defined $mac ) or ( defined $hostname ) ) {
+        print "--mac <mac> or --hostname <hostname> required\n";
+        return 1;
+    }
+
+    if ( ( defined $mac ) and ( defined $hostname ) ) {
+        print "--mac and --hostname cannoe be combined\n";
+        return 1;
+    }
+
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
+    }
+
+    my $url = "http://$baseurl:$port/host/$verb";
+    $url .= "?mac=$mac";
+
+    my $response = $browser->post( $url );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
+
+    print $response->content;
+
+    return 0;
 
 }
 
@@ -297,7 +332,6 @@ sub list
     if ( $subcommand eq "templates" ) {
         ## List available build templates filtered by hostname if provided
         ##
-#print $response->content . "\n";  
         unless ( $opts->{quiet} || $opts->{nolabels} ) {
             print "---------------------------------------------------------------------------\n";
             printf "%-17s %-17s %-9s\n", "mac", "hostname", "autobuild";
@@ -311,8 +345,56 @@ sub list
     } elsif ( $subcommand eq "states" ) {
         ## List macs and show state and when time of that state
         ##
-    } elsif ( $subcommand eq "nodes" ) {
+        if ( not ( $opts->{quiet} or $opts->{nolabels} ) )
+        {
+            my $line = "------------------------------------------------------------";
+            if ( $opts->{verbose} ) {
+                $line .= "--------------------------";
+            }
+            if ( ! $opts->{quiet} ) {
+                $line .= "-----------------";
+            }
+            print $line . "\n";
+            if ( $opts->{verbose} ) {
+                printf "%-28s", "time ";
+            }
+            printf "%-17s ", "mac";
+            if ( ! $opts->{quiet} ) {
+                printf "%-17s ", "hostname";
+            }
+            printf "%-10s %-10s %-9s %-9s\n",
+                "pxecurr", "pxenext", "state", "active";
+            print $line . "\n";
+        }
 
+        for my $node ( sort keys %$data ) {
+
+            printf "%-17s ", $node;
+            if ( ! $opts->{quiet} ) {
+                printf "%-17s ", $data->{$node}->{hostname};
+            }
+            printf "%-10s %-10s %-9s %-9s\n",
+                "$data->{$node}->{pxecurr_str}", "$data->{$node}->{pxenext_str}", "$data->{$node}->{state_str}", "$data->{$node}->{active_str}";
+        }
+    } elsif ( $subcommand eq "nodes" ) {
+ 
+        if (not ( $opts->{quiet} or $opts->{nolabels} ) ) {
+            print "---------------------------------------------------------------\n";
+            printf "%-17s %-17s %-10s %-9s\n", "mac", "hostname", "inventory", "active";
+            print "---------------------------------------------------------------\n";
+        }
+
+        my $inventory = "";
+        my $inventory_st = "";
+        my $sel;
+
+        for my $node ( sort keys %$data ) {
+            printf "%-17s ", $node;
+            printf "%-17s ", $data->{$node}->{hostname};
+            printf "%-10s ", $data->{$node}->{inventory_st};
+            printf "%-9s",   $data->{$node}->{bstate};
+            printf "\n";
+        }
     }
 
     return 0;  
@@ -335,6 +417,94 @@ Argument
 
 sub detail
 {
+
+    my $verb = "detail";
+
+    my $filter = "";
+    my $hostname = "";
+    my $mac = "";
+
+    @ARGV = @_;
+    GetOptions(
+               'mac=s'      => \$mac,
+               'hostname=s' => \$hostname,
+               );
+
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help( $opts, $verb );
+    }
+
+    my $url = "http://$baseurl:$port/host/$verb/$mac";
+
+    my $response = $browser->get( $url );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
+
+    my $xml = new XML::Simple;
+    my $data = $xml->XMLin( $response->content );
+
+    print "Host Entry:\n";
+    print "-----------\n";
+    printf "%-11s", "MAC:";      print "$data->{mac}" if $data->{mac}; print "\n";
+    printf "%-11s", "Hostname:"; print "$data->{hostname}" if $data->{hostname}; print "\n";
+    printf "%-11s", "IP Addr:";  print "$data->{ip}" if $data->{ip}; print "\n";
+    print "\n";
+    print "Status: \n";
+    print "------- \n";
+    printf "%-10s", "state:";   print" $data->{oper} " if $data->{oper}; print "\n";
+    printf "%-10s", "active:";  print" $data->{admin} " if $data->{admin}; print "\n";
+    printf "%-10s", "pxecurr:"; print" $data->{pxecurr} " if $data->{pxecurr}; print "\n";
+    printf "%-10s", "pxenext:"; print" $data->{pxenext} " if $data->{pxenext}; print "\n";
+    print "\n";
+    print "Build\n";
+    print "-----\n";
+    printf "%-18s", "distro:";            print " $data->{distro}" if $data->{distro}; print "\n";
+    printf "%-18s", "addons:";            print " $data->{addons}" if $data->{addons}; print "\n";
+    printf "%-18s", "hardware:";          print " (ver $data->{hardware_ver}) $data->{hardware}" if $data->{hardware}; print "\n";
+    printf "%-18s", "profile:";           print " (ver $data->{profile_ver}) $data->{profile}" if $data->{profile}; print "\n";
+    printf "%-18s", "autobuild:";         print " (ver $data->{autobuild_ver}) $data->{autobuild}\n" if $data->{autobuild}; print "\n";
+    printf "%-18s", "vars:";              print " $data->{vars}" if $data->{vars}; print "\n";
+
+    print "\n";
+    if ( $data->{modules} ) {
+## This is an array, need to update to handle as such
+        print "Build Modules\n";
+        print "-------------\n";
+        printf "%-18s", "modules:";
+        printf "\n%-18s $data->{modules}", "";
+        print "\n";
+        print "\n";
+    }
+
+    if ( $data->{storageid} ) {
+        print "Storage\n";
+        print "-------\n";
+        printf "%-18s", "StorageID:"; print " $data->{storageid}";
+        print "\n";
+        print "\n";
+    }
+
+    if ( $data->{mcastid} ) {
+        print "MCast\n";
+        print "-----\n";
+        printf "%-18s", "MultiCastID:"; print " $data->{mcastid}";
+        print "\n";
+        print "\n";
+    }
+
+    print "Additional Details\n";
+    print "------------------\n";
+    printf "%-18s", "Loghost:";           print " $data->{loghost}"  if $data->{loghost}; print "\n";
+    printf "%-18s", "Remote Access:";     print " $data->{raccess}"  if $data->{raccess}; print "\n";
+    printf "%-18s", "Auto Wipe:";         print " $data->{autonuke}" if $data->{autonuke}; print "\n";
+    printf "%-18s", "Entry Creation:";    print " $data->{creation}" if $data->{creation}; print "\n";
+    printf "%-18s", "Last Modification:"; print " $data->{change}"   if $data->{change}; print "\n";
+
+    return 0;
 
 }
 

@@ -740,7 +740,7 @@ sub remove_sqlFS_files
     my $list =  $opts->{sqlfsOBJ}->list_start( "${mac}" );
     while ( $lhref = $opts->{sqlfsOBJ}->list_next( $list ) ) {
         $opts->{sqlfsOBJ}->remove( $lhref->{name} );
-#        print "$lhref->{name} removed from file DB \n" if ( $opts->{debug} > 1 );
+        debug "$lhref->{name} removed from file DB \n" if ( $opts->{debug} > 1 );
     }
     $opts->{sqlfsOBJ}->list_finish( $list );
 
