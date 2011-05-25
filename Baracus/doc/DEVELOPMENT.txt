@@ -1,0 +1,101 @@
+2011-05-23
+
+Baracus is currently under 2.x development to make use of the Perl Dancer framework.
+
+  http://perldancer.org/
+
+Packages for Dancer are maintained in obs://devel:languages:perl/
+
+  zypper ar -f obs://devel:languages:perl/openSUSE_11.4 d:l:p
+
+As is Baracus:
+
+  zypper ar -f obs://systemsmanagement:baracus/openSUSE_11.4 baracus
+
+(Adjust openSUSE_11.4 to your platform name.)
+
+
+You've probably already cloned baracus from the gitorious site:
+
+  https://gitorious.org/baracus
+
+using
+
+  git clone git@gitorious.org:baracus/baracus.git
+
+
+If not you may need to provide your gitorious username to 
+
+   das_deniz@comcast.net 
+or 
+   cruejones@comcast.net
+
+So that you can be added to the project, and have access.
+
+
+
+Once you have cloned baracus you can
+
+  cd baracus/Baracus
+
+and see what's in this "Dancer" top level directory structure which was created using
+
+  # dancer -a Baracus  # you DO NOT want to do this now/again
+
+and populated with the old 1.x Baracus development files.
+
+  
+We are actively reworking old /usr/sbin/ files into ./lib/Baracus/REST/
+while reusing as much of the old /usr/share/baracus/perl relocated to ./lib/Baracus/.
+
+
+Dancer has a few files which may need attention to get started
+
+  config.yml       # high level config file
+                   # should already have desired settings
+
+  environments/development.yml  # specifies the db to use
+                                # and the admin user creds
+
+
+So you need to modify your db.  This section assumes you've installed
+the 1.x version of baracus from rpm and have the /etc/sysconfig/baracusdb and
+/etc/init.d/baracusdb files.  After you confirm that you have these files, do
+
+  service baracusdb start
+
+It will create the db and the necessary files for the following modifications.
+
+First, modify the pg_hba.conf file like so:
+
+edit bottom of file: ~baracus/pgsql/data/pg_hba.conf
+
+- host    all             all             127.0.0.1/32            ident
++ host    all             all             127.0.0.1/32            password
+
+
+And restart the db using
+
+  service baracusdb restart
+
+Then, add the dancing baracus admin user/pass and database to postgres like so:
+
+  ./scripts/createuser.sh
+  ./scripts/createdb.sh
+    
+
+Then we need to run ./bin/app.pl once to make sure the db is populated with the needed tables
+
+  ./bin/app.pl
+
+and after moment ctrl-c out of this.
+
+Finally we need to add the admin baracus user so we can run baracus cmds and add other users.
+
+  ./scripts/psql.sh
+
+(this could be vastly simplified :)
+
+
+TODO:  need to add how to relocate and mod dancer.conf for running apache/dancer
+  

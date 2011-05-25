@@ -1,0 +1,21 @@
+/* CREATE USER dancer PASSWORD 'baractopus' SUPERUSER; */ /* already in another script */
+
+/* using the 'auth' table already present ... 
+ * DROP TABLE users;
+ * 
+ * CREATE TABLE "users"(
+ * "id"       SERIAL NOT NULL PRIMARY KEY,
+ * "name"     TEXT,
+ * "login"    TEXT NOT NULL,
+ * "password" TEXT NOT NULL,
+ * "roles"    TEXT
+ * );
+ *
+ * INSERT INTO users (name, login, password, roles) VALUES ('Administrator', 'admin', '{SSHA}s00EklPbwUbPDmR7UVl+rr9bb5bCPHKr', 'guest, user, admin');
+ *
+ * INSERT INTO users (name, login, password, roles) VALUES ('superuser', 'root', '{SSHA}s00EklPbwUbPDmR7UVl+rr9bb5bCPHKr', 'guest, user, admin');
+ */
+
+INSERT INTO auth (username, password, creation) VALUES ('admin', '{SSHA}s00EklPbwUbPDmR7UVl+rr9bb5bCPHKr', CURRENT_TIMESTAMP(0));
+
+INSERT INTO auth (username, password, creation) VALUES ('root',  '{SSHA}s00EklPbwUbPDmR7UVl+rr9bb5bCPHKr', CURRENT_TIMESTAMP(0));
