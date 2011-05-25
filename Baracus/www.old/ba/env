@@ -969,7 +969,7 @@ LABEL label_$actref->{hostname}
 |;
 
             } elsif ( $distref->{os} =~ m/ubuntu/ ) {
-                $args = qq|hostname=unassigned-hostname locale=$actref->{lang} console-setup/ask_detect=$actref->{consoleaskdetect} console-setup/layoutcode=$actref->{consolelayoutcode}|;
+                $args = qq|hostname=unassigned-hostname locale=$actref->{lang} console-setup/ask_detect=$actref->{consoleaskdetect} console-setup/layoutcode=$actref->{consolelayoutcode} keyboard-configuration/layoutcode=$actref->{keymap}|;
                 if ( $actref->{autobuild} ne "none" ) {
                     $args .= qq| url=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
                 } else {

@@ -8,19 +8,19 @@
     <release>15</release>
     <arch>x86_64</arch>
     <codename/>
-    <description>Fedora 15 Beta RC2 64bit</description>
+    <description>Fedora 15 64bit</description>
     <type>base</type>
     <autodownload>open</autodownload>
 
     <product name="dvd">
-      <iso name="Fedora-15-Beta-x86_64-DVD.iso">
+      <iso name="Fedora-15-x86_64-DVD.iso">
         <path/>
         <sharefiles>
           <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
           <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
         </sharefiles>
-        <md5>a245e08a0b98a5a2280bafcdc9a55ca8</md5>
-        <url><![CDATA[http://serverbeach1.fedoraproject.org/pub/alt/stage/15-Beta.RC2/Fedora/x86_64/iso/Fedora-15-Beta-x86_64-DVD.iso]]></url>
+        <md5>c122a2a4f478da4a3d2d12396e84244e</md5>
+        <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/15/Fedora/x86_64/iso/Fedora-15-x86_64-DVD.iso]]></url>
       </iso>
     </product>
   </distro>
@@ -30,19 +30,19 @@
     <release>15</release>
     <arch>x86</arch>
     <codename/>
-    <description>Fedora 15 Beta RC2 32bit</description>
+    <description>Fedora 15 32bit</description>
     <type>base</type>
     <autodownload>open</autodownload>
 
     <product name="dvd">
-      <iso name="Fedora-15-Beta-i386-DVD.iso">
+      <iso name="Fedora-15-i386-DVD.iso">
         <path/>
         <sharefiles>
           <sharefile sharetype='tftp' name='kernel' file='isolinux/vmlinuz'/>
           <sharefile sharetype='tftp' name='initrd' file='isolinux/initrd.img'/>
         </sharefiles>
-        <md5></md5>
-        <url><![CDATA[http://serverbeach1.fedoraproject.org/pub/alt/stage/15-Beta.RC2/Fedora/i386/iso/Fedora-15-Beta-i386-DVD.iso]]></url>
+        <md5>9a91492ac84dde9ceff0cb346a079487</md5>
+        <url><![CDATA[http://download.fedoraproject.org/pub/fedora/linux/releases/15/Fedora/i386/iso/Fedora-15-i386-DVD.iso]]></url>
       </iso>
     </product>
   </distro>
