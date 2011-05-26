@@ -1,0 +1,69 @@
+/* these commands are meant to migrate the database schema of 
+ * baracus 1.6.4 forward to match that of baracus 1.8.0+ 
+ *
+ * to make these changes invoke the following as root
+ *
+ *  sudo -u baracus psql -p 5162 -f baracus_1.6.4_to_1.8.0_migrate.cmds
+ *
+ */
+
+ALTER TABLE distro RENAME addon TO type ;
+ALTER TABLE distro ALTER type TYPE INTEGER  /* bool -> int needs USING */
+  USING CASE WHEN type THEN 2 ELSE 1 END ;
+
+ALTER TABLE hardware RENAME hwdriver TO driverupdate ;
+ALTER TABLE hardware ALTER driverupdate TYPE VARCHAR(128) ;
+
+ALTER TABLE autobuild ALTER autobuildid TYPE VARCHAR(128) ; 
+
+ALTER TABLE action ADD automigrate BOOLEAN ;
+ALTER TABLE action ADD storageid VARCHAR ;
+ALTER TABLE action ADD mcastid VARCHAR ;
+ALTER TABLE action DROP netboot ;
+ALTER TABLE action DROP netbootip ;
+
+/* DROP TABLE action_hist CASCADE ; */
+/* don't loose this info if we can help it */
+
+ALTER TABLE action_hist ADD automigrate BOOLEAN ;
+ALTER TABLE action_hist ADD storageid VARCHAR ;
+ALTER TABLE action_hist ADD mcastid VARCHAR ;
+ALTER TABLE action_hist DROP netboot ;
+ALTER TABLE action_hist DROP netbootip ;
+
+ALTER TABLE power ALTER node TYPE VARCHAR(4096) ;
+
+ALTER TABLE lun RENAME TO storage ;
+
+ALTER TABLE mac ADD migrate     INTEGER ;
+ALTER TABLE mac ADD migrating   INTEGER ;
+ALTER TABLE mac ADD migrated    INTEGER ;
+ALTER TABLE mac ADD migratefail INTEGER ;
+
+
+ALTER TABLE storage RENAME targetid TO storageid ; 
+ALTER TABLE storage RENAME targetip TO storageip ; 
+ALTER TABLE storage RENAME targetid TO storageid ; 
+ALTER TABLE storage ADD storage VARCHAR(64) ;
+ALTER TABLE storage ADD md5sum VARCHAR(32) ;
+ALTER TABLE storage DROP name ;
+
+
+/* the following create table is not necessary
+ * as baracus init / restart of the database
+ * will check and create any missing tables
+ */
+
+/* 
+ * CREATE TABLE mcast ( 
+ *   mcastid     VARCHAR(64) PRIMARY KEY,
+ *   storageid   VARCHAR(64),
+ *   dataip      VARCHAR(15),
+ *   rdvip       VARCHAR(15),
+ *   port        INTEGER,
+ *   interface   VARCHAR(8),
+ *   ratemx      INTEGER,
+ *   mrecv       INTEGER,
+ *   status      BOOLEAN,
+ *   pid         INTEGER ) ;
+ */
