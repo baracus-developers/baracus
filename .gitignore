@@ -5,3 +5,4 @@ list_svn_at_root.sh
 meld_list.sh
 symlink_baracus_svn_files.sh
 .stgit-*
+*~
