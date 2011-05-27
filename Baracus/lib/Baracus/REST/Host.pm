@@ -332,6 +332,10 @@ sub host_add() {
         return "internal 'vars' not properly initialized";
     }
 
+    unless ( defined $hostname ) {
+        $hostname = "";
+    }
+
     my $hostref;
     my $macref;
     my $actref;
@@ -388,7 +392,6 @@ sub host_add() {
     } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
         my @returnArray = ("Added", "$mac");
         return \@returnArray;
-return "hello";
     } else {
         status 'error';
         return $opts->{LASTERROR};
