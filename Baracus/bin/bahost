@@ -213,8 +213,8 @@ sub add() {
             &help( $opts, $cmds, $verb );
     }
 
-    my $url = "http://$baseurl:$port/host/$verb";
-    $url .= "?mac=$mac";
+    my $url = "http://$baseurl:$port/power/$verb";
+    $url .= "?mac=$mac" if ;
 
     my $response = $browser->post( $url );
     die "Can't get $url -- ", $response->status_line
@@ -267,7 +267,7 @@ sub remove()
     my $url = "http://$baseurl:$port/host/$verb";
     $url .= "?mac=$mac";
 
-    my $response = $browser->post( $url );
+    my $response = $browser->put( $url );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 

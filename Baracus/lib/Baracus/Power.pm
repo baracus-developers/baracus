@@ -28,6 +28,11 @@ use 5.006;
 use strict;
 use warnings;
 
+use Dancer qw( :syntax );
+use Dancer::Plugin::Database;
+
+use Baracus::Config qw( :vars :subs );
+
 BEGIN {
   use Exporter ();
   use vars qw( @ISA @EXPORT @EXPORT_OK %EXPORT_TAGS);
@@ -36,17 +41,18 @@ BEGIN {
   @EXPORT_OK   = qw();
   %EXPORT_TAGS =
       (
-       subs => [ qw(
-        add
-        add_powerdb_entry
-        remove
-        off
-        on
-        cycle
-        status
-        get_bmc
-        get_bmcref_req_args
-         ) ]
+       subs   =>
+       [qw(
+              padd
+              add_powerdb_entry
+              premove
+              poff
+              pon
+              pcycle
+              pstatus
+              get_bmc
+              get_bmcref_req_args
+          )]
        );
   Exporter::export_ok_tags('subs');
 }
@@ -83,25 +89,27 @@ my %cmds = (
            'mainframe'   => \&bazvmpower,
           );
 
-sub add() {
+sub padd() {
 
-    my $bmc = shift;
+    my $opts = shift;
+    my $bmc  = shift;
 
-    my $result = $cmds{ add }($bmc);
-
-    return $result;
-}
-
-sub remove() {
-
-    my $bmc = shift;
-
-    my $result = $cmds{ remove }($bmc);
+    my $result = $cmds{ add }( $opts, $bmc );
 
     return $result;
 }
 
-sub off() {
+sub premove() {
+
+    my $opts = shift;
+    my $bmc  = shift;
+
+    my $result = $cmds{ remove }( $opts, $bmc );
+
+    return $result;
+}
+
+sub poff() {
 
     my $bmc = shift;
 
@@ -110,7 +118,7 @@ sub off() {
     return $result;
 }
 
-sub on() {
+sub pon() {
 
     my $bmc = shift;
 
@@ -120,7 +128,7 @@ sub on() {
 }
 
 
-sub cycle() {
+sub pcycle() {
 
     my $bmc = shift;
 
@@ -129,17 +137,17 @@ sub cycle() {
     return $result;
 }
 
-sub status() {
+sub pstatus() {
 
     my $bmc = shift;
-    my $result = $cmds{ $bmc->{'ctype'} }($bmc, "status");
 
+    my $result = $cmds{ $bmc->{'ctype'} }($bmc, "status");
     return $result;
 }
 
 sub ipmi() {
 
-    my $bmcref = shift;
+    my $bmcref    = shift;
     my $operation = shift;
 
     my %action = (
@@ -150,23 +158,22 @@ sub ipmi() {
                   );
 
 
-    my $command = "$powermod{ $bmcref->{'ctype'} } -a $bmcref->{'bmcaddr'} -l $bmcref->{'login'} -p $bmcref->{'passwd'} -o $action{ $operation }";
+    my $command = "sudo $powermod{ $bmcref->{'ctype'} } -a $bmcref->{'bmcaddr'} -l $bmcref->{'login'} -p $bmcref->{'passwd'} -o $action{ $operation }";
     unless ($operation eq "status") { $command .= " >& /dev/null"; }
     my $result = `$command`;
 
     if ($action{ $operation } eq "status") {
         $result = (split / /, $result)[6];
         $result = (split /\n/, $result)[0];
-        print "Power Status: $result\n";
     }
 
-    return 0;
+    return $result;
 
 }
 
 sub virsh() {
 
-    my $bmcref = shift;
+    my $bmcref    = shift;
     my $operation = shift;
 
     my $command;
@@ -191,7 +198,7 @@ sub virsh() {
         }
     }
 
-    $command = "$powermod{ $bmcref->{'ctype'} } --connect $bmcref->{'bmcaddr'} $action{ $operation } $bmcref->{'hostname'}";
+    $command = "sudo $powermod{ $bmcref->{'ctype'} } --connect $bmcref->{'bmcaddr'} $action{ $operation } $bmcref->{'hostname'}";
     unless ($operation eq "status") { $command .= " >& /dev/null"; }
 
     my $result;
@@ -200,18 +207,17 @@ sub virsh() {
         $> = 0;
         $result = `$command`;
         chomp $result;
-        print "Power status: $result";
+#        print "Power status: $result";
         $> = $olduid;
     } else {
         $result = `$command`;
     }
-
-    return 0;
+    return $result;
 }
 
 sub drac() {
 
-    my $bmcref = shift;
+    my $bmcref    = shift;
     my $operation = shift;
 
     my %action = (
@@ -229,16 +235,15 @@ sub drac() {
     if ($action{ $operation } eq "status") {
         $result = (split / /, $result)[6];
         $result = (split /\n/, $result)[0];
-        print "Power Status: $result\n";
     }
 
-    return 0;
+    return $result;
 
 }
 
 sub bladecenter() {
 
-    my $bmcref = shift;
+    my $bmcref    = shift;
     my $operation = shift;
 
     my %action = (
@@ -257,16 +262,15 @@ sub bladecenter() {
     if ($action{ $operation } eq "status") {
         $result = (split / /, $result)[6];
         $result = (split /\n/, $result)[0];
-        print "Power Status: $result\n";
     }
 
-    return 0;
+    return $result;
 
 }
 
 sub ilo() {
 
-    my $bmcref = shift;
+    my $bmcref    = shift;
     my $operation = shift;
 
     my %action = (
@@ -283,16 +287,15 @@ sub ilo() {
     if ($action{ $operation } eq "status") {
         $result = (split / /, $result)[6];
         $result = (split /\n/, $result)[0];
-        print "Power Status: $result\n";
     }
 
-    return 0;
+    return $result;
 
 }
 
 sub vmware() {
 
-    my $bmcref = shift;
+    my $bmcref    = shift;
     my $operation = shift;
 
     my %action = (
@@ -309,16 +312,15 @@ sub vmware() {
     if ($action{ $operation } eq "status") {
         $result = (split / /, $result)[6];
         $result = (split /\n/, $result)[0];
-        print "Power Status: $result\n";
     }
 
-    return 0;
+    return $result;
 
 }
 
 sub vmware_ws() {
 
-    my $bmcref = shift;
+    my $bmcref    = shift;
     my $operation = shift;
 
     my $status;
@@ -340,16 +342,15 @@ sub vmware_ws() {
         if ($result =~ m/$bmcref->{'node'}/) {
             $status = "running";
         } 
-        print "Power Status: $status\n";
     }
 
-    return 0;
+    return $result;
 
 }
 
 sub bazvmpower() {
 
-    my $bmcref = shift;
+    my $bmcref    = shift;
     my $operation = shift;
 
     my $command = "curl -sSH 'Accept: text/x-yaml' http://$bmcref->{'bmcaddr'}:5000/power/$operation?node=$bmcref->{'node'}";
@@ -358,17 +359,14 @@ sub bazvmpower() {
 
     if ($operation eq "status") {
         if ($result =~  m/status: (.*)/g) {
-            print "Power Status: $1\n";
+           return $1;
         } elsif ($result =~  m/Error (4\d+)/g) {
-            print "Error $1\n";
-            return 1;
+            error "Error $1\n";
         } else {
-            print "Unknown error:\n$result\n";
-            return 1;
+            error "Unknown error:\n$result\n";
         }
     }
 
-    return 0;
 }
 
 ###########################################################################
@@ -378,24 +376,27 @@ sub bazvmpower() {
 ###########################################################################
 sub get_mac() {
 
+    my $opts     = shift;
     my $deviceid = shift;
-    my $dbh = shift;
-    my $sql;
 
-    $sql = qq| SELECT mac
-               FROM power
-               WHERE hostname = ?
-             |;
+    my $sql = qq| SELECT mac
+                  FROM power
+                  WHERE hostname = '$deviceid'
+                |;
 
-    my $sth;
     my $href;
 
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) ); 
-    die "$!$sth->err\n" unless ( $sth->execute( $deviceid ) );
-
-    $href = $sth->fetchrow_hashref();
-
-    $sth->finish;
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
+        $href = $sth->fetchrow_hashref();
+        $sth->finish;
+        undef $sth;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
 
     my $mac = uc $href->{'mac'};
     return $mac;
@@ -404,25 +405,17 @@ sub get_mac() {
 
 sub get_bmc() {
 
-    my $bmc = shift;
+    my $opts     = shift;
+    my $type     = shift;
     my $deviceid = shift;
-    my $dbh = $bmc->{dbh};
-    my $type;
 
-    ## Is deviceid a mac address, if not get mac
-    if ($bmc->{mac}) {
-        $type = "mac";
-    } elsif ($bmc->{hostname}) {
-        $type = "hostname";
-    } else {
-        return undef;
+    unless ( defined $type ) {
+        return 1;
     }
 
     ## lookup bmc info for device
-    my $sth;
-    my $href;
-
-    my $sql = qq| SELECT ctype,
+    my $sql = qq| SELECT mac,
+                         ctype,
                          hostname,
                          login,
                          passwd,
@@ -430,22 +423,31 @@ sub get_bmc() {
                          node,
                          other
                   FROM power
-                  WHERE $type = '$deviceid'
+                  WHERE mac = '$deviceid'
                 |;
-
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    $href = $sth->fetchrow_hashref();
-    $sth->finish;
+  
+    my $href;
+   
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
+        $href = $sth->fetchrow_hashref();
+        $sth->finish;
+        undef $sth;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
 
     return $href;
 }
 
 sub check_powerdb_entry() {
 
+    my $opts     = shift;
     my $deviceid = shift;
-    my $dbh = shift;
+
     my $type;
 
     ## Is deviceid a mac address, if not get mac
@@ -458,20 +460,24 @@ sub check_powerdb_entry() {
     }
 
     ## lookup to make sure entry does not already exist
-    my $sth;
-    my $href;
-
     my $sql = qq| SELECT $type
                   FROM power
-                  WHERE $type = ?
+                  WHERE $type = '$deviceid'
                 |;
 
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( $deviceid ) );
+    my $href;
 
-    $href = $sth->fetchrow_hashref();
-
-    $sth->finish;
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
+        $href = $sth->fetchrow_hashref();
+        $sth->finish;
+        undef $sth;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
 
     if ($href->{$type}) {
 	return 0;
@@ -483,8 +489,9 @@ sub check_powerdb_entry() {
 
 sub add_powerdb_entry() {
 
+    my $opts   = shift;
     my $bmcref = shift;
-    my $dbh = $bmcref->{ 'dbh' };
+
     my $deviceid;
 
     my $type;
@@ -502,7 +509,7 @@ sub add_powerdb_entry() {
     }
 
     ## Check minimal required args
-    foreach my $arg ( my @req_args = get_bmcref_req_args($bmcref) ) {
+    foreach my $arg ( my @req_args = &get_bmcref_req_args($bmcref) ) {
         unless ( $bmcref->{$arg} ) {
             my $LASTERROR = "Required BMC args not provided (" .
                 join(", ", @req_args) . ").\n";
@@ -510,11 +517,9 @@ sub add_powerdb_entry() {
         }
     }
 
-    unless ( &check_powerdb_entry( $deviceid, $dbh ) ) {
+    unless ( &check_powerdb_entry( $opts, $deviceid ) ) {
         die "deviceid: '$deviceid' already exists\n";
     }
-
-    my $sth;
 
     my $sql = qq|INSERT INTO power
                   ( mac,
@@ -528,74 +533,81 @@ sub add_powerdb_entry() {
                   )
                  VALUES ( ?, ?, ?, ?, ?, ?, ?, ? )
                 |;
+    eval {
 
-    $sth = $dbh->prepare( $sql )
-            or die "Cannot prepare sth: ",$dbh->errstr;
+        my $sth = database->prepare( $sql );
 
-    if ( defined $bmcref->{mac} ){
-         $sth->bind_param( 1, $bmcref->{mac} );
-    } else {
-         $sth->bind_param( 1, 'NULL');
-    }
-    if ( defined $bmcref->{ctype} ) {
-        $sth->bind_param( 2, $bmcref->{ctype} );
-    } else {
-        $sth->bind_param( 2, 'NULL');
-    }
-    if ( defined $bmcref->{login} ) {
-        $sth->bind_param( 3, $bmcref->{login} );
-    } else {
-        $sth->bind_param( 3, 'NULL');
-    }
-    if ( defined $bmcref->{passwd} ) {
-        $sth->bind_param( 4, $bmcref->{passwd} );
-    } else {
-        $sth->bind_param( 4, 'NULL' );
-    }
-    if ( defined $bmcref->{bmcaddr} ) {
-        $sth->bind_param( 5, $bmcref->{bmcaddr} );
-    } else {
-        $sth->bind_param( 5, 'NULL' );
-    }
-    if ( defined $bmcref->{node} ) {
-        $sth->bind_param( 6, $bmcref->{node} );
-    } else {
-        $sth->bind_param( 6, 'NULL' );
-    }
-    if ( defined $bmcref->{other} ) {
-        $sth->bind_param( 7, $bmcref->{other} );
-    } else {
-        $sth->bind_param( 7, 'NULL' );
-    }
-    if ( defined $bmcref->{hostname} ) {
-        $sth->bind_param( 8, $bmcref->{hostname} );
-    } else {
-        $sth->bind_param( 8, 'NULL' );
-    }
+        if ( defined $bmcref->{mac} ){
+             $sth->bind_param( 1, $bmcref->{mac} );
+        } else {
+             $sth->bind_param( 1, 'NULL');
+        }
+        if ( defined $bmcref->{ctype} ) {
+            $sth->bind_param( 2, $bmcref->{ctype} );
+        } else {
+            $sth->bind_param( 2, 'NULL');
+        }
+        if ( defined $bmcref->{login} ) {
+            $sth->bind_param( 3, $bmcref->{login} );
+        } else {
+            $sth->bind_param( 3, 'NULL');
+        }
+        if ( defined $bmcref->{passwd} ) {
+            $sth->bind_param( 4, $bmcref->{passwd} );
+        } else {
+            $sth->bind_param( 4, 'NULL' );
+        }
+        if ( defined $bmcref->{bmcaddr} ) {
+            $sth->bind_param( 5, $bmcref->{bmcaddr} );
+        } else {
+            $sth->bind_param( 5, 'NULL' );
+        }
+        if ( defined $bmcref->{node} ) {
+            $sth->bind_param( 6, $bmcref->{node} );
+        } else {
+            $sth->bind_param( 6, 'NULL' );
+        }
+        if ( defined $bmcref->{other} ) {
+            $sth->bind_param( 7, $bmcref->{other} );
+        } else {
+            $sth->bind_param( 7, 'NULL' );
+        }
+        if ( defined $bmcref->{hostname} ) {
+            $sth->bind_param( 8, $bmcref->{hostname} );
+        } else {
+            $sth->bind_param( 8, 'NULL' );
+        }
 
-    $sth->execute()
-            or die "Cannot execute sth: ", $sth->errstr;
+        $sth->execute;
+        $sth->finish;
+        undef $sth;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }    
 
     return 0;
 }
 
 sub remove_powerdb_entry() {
 
+    my $opts   = shift;
     my $bmcref = shift;
-    my $dbh = $bmcref->{ 'dbh' };
+
+    my $deviceid;
+    my $type;
 
     unless ( ($bmcref->{'mac'}) || ($bmcref->{'hostname'}) ) {
-        print "Required BMC identifier not provided (mac or hostname). \n";
+        debug "Required BMC identifier not provided (mac or hostname). \n";
         return 1;
     }
 
     if ( ($bmcref->{'mac'}) && ($bmcref->{'hostname'}) ) {
-        print "--mac and --hostname not allowed together\n";
+        debug "mac and hostname not allowed together\n";
         return 1;
     }
 
-    my $deviceid;
-    my $type;
     if ( $bmcref->{'mac'} ) {
         $deviceid = $bmcref->{'mac'};
         $type = 'mac';
@@ -604,22 +616,27 @@ sub remove_powerdb_entry() {
         $type = 'hostname';
     }
 
-    if ( &check_powerdb_entry( $deviceid, $dbh ) ) {
-        print "deviceid: $deviceid does not exist\n";
+    if ( &check_powerdb_entry( $opts, $deviceid ) ) {
+        debug "deviceid: $deviceid does not exist\n";
         return 1;
     }
 
-    my $sth;
-
     my $sql = qq|DELETE FROM power
-                 WHERE $type = ?
+                 WHERE $type = '$deviceid'
                 |;
 
-    $sth = $dbh->prepare( $sql )
-            or die "Cannot prepare sth: ",$dbh->errstr;
-
-    $sth->execute( $deviceid )
-            or die "Cannot execute sth: ", $sth->errstr;
+    my $href;
+    eval {
+        my $sth = database->prepare( $sql );
+        $sth->execute;
+        $href = $sth->fetchrow_hashref();
+        $sth->finish;
+        undef $sth;
+    };
+    if ($@) {
+        $opts->{LASTERROR} = subroutine_name." : ".$@;
+        error $opts->{LASTERROR};
+    }
 
     return 0;
 
@@ -637,6 +654,7 @@ sub get_bmcref_req_args
             @args = qw(ctype hostname bmcaddr node);
         }
     }
+
     return @args;
 }
 

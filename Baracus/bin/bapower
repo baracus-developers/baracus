@@ -24,19 +24,20 @@
 #
 ###########################################################################
 
+
 use strict;
-use warnings;
 
 use Getopt::Long qw( :config pass_through );
 use Pod::Usage;
+use LWP;
+use HTTP::Cookies;
+use Term::ReadKey;
+use XML::Simple;
 
 use lib "/usr/share/baracus/perl";
 
-use BaracusPower qw( :subs );
-use BaracusDB;
-use BaracusSql;
-use BaracusCore qw( :subs );
-use BaracusAux  qw( :subs );
+use BaracusCore   qw( :subs );
+use BaracusConfig qw( :vars :subs );
 
 =pod
 
@@ -80,271 +81,420 @@ This tool allows for power management via plugable BMC control modules
 
 =cut
 
-our $LASTERROR="";
+my $man  = 0;
+my $help = 0;
 
-my $man      = 0;
-my $help     = 0;
-my $debug    = 0;
-my $verbose  = 0;
-my $quiet    = 0;
-
-my %cmds = (
+my $cmds = {
             'on'     => \&on,
             'off'    => \&off,
             'cycle'  => \&cycle,
             'status' => \&status,
-            'add'    => \&add_stub,
-            'remove' => \&remove_stub,
-            'list'   => \&list_stub,
+            'add'    => \&add,
+            'remove' => \&remove,
+            'list'   => \&list,
             'help'   => \&myhelp,
             'man'    => \&myman,
-            );
+            };
+
+my $opts = {
+            verbose    => 0,
+            quiet      => 0,
+            all        => 0,
+            nolabels   => 0,
+            debug      => 0,
+            execname   => "",
+            LASTERROR  => "",
+            };
+
+# Build command line for help, historical reference and point-in-time rebuilding
+$opts->{execname} = $0;
+$opts->{execname} = $1 if ( $0 =~ m|^.*/([^/].+)| );
 
 GetOptions(
-           'debug'          => \$debug,
-           'quiet'          => \$quiet,
-           'help|?'         => \$help,
-           'man'            => \$man,
-           'verbose'        => \$verbose,
+           'verbose'   => \$opts->{verbose},
+           'quiet'     => \$opts->{quiet},
+           'debug+'    => \$opts->{debug},
+           'man'       => \$man,
+           'help|?'    => \$help,
            );
 
-&myman()  if $man;
-&myhelp() if $help;
-&myhelp() unless ( scalar @ARGV );
-if ($ARGV[0] eq "man"  ) { &myman(); }
-if ($ARGV[0] eq "help" ) { shift @ARGV; &myhelp(@ARGV); }
+&man()  if $man;
+&help( $opts, $cmds ) if $help;
+&help( $opts, $cmds ) unless ( scalar @ARGV );
+if ($ARGV[0] eq "man"  ) { &man(); }
+if ($ARGV[0] eq "help" ) { shift @ARGV; &help( $opts, $cmds, @ARGV ); }
 
-my $dbname = "baracus";
-my $dbrole = $dbname;
+## Setup base URL and PORT
+my $port = undef;
+if ( $baVar{port} ) {
+    $port = $baVar{port};
+} else {
+    $port = "80";
+}
 
-my $uid = BaracusDB::su_user( $dbrole );
-die BaracusDB::errstr unless ( defined $uid );
+my $baseurl = undef;
+if ( $baVar{url} ) {
+    $baseurl = $baVar{url};
+} elsif ( $baVar{serverip} ) {
+    $baseurl = $baVar{serverip};
+} else {
+    print "Edit /etc/sysconfig/baracus to include a ServerIP or URL\n";
+    exit 1;
+}
 
-my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
-die BaracusDB::errstr unless( $dbh );
+print "Using: $baseurl \n" if ($opts->{debug});
+print "Using: $port\n" if ($opts->{debug});
 
-my $status = &mymain(@ARGV);
+# Setup LWP
+my $browser = LWP::UserAgent->new( );
+$browser->cookie_jar( {} );
+$browser->agent('baracus');
+$browser->default_header('Accept' => 'text/xml');
 
-die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
+## Authenticate request
+my $username = "";
+my $password = "";
+if ( -f "$ENV{HOME}/.barc") {
+    print "We have a file\n" if ($opts->{debug});
+    open(FILE, "<$ENV{HOME}/.barc");
+    while (<FILE>) {
+        if (/username/) { chomp ( $username = (split /=/, $_)[1] ); }
+        if (/password/) { chomp ( $password = (split /=/, $_)[1] ); }
+    }
+} else {
+    print "enter username: ";
+    chomp($username = ReadLine 0);
 
-print $LASTERROR if $status;
+    print "enter password: ";
+    ReadMode 'noecho';
+    chomp($password = ReadLine 0);
+    ReadMode 'normal';
+    print "\n";
+}
+my $login_url = "http://$baseurl:$port/login?username=$username&password=$password";
+my $login_response = $browser->post( $login_url );
+
+my $status = &main( $opts, $cmds, @ARGV );
+
+my $logout_url = "http://$baseurl:$port/logout";
+my $logout_response = $browser->get( $logout_url );
+print $logout_response->content;
 
 exit $status;
 
-die "DOES NOT EXECUTE";
+die "DOES NOT EXECUTE\n";
 
-###############################################################################
-#
-# subroutines
-#
+###########################################################################
+##
+## commands
+##
 
-sub mymain
-{
-    my $command = shift;
+=head1 COMMANDS
 
-    my $deviceid = "";
-    my $bmc = {};
+=head2 add --mac <mac> [ --hostname <name> ]
 
-    $bmc->{'dbh'} = $dbh;
+Add power registration (via mac) entry to Baracus.
 
-    printf "Executing $command with \"@_\".\n" if $debug;
+Argument
 
-    $command = lc $command;
-    return 1 unless &mycheck_command( $command );
+  --mac <addr>             MAC address to be added
 
-    if ( $command eq "list" ) {
-        # bypass real mac hostname checks to support filtering
-        return $cmds{list}( $bmc, @_ );
-    }
+Option
 
-    ($deviceid, @_) = &arg_handler( $bmc, $command, @_ );
-    unless (defined $deviceid) {
-        $LASTERROR = "invalid --mac or --hostname usage\n";
-        return 1;
-    }
-    # other arg_handler error conditions return 1
-    return 1 if ( $deviceid eq "1" );
+  --hostname <name>        Provide the hostname as an alias to refer to this host
 
-    if ( $command =~ m/^(on|off|cycle|status)$/ ) {
-        my $href = &get_bmc($bmc, $deviceid);
-        unless ( $href ) {
-            $LASTERROR= "Unable to find entry for device with id: $deviceid\n";
-            return 1;
-        }
-        $cmds{ $command }( $href );
-    } else {
-        $cmds{ $command }( $bmc, @_ );
-    }
+=cut
 
-}
 
-sub myhelp() {
-    my $command = shift;
+sub add() {
 
-    unless ( defined $command ) {
-        pod2usage( -verboase => 0,
-                   -exitstatus => 0 );
-    }
+    my $verb = 'add';
 
-    $command = lc $command;
-    &mycheck_command( $command );
-
-    my $execname = $0;
-    $execname = $1 if ( $0 =~ m|^.*/([^/].+)| );
-
-    pod2usage( -msg        => "$execname $command ...\n",
-               -verbose    => 99,
-               -sections   => "COMMANDS/${command}.*",
-               -exitstatus => 0 );
-}
-
-sub myman
-{
-    pod2usage( -verbose    => 2,
-               -sections   => "NAME|SYNOPSIS|DESCRIPTION|OPTIONS|COMMANDS",
-               -noperldoc  => 1,
-               -exitstatus => 0 );
-}
-
-sub arg_handler() {
-    my $bmc = shift;
-    my $command = shift;
-
-    my $deviceid = 0;
-
-    @ARGV = @_;
-
-    GetOptions(
-               'mac=s'      => \$bmc->{'mac'},
-               'hostname=s' => \$bmc->{'hostname'},
-              );
-
-    #                              =~ m/^(on|off|cycle|status|remove|list)/
-    if ( scalar @ARGV and $command !~ m/^(add)$/ ) {
-        printf "\nUnknown arg(s): %s\n\n", join(" ", @ARGV);
-        &myhelp();
-    }
-    unless ( $command eq "add" ) {
-        if ( ($bmc->{'mac'}) and ($bmc->{'hostname'}) ) {
-            $LASTERROR = "Please use either --mac or --hostname\n";
-            return 1;
-        }
-    }
-    unless ( $bmc->{'mac'} or $bmc->{'hostname'} ) {
-        $LASTERROR = "Require an id. Use --mac or --hostname\n";
-        return 1;
-    }
-
-    if ($bmc->{'mac'}) {
-        # check_mac exits on invalid mac string
-        $bmc->{'mac'} = &check_mac( $bmc->{'mac'} );
-        $deviceid = $bmc->{'mac'};
-    }
-    if ($bmc->{'hostname'}) {
-        if ( &check_hostname( $bmc->{'hostname'} ) == 0  ) {
-            $deviceid = $bmc->{'hostname'};
-        } else {
-            $LASTERROR = "Hostname provided is not valid: $bmc->{hostname}\n";
-            return 1;
-        }
-    }
-
-    return ( $deviceid, @ARGV );
-}
-
-sub mycheck_command
-{
-    my $command = shift;
-
-    my $cmd_list = join ', ', (sort keys %cmds);
-    unless ( defined $command ) {
-        print "Requires <command> (e.g. $cmd_list)\n";
-        &myhelp();
-    }
-
-    unless ( defined $cmds{ $command } ) {
-        $LASTERROR = sprintf "\nInvalid <command> '$command' please use:  $cmd_list\n";
-        return 0;
-    }
-}
-
-sub remove_stub() {
-
-    my $bmcref = shift;
-
-    my $status = &remove( $bmcref );
-
-    return $status;
-
-}
-
-sub add_stub() {
-
-    my $bmcref = shift;
+    my $mac;
+    my $hostname;
 
     @ARGV = @_;
     GetOptions(
-               'ctype=s'       => \$bmcref->{'ctype'},
-               'login=s'       => \$bmcref->{'login'},
-               'passwd=s'      => \$bmcref->{'passwd'},
-               'bmcaddr=s'     => \$bmcref->{'bmcaddr'},
-               'node=s'        => \$bmcref->{'node'},
-               'other=s'       => \$bmcref->{'other'},
+               'mac=s'      => \$mac,
+               'hostname=s' => \$hostname,
                );
 
-    if ( scalar @ARGV ) {
-        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+    unless ( ( defined $mac ) or ( defined $hostname ) ) {
+        print "--mac <mac> or --hostname <hostname> required\n";
         return 1;
     }
-    &add( $bmcref );
+
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
+    }
+
+    my $url = "http://$baseurl:$port/host/$verb";
+    $url .= "?mac=$mac";
+
+    my $response = $browser->post( $url );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
+
+
+
+    return 0;
+
 }
 
-sub list_stub() {
+=head2 remove { --mac <mac> | --hostname <name> }
 
-    my $bmcref = shift;
+Remove host entry from Baracus.  Specify the device by --mac or if a hostname has been associated with this mac you can instead specify --hostname to locate the entry to be removed.
 
+=cut
+
+sub remove()
+{
+
+    my $verb = 'remove';
+
+    my $mac;
+    my $hostname;
+
+    @ARGV = @_;
+    GetOptions(
+               'mac=s'      => \$mac,
+               'hostname=s' => \$hostname,
+               );
+
+    unless ( ( defined $mac ) or ( defined $hostname ) ) {
+        print "--mac <mac> or --hostname <hostname> required\n";
+        return 1;
+    }
+
+    if ( ( defined $mac ) and ( defined $hostname ) ) {
+        print "--mac and --hostname cannoe be combined\n";
+        return 1;
+    }
+
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
+    }
+
+    my $url = "http://$baseurl:$port/host/$verb";
+    $url .= "?mac=$mac";
+
+    my $response = $browser->put( $url );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
+
+    print $response->content;
+
+    return 0;
+
+}
+
+=head2 list { nodes | states | templates } [ --filter <spec> ]
+
+Types
+
+  nodes               shows all nodes
+  states              state data releated to hosts
+  templates           build client templates
+
+Option
+
+  --filter <spec>     exact, or partial with wildcarded ('*')
+
+Where <spec> is of format:
+
+  mac::<address>
+  hostname::<name>
+
+=cut
+
+sub list
+{
+    my $verb = "list";
     my $filter = "";
 
     @ARGV = @_;
+
     GetOptions(
-               'filter=s'  => $filter,
+               'filter=s'  => \$filter,
                );
 
     if ( scalar @ARGV ) {
-        $LASTERROR = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
     }
 
-    my $opts = { 'LASTERROR' => "", 'debug' => $debug };
-    my $sth = &list_start_data( $opts, $dbh, 'power', $filter );
+    $filter = "all" unless ( $filter ne "" );
 
-    unless( defined $sth ) {
-        # bapower needs to get in line with the other commands
-        # for main, help, and opts/debug handling
-        $LASTERROR = $opts->{LASTERROR};
-        return 1;
-    }
+    my $url = "http://$baseurl:$port/power/$verb/$filter";
 
-    unless ($quiet) {
+    my $response = $browser->get( $url );
+
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
+
+    my $xml = new XML::Simple;
+    my $data = $xml->XMLin( $response->content );
+
+    unless ($opts->{quiet}) {
     print "--------------------------------------------------------------------------------------\n";
     printf "%-8s %-16s %-18s %-18s %-16s %-16s ", "ctype", "bmcaddr", "mac", "hostname", "node", "other";
     print "\n";
     print "--------------------------------------------------------------------------------------\n";
     }
 
-    my $dbref;
-    while ( $dbref = &list_next_data( $sth ) ) {
-        $dbref->{'node'} =~ s/NULL//g;
-        $dbref->{'other'} =~ s/NULL//g;
-        printf "%-8s %-16s %-18s %-18s %-16s %-16s ",
-            "$dbref->{'ctype'}", "$dbref->{'bmcaddr'}", "$dbref->{'mac'}",
-                "$dbref->{'hostname'}", "$dbref->{'node'}", "$dbref->{'other'}";
+
+    for my $node ( sort keys %$data ) {
+        printf "%-8s %-16s %-18s %-18s %-16s %-16s\n",
+               "$data->{$node}->{ctype}", "$data->{$node}->{bmcaddr}", "$data->{$node}->{mac}",
+               "$data->{$node}->{hostname}", "$data->{$node}->{node}", "$data->{$node}->{other}";
+    }
+
+    return 0;  
+}
+
+=head2 detail { node | inventory } { --mac <mac> | --hostname <name> }
+
+Types
+
+  node               full details of client
+  inventory          hardware inventory for client
+
+Argument
+
+  --mac <mac>        provide the mac to identify client of interest
+  --hostname <name>  provide the hostname to identify client of interest
+                     note that not all clients have associated hostname info
+
+=cut
+
+sub detail
+{
+
+    my $verb = "detail";
+
+    my $filter = "";
+    my $hostname = "";
+    my $mac = "";
+
+    @ARGV = @_;
+    GetOptions(
+               'mac=s'      => \$mac,
+               'hostname=s' => \$hostname,
+               );
+
+    if ( scalar @ARGV ) {
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help( $opts, $verb );
+    }
+
+    my $url = "http://$baseurl:$port/host/$verb/$mac";
+
+    my $response = $browser->get( $url );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
+
+    my $xml = new XML::Simple;
+    my $data = $xml->XMLin( $response->content );
+
+    print "Host Entry:\n";
+    print "-----------\n";
+    printf "%-11s", "MAC:";      print "$data->{mac}" if $data->{mac}; print "\n";
+    printf "%-11s", "Hostname:"; print "$data->{hostname}" if $data->{hostname}; print "\n";
+    printf "%-11s", "IP Addr:";  print "$data->{ip}" if $data->{ip}; print "\n";
+    print "\n";
+    print "Status: \n";
+    print "------- \n";
+    printf "%-10s", "state:";   print" $data->{oper} " if $data->{oper}; print "\n";
+    printf "%-10s", "active:";  print" $data->{admin} " if $data->{admin}; print "\n";
+    printf "%-10s", "pxecurr:"; print" $data->{pxecurr} " if $data->{pxecurr}; print "\n";
+    printf "%-10s", "pxenext:"; print" $data->{pxenext} " if $data->{pxenext}; print "\n";
+    print "\n";
+    print "Build\n";
+    print "-----\n";
+    printf "%-18s", "distro:";            print " $data->{distro}" if $data->{distro}; print "\n";
+    printf "%-18s", "addons:";            print " $data->{addons}" if $data->{addons}; print "\n";
+    printf "%-18s", "hardware:";          print " (ver $data->{hardware_ver}) $data->{hardware}" if $data->{hardware}; print "\n";
+    printf "%-18s", "profile:";           print " (ver $data->{profile_ver}) $data->{profile}" if $data->{profile}; print "\n";
+    printf "%-18s", "autobuild:";         print " (ver $data->{autobuild_ver}) $data->{autobuild}\n" if $data->{autobuild}; print "\n";
+    printf "%-18s", "vars:";              print " $data->{vars}" if $data->{vars}; print "\n";
+
+    print "\n";
+    if ( $data->{modules} ) {
+## This is an array, need to update to handle as such
+        print "Build Modules\n";
+        print "-------------\n";
+        printf "%-18s", "modules:";
+        printf "\n%-18s $data->{modules}", "";
+        print "\n";
         print "\n";
     }
+
+    if ( $data->{storageid} ) {
+        print "Storage\n";
+        print "-------\n";
+        printf "%-18s", "StorageID:"; print " $data->{storageid}";
+        print "\n";
+        print "\n";
+    }
+
+    if ( $data->{mcastid} ) {
+        print "MCast\n";
+        print "-----\n";
+        printf "%-18s", "MultiCastID:"; print " $data->{mcastid}";
+        print "\n";
+        print "\n";
+    }
+
+    print "Additional Details\n";
+    print "------------------\n";
+    printf "%-18s", "Loghost:";           print " $data->{loghost}"  if $data->{loghost}; print "\n";
+    printf "%-18s", "Remote Access:";     print " $data->{raccess}"  if $data->{raccess}; print "\n";
+    printf "%-18s", "Auto Wipe:";         print " $data->{autonuke}" if $data->{autonuke}; print "\n";
+    printf "%-18s", "Entry Creation:";    print " $data->{creation}" if $data->{creation}; print "\n";
+    printf "%-18s", "Last Modification:"; print " $data->{change}"   if $data->{change}; print "\n";
 
     return 0;
 
 }
+
+=head2 enable { --mac <addr> | --hostname <name> }
+
+Enable the specified host node.  This will update the admin state of
+the node to enabled.
+
+=cut
+
+=head2 disable { --mac <addr> | --hostname <name> }
+
+Disable the specified host node.  This will update the admin state to
+disabled and serve pxewait boot menus to pxebooting disabled nodes.
+
+=cut
+
+sub enable  { &_enable_disable_( "enable",  @_ );}
+sub disable { &_enable_disable_( "disable", @_ );}
+
+sub _enable_disable_
+{
+
+}
+
+
+######################################################################
 
 die "ABSOLUTELY DOES NOT EXECUTE";
 

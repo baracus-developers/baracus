@@ -1,0 +1,4 @@
+<br>
+<% FOREACH node IN data.keys %>
+    <% node %> &nbsp;&nbsp <% data.$node.mac %> &nbsp;&nbsp <% data.$node.hostname %> &nbsp;&nbsp <% data.$node.ctype %> &nbsp;&nbsp <% data.$node.bmcaddr %> &nbsp;&nbsp <% data.$node.node %> &nbsp;&nbsp <% data.$node.other %>  <br>
+<% END %>

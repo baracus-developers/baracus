@@ -1,4 +1,4 @@
-<form name='update' action='/source/update' method="POST">
+<form name='update' action='/source/update' method="PUT">
 <h1><% status %></h1>
 
 <center>

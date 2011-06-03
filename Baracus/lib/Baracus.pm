@@ -15,12 +15,13 @@ use Baracus::REST::Source  qw( :subs );
 use Baracus::REST::User    qw( :subs );
 use Baracus::REST::Host    qw( :subs );
 #use Baracus::REST::Do      qw( :subs );
-#use Baracus::REST::Power   qw( :subs );
+use Baracus::REST::Power   qw( :subs );
 #use Baracus::REST::Storage qw( :subs );
 #use Baracus::REST::Auth    qw( :subs );
 
 use Baracus::FORMDATA::Source_formdata qw( :subs );
 use Baracus::FORMDATA::Host_formdata qw( :subs );
+use Baracus::FORMDATA::Power_formdata qw( :subs );
 
 my $opts = {
             verbose    => 1,
@@ -118,13 +119,13 @@ get   '/source/detail/:distro' => sub { var exec => ""; &source_wrapper( "detail
 get   '/source/add'            => sub { &source_wrapper( "add", "source_add" );                        };
 post  '/source/add'            => sub { &source_wrapper( "add", "source_response" );                   };
 get   '/source/remove'         => sub { &source_wrapper( "remove", "source_remove" );                  };
-post  '/source/remove'         => sub { &source_wrapper( "remove", "source_response" );                };
+put   '/source/remove'         => sub { &source_wrapper( "remove", "source_response" );                };
 get   '/source/update'         => sub { &source_wrapper( "update", "source_update" );                  };
-post  '/source/update'         => sub { &source_wrapper( "update", "source_response" );                };
+put   '/source/update'         => sub { &source_wrapper( "update", "source_response" );                };
 get   '/source/enable'         => sub { &source_wrapper( "enable", "source_enable" );                  };
-post  '/source/enable'         => sub { &source_wrapper( "enable", "source_response" );                };
+put   '/source/enable'         => sub { &source_wrapper( "enable", "source_response" );                };
 get   '/source/disable'        => sub { &source_wrapper( "disable", "source_disable" );                };
-post  '/source/disable'        => sub { &source_wrapper( "disable", "source_response" );               };
+put   '/source/disable'        => sub { &source_wrapper( "disable", "source_response" );               };
 
 ###########################################################################
 ##
@@ -159,7 +160,7 @@ sub host_wrapper() {
         to_xml( $host_verbs->{$verb}( @_ ) );
     } elsif ( request->{accept} eq 'application/json' ) {
         header('Content-Type' => 'application/json');
-        to_json( $source_verbs->{$verb}( @_ ) );
+        to_json( $host_verbs->{$verb}( @_ ) );
     } else {
         layout 'main';
         if ( ( $method eq "GET") && ( ! defined vars->{exec} ) ) {
@@ -171,16 +172,16 @@ sub host_wrapper() {
 }
 
 get  '/host/list/:listtype'  => sub { var exec => ""; &host_wrapper( "list", "host_list" );           };
-get  '/host/detail/:mac'     => sub { var exec => ""; &host_wrapper( "detail", "host_detail" );       };
-get  '/host/inventory/:mac'  => sub { var exec => ""; &host_wrapper( "inventory", "host_inventory" ); };
+get  '/host/detail/:node'    => sub { var exec => ""; &host_wrapper( "detail", "host_detail" );       };
+get  '/host/inventory/:node' => sub { var exec => ""; &host_wrapper( "inventory", "host_inventory" ); };
 get  '/host/add'             => sub { &host_wrapper( "add", "host_add" );                             };
 post '/host/add'             => sub { &host_wrapper( "add", "host_response" );                        };
 get  '/host/remove'          => sub { &host_wrapper( "remove", "host_remove" );                       };
-post '/host/remove'          => sub { &host_wrapper( "remove", "host_response" );                     };
+put  '/host/remove'          => sub { &host_wrapper( "remove", "host_response" );                     };
 get  '/host/enable'          => sub { &host_wrapper( "enable", "host_enable" );                       };
-post '/host/enable'          => sub { &host_wrapper( "enable", "host_response" );                     };
+put  '/host/enable'          => sub { &host_wrapper( "enable", "host_response" );                     };
 get  '/host/disable'         => sub { &host_wrapper( "disable", "host_disable" );                     };
-post '/host/disable'         => sub { &host_wrapper( "disable", "host_response" );                    };
+put  '/host/disable'         => sub { &host_wrapper( "disable", "host_response" );                    };
 
 ###########################################################################
 ##
@@ -240,13 +241,49 @@ my $power_verbs = {
                    'list'    => \&power_list,
                   };
 
-get '/power/off/:host'    => sub { $power_verbs->{'off'}( @_ );         };
-get '/power/on/:host'     => sub { $power_verbs->{'on'}( @_ );          };
-get '/power/cycle/:host'  => sub { $power_verbs->{'cycle'}( @_ );       };
-get '/power/status/:host' => sub { $power_verbs->{'status'}( @_ );      };
-get '/power/remove/:host' => sub { $power_verbs->{'remove'}( @_ );      };
-get '/power/add/:host'    => sub { $power_verbs->{'add'}( @_ );         };
-get '/power/list/:host'   => sub { $power_verbs->{'list'}( @_ );        };
+## Helper subs to generate form data
+my $power_verbs_formdata = {
+                            'add'     => \&power_formdata_add,
+                            'remove'  => \&power_formdata_remove,
+                            'on'      => \&power_formdata_on,
+                            'off'     => \&power_formdata_off,
+                            'cycle'   => \&power_formdata_cycle,
+                           };
+
+
+sub power_wrapper() {
+    my $verb = shift;
+    my $template = shift;
+    my $method = request->method;
+
+    if ( request->{accept} eq 'text/xml' ) {
+        header('Content-Type' => 'text/xml');
+        to_xml( $power_verbs->{$verb}( @_ ) );
+    } elsif ( request->{accept} eq 'application/json' ) {
+        header('Content-Type' => 'application/json');
+        to_json( $power_verbs->{$verb}( @_ ) );
+    } else {
+        layout 'main';
+        if ( ( $method eq "GET") && ( ! defined vars->{exec} ) ) {
+            template "$template", { user => session('user'), formdata => $power_verbs_formdata->{$verb}( @_ ) };
+        } elsif ( ( $method eq "POST") || ( defined vars->{exec} ) ) {
+            template "$template", { user => session('user'), data => $power_verbs->{$verb}( @_ ) };
+        }
+    }
+}
+
+get  '/power/list/:filter' => sub { var exec => ""; &power_wrapper( "list", "power_list" );       };
+get  '/power/status/:node' => sub { var exec => ""; &power_wrapper( "status", "power_response" ); };
+get  '/power/on'           => sub { &power_wrapper( "on", "power_on" );                           };
+put  '/power/on'           => sub { &power_wrapper( "on", "power_response" );                     };
+get  '/power/off'          => sub { &power_wrapper( "off", "power_off" );                         };
+put  '/power/off'          => sub { &power_wrapper( "off", "power_response" );                    };
+get  '/power/cycle'        => sub { &power_wrapper( "cycle", "power_cycle" );                     };
+put  '/power/cycle'        => sub { &power_wrapper( "cycle", "power_response" );                  };
+get  '/power/add'          => sub { &power_wrapper( "add", "power_add" );                         };
+post '/power/add'          => sub { &power_wrapper( "add", "power_response" );                    };
+get  '/power/remove'       => sub { &power_wrapper( "remove", "power_remove" );                   };
+put  '/power/remove'       => sub { &power_wrapper( "remove", "power_response" );                 };
 
 ###########################################################################
 ##
@@ -258,6 +295,8 @@ my $storage_verbs = {
                      'list'    => \&storage_list,
                      'detail'  => \&storage_detail,
                     };
+
+
 
 get '/storage/add/:host'    => sub { $storage_verbs->{'add'}( @_ );     };
 get '/storage/remove/:host' => sub { $storage_verbs->{'remove'}( @_ );  };

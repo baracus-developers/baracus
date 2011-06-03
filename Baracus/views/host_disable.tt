@@ -1,4 +1,4 @@
-<form name='disable' action='/host/disable' method="POST">
+<form name='disable' action='/host/disable' method="PUT">
 <h1><% status %></h1>
 
 <center>

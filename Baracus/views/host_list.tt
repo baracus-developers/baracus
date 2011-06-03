@@ -1,2 +1,4 @@
 <br>
-<% data %>
+<% FOREACH node IN data.keys %>
+    <% node %> &nbsp;&nbsp;&nbsp; <% data.$node.hostname %> &nbsp;&nbsp;&nbsp; <% data.$node.inventory_st %> &nbsp;&nbsp;&nbsp; <% data.$node.bstate %>  <br>
+<% END %>

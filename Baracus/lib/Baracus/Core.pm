@@ -51,6 +51,13 @@ BEGIN {
     @EXPORT_OK   = qw();
     %EXPORT_TAGS =
         (
+         vars   =>
+         [qw(
+                BA_REF_MAC
+                BA_REF_HOSTNAME
+                BA_REF_IP
+                BA_REF_ERR
+            )],
          subs   =>
          [qw(
                 main
@@ -60,6 +67,7 @@ BEGIN {
                 get_uuid
                 get_rundate
                 get_md5sum
+                get_node_type
                 check_ip
                 check_mac
                 check_hostname
@@ -69,11 +77,16 @@ BEGIN {
                 whocalled
             )],
          );
+    Exporter::export_ok_tags('vars');
     Exporter::export_ok_tags('subs');
 }
 
-our $VERSION = '0.01';
+our $VERSION = '2.01';
 
+use constant BA_REF_MAC        => 1;
+use constant BA_REF_IP         => 2;
+use constant BA_REF_HOSTNAME   => 3;
+use constant BA_REF_ERR        => 4;
 
 sub main
 {
@@ -173,6 +186,30 @@ sub get_rundate() {
     return $rundate;
 }
 
+sub get_node_type
+{
+    my $node = shift;
+
+    my $type;
+    my $d = "[0-9A-Fa-f]";
+    my $dd = "$d$d";
+
+    if ( $node =~ m/^([0-9a-f]{2}([:-]|$)){6}$/i ) {
+         ## MAC
+         $type = 1;
+    } elsif ( $node =~  m/^(\d\d?\d?).(\d\d?\d?).(\d\d?\d?).(\d{1,})$/ )  {
+         ## IP
+         $type = 2;
+    } elsif ( $node =~ m/^(([a-zA-Z]|[a-zA-Z][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z]|[A-Za-z][A-Za-z0-9\-]*[A-Za-z0-9])$/ ) {
+         ## hostname
+         $type = 3;
+    } else {
+         ## Bad Type
+         $type = 4;
+    }
+
+    return $type;
+}
 
 # data validation routines
 
@@ -211,7 +248,6 @@ sub check_mac
     $mac = sprintf '%02X:%02X:%02X:%02X:%02X:%02X', map hex, split ':', $mac;
     return $mac;
 }
-
 
 ##     RFC 1034 (standard)
 ##     Section 3.5. Preferred name syntax

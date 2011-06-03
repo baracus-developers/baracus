@@ -1,4 +1,4 @@
-package Baracus::FORMDATA::Source_formdata;
+package Baracus::FORMDATA::Power_formdata;
 
 use 5.006;
 use strict;
@@ -24,11 +24,12 @@ BEGIN {
         (
          subs   =>
          [qw(
-                source_formdata_add
-                source_formdata_remove
-                source_formdata_update
-                source_formdata_enable
-                source_formdata_disable
+                power_formdata_add
+                power_formdata_remove
+                power_formdata_on
+                power_formdata_off
+                power_formdata_cycle
+                power_formdata_status
          )],
          );
 
@@ -39,15 +40,14 @@ our $VERSION = '0.01';
 
 ###########################################################################
 ##
-## Source REST data helper Subroutines (add/remove/update/enable/disable)
+## Power REST data helper Subroutines (add/remove/on/off/cycle/status)
 ## for returning GET data necessary for dynammic template form population
 ##
-## template passed $source_verbs_get->{$verb}( @_ ) which is the hashref
+## template passed $power_verbs_get->{$verb}( @_ ) which is the hashref
 ## returned from these subroutines
 
-sub source_formdata_add() {
+sub power_formdata_add() {
 
-    my $distro = params->{distro};
     my $fdata = {};
 
     my $opts = vars->{opts};
@@ -56,17 +56,12 @@ sub source_formdata_add() {
         return "internal 'vars' not properly initialized";
     }
 
-    foreach my $distroid ( &get_inactive_distro_list ) {
-        $fdata->{$distroid} = $distroid;
-    }
-
     return $fdata;
 
 }
 
-sub source_formdata_remove() {
+sub power_formdata_remove() {
 
-    my $distro = params->{distro};
     my $fdata = {};
 
     my $opts = vars->{opts};
@@ -75,33 +70,17 @@ sub source_formdata_remove() {
         return "internal 'vars' not properly initialized";
     }
 
-    foreach my $distroid ( &get_enabled_disabled_distro_list( $opts, '3' ) ) {
-        $fdata->{$distroid} = $distroid;
+    my $sth = &list_start_data ( $opts, 'power', "all" );
+    while ( my $dbref = &list_next_data( $sth ) ) {
+        $fdata->{$dbref->{mac}} = "$dbref->{mac} $dbref->{hostname}";
     }
 
     return $fdata;
 
 }
 
-sub source_formdata_update() {
-    my $distro = params->{distro};
-    my $fdata = {};
+sub power_formdata_on() {
 
-     my $opts = vars->{opts};
-    unless ( $opts ) {
-        status 'error';
-        return "internal 'vars' not properly initialized";
-    }
-
-    foreach my $distroid ( &get_enabled_disabled_distro_list( $opts, '3' ) ) {
-        $fdata->{$distroid} = $distroid;
-    }
-    
-    return $fdata;
-}
-
-sub source_formdata_enable() {
-    my $distro = params->{distro};
     my $fdata = {};
 
     my $opts = vars->{opts};
@@ -110,15 +89,16 @@ sub source_formdata_enable() {
         return "internal 'vars' not properly initialized";
     }
 
-    foreach my $distroid ( &get_enabled_disabled_distro_list( $opts, '4' ) ) {
-        $fdata->{$distroid} = $distroid;
+    my $sth = &list_start_data ( $opts, 'power', "all" );
+    while ( my $dbref = &list_next_data( $sth ) ) {
+        $fdata->{$dbref->{mac}} = "$dbref->{mac} $dbref->{hostname}";
     }
 
     return $fdata;
 }
 
-sub source_formdata_disable() {
-    my $distro = params->{distro};
+sub power_formdata_off() {
+
     my $fdata = {};
 
     my $opts = vars->{opts};
@@ -127,8 +107,45 @@ sub source_formdata_disable() {
         return "internal 'vars' not properly initialized";
     }
 
-    foreach my $distroid ( &get_enabled_disabled_distro_list( $opts, '3' ) ) {
-        $fdata->{$distroid} = $distroid;
+    my $sth = &list_start_data ( $opts, 'power', "all" );
+    while ( my $dbref = &list_next_data( $sth ) ) {
+        $fdata->{$dbref->{mac}} = "$dbref->{mac} $dbref->{hostname}";
+    }
+
+    return $fdata;
+}
+
+sub power_formdata_cycle() {
+
+    my $fdata = {};
+
+    my $opts = vars->{opts};
+    unless ( $opts ) {
+        status 'error';
+        return "internal 'vars' not properly initialized";
+    }
+
+    my $sth = &list_start_data ( $opts, 'power', "all" );
+    while ( my $dbref = &list_next_data( $sth ) ) {
+        $fdata->{$dbref->{mac}} = "$dbref->{mac} $dbref->{hostname}";
+    }
+
+    return $fdata;
+}
+
+sub power_formdata_status() {
+
+    my $fdata = {};
+
+    my $opts = vars->{opts};
+    unless ( $opts ) {
+        status 'error';
+        return "internal 'vars' not properly initialized";
+    }
+
+    my $sth = &list_start_data ( $opts, 'power', "all" );
+    while ( my $dbref = &list_next_data( $sth ) ) {
+        $fdata->{$dbref->{mac}} = "$dbref->{mac} $dbref->{hostname}";
     }
 
     return $fdata;

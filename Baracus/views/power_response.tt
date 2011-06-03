@@ -1,0 +1,2 @@
+<br>
+<b><% data.mac %>:</b> &nbsp;&nbsp <% data.hostname %> &nbsp;&nbsp <% data.action %> &nbsp;&nbsp <% data.result %> <br>

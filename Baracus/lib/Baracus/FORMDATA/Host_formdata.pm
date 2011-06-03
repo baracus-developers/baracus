@@ -39,7 +39,7 @@ our $VERSION = '0.01';
 
 ###########################################################################
 ##
-## Source REST data helper Subroutines (list/add/remove/update/verify)
+## Host REST data helper Subroutines (add/remove/update/enable/disable)
 ## for returning GET data necessary for dynammic template form population
 ##
 ## template passed $source_verbs_get->{$verb}( @_ ) which is the hashref

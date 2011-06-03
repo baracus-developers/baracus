@@ -31,11 +31,11 @@ use warnings;
 use Dancer qw( :syntax);
 use Dancer::Plugin::Database;
 
-use Baracus::Sql   qw( :subs :vars );
-use Baracus::State qw( :vars :admin );
-use Baracus::Core  qw( :subs );
-use Baracus::Config qw( :subs :vars );
-use Baracus::Aux   qw( :subs );
+use Baracus::Sql    qw( :vars :subs );
+use Baracus::State  qw( :vars :admin );
+use Baracus::Core   qw( :vars :subs );
+use Baracus::Config qw( :vars :subs );
+use Baracus::Aux    qw( :subs );
 
 =pod
 
@@ -59,8 +59,8 @@ BEGIN {
         (
          subs   =>
          [qw(
-                add_db_mac
                 get_mac_by_hostname
+                add_db_mac
                 check_host_action
                 check_add_db_mac
                 update_db_mac_state
@@ -75,8 +75,7 @@ BEGIN {
     Exporter::export_ok_tags('subs');
 }
 
-our $VERSION = '0.01';
-
+our $VERSION = '2.01';
 
 # this routine checks for mac and hostname args
 # and if hostname passed finds related mac entry
@@ -84,39 +83,37 @@ our $VERSION = '0.01';
 
 sub get_mac_by_hostname
 {
-    my $opts     = shift;
-    my $mac      = shift;
-    my $hostname = shift;
+    my $opts = shift;
+    my $type = shift;
+    my $node = shift;
 
-    unless ( defined $hostname ) {
-        $hostname = "";
-    }
-
-    if ( $mac eq "" and  $hostname eq "" ) {
-        $opts->{LASTERROR} = "Requires --mac or --hostname.\n";
-        return undef;
-    }
-
+    my $mac;
     my $mref;
     my $href;
 
-    if ( $mac ne "" ) {
-        $mac =  &check_mac( $mac );
-        $mref = &get_db_data_by( $opts, 'host', $mac, 'mac' );
-    }
-    if ( $hostname ne "" ) {
-        if ( check_hostname ( $hostname ) ) {
+    if ( $type == BA_REF_MAC ) {
+        $node =  &check_mac( $node );
+        $mref = &get_db_data_by( $opts, 'host', $node, 'mac' );
+        if ( $node ne $href->{mac} ) {
+            $opts->{LASTERROR} = "Hostname already bound to $href->{mac}\n";
+            error $opts->{LASTERROR};
+        } else {
+            $mac = $node;
+        }
+    } elsif ( $type == BA_REF_HOSTNAME ) {
+        if ( &check_hostname ( $node ) ) {
             $opts->{LASTERROR} = "Need DNS formatted hostname, without domain.\n";
             error $opts->{LASTERROR};
         }
-        $href = &get_db_data( $opts, 'host', $hostname );
+        $href = &get_db_data( $opts, 'host', $node );
+        $mac = $href->{mac} if ( defined $href );
     }
 
     if ( defined $mref ) {
         # mac found in host table
-        if ( $hostname ne "" and
+        if ( $node ne "" and
              $mref->{hostname} ne "" and
-             $hostname ne $mref->{hostname} ) {
+             $node ne $mref->{hostname} ) {
             # mac and hostname passed
             # but hostname passed differes from hostname in table
             $opts->{LASTERROR} = "MAC already bound to $mref->{hostname}\n";
@@ -124,29 +121,6 @@ sub get_mac_by_hostname
         }
     }
 
-    if ( defined $href ) {
-        # hostname found in host table
-        if ( $mac eq "" ) {
-
-            # given hostname and no mac then here is where we get the mac
-            # for all other actions.  entry for hostname passed was found
-
-            $mac = $href->{mac};
-        }
-        elsif ( $mac ne $href->{mac} ) {
-            # mac and hostname passed
-            # but mac passed differs from mac in table
-            $opts->{LASTERROR} = "Hostname already bound to $href->{mac}\n";
-            error $opts->{LASTERROR};
-        }
-    }
-    else {
-        # not defined $href
-        if ( $mac eq "" ) {
-            $opts->{LASTERROR } = "Unable to find hostname.  Try --mac\n";
-            error $opts->{LASTERROR};
-        }
-    }
     return $mac;
 }
 

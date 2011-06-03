@@ -278,7 +278,7 @@ sub update() {
     $url .= "&sharetype=$sharetype" if (defined $sharetype);
     $url .= "&shareip=$shareip" if (defined $shareip);
 
-    my $response = $browser->post( $url );
+    my $response = $browser->put( $url );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
@@ -333,7 +333,7 @@ sub remove() {
     my $url = "http://$baseurl:$port/source/$verb";
     $url .= "?distro=$distro";
 
-    my $response = $browser->post( $url );
+    my $response = $browser->put( $url );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
@@ -379,7 +379,7 @@ sub enable() {
     my $url = "http://$baseurl:$port/source/$verb";
     $url .= "?distro=$distro";
 
-    my $response = $browser->post( $url );
+    my $response = $browser->put( $url );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
@@ -427,7 +427,7 @@ sub disable() {
     my $url = "http://$baseurl:$port/source/$verb";
     $url .= "?distro=$distro";
 
-    my $response = $browser->post( $url );
+    my $response = $browser->put( $url );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 

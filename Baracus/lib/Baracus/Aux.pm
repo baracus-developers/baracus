@@ -1316,7 +1316,7 @@ sub list_start_data
     # default table key
     my $fkey = $baTblId{ $tbl };
 
-    if ( $filter eq "" ) {
+    if ( $filter eq "all" ) {
         $filter = "%";  # everything
     } else {
         if ( $filter =~ m/::/ ) {

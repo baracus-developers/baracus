@@ -1,4 +1,4 @@
-<form name='remove' action='/host/remove' method="PUT">
+<form name='on' action='/power/status' method="PUT">
 <h1><% status %></h1>
 
 <center>
@@ -15,16 +15,15 @@
     <% FOREACH opt IN formdata %>
     <option value="<% opt.key %>"><% opt.value %></option>
     <% END %>
-    </select>
+</select>
 </td>
 </tr>
 <tr>
 </td>
 <td align='right'>
-    <input type='submit' name='submit' value='Remove'>&nbsp;&nbsp;
+    <input type='submit' name='submit' value='Power Status'>&nbsp;&nbsp;
 </td>
 </tr>
-
 </table>
 </div>
 </center>
