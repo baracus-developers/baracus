@@ -425,9 +425,8 @@ sub get_bmc() {
                   FROM power
                   WHERE mac = '$deviceid'
                 |;
-  
+
     my $href;
-   
     eval {
         my $sth = database->prepare( $sql );
         $sth->execute;
@@ -603,11 +602,6 @@ sub remove_powerdb_entry() {
         return 1;
     }
 
-    if ( ($bmcref->{'mac'}) && ($bmcref->{'hostname'}) ) {
-        debug "mac and hostname not allowed together\n";
-        return 1;
-    }
-
     if ( $bmcref->{'mac'} ) {
         $deviceid = $bmcref->{'mac'};
         $type = 'mac';
@@ -629,7 +623,6 @@ sub remove_powerdb_entry() {
     eval {
         my $sth = database->prepare( $sql );
         $sth->execute;
-        $href = $sth->fetchrow_hashref();
         $sth->finish;
         undef $sth;
     };

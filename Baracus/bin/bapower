@@ -212,11 +212,23 @@ sub add() {
 
     my $mac;
     my $hostname;
+    my $login;
+    my $passwd;
+    my $ctype;
+    my $bmcaddr;
+    my $node;
+    my $other;
 
     @ARGV = @_;
     GetOptions(
                'mac=s'      => \$mac,
                'hostname=s' => \$hostname,
+               'ctype=s'    => \$ctype,
+               'login=s'    => \$login,
+               'passwd=s'   => \$passwd,
+               'bmcaddr=s'  => \$bmcaddr,
+               'node=s'     => \$node,
+               'other=s'    => \$other,
                );
 
     unless ( ( defined $mac ) or ( defined $hostname ) ) {
@@ -229,17 +241,36 @@ sub add() {
             &help( $opts, $cmds, $verb );
     }
 
-    my $url = "http://$baseurl:$port/host/$verb";
-    $url .= "?mac=$mac";
+    my $url = "http://$baseurl:$port/power/$verb";
+    $url .= "?";
+    $url .= "mac=$mac" if ( defined $mac );
+    if ( defined $mac ) {
+        $url .= "&"
+    } else {
+        $url .= "?";
+    }
+    $url .= "hostname=$hostname" if ( defined $hostname );
+    $url .= "&ctype=$ctype"      if ( defined $ctype );
+    $url .= "&login=$passwd"     if ( defined $passwd );
+    $url .= "&bmcaddr=$bmcaddr"  if ( defined $bmcaddr );
+    $url .= "&node=$node"        if ( defined $node );
+    $url .= "&other=$other"      if ( defined $other );
+    
 
-    my $response = $browser->post( $url );
+    my $req = HTTP::Request->new(POST => $url);
+    $req->content_type('text/xml');
+
+    my $response = $browser->request( $req );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
     die "Hey, I was expecting XML, not ", $response->content_type
       unless $response->content_type eq 'text/xml';
 
+    my $xml = new XML::Simple;
+    my $data = $xml->XMLin( $response->content );
 
+    print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
 
     return 0;
 
@@ -247,7 +278,7 @@ sub add() {
 
 =head2 remove { --mac <mac> | --hostname <name> }
 
-Remove host entry from Baracus.  Specify the device by --mac or if a hostname has been associated with this mac you can instead specify --hostname to locate the entry to be removed.
+Remove power registration entry from Baracus.  Specify the power device by --mac or if a hostname has been associated with this mac you can instead specify --hostname to locate the entry to be removed.
 
 =cut
 
@@ -258,6 +289,7 @@ sub remove()
 
     my $mac;
     my $hostname;
+    my $node;
 
     @ARGV = @_;
     GetOptions(
@@ -280,17 +312,30 @@ sub remove()
             &help( $opts, $cmds, $verb );
     }
 
-    my $url = "http://$baseurl:$port/host/$verb";
-    $url .= "?mac=$mac";
+    ## Route takes dynamically typed node
+    if ( defined $mac ) {
+        $node = $mac
+    } else {
+        $node = $hostname;
+    }
 
-    my $response = $browser->put( $url );
+    my $url = "http://$baseurl:$port/power/$verb";
+    $url .= "?node=$node";
+
+    my $req = HTTP::Request->new(PUT => $url);
+    $req->content_type('text/xml');
+
+    my $response = $browser->request( $req );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
     die "Hey, I was expecting XML, not ", $response->content_type
       unless $response->content_type eq 'text/xml';
 
-    print $response->content;
+    my $xml = new XML::Simple;
+    my $data = $xml->XMLin( $response->content );
+
+    print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
 
     return 0;
 

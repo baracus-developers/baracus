@@ -327,6 +327,7 @@ sub power_remove() {
     $mac = &check_mac( $mac );
 
     my $bmcref = &get_bmc( $opts, 'mac', $mac );
+
     unless ( $bmcref ) {
         $opts->{LASTERROR} = "Unable to find entry for device with id: $mac\n";
         error $opts->{LASTERROR};
