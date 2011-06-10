@@ -34,10 +34,10 @@ use HTTP::Cookies;
 use Term::ReadKey;
 use XML::Simple;
 
-use lib "/usr/share/baracus/perl";
+use lib "/home/cruejones/git/baracus/Baracus/lib";
 
-use BaracusCore   qw( :subs );
-use BaracusConfig qw( :vars :subs );
+use Baracus::Core   qw( :subs );
+use Baracus::Config qw( :vars :subs );
 
 =pod
 
@@ -341,6 +341,267 @@ sub remove()
 
 }
 
+=head2 status { --mac <mac> | --hostname <name> }
+
+Status info on power registration entry from Baracus.  Specify the power device by --mac or if a hostname has been associated with this mac you can instead specify --hostname to locate the entry to be removed.
+
+=cut
+
+
+sub status
+{
+
+    my $verb = 'status';
+
+    my $mac;
+    my $hostname;
+    my $node;
+
+    @ARGV = @_;
+    GetOptions(
+               'mac=s'      => \$mac,
+               'hostname=s' => \$hostname,
+               );
+
+    unless ( ( defined $mac ) or ( defined $hostname ) ) {
+        print "--mac <mac> or --hostname <hostname> required\n";
+        return 1;
+    }
+
+    if ( ( defined $mac ) and ( defined $hostname ) ) {
+        print "--mac and --hostname cannoe be combined\n";
+        return 1;
+    }
+
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
+    }
+
+    ## Route takes dynamically typed node
+    if ( defined $mac ) {
+        $node = $mac
+    } else {
+        $node = $hostname;
+    }
+
+    my $url = "http://$baseurl:$port/power/$verb/$node";
+
+    my $req = HTTP::Request->new(GET => $url);
+    $req->content_type('text/xml');
+
+    my $response = $browser->request( $req );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
+
+    my $xml = new XML::Simple;
+    my $data = $xml->XMLin( $response->content );
+
+    print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
+
+    return 0;
+
+}
+
+=head2 on { --mac <mac> | --hostname <name> }
+
+Power on node.  Specify the power device by --mac or if a hostname has been associated with this mac you can instead specify --hostname to locate the entry to be removed.
+
+=cut
+
+
+sub on
+{
+
+    my $verb = 'on';
+
+    my $mac;
+    my $hostname;
+    my $node;
+
+    @ARGV = @_;
+    GetOptions(
+               'mac=s'      => \$mac,
+               'hostname=s' => \$hostname,
+               );
+
+    unless ( ( defined $mac ) or ( defined $hostname ) ) {
+        print "--mac <mac> or --hostname <hostname> required\n";
+        return 1;
+    }
+
+    if ( ( defined $mac ) and ( defined $hostname ) ) {
+        print "--mac and --hostname cannoe be combined\n";
+        return 1;
+    }
+
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
+    }
+
+    ## Route takes dynamically typed node
+    if ( defined $mac ) {
+        $node = $mac
+    } else {
+        $node = $hostname;
+    }
+
+    my $url = "http://$baseurl:$port/power/$verb";
+    $url .= "?node=$node";
+
+    my $req = HTTP::Request->new(PUT => $url);
+    $req->content_type('text/xml');
+
+    my $response = $browser->request( $req );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
+
+    my $xml = new XML::Simple;
+    my $data = $xml->XMLin( $response->content );
+
+    print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
+
+    return 0;
+
+}
+
+=head2 off { --mac <mac> | --hostname <name> }
+
+Power off node.  Specify the power device by --mac or if a hostname has been associated with this mac you can instead specify --hostname to locate the entry to be removed.
+
+=cut
+
+sub off
+{
+
+    my $verb = 'off';
+
+    my $mac;
+    my $hostname;
+    my $node;
+
+    @ARGV = @_;
+    GetOptions(
+               'mac=s'      => \$mac,
+               'hostname=s' => \$hostname,
+               );
+
+    unless ( ( defined $mac ) or ( defined $hostname ) ) {
+        print "--mac <mac> or --hostname <hostname> required\n";
+        return 1;
+    }
+
+    if ( ( defined $mac ) and ( defined $hostname ) ) {
+        print "--mac and --hostname cannoe be combined\n";
+        return 1;
+    }
+
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
+    }
+
+    ## Route takes dynamically typed node
+    if ( defined $mac ) {
+        $node = $mac
+    } else {
+        $node = $hostname;
+    }
+
+    my $url = "http://$baseurl:$port/power/$verb";
+    $url .= "?node=$node";
+
+    my $req = HTTP::Request->new(PUT => $url);
+    $req->content_type('text/xml');
+
+    my $response = $browser->request( $req );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
+
+    my $xml = new XML::Simple;
+    my $data = $xml->XMLin( $response->content );
+
+    print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
+
+    return 0;
+
+}
+
+=head2 cycle { --mac <mac> | --hostname <name> }
+
+Power cycle node.  Specify the power device by --mac or if a hostname has been associated with this mac you can instead specify --hostname to locate the entry to be removed.
+
+=cut
+
+sub cycle
+{
+
+    my $verb = 'cycle';
+
+    my $mac;
+    my $hostname;
+    my $node;
+
+    @ARGV = @_;
+    GetOptions(
+               'mac=s'      => \$mac,
+               'hostname=s' => \$hostname,
+               );
+
+    unless ( ( defined $mac ) or ( defined $hostname ) ) {
+        print "--mac <mac> or --hostname <hostname> required\n";
+        return 1;
+    }
+
+    if ( ( defined $mac ) and ( defined $hostname ) ) {
+        print "--mac and --hostname cannoe be combined\n";
+        return 1;
+    }
+
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
+    }
+
+    ## Route takes dynamically typed node
+    if ( defined $mac ) {
+        $node = $mac
+    } else {
+        $node = $hostname;
+    }
+
+    my $url = "http://$baseurl:$port/power/$verb";
+    $url .= "?node=$node";
+
+    my $req = HTTP::Request->new(PUT => $url);
+    $req->content_type('text/xml');
+
+    my $response = $browser->request( $req );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting XML, not ", $response->content_type
+      unless $response->content_type eq 'text/xml';
+
+    my $xml = new XML::Simple;
+    my $data = $xml->XMLin( $response->content );
+
+    print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
+
+    return 0;
+
+}
+
 =head2 list { nodes | states | templates } [ --filter <spec> ]
 
 Types
@@ -425,7 +686,6 @@ Argument
 
 sub detail
 {
-
     my $verb = "detail";
 
     my $filter = "";

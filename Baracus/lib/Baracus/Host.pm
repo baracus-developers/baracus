@@ -83,37 +83,43 @@ our $VERSION = '2.01';
 
 sub get_mac_by_hostname
 {
-    my $opts = shift;
-    my $type = shift;
-    my $node = shift;
+    my $opts   = shift;
+    my $type   = shift;
+    my $nodeid = shift;
 
     my $mac;
     my $mref;
     my $href;
 
-    if ( $type == BA_REF_MAC ) {
-        $node =  &check_mac( $node );
-        $mref = &get_db_data_by( $opts, 'host', $node, 'mac' );
-        if ( $node ne $href->{mac} ) {
+    if ( $type eq "mac" ) {
+        $nodeid =  &check_mac( $nodeid );
+        $mref = &get_db_data_by( $opts, 'host', $nodeid, 'mac' );
+        if ( $nodeid ne $href->{mac} ) {
             $opts->{LASTERROR} = "Hostname already bound to $href->{mac}\n";
             error $opts->{LASTERROR};
         } else {
-            $mac = $node;
+            $mac = $nodeid;
         }
-    } elsif ( $type == BA_REF_HOSTNAME ) {
-        if ( &check_hostname ( $node ) ) {
+    } elsif ( $type eq "host" ) {
+        if ( &check_hostname ( $nodeid ) ) {
             $opts->{LASTERROR} = "Need DNS formatted hostname, without domain.\n";
             error $opts->{LASTERROR};
         }
-        $href = &get_db_data( $opts, 'host', $node );
-        $mac = $href->{mac} if ( defined $href );
+
+        $href = &get_db_data( $opts, 'host', $nodeid );
+        if ( defined $href ) {
+            $mac = $href->{mac};
+        } else {
+            error "host id not found";
+            send_error("host id not found", 406);
+        }
     }
 
     if ( defined $mref ) {
         # mac found in host table
-        if ( $node ne "" and
+        if ( $nodeid ne "" and
              $mref->{hostname} ne "" and
-             $node ne $mref->{hostname} ) {
+             $nodeid ne $mref->{hostname} ) {
             # mac and hostname passed
             # but hostname passed differes from hostname in table
             $opts->{LASTERROR} = "MAC already bound to $mref->{hostname}\n";

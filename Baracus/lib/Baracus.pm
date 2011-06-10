@@ -2,6 +2,7 @@ package Baracus;
 use Dancer qw( :syntax );
 
 our $VERSION = '2.0.0';
+my $apiver = "/api/v1";
 
 #    set views => '/opt/Baracus/views';
 #    set public => '/opt/Baracus/public';
@@ -22,6 +23,8 @@ use Baracus::REST::Power   qw( :subs );
 use Baracus::FORMDATA::Source_formdata qw( :subs );
 use Baracus::FORMDATA::Host_formdata qw( :subs );
 use Baracus::FORMDATA::Power_formdata qw( :subs );
+
+set serializer => 'Mutable';
 
 my $opts = {
             verbose    => 1,
@@ -56,11 +59,12 @@ sub init_baracus_vars {
               'debug' => $tmp
              ) or die "Unable to create new instance of SqlFS\n";
     }
-
+debug "DEBUG: dbinit=$opts->{dbinit} \n";
     unless ( $opts->{dbinit} ) {
         use Baracus::DB;
         &Baracus::DB::startup() or die $opts->{LASTERROR};
         $opts->{dbinit} = 1;
+        debug "DEBUG: init running again\n";
     }
 }
 
@@ -84,48 +88,64 @@ my $source_verbs = {
                    };
 
 ## Helper subs to generate form data
-my $source_verbs_formdata = {
-                              'add'     => \&source_formdata_add,
-                              'remove'  => \&source_formdata_remove,
-                              'update'  => \&source_formdata_update,
-                              'enable'  => \&source_formdata_enable,
-                              'disable' => \&source_formdata_disable,
-                            };
+#my $source_verbs_formdata = {
+#                              'add'     => \&source_formdata_add,
+#                              'remove'  => \&source_formdata_remove,
+#                              'update'  => \&source_formdata_update,
+#                              'enable'  => \&source_formdata_enable,
+#                              'disable' => \&source_formdata_disable,
+#                            };
+
+#sub source_wrapper() {
+#    my $verb = shift;
+#    my $template = shift;
+#    my $method = request->method;
+#
+#    if ( request->{accept} eq 'text/xml' ) {
+#        header('Content-Type' => 'text/xml');
+#        to_xml( $source_verbs->{$verb}( @_ ) );
+#    } elsif ( request->{accept} eq 'application/json' ) {
+#        header('Content-Type' => 'application/json');
+#        to_json( $source_verbs->{$verb}( @_ ) );
+#    } else {
+#        layout 'main';
+#        if ( ( $method eq "GET") && ( ! defined vars->{exec} ) ) {
+#            template "$template", { user => session('user'), formdata => $source_verbs_formdata->{$verb}( @_ ) };
+#        } elsif ( ( $method eq "POST") || ( defined vars->{exec} ) ) {
+#            template "$template", { user => session('user'), data => $source_verbs->{$verb}( @_ ) };
+#        }
+#    }
+#}
 
 sub source_wrapper() {
-    my $verb = shift;
-    my $template = shift;
+    my $verb   = shift;
     my $method = request->method;
 
     if ( request->{accept} eq 'text/xml' ) {
         header('Content-Type' => 'text/xml');
-        to_xml( $source_verbs->{$verb}( @_ ) );
+        $source_verbs->{$verb}( @_ );
     } elsif ( request->{accept} eq 'application/json' ) {
         header('Content-Type' => 'application/json');
-        to_json( $source_verbs->{$verb}( @_ ) );
+        $source_verbs->{$verb}( @_ );
     } else {
         layout 'main';
-        if ( ( $method eq "GET") && ( ! defined vars->{exec} ) ) {
-            template "$template", { user => session('user'), formdata => $source_verbs_formdata->{$verb}( @_ ) };
-        } elsif ( ( $method eq "POST") || ( defined vars->{exec} ) ) {
-            template "$template", { user => session('user'), data => $source_verbs->{$verb}( @_ ) };
-        }
+        template "baracus_mesg", { user => session('user') };
     }
 }
 
-get   '/source/list/:distro'   => sub { var exec => ""; &source_wrapper( "list", "source_list" );      };
-get   '/source/verify/:distro' => sub { var exec => ""; &source_wrapper( "verify", "source_verify" );  };
-get   '/source/detail/:distro' => sub { var exec => ""; &source_wrapper( "detail", "source_detail" );  };
-get   '/source/add'            => sub { &source_wrapper( "add", "source_add" );                        };
-post  '/source/add'            => sub { &source_wrapper( "add", "source_response" );                   };
-get   '/source/remove'         => sub { &source_wrapper( "remove", "source_remove" );                  };
-put   '/source/remove'         => sub { &source_wrapper( "remove", "source_response" );                };
-get   '/source/update'         => sub { &source_wrapper( "update", "source_update" );                  };
-put   '/source/update'         => sub { &source_wrapper( "update", "source_response" );                };
-get   '/source/enable'         => sub { &source_wrapper( "enable", "source_enable" );                  };
-put   '/source/enable'         => sub { &source_wrapper( "enable", "source_response" );                };
-get   '/source/disable'        => sub { &source_wrapper( "disable", "source_disable" );                };
-put   '/source/disable'        => sub { &source_wrapper( "disable", "source_response" );               };
+get   '$apiver/source/list/:distro'   => sub { var exec => ""; &source_wrapper( "list", "source_list" );      };
+get   '$apiver/source/verify/:distro' => sub { var exec => ""; &source_wrapper( "verify", "source_verify" );  };
+get   '$apiver/source/detail/:distro' => sub { var exec => ""; &source_wrapper( "detail", "source_detail" );  };
+#get   '/source/add'            => sub { &source_wrapper( "add", "source_add" );                        };
+post  '$apiver/source'                => sub { &source_wrapper( "add", "source_response" );                   };
+#get   '/source/remove'         => sub { &source_wrapper( "remove", "source_remove" );                  };
+del   '$apiver/source'                => sub { &source_wrapper( "remove", "source_response" );                };
+#get   '/source/update'         => sub { &source_wrapper( "update", "source_update" );                  };
+put   '$apiver/source/update'         => sub { &source_wrapper( "update", "source_response" );                };
+#get   '/source/enable'         => sub { &source_wrapper( "enable", "source_enable" );                  };
+put   '$apiver/source/enable'         => sub { &source_wrapper( "enable", "source_response" );                };
+#get   '/source/disable'        => sub { &source_wrapper( "disable", "source_disable" );                };
+put   '$apiver/source/disable'        => sub { &source_wrapper( "disable", "source_response" );               };
 
 ###########################################################################
 ##
@@ -141,47 +161,39 @@ my $host_verbs = {
                   'disable'   => \&host_disable,
                  };
 
-## Helper subs to generate form data
-my $host_verbs_formdata = {
-                            'add'     => \&host_formdata_add,
-                            'remove'  => \&host_formdata_remove,
-                            'update'  => \&host_formdata_update,
-                            'enable'  => \&host_formdata_enable,
-                            'disable' => \&host_formdata_disable,
-                          };
-
 sub host_wrapper() {
-    my $verb = shift;
-    my $template = shift;
+    my $verb   = shift;
     my $method = request->method;
 
     if ( request->{accept} eq 'text/xml' ) {
         header('Content-Type' => 'text/xml');
-        to_xml( $host_verbs->{$verb}( @_ ) );
+        $host_verbs->{$verb}( @_ );
     } elsif ( request->{accept} eq 'application/json' ) {
         header('Content-Type' => 'application/json');
-        to_json( $host_verbs->{$verb}( @_ ) );
+#status 406; return { error => "Here's an error", code => "27" };
+        $host_verbs->{$verb}( @_ );
     } else {
         layout 'main';
-        if ( ( $method eq "GET") && ( ! defined vars->{exec} ) ) {
-            template "$template", { user => session('user'), formdata => $host_verbs_formdata->{$verb}( @_ ) };
-        } elsif ( ( $method eq "POST") || ( defined vars->{exec} ) ) {
-            template "$template", { user => session('user'), data => $host_verbs->{$verb}( @_ ) };
-        }
+        template "baracus_mesg", { user => session('user') };
     }
 }
 
-get  '/host/list/:listtype'  => sub { var exec => ""; &host_wrapper( "list", "host_list" );           };
-get  '/host/detail/:node'    => sub { var exec => ""; &host_wrapper( "detail", "host_detail" );       };
-get  '/host/inventory/:node' => sub { var exec => ""; &host_wrapper( "inventory", "host_inventory" ); };
-get  '/host/add'             => sub { &host_wrapper( "add", "host_add" );                             };
-post '/host/add'             => sub { &host_wrapper( "add", "host_response" );                        };
-get  '/host/remove'          => sub { &host_wrapper( "remove", "host_remove" );                       };
-put  '/host/remove'          => sub { &host_wrapper( "remove", "host_response" );                     };
-get  '/host/enable'          => sub { &host_wrapper( "enable", "host_enable" );                       };
-put  '/host/enable'          => sub { &host_wrapper( "enable", "host_response" );                     };
-get  '/host/disable'         => sub { &host_wrapper( "disable", "host_disable" );                     };
-put  '/host/disable'         => sub { &host_wrapper( "disable", "host_response" );                    };
+get  "$apiver/host/states/:filter"        => sub { var type => "states"; &host_wrapper( "list" );    };
+get  "$apiver/host/nodes/:filter"         => sub { var type => "nodes"; &host_wrapper( "list" );     };
+get  "$apiver/host/templates/:filter"     => sub { var type => "templates"; &host_wrapper( "list" ); };
+get  "$apiver/host/detail/by-mac/:mac"    => sub { var bytype => "mac"; &host_wrapper( "detail" );   };
+get  "$apiver/host/detail/by-host/:host"  => sub { var bytype => "host"; &host_wrapper( "detail" );  };
+#get  "$apiver/host/detail/by-host/:host"  => sub { status 406; return { error => "Here's an error", code => "27" } };
+get  "$apiver/host/inventory/:node"       => sub { &host_wrapper( "inventory" );                     };
+post "$apiver/host"                       => sub { &host_wrapper( "add" );                           };
+del  "$apiver/host/by-mac/:mac"           => sub { var bytype => "mac"; &host_wrapper( "remove" );   };
+del  "$apiver/host/by-hostname/:hostname" => sub { var bytype => "host"; &host_wrapper( "remove" );  };
+put  "$apiver/host"                       => sub { &host_wrapper( "admin" );                         };
+
+#get  '/host/add'             => sub { &host_wrapper( "add", "host_add" );         };
+#get  '/host/remove'          => sub { &host_wrapper( "remove", "host_remove" );   };
+#get  '/host/enable'          => sub { &host_wrapper( "enable", "host_enable" );   };
+#get  '/host/disable'         => sub { &host_wrapper( "disable", "host_disable" ); };
 
 ###########################################################################
 ##
@@ -272,18 +284,18 @@ sub power_wrapper() {
     }
 }
 
-get  '/power/list/:filter' => sub { var exec => ""; &power_wrapper( "list", "power_list" );       };
-get  '/power/status/:node' => sub { var exec => ""; &power_wrapper( "status", "power_response" ); };
-get  '/power/on'           => sub { &power_wrapper( "on", "power_on" );                           };
-put  '/power/on'           => sub { &power_wrapper( "on", "power_response" );                     };
-get  '/power/off'          => sub { &power_wrapper( "off", "power_off" );                         };
-put  '/power/off'          => sub { &power_wrapper( "off", "power_response" );                    };
-get  '/power/cycle'        => sub { &power_wrapper( "cycle", "power_cycle" );                     };
-put  '/power/cycle'        => sub { &power_wrapper( "cycle", "power_response" );                  };
-get  '/power/add'          => sub { &power_wrapper( "add", "power_add" );                         };
-post '/power/add'          => sub { &power_wrapper( "add", "power_response" );                    };
-get  '/power/remove'       => sub { &power_wrapper( "remove", "power_remove" );                   };
-put  '/power/remove'       => sub { &power_wrapper( "remove", "power_response" );                 };
+get  '$apiver/power/list/:filter' => sub { var exec => ""; &power_wrapper( "list", "power_list" );       };
+get  '$apiver/power/status/:node' => sub { var exec => ""; &power_wrapper( "status", "power_response" ); };
+#get  '/power/on'           => sub { &power_wrapper( "on", "power_on" );                           };
+put  '$apiver/power/on'           => sub { &power_wrapper( "on", "power_response" );                     };
+#get  '/power/off'          => sub { &power_wrapper( "off", "power_off" );                         };
+put  '$apiver/power/off'          => sub { &power_wrapper( "off", "power_response" );                    };
+#get  '/power/cycle'        => sub { &power_wrapper( "cycle", "power_cycle" );                     };
+put  '$apiver/power/cycle'        => sub { &power_wrapper( "cycle", "power_response" );                  };
+#get  '/power/add'          => sub { &power_wrapper( "add", "power_add" );                         };
+post '$apiver/power/add'          => sub { &power_wrapper( "add", "power_response" );                    };
+#get  '/power/remove'       => sub { &power_wrapper( "remove", "power_remove" );                   };
+del  '$apiver/power/remove'       => sub { &power_wrapper( "remove", "power_response" );                 };
 
 ###########################################################################
 ##
@@ -457,14 +469,14 @@ get '/' => sub {
 ## Login Route
 
 get '/login' => sub {
-    # Display a login page; the original URL they requested is available as
-    # vars->{requested_path} which is in a hidden field in login.tt
-#    my $login_url = request->uri_for('/login');
-#    if ($login_url->scheme() ne "https") {
-#        $login_url->scheme('https');
-#        redirect $login_url;
-#    }
-  
+   # Display a login page; the original URL they requested is available as
+   # vars->{requested_path} which is in a hidden field in login.tt
+    my $login_url = request->uri_for('/login');
+    if ($login_url->scheme() ne "https") {
+        $login_url->scheme('https');
+        redirect $login_url;
+    }
+ 
     if ( params->{failed} ) {
         var status => "Login Failed";
     } else {
@@ -500,7 +512,7 @@ post '/login' => sub {
 
 get '/logout' => sub {
     session->destroy();
-    if ( request->{accept} ne 'text/xml' ) {
+    if ( request->{accept} eq 'text/html' ) {
         redirect '/login';
     }
 };
@@ -523,6 +535,8 @@ any qr{.*'} => sub {
 before sub {
 
     init_baracus_vars();
+
+    set serializer => 'Mutable';
 
     if (! session('user') && request->path_info !~ m{^/login}) {
         var requested_path => request->path_info;

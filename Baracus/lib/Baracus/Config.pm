@@ -30,6 +30,7 @@ use warnings;
 
 use Config::General;
 use Dancer qw( :syntax );
+use Dancer qw( :script );
 
 =head1 NAME
 
@@ -107,6 +108,8 @@ my %keymap =
      'share_ip'         =>  'shareip',
      'baracusd_options' =>  'bdoptions',
      'remote_logging'   =>  'rlogging',
+     'url'              =>  'url',
+     'port'             =>  'port',
      'ipmi'             =>  'ipmi',
      'ipmi_lan'         =>  'ipmilan',
      'ipmi_passwd'      =>  'ipmipasswd',
@@ -127,6 +130,9 @@ my %keymap =
      share_ip         => "" ,
      baracusd_options => "" ,
      remote_logging   => "" ,
+
+     url              => "" ,
+     port             => "" ,
 
      ipmi             => "" ,
      ipmi_lan         => "" ,
@@ -225,7 +231,7 @@ $baDir{ data } = setting('appdir');
 $baDir{ templates } =  "$baDir{ data }/templates";
 $baDir{ scripts } =  "$baDir{ data }/scripts";
 
-my $baconfigdir = "$baDir{data}/etc/baracus";
+my $baconfigdir = "/etc/baracus";
 $baDir{ bcdir } = $baconfigdir;
 
 my @bcdirs = qw( distros.d repos.d );

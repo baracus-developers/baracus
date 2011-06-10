@@ -9,13 +9,12 @@ use HTTP::Cookies;
 use Term::ReadKey;
 use XML::Simple;
 
-use lib "/usr/share/baracus/perl";
+use lib "/home/cruejones/git/baracus/Baracus/lib";
 
-use BaracusCore   qw( :subs );
-use BaracusConfig qw( :vars :subs );
-use BaracusState  qw( :vars :admin );
-use BaracusSource qw( :vars :subs );
-
+use Dancer qw( :syntax);
+use Baracus::Core   qw( :subs );
+use Baracus::Config qw( :vars :subs );
+use Baracus::State  qw( :vars :admin );
 
 =pod
 
@@ -65,6 +64,7 @@ Active physical device entries must be assigned an 'action' via bado to boot acc
 
 =cut
 
+my $apiver = "api/v1";
 my $man  = 0;
 my $help = 0;
 
@@ -133,7 +133,7 @@ print "Using: $port\n" if ($opts->{debug});
 my $browser = LWP::UserAgent->new( );
 $browser->cookie_jar( {} );
 $browser->agent('baracus');
-$browser->default_header('Accept' => 'text/xml');
+$browser->default_header('Accept' => 'application/json');
 
 ## Authenticate request
 my $username = "";
@@ -203,8 +203,8 @@ sub add() {
                'hostname=s' => \$hostname,
                );
 
-    unless ( ( defined $mac ) or ( defined $hostname ) ) {
-        print "--mac <mac> or --hostname <hostname> required\n";
+    unless ( defined $mac ) {
+        print "--mac <mac> required\n";
         return 1;
     }
 
@@ -213,17 +213,26 @@ sub add() {
             &help( $opts, $cmds, $verb );
     }
 
-    my $url = "http://$baseurl:$port/power/$verb";
-    $url .= "?mac=$mac" if ;
+    my $json_hash = {};
+    $json_hash->{hostname} = $hostname;
+    $json_hash->{mac}      = $mac;
 
-    my $response = $browser->post( $url );
+    my $url = "http://$baseurl:$port/$apiver/host";
+    my $message = to_json($json_hash);
+
+    my $req = HTTP::Request->new( 'POST', $url );
+    $req->content_type('application/json');
+    $req->content($message);
+
+    my $response = $browser->request( $req );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
-    die "Hey, I was expecting XML, not ", $response->content_type
-      unless $response->content_type eq 'text/xml';
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
 
-    print $response->content;
+    my $data = from_json( $response->content );
+    print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
 
     return 0;
 
@@ -255,7 +264,7 @@ sub remove()
     }
 
     if ( ( defined $mac ) and ( defined $hostname ) ) {
-        print "--mac and --hostname cannoe be combined\n";
+        print "--mac and --hostname cannot be combined\n";
         return 1;
     }
 
@@ -264,17 +273,30 @@ sub remove()
             &help( $opts, $cmds, $verb );
     }
 
-    my $url = "http://$baseurl:$port/host/$verb";
-    $url .= "?mac=$mac";
+     my $bytype;
+    my $node;
+    if ( $mac ne "" ) {
+        $bytype = "mac";
+        $node = $mac;
+    } elsif ( $hostname ne "" ) {
+        $bytype = "host";
+        $node = $hostname;
+    }
 
-    my $response = $browser->put( $url );
+    my $url = "http://$baseurl:$port/$apiver/host/by-$bytype/$node";
+
+    my $req = HTTP::Request->new( 'DELETE', $url );
+    $req->content_type('application/json');
+
+    my $response = $browser->request( $req );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
-    die "Hey, I was expecting XML, not ", $response->content_type
-      unless $response->content_type eq 'text/xml';
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
 
-    print $response->content;
+    my $data = from_json( $response->content );
+    print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
 
     return 0;
 
@@ -302,9 +324,9 @@ Where <spec> is of format:
 sub list
 {
     my $verb = "list";
-    my $subcommand = shift; 
+    my $listtype = shift;
 
-    my $filter = "";
+    my $filter = "*";
 
     @ARGV = @_;
 
@@ -317,19 +339,21 @@ sub list
             &help( $opts, $cmds, $verb );
     }
 
-    my $url = "http://$baseurl:$port/host/$verb/$subcommand";
+    my $url = "http://$baseurl:$port/$apiver/host/$listtype/$filter";
 
-    my $response = $browser->get( $url );
+    my $req = HTTP::Request->new( 'GET', $url );
+    $req->header( 'Accept' => 'application/json' );
+
+    my $response = $browser->request( $req );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
-    die "Hey, I was expecting XML, not ", $response->content_type
-      unless $response->content_type eq 'text/xml';
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
 
-    my $xml = new XML::Simple;
-    my $data = $xml->XMLin( $response->content );
+    my $data = from_json( $response->content );
 
-    if ( $subcommand eq "templates" ) {
+    if ( $listtype eq "templates" ) {
         ## List available build templates filtered by hostname if provided
         ##
         unless ( $opts->{quiet} || $opts->{nolabels} ) {
@@ -342,7 +366,7 @@ sub list
             printf "%-17s %-17s %-9s \n", "$node", "$data->{$node}->{name}", "$data->{$node}->{auto}";
         }
 
-    } elsif ( $subcommand eq "states" ) {
+    } elsif ( $listtype eq "states" ) {
         ## List macs and show state and when time of that state
         ##
         if ( not ( $opts->{quiet} or $opts->{nolabels} ) )
@@ -376,7 +400,7 @@ sub list
             printf "%-10s %-10s %-9s %-9s\n",
                 "$data->{$node}->{pxecurr_str}", "$data->{$node}->{pxenext_str}", "$data->{$node}->{state_str}", "$data->{$node}->{active_str}";
         }
-    } elsif ( $subcommand eq "nodes" ) {
+    } elsif ( $listtype eq "nodes" ) {
  
         if (not ( $opts->{quiet} or $opts->{nolabels} ) ) {
             print "---------------------------------------------------------------\n";
@@ -417,10 +441,7 @@ Argument
 
 sub detail
 {
-
     my $verb = "detail";
-
-    my $filter = "";
     my $hostname = "";
     my $mac = "";
 
@@ -435,17 +456,29 @@ sub detail
         &help( $opts, $verb );
     }
 
-    my $url = "http://$baseurl:$port/host/$verb/$mac";
+    my $bytype;
+    my $node;
+    if ( $mac ne "" ) {
+        $bytype = "mac";
+        $node = $mac;
+    } elsif ( $hostname ne "" ) {
+        $bytype = "host";
+        $node = $hostname;
+    }
 
-    my $response = $browser->get( $url );
+    my $url = "http://$baseurl:$port/$apiver/host/$verb/by-$bytype/$node";
+
+    my $req = HTTP::Request->new( 'GET', $url );
+    $req->header( 'Accept' => 'application/json' );
+
+    my $response = $browser->request( $req );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
-    die "Hey, I was expecting XML, not ", $response->content_type
-      unless $response->content_type eq 'text/xml';
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
 
-    my $xml = new XML::Simple;
-    my $data = $xml->XMLin( $response->content );
+    my $data = from_json( $response->content );
 
     print "Host Entry:\n";
     print "-----------\n";
@@ -527,6 +560,62 @@ sub disable { &_enable_disable_( "disable", @_ );}
 
 sub _enable_disable_
 {
+
+    my $verb = shift;
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $verb );
+    }
+
+    my $hostname="";
+    my $mac = "";
+
+    @ARGV = @_;
+
+    GetOptions(
+               'mac=s'          => \$mac,
+               'hostname=s'     => \$hostname,
+               );
+
+    unless ( ( defined $mac ) or ( defined $hostname ) ) {
+        print "--mac <mac> or --hostname required\n";
+        return 1;
+    }
+
+    if ( ( defined $mac ) and ( defined $hostname ) ) {
+        print "--mac and --hostname cannot be combined\n";
+        return 1;
+    }
+
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
+    }
+
+    my $json_hash = {};
+    $json_hash->{verb}     = $verb;
+    $json_hash->{hostname} = $hostname if ( defined $hostname );;
+    $json_hash->{mac}      = $mac      if ( defined $mac );;
+
+    my $url = "http://$baseurl:$port/$apiver/host/admin";
+    my $message = to_json($json_hash);
+
+    my $req = HTTP::Request->new( 'PUT', $url );
+    $req->content_type('application/json');
+    $req->content($message);
+
+    my $response = $browser->request( $req );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    my $data = from_json( $response->content );
+    print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
+
+    return 0;
+
 
 }
 

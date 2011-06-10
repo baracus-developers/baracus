@@ -325,9 +325,9 @@ sub power_remove() {
         error $opts->{LASTERROR};
     }
     $mac = &check_mac( $mac );
-
+debug "DEBUG: mac=$mac \n";
     my $bmcref = &get_bmc( $opts, 'mac', $mac );
-
+debug "DEBUG: $bmcref->{mac} and $bmcref->{hostname} \n";
     unless ( $bmcref ) {
         $opts->{LASTERROR} = "Unable to find entry for device with id: $mac\n";
         error $opts->{LASTERROR};
