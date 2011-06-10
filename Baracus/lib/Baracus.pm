@@ -157,8 +157,7 @@ my $host_verbs = {
                   'inventory' => \&host_inventory,
                   'add'       => \&host_add,
                   'remove'    => \&host_remove,
-                  'enable'    => \&host_enable,
-                  'disable'   => \&host_disable,
+                  'admin'     => \&host_admin,
                  };
 
 sub host_wrapper() {
@@ -183,11 +182,10 @@ get  "$apiver/host/nodes/:filter"         => sub { var type => "nodes"; &host_wr
 get  "$apiver/host/templates/:filter"     => sub { var type => "templates"; &host_wrapper( "list" ); };
 get  "$apiver/host/detail/by-mac/:mac"    => sub { var bytype => "mac"; &host_wrapper( "detail" );   };
 get  "$apiver/host/detail/by-host/:host"  => sub { var bytype => "host"; &host_wrapper( "detail" );  };
-#get  "$apiver/host/detail/by-host/:host"  => sub { status 406; return { error => "Here's an error", code => "27" } };
 get  "$apiver/host/inventory/:node"       => sub { &host_wrapper( "inventory" );                     };
 post "$apiver/host"                       => sub { &host_wrapper( "add" );                           };
 del  "$apiver/host/by-mac/:mac"           => sub { var bytype => "mac"; &host_wrapper( "remove" );   };
-del  "$apiver/host/by-hostname/:hostname" => sub { var bytype => "host"; &host_wrapper( "remove" );  };
+del  "$apiver/host/by-host/:hostname"     => sub { var bytype => "host"; &host_wrapper( "remove" );  };
 put  "$apiver/host"                       => sub { &host_wrapper( "admin" );                         };
 
 #get  '/host/add'             => sub { &host_wrapper( "add", "host_add" );         };

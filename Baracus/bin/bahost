@@ -567,8 +567,8 @@ sub _enable_disable_
         &help( $opts, $cmds, $verb );
     }
 
-    my $hostname="";
-    my $mac = "";
+    my $hostname;
+    my $mac;
 
     @ARGV = @_;
 
@@ -597,7 +597,7 @@ sub _enable_disable_
     $json_hash->{hostname} = $hostname if ( defined $hostname );;
     $json_hash->{mac}      = $mac      if ( defined $mac );;
 
-    my $url = "http://$baseurl:$port/$apiver/host/admin";
+    my $url = "http://$baseurl:$port/$apiver/host";
     my $message = to_json($json_hash);
 
     my $req = HTTP::Request->new( 'PUT', $url );

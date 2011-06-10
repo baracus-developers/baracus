@@ -488,11 +488,13 @@ sub host_remove() {
 
 }
 
-sub admin
+sub host_admin()
 {
     my $command  = request->params->{verb};
     my $mac      = request->params->{mac}      if ( defined request->params->{mac} );
     my $hostname = request->params->{hostname} if ( defined request->params->{hostname} );
+
+debug "DEBUG: command=$command and mac=$mac and hostname=$hostname \n";
 
     my %returnHash;
 
@@ -511,6 +513,7 @@ sub admin
     my $chkref;
 
     if ( ( defined $hostname ) and ( not defined $mac ) ) {
+debug "DEBUG : here 3 \n";
         # this routine checks for mac and hostname args
         # and if hostname passed finds related mac entry
         # returns undef on error (e.g., unable to find hostname)
@@ -523,6 +526,7 @@ sub admin
 
     $macref = &get_db_data( $opts, 'mac', $mac );
     unless ( defined $macref ) {
+debug "DEBUG : here 2 \n";
         &add_db_mac( $opts, $mac, BA_ADMIN_ADDED );
         $macref = &get_db_data( $opts, 'mac', $mac );
     }
@@ -534,6 +538,7 @@ sub admin
 
     $chkref = &get_db_data( $opts, 'action', $mac );
     if ( defined $chkref ) {
+debug "DEBUG : here 4 \n";
         if ( $opts->{debug} > 1 ) {
             while ( my ($key, $val) = each %{$chkref} ) {
                 debug "check $key => " . $val eq "" ? "" : $val . "\n";
@@ -551,6 +556,7 @@ sub admin
     my $admin = $command eq "enable" ? BA_ADMIN_ENABLED : BA_ADMIN_DISABLED;
 
     if ( defined $chkref and $chkref->{admin} eq $admin ) {
+debug "DEBUG : here 1 \n";
         $opts->{LASTERROR} = "device admin state already $baState{ $admin }\n";
         return 1;
     }
