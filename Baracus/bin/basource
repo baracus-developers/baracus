@@ -9,6 +9,13 @@ use HTTP::Cookies;
 use Term::ReadKey;
 use XML::Simple;
 
+use lib "/home/cruejones/git/baracus/Baracus/lib";
+
+use Dancer qw( :syntax);
+use Baracus::Core   qw( :subs );
+use Baracus::Config qw( :vars :subs );
+use Baracus::State  qw( :vars :admin );
+
 =pod
 
 =head1 NAME
@@ -57,6 +64,7 @@ This tool assists with the downloading of distribution iso files, the creation o
 
 =cut
 
+my $apiver = "api/v1";
 my $man  = 0;
 my $help = 0;
 
@@ -189,8 +197,8 @@ Where
 sub add() {
 
     my $verb = 'add';
-    my $distro = "";
-    my $addons = "";
+    my $distro;
+    my $extras;
     my $proxy;
     my $check;
     my $isos;
@@ -198,15 +206,14 @@ sub add() {
 
     GetOptions(
                'distro=s'  => \$distro,
-               'addons=s'  => \&multiarg_handler,
+               'extras=s'  => \$extras,
                'proxy'     => \$proxy,
                'check'     => \$check,
                'isos|i'    => \$isos,
                );
 
     unless ( defined $distro ) {
-        print "--distro <distro> required\n";
-        return 1;
+        die "--distro <distro> required\n";
     }
 
     if ( scalar @ARGV ) {
@@ -214,17 +221,29 @@ sub add() {
             &help( $opts, $cmds, $verb );
     }
 
-    my $url = "http://$baseurl:$port/source/$verb";
-    $url .= "?distro=$distro";
+    my $json_hash = {};
+    $json_hash->{distro} = $distro;
+    $json_hash->{extras} = $extras;
+    $json_hash->{proxy} = $proxy;
+    $json_hash->{check} = $check;
+    $json_hash->{isos}  = $isos;
 
-    my $response = $browser->post( $url );
+    my $url = "http://$baseurl:$port/$apiver/source";
+    my $message = to_json($json_hash);
+
+    my $req = HTTP::Request->new( 'POST', $url );
+    $req->content_type('application/json');
+    $req->content($message);
+
+    my $response = $browser->request( $req );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
-    die "Hey, I was expecting XML, not ", $response->content_type
-      unless $response->content_type eq 'text/xml';
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
 
-    print $response->content;
+    my $data = from_json( $response->content );
+    print "$data->{distro}  :  $data->{action} $data->{result} \n";
 
     return 0;
 
@@ -556,18 +575,16 @@ Options
 sub list() {
 
     my $verb = "list";
-    my $distro;
+    my $filter;
 
     @ARGV = @_;
 
     GetOptions(
-               'distro=s'  => \$distro,
-               'addon=s'   => \$distro,
+               'filter=s'   => \$filter,
                );
 
-    unless ( defined $distro ) {
-        print "--distro <distro> required\n";
-        return 1;
+    unless ( defined $filter ) {
+        die "--filter <filter> required\n";
     }
 
     if ( scalar @ARGV ) {
@@ -575,17 +592,19 @@ sub list() {
             &help( $opts, $cmds, $verb );
     }
 
-    my $url = "http://$baseurl:$port/source/$verb/$distro";
+    my $url = "http://$baseurl:$port/$apiver/source/$filter";
 
-    my $response = $browser->get( $url );
+    my $req = HTTP::Request->new( 'GET', $url );
+    $req->header( 'Accept' => 'application/json' );
+
+    my $response = $browser->request( $req );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
-    die "Hey, I was expecting XML, not ", $response->content_type
-      unless $response->content_type eq 'text/xml';
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
 
-    my $xml = new XML::Simple;
-    my $data = $xml->XMLin( $response->content );
+    my $data = from_json( $response->content );
 
     ## Format and print
     unless ( $opts->{quiet} || $opts->{nolabels} ) {

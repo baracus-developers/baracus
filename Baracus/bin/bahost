@@ -333,6 +333,10 @@ sub list
     GetOptions(
                'filter=s'  => \$filter,
                );
+ 
+    unless ( defined $listtype ) {
+        die "listtype required (ie. states/nodes/templates) \n";
+    }
 
     if ( scalar @ARGV ) {
             printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
@@ -363,7 +367,7 @@ sub list
         }
 
         for my $node ( sort keys %$data ) {
-            printf "%-17s %-17s %-9s \n", "$node", "$data->{$node}->{name}", "$data->{$node}->{auto}";
+            printf "%-17s %-17s %-9s \n", "$data->{$node}->{mac}", "$data->{$node}->{name}", "$data->{$node}->{auto}";
         }
 
     } elsif ( $listtype eq "states" ) {
@@ -393,7 +397,7 @@ sub list
 
         for my $node ( sort keys %$data ) {
 
-            printf "%-17s ", $node;
+            printf "%-17s ", $data->{$node}->{mac};
             if ( ! $opts->{quiet} ) {
                 printf "%-17s ", $data->{$node}->{hostname};
             }
@@ -594,8 +598,8 @@ sub _enable_disable_
 
     my $json_hash = {};
     $json_hash->{verb}     = $verb;
-    $json_hash->{hostname} = $hostname if ( defined $hostname );;
-    $json_hash->{mac}      = $mac      if ( defined $mac );;
+    $json_hash->{hostname} = $hostname if ( defined $hostname );
+    $json_hash->{mac}      = $mac      if ( defined $mac );
 
     my $url = "http://$baseurl:$port/$apiver/host";
     my $message = to_json($json_hash);

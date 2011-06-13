@@ -491,33 +491,22 @@ sub add_powerdb_entry() {
     my $opts   = shift;
     my $bmcref = shift;
 
-    my $deviceid;
-
-    my $type;
-    if ( $bmcref->{'mac'} ) {
-        $deviceid = $bmcref->{'mac'};
-        $type = 'mac';
-    } else {
-        $deviceid = $bmcref->{'hostname'};
-        $type = 'hostname';
-    }
-
     unless ( defined $bmcref->{'ctype'} and
              exists  $powermod{ $bmcref->{'ctype'} } ) {
-        die "Please use one of these ctypes:\n  ".join("\n  ", keys %powermod)."\n" ;
+        error "Please use one of these ctypes:\n  ".join("\n  ", keys %powermod)."\n" ;
     }
 
     ## Check minimal required args
-    foreach my $arg ( my @req_args = &get_bmcref_req_args($bmcref) ) {
+    foreach my $arg ( my @req_args = &get_bmcref_req_args( $bmcref ) ) {
         unless ( $bmcref->{$arg} ) {
             my $LASTERROR = "Required BMC args not provided (" .
                 join(", ", @req_args) . ").\n";
-            die $LASTERROR;
+            error $LASTERROR;
         }
     }
 
-    unless ( &check_powerdb_entry( $opts, $deviceid ) ) {
-        die "deviceid: '$deviceid' already exists\n";
+    unless ( &check_powerdb_entry( $opts, $bmcref->{mac} ) ) {
+        error "deviceid: '$bmcref->{mac}' already exists\n";
     }
 
     my $sql = qq|INSERT INTO power
@@ -532,6 +521,7 @@ sub add_powerdb_entry() {
                   )
                  VALUES ( ?, ?, ?, ?, ?, ?, ?, ? )
                 |;
+
     eval {
 
         my $sth = database->prepare( $sql );

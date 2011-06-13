@@ -52,9 +52,7 @@ BEGIN {
         (
          subs   =>
          [qw(
-                power_off
-                power_on
-                power_cycle
+                power_admin
                 power_status
                 power_remove
                 power_add
@@ -71,10 +69,9 @@ our $VERSION = '0.01';
 ##
 ## Main power REST Subroutines (off/on/cycle/status/remove/add/list)
 
-sub power_off() {
+sub power_admin() {
 
-    my $command = "off";
-    my $node    = params->{node};
+    my $command  = request->params->{verb};
 
     my $opts = vars->{opts};
     unless ( $opts ) {
@@ -82,18 +79,11 @@ sub power_off() {
         return "internal 'vars' not properly initialized";
     }
 
-    # dynamic type checking for params->node
-    my $type = &get_node_type( $node );
-    if ( $type == BA_REF_ERR ) {
-        error "invalid node type";
-    }
-
-    # convert parama->{node} to mac address
     my $mac;
-    if ( $type != BA_REF_MAC ) {
-        $mac = &get_mac_by_hostname( $opts, $type, $node );
+    if ( request->params->{hostname} ) {
+        $mac = &get_mac_by_hostname( $opts, 'host', request->params->{hostname} );
     } else {
-        $mac = $node;
+        $mac = request->params->{mac};
     }
 
     unless ( defined $mac ) {
@@ -108,119 +98,17 @@ sub power_off() {
         error $opts->{LASTERROR};
     }
 
-    my $result = &poff( $bmcref );
-
-    my %returnHash;
-    $returnHash{mac}      = $bmcref->{mac}      if ( defined $bmcref->{mac} );
-    $returnHash{hostname} = $bmcref->{hostname} if ( defined $bmcref->{hostname} );
-    $returnHash{action}   = $command;
-    $returnHash{result}   = $result;
-
-    if ( ( request->{accept} eq 'text/xml' )
-      or ( request->{accept} eq 'application/json' )
-      or ( request->{accept} =~ m|text/html| ) ) {
-        return \%returnHash;
+    my $result;
+    if ( $command eq "on" ) {
+        $result = &pon( $bmcref );
+    } elsif ( $command eq "off" ) {
+        $result = &poff( $bmcref );
+    } elsif ( $command eq "cycle" ) {
+        $result = &pcycle( $bmcref );
     } else {
-        status 'error';
-        return $opts->{LASTERROR};
-    }
-
-}
-
-sub power_on() {
-
-    my $command = "on";
-    my $node    = params->{node};
-
-    my $opts = vars->{opts};
-    unless ( $opts ) {
-        status 'error';
-        return "internal 'vars' not properly initialized";
-    }
-
-    # dynamic type checking for params->node
-    my $type = &get_node_type( $node );
-    if ( $type == BA_REF_ERR ) {
-        error "invalid node type";
-    }
-
-    # convert parama->{node} to mac address
-    my $mac;
-    if ( $type != BA_REF_MAC ) {
-        $mac = &get_mac_by_hostname( $opts, $type, $node );
-    } else {
-        $mac = $node;
-    }
-
-    unless ( defined $mac ) {
-        $opts->{LASTERROR} = "mac or hostname required \n";
+        $opts->{LASTERROR} = "Invalid type: $command \n";
         error $opts->{LASTERROR};
     }
-    $mac = &check_mac( $mac );
-
-    my $bmcref = &get_bmc( $opts, 'mac', $mac );
-    unless ( $bmcref ) {
-        $opts->{LASTERROR} = "Unable to find entry for device with id: $mac\n";
-        error $opts->{LASTERROR};
-    }
-
-    my $result = &pon( $bmcref );
-
-    my %returnHash;
-    $returnHash{mac}      = $bmcref->{mac}      if ( defined $bmcref->{mac} );
-    $returnHash{hostname} = $bmcref->{hostname} if ( defined $bmcref->{hostname} );
-    $returnHash{action}   = $command;
-    $returnHash{result}   = $result;
-
-    if ( ( request->{accept} eq 'text/xml' )
-      or ( request->{accept} eq 'application/json' )
-      or ( request->{accept} =~ m|text/html| ) ) {
-        return \%returnHash;
-    } else {
-        status 'error';
-        return $opts->{LASTERROR};
-    }
-
-}
-
-sub power_cycle() {
-
-    my $command = "cycle";
-    my $node    = params->{node};
-
-    my $opts = vars->{opts};
-    unless ( $opts ) {
-        status 'error';
-        return "internal 'vars' not properly initialized";
-    }
-
-    # dynamic type checking for params->node
-    my $type = &get_node_type( $node );
-    if ( $type == BA_REF_ERR ) {
-        error "invalid node type";
-    }
-
-    # convert parama->{node} to mac address
-    my $mac;
-    if ( $type != BA_REF_MAC ) {
-        $mac = &get_mac_by_hostname( $opts, $type, $node );
-    } else {
-        $mac = $node;
-    }
-
-    unless ( defined $mac ) {
-        $opts->{LASTERROR} = "mac or hostname required \n";
-        error $opts->{LASTERROR};
-    }
-    $mac = &check_mac( $mac );
-
-    my $bmcref = &get_bmc( $opts, 'mac', $mac );
-    unless ( $bmcref ) {
-        $opts->{LASTERROR} = "Unable to find entry for device with id: $mac\n";
-        error $opts->{LASTERROR};
-    }
-
-    my $result = &pcycle( $bmcref );
 
     my %returnHash;
     $returnHash{mac}      = $bmcref->{mac}      if ( defined $bmcref->{mac} );
@@ -242,7 +130,8 @@ sub power_cycle() {
 sub power_status() {
 
     my $command = "status";
-    my $node    = params->{node};
+    my $type    = vars->{bytype};
+    my $node;
 
     my $opts = vars->{opts};
     unless ( $opts ) {
@@ -250,15 +139,17 @@ sub power_status() {
         return "internal 'vars' not properly initialized";
     }
 
-    # dynamic type checking for params->node
-    my $type = &get_node_type( $node );
-    if ( $type == BA_REF_ERR ) {
-        error "invalid node type";
+    if ( defined params->{mac} ) {
+        $node = params->{mac};
+    } elsif ( defined params->{host} ) {
+        $node = params->{host};
+    } else {
+        error "either mac or host required";
     }
 
     # convert parama->{node} to mac address
     my $mac;
-    if ( $type != BA_REF_MAC ) {
+    if ( $type eq "host" ) {
         $mac = &get_mac_by_hostname( $opts, $type, $node );
     } else {
         $mac = $node;
@@ -298,7 +189,8 @@ sub power_status() {
 sub power_remove() {
 
     my $command = "remove";
-    my $node    = params->{node};
+    my $type    = vars->{bytype};
+    my $node;   
 
     my $opts = vars->{opts};
     unless ( $opts ) {
@@ -306,15 +198,17 @@ sub power_remove() {
         return "internal 'vars' not properly initialized";
     }
 
-    # dynamic type checking for params->node
-    my $type = &get_node_type( $node );
-    if ( $type == BA_REF_ERR ) {
-        error "invalid node type";
+    if ( $type eq "mac" ) {
+        $node = params->{mac};
+    } elsif ( $type eq "host" ) {
+        $node = params->{host};
+    } else {
+        error "either mac or host required";
     }
 
     # convert parama->{node} to mac address
     my $mac;
-    if ( $type != BA_REF_MAC ) {
+    if ( $type eq "host" ) {
         $mac = &get_mac_by_hostname( $opts, $type, $node );
     } else {
         $mac = $node;
@@ -325,9 +219,9 @@ sub power_remove() {
         error $opts->{LASTERROR};
     }
     $mac = &check_mac( $mac );
-debug "DEBUG: mac=$mac \n";
+
     my $bmcref = &get_bmc( $opts, 'mac', $mac );
-debug "DEBUG: $bmcref->{mac} and $bmcref->{hostname} \n";
+
     unless ( $bmcref ) {
         $opts->{LASTERROR} = "Unable to find entry for device with id: $mac\n";
         error $opts->{LASTERROR};
@@ -356,14 +250,14 @@ sub power_add() {
 
     my $command = "add";
     my $bmcref = {};
-    $bmcref->{mac}      = params->{mac}      if ( defined params->{mac} );
-    $bmcref->{hostname} = params->{hostname} if ( defined params->{hostname} );
-    $bmcref->{ctype}    = params->{ctype}    if ( defined params->{ctype} );
-    $bmcref->{login}    = params->{login}    if ( defined params->{login} );
-    $bmcref->{passwd}   = params->{passwd}   if ( defined params->{passwd} );
-    $bmcref->{bmcaddr}  = params->{bmcaddr}  if ( defined params->{bmcaddr} );
-    $bmcref->{node}     = params->{node}     if ( defined params->{node} );
-    $bmcref->{other}    = params->{other}    if ( defined params->{other} );
+    $bmcref->{mac}      = request->params->{mac}      if ( defined request->params->{mac} );
+    $bmcref->{hostname} = request->params->{hostname} if ( defined request->params->{hostname} );
+    $bmcref->{ctype}    = request->params->{ctype}    if ( defined request->params->{ctype} );
+    $bmcref->{login}    = request->params->{login}    if ( defined request->params->{login} );
+    $bmcref->{passwd}   = request->params->{passwd}   if ( defined request->params->{passwd} );
+    $bmcref->{bmcaddr}  = request->params->{bmcaddr}  if ( defined request->params->{bmcaddr} );
+    $bmcref->{node}     = request->params->{node}     if ( defined request->params->{node} );
+    $bmcref->{other}    = request->params->{other}    if ( defined request->params->{other} );
     ## Need to add better arg checking to make sure we get enough info to add
 
     my $opts = vars->{opts};
@@ -396,14 +290,11 @@ sub power_list() {
     my $command = "list";
     my $filter  = params->{filter};
 
+    unless ( defined $filter ) { $filter = ""; }
     my $opts = vars->{opts};
     unless ( $opts ) {
         status 'error';
         return "internal 'vars' not properly initialized";
-    }
-
-    unless ( defined $filter ) {
-        $filter = "all";
     }
 
     my %returnHash;

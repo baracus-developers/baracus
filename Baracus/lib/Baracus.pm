@@ -87,36 +87,6 @@ my $source_verbs = {
                     'disable' => \&source_disable,
                    };
 
-## Helper subs to generate form data
-#my $source_verbs_formdata = {
-#                              'add'     => \&source_formdata_add,
-#                              'remove'  => \&source_formdata_remove,
-#                              'update'  => \&source_formdata_update,
-#                              'enable'  => \&source_formdata_enable,
-#                              'disable' => \&source_formdata_disable,
-#                            };
-
-#sub source_wrapper() {
-#    my $verb = shift;
-#    my $template = shift;
-#    my $method = request->method;
-#
-#    if ( request->{accept} eq 'text/xml' ) {
-#        header('Content-Type' => 'text/xml');
-#        to_xml( $source_verbs->{$verb}( @_ ) );
-#    } elsif ( request->{accept} eq 'application/json' ) {
-#        header('Content-Type' => 'application/json');
-#        to_json( $source_verbs->{$verb}( @_ ) );
-#    } else {
-#        layout 'main';
-#        if ( ( $method eq "GET") && ( ! defined vars->{exec} ) ) {
-#            template "$template", { user => session('user'), formdata => $source_verbs_formdata->{$verb}( @_ ) };
-#        } elsif ( ( $method eq "POST") || ( defined vars->{exec} ) ) {
-#            template "$template", { user => session('user'), data => $source_verbs->{$verb}( @_ ) };
-#        }
-#    }
-#}
-
 sub source_wrapper() {
     my $verb   = shift;
     my $method = request->method;
@@ -133,19 +103,14 @@ sub source_wrapper() {
     }
 }
 
-get   '$apiver/source/list/:distro'   => sub { var exec => ""; &source_wrapper( "list", "source_list" );      };
-get   '$apiver/source/verify/:distro' => sub { var exec => ""; &source_wrapper( "verify", "source_verify" );  };
-get   '$apiver/source/detail/:distro' => sub { var exec => ""; &source_wrapper( "detail", "source_detail" );  };
-#get   '/source/add'            => sub { &source_wrapper( "add", "source_add" );                        };
-post  '$apiver/source'                => sub { &source_wrapper( "add", "source_response" );                   };
-#get   '/source/remove'         => sub { &source_wrapper( "remove", "source_remove" );                  };
-del   '$apiver/source'                => sub { &source_wrapper( "remove", "source_response" );                };
-#get   '/source/update'         => sub { &source_wrapper( "update", "source_update" );                  };
-put   '$apiver/source/update'         => sub { &source_wrapper( "update", "source_response" );                };
-#get   '/source/enable'         => sub { &source_wrapper( "enable", "source_enable" );                  };
-put   '$apiver/source/enable'         => sub { &source_wrapper( "enable", "source_response" );                };
-#get   '/source/disable'        => sub { &source_wrapper( "disable", "source_disable" );                };
-put   '$apiver/source/disable'        => sub { &source_wrapper( "disable", "source_response" );               };
+get   "$apiver/source/:filter"        => sub { &source_wrapper( "list" );    };
+get   "$apiver/source/verify/:distro" => sub { &source_wrapper( "verify" );  };
+get   "$apiver/source/detail/:distro" => sub { &source_wrapper( "detail" );  };
+post  "$apiver/source"                => sub { &source_wrapper( "add" );     };
+del   "$apiver/source/distro"         => sub { &source_wrapper( "remove" );  };
+put   "$apiver/source/update"         => sub { &source_wrapper( "update" );  };
+put   "$apiver/source/enable"         => sub { &source_wrapper( "enable" );  };
+put   "$apiver/source/disable"        => sub { &source_wrapper( "disable" ); };
 
 ###########################################################################
 ##
@@ -185,7 +150,7 @@ get  "$apiver/host/detail/by-host/:host"  => sub { var bytype => "host"; &host_w
 get  "$apiver/host/inventory/:node"       => sub { &host_wrapper( "inventory" );                     };
 post "$apiver/host"                       => sub { &host_wrapper( "add" );                           };
 del  "$apiver/host/by-mac/:mac"           => sub { var bytype => "mac"; &host_wrapper( "remove" );   };
-del  "$apiver/host/by-host/:hostname"     => sub { var bytype => "host"; &host_wrapper( "remove" );  };
+del  "$apiver/host/by-host/:host"     => sub { var bytype => "host"; &host_wrapper( "remove" );  };
 put  "$apiver/host"                       => sub { &host_wrapper( "admin" );                         };
 
 #get  '/host/add'             => sub { &host_wrapper( "add", "host_add" );         };
@@ -242,58 +207,36 @@ get '/config/remove/:config'  => sub { $config_verbs->{'remove'}( @_ ); };
 ## Power Routing
 
 my $power_verbs = {
-                   'off'     => \&power_off,
-                   'on'      => \&power_on,
-                   'cycle'   => \&power_cycle,
+                   'admin'   => \&power_admin,
                    'status'  => \&power_status,
                    'remove'  => \&power_remove,
                    'add'     => \&power_add,
                    'list'    => \&power_list,
                   };
 
-## Helper subs to generate form data
-my $power_verbs_formdata = {
-                            'add'     => \&power_formdata_add,
-                            'remove'  => \&power_formdata_remove,
-                            'on'      => \&power_formdata_on,
-                            'off'     => \&power_formdata_off,
-                            'cycle'   => \&power_formdata_cycle,
-                           };
-
-
 sub power_wrapper() {
     my $verb = shift;
-    my $template = shift;
     my $method = request->method;
 
     if ( request->{accept} eq 'text/xml' ) {
         header('Content-Type' => 'text/xml');
-        to_xml( $power_verbs->{$verb}( @_ ) );
+        $power_verbs->{$verb}( @_ );
     } elsif ( request->{accept} eq 'application/json' ) {
         header('Content-Type' => 'application/json');
-        to_json( $power_verbs->{$verb}( @_ ) );
+        $power_verbs->{$verb}( @_ );
     } else {
         layout 'main';
-        if ( ( $method eq "GET") && ( ! defined vars->{exec} ) ) {
-            template "$template", { user => session('user'), formdata => $power_verbs_formdata->{$verb}( @_ ) };
-        } elsif ( ( $method eq "POST") || ( defined vars->{exec} ) ) {
-            template "$template", { user => session('user'), data => $power_verbs->{$verb}( @_ ) };
-        }
+        template "baracus_mesg", { user => session('user') };
     }
 }
 
-get  '$apiver/power/list/:filter' => sub { var exec => ""; &power_wrapper( "list", "power_list" );       };
-get  '$apiver/power/status/:node' => sub { var exec => ""; &power_wrapper( "status", "power_response" ); };
-#get  '/power/on'           => sub { &power_wrapper( "on", "power_on" );                           };
-put  '$apiver/power/on'           => sub { &power_wrapper( "on", "power_response" );                     };
-#get  '/power/off'          => sub { &power_wrapper( "off", "power_off" );                         };
-put  '$apiver/power/off'          => sub { &power_wrapper( "off", "power_response" );                    };
-#get  '/power/cycle'        => sub { &power_wrapper( "cycle", "power_cycle" );                     };
-put  '$apiver/power/cycle'        => sub { &power_wrapper( "cycle", "power_response" );                  };
-#get  '/power/add'          => sub { &power_wrapper( "add", "power_add" );                         };
-post '$apiver/power/add'          => sub { &power_wrapper( "add", "power_response" );                    };
-#get  '/power/remove'       => sub { &power_wrapper( "remove", "power_remove" );                   };
-del  '$apiver/power/remove'       => sub { &power_wrapper( "remove", "power_response" );                 };
+get  "$apiver/power/nodes/:filter"        => sub { &power_wrapper( "list" );                         };
+get  "$apiver/power/status/by-mac/:mac"   => sub { var bytype => "mac"; &power_wrapper( "status" );  };
+get  "$apiver/power/status/by-host/:host" => sub { var bytype => "host"; &power_wrapper( "status" ); };
+put  "$apiver/power"                      => sub { &power_wrapper( "admin" );                        };
+post "$apiver/power"                      => sub { &power_wrapper( "add" );                          };
+del  "$apiver/power/by-mac/:mac"          => sub { var bytype => "mac"; &power_wrapper( "remove" );  };
+del  "$apiver/power/by-host/:host"        => sub { var bytype => "host"; &power_wrapper( "remove" ); };
 
 ###########################################################################
 ##

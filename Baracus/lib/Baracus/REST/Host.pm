@@ -90,13 +90,7 @@ sub host_list() {
     my %returnHash;
 
     my $sth = &db_list_start( $opts, $type, $filter );
-
-    unless( defined $sth ) {
-     #   return 1;
-    }
-
     my $dbref;
-
     if ( $type eq "templates" ) {
         ## List build templates associated with nodes
         ##
@@ -108,6 +102,7 @@ sub host_list() {
 
             $name = $dbref->{'hostname'}  if ( defined $dbref->{'hostname'} );
             $auto = $dbref->{'autobuild'} if ( defined $dbref->{'autobuild'} );
+            $returnHash{$mac}{mac}  = $dbref->{mac};
             $returnHash{$mac}{name} = $name;
             $returnHash{$mac}{auto} = $auto;
         }
@@ -134,6 +129,7 @@ sub host_list() {
                  $dbref->{active} ne BA_ADMIN_DISABLED ) {
                 $active_str .= "*";
             }
+            $returnHash{$mac}{mac} = $dbref->{mac};
             $returnHash{$mac}{hostname} = $hostname;
             $returnHash{$mac}{pxecurr_str} = $pxecurr_str;
             $returnHash{$mac}{pxenext_str} = $pxenext_str;
@@ -168,6 +164,7 @@ sub host_list() {
                 } else {
                     $bstate = " ";
                 }
+                $returnHash{$mac}{mac} = $dbref->{mac};
                 $returnHash{$mac}{hostname} = $dbref->{hostname};
                 $returnHash{$mac}{inventory} = $inventory;
                 $returnHash{$mac}{inventory_st} = $inventory_st;
@@ -219,11 +216,11 @@ sub host_detail() {
         error $opts->{LASTERROR};
     }
     $mac = &check_mac( $mac );
-debug "DEBUG: mac=$mac \n";
+
     my $dbref;
     my $filter = "mac::" .$mac;
     my $sth = &db_list_start( $opts, 'node', $filter );
-debug "DEBUG: here i am \n";
+
     unless( defined $sth ) {
         # $opts->{LASTERROR} returned from db_list_start
         return 1;
@@ -271,7 +268,6 @@ debug "DEBUG: here i am \n";
     if ( ( request->{accept} eq 'text/xml' )
       or ( request->{accept} eq 'application/json' )
       or ( request->{accept} =~ m|text/html| ) ) {
-debug "DEBUG: and now here ... mac=$returnHash{mac} $returnHash{oper} request=" . request->{accept} . "\n";
         return \%returnHash;
     } else {
         status 'error';
@@ -362,7 +358,6 @@ sub host_add() {
     my $actref;
     my $chkref;
 
-    my $returnList = "";
     my %returnHash;
 
     $macref = &get_db_data( $opts, 'mac', $mac );
@@ -494,8 +489,6 @@ sub host_admin()
     my $mac      = request->params->{mac}      if ( defined request->params->{mac} );
     my $hostname = request->params->{hostname} if ( defined request->params->{hostname} );
 
-debug "DEBUG: command=$command and mac=$mac and hostname=$hostname \n";
-
     my %returnHash;
 
     my $opts = vars->{opts};
@@ -513,7 +506,6 @@ debug "DEBUG: command=$command and mac=$mac and hostname=$hostname \n";
     my $chkref;
 
     if ( ( defined $hostname ) and ( not defined $mac ) ) {
-debug "DEBUG : here 3 \n";
         # this routine checks for mac and hostname args
         # and if hostname passed finds related mac entry
         # returns undef on error (e.g., unable to find hostname)
@@ -526,7 +518,6 @@ debug "DEBUG : here 3 \n";
 
     $macref = &get_db_data( $opts, 'mac', $mac );
     unless ( defined $macref ) {
-debug "DEBUG : here 2 \n";
         &add_db_mac( $opts, $mac, BA_ADMIN_ADDED );
         $macref = &get_db_data( $opts, 'mac', $mac );
     }
@@ -538,7 +529,6 @@ debug "DEBUG : here 2 \n";
 
     $chkref = &get_db_data( $opts, 'action', $mac );
     if ( defined $chkref ) {
-debug "DEBUG : here 4 \n";
         if ( $opts->{debug} > 1 ) {
             while ( my ($key, $val) = each %{$chkref} ) {
                 debug "check $key => " . $val eq "" ? "" : $val . "\n";
@@ -556,7 +546,6 @@ debug "DEBUG : here 4 \n";
     my $admin = $command eq "enable" ? BA_ADMIN_ENABLED : BA_ADMIN_DISABLED;
 
     if ( defined $chkref and $chkref->{admin} eq $admin ) {
-debug "DEBUG : here 1 \n";
         $opts->{LASTERROR} = "device admin state already $baState{ $admin }\n";
         return 1;
     }

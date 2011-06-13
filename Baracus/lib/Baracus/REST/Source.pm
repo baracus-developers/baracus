@@ -46,9 +46,8 @@ our $VERSION = '0.01';
 
 sub source_list() {
 
-    my $distro = params->{distro};
-#    $distro = &normalize_verb( $distro );
-
+    my $filter = params->{filter};
+debug "DEBUG: filter=$filter \n";
     my $opts = vars->{opts};
     unless ( $opts ) {
         status 'error';
@@ -75,32 +74,32 @@ sub source_list() {
         }
 
         ## Build up return based on request
-        if ( ($adistro eq $distro) && ($status ne $baState{ BA_NONE }) && ($status ne $baState{ BA_ADMIN_REMOVED }) ) {
+        if ( ($adistro eq $filter) && ($status ne $baState{ BA_NONE }) && ($status ne $baState{ BA_ADMIN_REMOVED }) ) {
             $returnList .= "$adistro $status $dh->{description} <br>";
             $returnHash{$adistro}{status} = $status;
             $returnHash{$adistro}{type} = $dh->{type};
             $returnHash{$adistro}{description} = $dh->{description};
-        } elsif ( ($distro eq "disabled") && ($status eq ($baState{ BA_DISABLED })) ) {
+        } elsif ( ($filter eq "disabled") && ($status eq ($baState{ BA_DISABLED })) ) {
             $returnList .= "$adistro $status $dh->{description} <br>";
             $returnHash{$adistro}{status} = $status;
             $returnHash{$adistro}{type} = $dh->{type};
             $returnHash{$adistro}{description} = $dh->{description};
-        } elsif ( ($distro eq "enabled") && ($status eq ($baState{ BA_ADMIN_ENABLED })) ) {
+        } elsif ( ($filter eq "enabled") && ($status eq ($baState{ BA_ADMIN_ENABLED })) ) {
             $returnList .= "$adistro $status $dh->{description} <br>";
             $returnHash{$adistro}{status} = $status;
             $returnHash{$adistro}{type} = $dh->{type};
             $returnHash{$adistro}{description} = $dh->{description};
-        } elsif ( ($distro eq "removed") && ($status eq ($baState{ BA_REMOVED })) ) {
+        } elsif ( ($filter eq "removed") && ($status eq ($baState{ BA_REMOVED })) ) {
             $returnList .= "$adistro $status $dh->{description} <br>";
             $returnHash{$adistro}{status} = $status;
             $returnHash{$adistro}{type} = $dh->{type};
             $returnHash{$adistro}{description} = $dh->{description};
-        } elsif ( ($distro eq "none") && ($status eq ($baState{ BA_NONE })) ) {
+        } elsif ( ($filter eq "none") && ($status eq ($baState{ BA_NONE })) ) {
             $returnList .= "$adistro $status $dh->{description} <br>";
             $returnHash{$adistro}{status} = $status;
             $returnHash{$adistro}{type} = $dh->{type};
             $returnHash{$adistro}{description} = $dh->{description};
-        } elsif ( $distro eq "all" ) {
+        } elsif ( $filter eq "all" ) {
             $returnList .= "$adistro $status $dh->{description} <br>";
             $returnHash{$adistro}{status} = $status;
             $returnHash{$adistro}{type} = $dh->{type};
@@ -121,12 +120,20 @@ sub source_list() {
 
 sub source_add() {
 
-    my $distro = params->{distro};
+    my $command = 'add';
+    my $distro      = request->params->{distro};
+    my $extras      = request->params->{extras} if ( defined request->params->{extras} );
 
     my $opts = vars->{opts};
     unless ( $opts ) {
         status 'error';
         return "internal 'vars' not properly initialized";
+    }
+
+    unless ( defined request->params->{distro} ) {
+        status '406';
+        error "distro required for source_add";
+        return { code => "26", error => "missing required argument" };
     }
 
     my $loopback = 1;
@@ -135,12 +142,11 @@ sub source_add() {
     my $check = 0;
     my $checkhr = {};
 
+    my %returnHash;
+
     # Build up extras (ie. addons, sdks and duds)
-    my $extras = "";
-#    $extras = $extras . " $multiarg{ addons }" if ( defined $multiarg{ addons } );
-#    $extras = $extras . " $multiarg{ sdks }" if ( defined $multiarg{ sdks } );
-#    $extras = $extras . " $multiarg{ duds }" if ( defined $multiarg{ duds } );
-#    $extras =~ s/^\s+//;
+    $extras = "" unless ( defined $extras );
+    $extras =~ s/^\s+//;
 
     if ( $extras ) {
         debug "Calling routine to verify additional source(s) passed\n" if $opts->{verbose};
@@ -165,8 +171,9 @@ sub source_add() {
     }
 
     unless ( &make_paths( $opts, $distro, $extras, $daisohr, $loopback ) ) {
-        status 'error';
-        return $opts->{LASTERROR};
+        status '406';
+        error "failed creating build paths";
+        return { code => "28", error => "failed creating build paths" };
     }
 
     # Check to see if any extras are already installed
@@ -179,20 +186,23 @@ sub source_add() {
     undef @extras;
     @extras = split( /\s+/, $extras );
 
-    unless ( &add_build_service( $opts, $distro, $addons ) ) {
-        status 'error';
-        return $opts->{LASTERROR};
+    unless ( &add_build_service( $opts, $distro, $extras ) ) {
+        status '406';
+        error "failed adding build service";
+        return { code => "27", error => "failed adding build service" };
     }
 
     # Add base distro
     unless ( &is_source_installed( $opts, $distro ) ) {
         unless ( &add_bootloader_files( $opts, $distro ) ) {
-            status 'error';
-            return $opts->{LASTERROR};
+            status '406';
+            error "failed adding bootloader files";
+            return { code => "29", error => "failed adding bootloader files" };
         }
         unless ( &source_register( $opts, 'add', $distro ) ) {
-            status 'error';
-            return $opts->{LASTERROR};
+            status '406';
+            error "failed registering source";
+            return { code => "30", error => "failed registering source" };
         }
     }
 
@@ -211,20 +221,26 @@ sub source_add() {
             }
         }
         unless ( &source_register( $opts, 'add', $extra ) ) {
-            status 'error';
-            return $opts->{LASTERROR};
+            status '406';
+            error "failed registering source";
+            return { code => "30", error => "failed registering source" };
         }
     }
 
-    if ( request->{accept} =~ m|text/html| ) {
-        return "Added $distro<br>";
-    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
-        my @returnArray = ("Added", "$distro");
-        return \@returnArray;
+    $returnHash{distro} = $distro;
+    $returnHash{extras} = $extras;
+    $returnHash{action} = $command;
+    $returnHash{result} = '0';
+
+    if ( ( request->{accept} eq 'text/xml' )
+      or ( request->{accept} eq 'application/json' )
+      or ( request->{accept} =~ m|text/html| ) ) {
+        return \%returnHash;
     } else {
         status 'error';
         return $opts->{LASTERROR};
     }
+
 }
 
 sub source_remove() {

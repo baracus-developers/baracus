@@ -35,7 +35,9 @@ use Term::ReadKey;
 use XML::Simple;
 
 use lib "/home/cruejones/git/baracus/Baracus/lib";
+use lib "/home/cruejones/git/baracus/Baracus/lib";
 
+use Dancer qw( :syntax);
 use Baracus::Core   qw( :subs );
 use Baracus::Config qw( :vars :subs );
 
@@ -81,6 +83,7 @@ This tool allows for power management via plugable BMC control modules
 
 =cut
 
+my $apiver = "api/v1";
 my $man  = 0;
 my $help = 0;
 
@@ -88,7 +91,7 @@ my $cmds = {
             'on'     => \&on,
             'off'    => \&off,
             'cycle'  => \&cycle,
-            'status' => \&status,
+            'status' => \&_status_,
             'add'    => \&add,
             'remove' => \&remove,
             'list'   => \&list,
@@ -241,34 +244,32 @@ sub add() {
             &help( $opts, $cmds, $verb );
     }
 
-    my $url = "http://$baseurl:$port/power/$verb";
-    $url .= "?";
-    $url .= "mac=$mac" if ( defined $mac );
-    if ( defined $mac ) {
-        $url .= "&"
-    } else {
-        $url .= "?";
-    }
-    $url .= "hostname=$hostname" if ( defined $hostname );
-    $url .= "&ctype=$ctype"      if ( defined $ctype );
-    $url .= "&login=$passwd"     if ( defined $passwd );
-    $url .= "&bmcaddr=$bmcaddr"  if ( defined $bmcaddr );
-    $url .= "&node=$node"        if ( defined $node );
-    $url .= "&other=$other"      if ( defined $other );
-    
+    my $json_hash = {};
+    $json_hash->{hostname} = $hostname if ( defined $hostname );
+    $json_hash->{bmcaddr}  = $bmcaddr  if ( defined $bmcaddr );
+    $json_hash->{ctype}    = $ctype    if ( defined $ctype );
+    $json_hash->{login}    = $login    if ( defined $login );
+    $json_hash->{passwd}   = $passwd   if ( defined $passwd );
+    $json_hash->{other}    = $other    if ( defined $other );
+    $json_hash->{node}     = $other    if ( defined $node );
+    $json_hash->{mac}      = $mac      if ( defined $mac );
+
+
+    my $url = "http://$baseurl:$port/$apiver/power";
+    my $message = to_json($json_hash);
 
     my $req = HTTP::Request->new(POST => $url);
-    $req->content_type('text/xml');
+    $req->content_type('application/json');
+    $req->content($message);
 
     my $response = $browser->request( $req );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
-    die "Hey, I was expecting XML, not ", $response->content_type
-      unless $response->content_type eq 'text/xml';
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
 
-    my $xml = new XML::Simple;
-    my $data = $xml->XMLin( $response->content );
+    my $data = from_json( $response->content );
 
     print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
 
@@ -286,10 +287,8 @@ sub remove()
 {
 
     my $verb = 'remove';
-
     my $mac;
     my $hostname;
-    my $node;
 
     @ARGV = @_;
     GetOptions(
@@ -303,7 +302,7 @@ sub remove()
     }
 
     if ( ( defined $mac ) and ( defined $hostname ) ) {
-        print "--mac and --hostname cannoe be combined\n";
+        print "--mac and --hostname cannot be combined\n";
         return 1;
     }
 
@@ -312,17 +311,19 @@ sub remove()
             &help( $opts, $cmds, $verb );
     }
 
-    ## Route takes dynamically typed node
+    my $bytype;
+    my $node;
     if ( defined $mac ) {
+        $bytype = "mac";
         $node = $mac
     } else {
+        $bytype = "host";
         $node = $hostname;
     }
 
-    my $url = "http://$baseurl:$port/power/$verb";
-    $url .= "?node=$node";
+    my $url = "http://$baseurl:$port/$apiver/power/by-$bytype/$node";
 
-    my $req = HTTP::Request->new(PUT => $url);
+    my $req = HTTP::Request->new(DELETE => $url);
     $req->content_type('text/xml');
 
     my $response = $browser->request( $req );
@@ -348,14 +349,11 @@ Status info on power registration entry from Baracus.  Specify the power device 
 =cut
 
 
-sub status
+sub _status_
 {
-
     my $verb = 'status';
-
     my $mac;
     my $hostname;
-    my $node;
 
     @ARGV = @_;
     GetOptions(
@@ -369,7 +367,7 @@ sub status
     }
 
     if ( ( defined $mac ) and ( defined $hostname ) ) {
-        print "--mac and --hostname cannoe be combined\n";
+        print "--mac and --hostname cannot be combined\n";
         return 1;
     }
 
@@ -378,14 +376,17 @@ sub status
             &help( $opts, $cmds, $verb );
     }
 
-    ## Route takes dynamically typed node
+    my $bytype;
+    my $node;
     if ( defined $mac ) {
+        $bytype = "mac";
         $node = $mac
     } else {
+        $bytype = "host";
         $node = $hostname;
     }
 
-    my $url = "http://$baseurl:$port/power/$verb/$node";
+    my $url = "http://$baseurl:$port/$apiver/power/$verb/by-$bytype/$node";
 
     my $req = HTTP::Request->new(GET => $url);
     $req->content_type('text/xml');
@@ -412,130 +413,11 @@ Power on node.  Specify the power device by --mac or if a hostname has been asso
 
 =cut
 
-
-sub on
-{
-
-    my $verb = 'on';
-
-    my $mac;
-    my $hostname;
-    my $node;
-
-    @ARGV = @_;
-    GetOptions(
-               'mac=s'      => \$mac,
-               'hostname=s' => \$hostname,
-               );
-
-    unless ( ( defined $mac ) or ( defined $hostname ) ) {
-        print "--mac <mac> or --hostname <hostname> required\n";
-        return 1;
-    }
-
-    if ( ( defined $mac ) and ( defined $hostname ) ) {
-        print "--mac and --hostname cannoe be combined\n";
-        return 1;
-    }
-
-    if ( scalar @ARGV ) {
-            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-            &help( $opts, $cmds, $verb );
-    }
-
-    ## Route takes dynamically typed node
-    if ( defined $mac ) {
-        $node = $mac
-    } else {
-        $node = $hostname;
-    }
-
-    my $url = "http://$baseurl:$port/power/$verb";
-    $url .= "?node=$node";
-
-    my $req = HTTP::Request->new(PUT => $url);
-    $req->content_type('text/xml');
-
-    my $response = $browser->request( $req );
-    die "Can't get $url -- ", $response->status_line
-      unless $response->is_success;
-
-    die "Hey, I was expecting XML, not ", $response->content_type
-      unless $response->content_type eq 'text/xml';
-
-    my $xml = new XML::Simple;
-    my $data = $xml->XMLin( $response->content );
-
-    print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
-
-    return 0;
-
-}
-
 =head2 off { --mac <mac> | --hostname <name> }
 
 Power off node.  Specify the power device by --mac or if a hostname has been associated with this mac you can instead specify --hostname to locate the entry to be removed.
 
 =cut
-
-sub off
-{
-
-    my $verb = 'off';
-
-    my $mac;
-    my $hostname;
-    my $node;
-
-    @ARGV = @_;
-    GetOptions(
-               'mac=s'      => \$mac,
-               'hostname=s' => \$hostname,
-               );
-
-    unless ( ( defined $mac ) or ( defined $hostname ) ) {
-        print "--mac <mac> or --hostname <hostname> required\n";
-        return 1;
-    }
-
-    if ( ( defined $mac ) and ( defined $hostname ) ) {
-        print "--mac and --hostname cannoe be combined\n";
-        return 1;
-    }
-
-    if ( scalar @ARGV ) {
-            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-            &help( $opts, $cmds, $verb );
-    }
-
-    ## Route takes dynamically typed node
-    if ( defined $mac ) {
-        $node = $mac
-    } else {
-        $node = $hostname;
-    }
-
-    my $url = "http://$baseurl:$port/power/$verb";
-    $url .= "?node=$node";
-
-    my $req = HTTP::Request->new(PUT => $url);
-    $req->content_type('text/xml');
-
-    my $response = $browser->request( $req );
-    die "Can't get $url -- ", $response->status_line
-      unless $response->is_success;
-
-    die "Hey, I was expecting XML, not ", $response->content_type
-      unless $response->content_type eq 'text/xml';
-
-    my $xml = new XML::Simple;
-    my $data = $xml->XMLin( $response->content );
-
-    print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
-
-    return 0;
-
-}
 
 =head2 cycle { --mac <mac> | --hostname <name> }
 
@@ -543,14 +425,16 @@ Power cycle node.  Specify the power device by --mac or if a hostname has been a
 
 =cut
 
-sub cycle
+sub on    { &_on_off_cycle_( "on",  @_ );}
+sub off   { &_on_off_cycle_( "off", @_ );}
+sub cycle { &_on_off_cycle_( "cycle", @_ );}
+
+sub _on_off_cycle_
 {
 
-    my $verb = 'cycle';
-
-    my $mac;
+    my $verb = shift;
     my $hostname;
-    my $node;
+    my $mac;
 
     @ARGV = @_;
     GetOptions(
@@ -573,28 +457,37 @@ sub cycle
             &help( $opts, $cmds, $verb );
     }
 
-    ## Route takes dynamically typed node
+    my $bytype;
+    my $node;
     if ( defined $mac ) {
-        $node = $mac
-    } else {
+        $bytype = 'mac';
+        $node = $mac;
+    } elsif ( defined $hostname ) {
+        $bytype = 'host';
         $node = $hostname;
     }
 
-    my $url = "http://$baseurl:$port/power/$verb";
-    $url .= "?node=$node";
+    my $json_hash = {};
+    $json_hash->{verb}     = $verb;
+    $json_hash->{bytype}   = $bytype;
+    $json_hash->{hostname} = $hostname if ( defined $hostname );
+    $json_hash->{mac}      = $mac      if ( defined $mac );
 
-    my $req = HTTP::Request->new(PUT => $url);
-    $req->content_type('text/xml');
+    my $url = "http://$baseurl:$port/$apiver/power";
+    my $message = to_json($json_hash);
+
+    my $req = HTTP::Request->new( 'PUT', $url );
+    $req->content_type('application/json');
+    $req->content($message);
 
     my $response = $browser->request( $req );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
-    die "Hey, I was expecting XML, not ", $response->content_type
-      unless $response->content_type eq 'text/xml';
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
 
-    my $xml = new XML::Simple;
-    my $data = $xml->XMLin( $response->content );
+    my $data = from_json( $response->content );
 
     print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
 
@@ -624,7 +517,7 @@ Where <spec> is of format:
 sub list
 {
     my $verb = "list";
-    my $filter = "";
+    my $filter = "*";
 
     @ARGV = @_;
 
@@ -637,20 +530,19 @@ sub list
             &help( $opts, $cmds, $verb );
     }
 
-    $filter = "all" unless ( $filter ne "" );
+    my $url = "http://$baseurl:$port/$apiver/power/nodes/$filter";
 
-    my $url = "http://$baseurl:$port/power/$verb/$filter";
+    my $req = HTTP::Request->new( 'GET', $url );
+    $req->header( 'Accept' => 'application/json' );
 
-    my $response = $browser->get( $url );
-
+    my $response = $browser->request( $req );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
-    die "Hey, I was expecting XML, not ", $response->content_type
-      unless $response->content_type eq 'text/xml';
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
 
-    my $xml = new XML::Simple;
-    my $data = $xml->XMLin( $response->content );
+    my $data = from_json( $response->content );
 
     unless ($opts->{quiet}) {
     print "--------------------------------------------------------------------------------------\n";
