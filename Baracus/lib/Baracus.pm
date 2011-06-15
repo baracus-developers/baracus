@@ -20,10 +20,6 @@ use Baracus::REST::Power   qw( :subs );
 #use Baracus::REST::Storage qw( :subs );
 #use Baracus::REST::Auth    qw( :subs );
 
-use Baracus::FORMDATA::Source_formdata qw( :subs );
-use Baracus::FORMDATA::Host_formdata qw( :subs );
-use Baracus::FORMDATA::Power_formdata qw( :subs );
-
 set serializer => 'Mutable';
 
 my $opts = {
@@ -80,11 +76,9 @@ my $source_verbs = {
                     'list'    => \&source_list,
                     'add'     => \&source_add,
                     'remove'  => \&source_remove,
-                    'update'  => \&source_update,
                     'verify'  => \&source_verify,
                     'detail'  => \&source_detail,
-                    'enable'  => \&source_enable,
-                    'disable' => \&source_disable,
+                    'admin'   => \&source_admin,
                    };
 
 sub source_wrapper() {
@@ -103,14 +97,13 @@ sub source_wrapper() {
     }
 }
 
-get   "$apiver/source/:filter"        => sub { &source_wrapper( "list" );    };
-get   "$apiver/source/verify/:distro" => sub { &source_wrapper( "verify" );  };
-get   "$apiver/source/detail/:distro" => sub { &source_wrapper( "detail" );  };
-post  "$apiver/source"                => sub { &source_wrapper( "add" );     };
-del   "$apiver/source/distro"         => sub { &source_wrapper( "remove" );  };
-put   "$apiver/source/update"         => sub { &source_wrapper( "update" );  };
-put   "$apiver/source/enable"         => sub { &source_wrapper( "enable" );  };
-put   "$apiver/source/disable"        => sub { &source_wrapper( "disable" ); };
+get  "$apiver/source/:filter"        => sub { &source_wrapper( "list" );    };
+get  "$apiver/source/verify/:distro" => sub { &source_wrapper( "verify" );  };
+get  "$apiver/source/detail/:distro" => sub { &source_wrapper( "detail" );  };
+post "$apiver/source"                => sub { &source_wrapper( "add" );     };
+del  "$apiver/source/:distro"        => sub { &source_wrapper( "remove" );  };
+del  "$apiver/source/:distro/:extra" => sub { &source_wrapper( "remove" );  };
+put  "$apiver/source"                => sub { &source_wrapper( "admin" );   };
 
 ###########################################################################
 ##
@@ -150,7 +143,7 @@ get  "$apiver/host/detail/by-host/:host"  => sub { var bytype => "host"; &host_w
 get  "$apiver/host/inventory/:node"       => sub { &host_wrapper( "inventory" );                     };
 post "$apiver/host"                       => sub { &host_wrapper( "add" );                           };
 del  "$apiver/host/by-mac/:mac"           => sub { var bytype => "mac"; &host_wrapper( "remove" );   };
-del  "$apiver/host/by-host/:host"     => sub { var bytype => "host"; &host_wrapper( "remove" );  };
+del  "$apiver/host/by-host/:host"         => sub { var bytype => "host"; &host_wrapper( "remove" );  };
 put  "$apiver/host"                       => sub { &host_wrapper( "admin" );                         };
 
 #get  '/host/add'             => sub { &host_wrapper( "add", "host_add" );         };

@@ -136,7 +136,7 @@ print "Using: $port\n" if ($opts->{debug});
 my $browser = LWP::UserAgent->new( );
 $browser->cookie_jar( {} );
 $browser->agent('baracus');
-$browser->default_header('Accept' => 'text/xml');
+$browser->default_header('Accept' => 'application/json');
 
 ## Authenticate request
 my $username = "";
@@ -203,6 +203,8 @@ sub add() {
     my $check;
     my $isos;
     my $loopback = 1;
+
+    @ARGV = @_;
 
     GetOptions(
                'distro=s'  => \$distro,
@@ -277,7 +279,6 @@ sub update() {
 
     GetOptions(
                'distro=s'    => \$distro,
-               'addons=s'    => \&multiarg_handler,
                'sharetype=s' => \$sharetype,
                'shareip=s'   => \$shareip,
                );
@@ -292,19 +293,28 @@ sub update() {
             &help( $opts, $cmds, $verb );
     }
 
-    my $url = "http://$baseurl:$port/source/$verb";
-    $url .= "?distro=$distro";
-    $url .= "&sharetype=$sharetype" if (defined $sharetype);
-    $url .= "&shareip=$shareip" if (defined $shareip);
+    my $json_hash = {};
+    $json_hash->{verb}      = $verb;
+    $json_hash->{distro}    = $distro;
+    $json_hash->{sharetype} = $sharetype;
+    $json_hash->{shareip}   = $shareip;
 
-    my $response = $browser->put( $url );
+    my $url = "http://$baseurl:$port/$apiver/source";
+    my $message = to_json($json_hash);
+
+    my $req = HTTP::Request->new( 'PUT', $url );
+    $req->content_type('application/json');
+    $req->content($message);
+
+    my $response = $browser->request( $req );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
-    die "Hey, I was expecting XML, not ", $response->content_type
-      unless $response->content_type eq 'text/xml';
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
 
-    print $response->content;
+    my $data = from_json( $response->content );
+    print "$data->{distro}  :  $data->{action} $data->{result} \n";
 
     return 0;
 
@@ -331,17 +341,17 @@ sub remove() {
 
     my $verb = 'remove';
     my $distro;
+    my $extra;
 
     @ARGV = @_;
 
     GetOptions(
                'distro=s'  => \$distro,
-               'addons=s'  => \&multiarg_handler,
+               'extra=s'   => \$extra,
                );
 
     unless ( defined $distro ) {
-        print "--distro <distro> required\n";
-        return 1;
+        die "--distro <distro> required\n";
     }
 
     if ( scalar @ARGV ) {
@@ -349,17 +359,25 @@ sub remove() {
             &help( $opts, $cmds, $verb );
     }
 
-    my $url = "http://$baseurl:$port/source/$verb";
-    $url .= "?distro=$distro";
+    my $url;
+    if ( defined $extra ) {
+        $url = "http://$baseurl:$port/$apiver/source/$distro/$extra";
+    } else {
+        $url = "http://$baseurl:$port/$apiver/source/$distro";
+    }
+print "DEBUG: url=$url \n";
+    my $req = HTTP::Request->new( 'DELETE', $url );
+    $req->content_type('application/json');
 
-    my $response = $browser->put( $url );
+    my $response = $browser->request( $req );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
+print $response->content . "\n\n";
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
 
-    die "Hey, I was expecting XML, not ", $response->content_type
-      unless $response->content_type eq 'text/xml';
-
-    print $response->content;
+    my $data = from_json( $response->content );
+    print "$data->{distro}  :  $data->{action} $data->{result} \n";
 
     return 0;
 
@@ -377,12 +395,13 @@ sub enable() {
 
     my $verb = 'enable';
     my $distro;
+    my $extra;
 
     @ARGV = @_;
 
     GetOptions(
                'distro=s'  => \$distro,
-               'addon=s'   => \$distro,
+               'extra=s'   => \$extra,
                );
 
     unless ( defined $distro ) {
@@ -394,18 +413,28 @@ sub enable() {
             printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
             &help( $opts, $cmds, $verb );
     }
-    
-    my $url = "http://$baseurl:$port/source/$verb";
-    $url .= "?distro=$distro";
 
-    my $response = $browser->put( $url );
+    my $json_hash = {};
+    $json_hash->{verb}   = $verb;
+    $json_hash->{distro} = $distro if ( defined $distro );
+    $json_hash->{extra}  = $extra  if ( defined $extra );
+
+    my $url = "http://$baseurl:$port/$apiver/source";
+    my $message = to_json($json_hash);
+
+    my $req = HTTP::Request->new( 'PUT', $url );
+    $req->content_type('application/json');
+    $req->content($message);
+
+    my $response = $browser->request( $req );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
-    die "Hey, I was expecting XML, not ", $response->content_type
-      unless $response->content_type eq 'text/xml';
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
 
-    print $response->content;
+    my $data = from_json( $response->content );
+    print "$data->{distro}  :  $data->{action} $data->{result} \n";
 
     return 0;
 
@@ -425,12 +454,13 @@ sub disable() {
 
     my $verb = 'disable';
     my $distro;
+    my $extra;
 
     @ARGV = @_;
 
     GetOptions(
                'distro=s'  => \$distro,
-               'addon=s'   => \$distro,
+               'extra=s'   => \$extra,
                );
 
     unless ( defined $distro ) {
@@ -443,17 +473,27 @@ sub disable() {
             &help( $opts, $cmds, $verb );
     }
 
-    my $url = "http://$baseurl:$port/source/$verb";
-    $url .= "?distro=$distro";
+    my $json_hash = {};
+    $json_hash->{verb}   = $verb;
+    $json_hash->{distro} = $distro if ( defined $distro );
+    $json_hash->{extra}  = $extra  if ( defined $extra );
 
-    my $response = $browser->put( $url );
+    my $url = "http://$baseurl:$port/$apiver/source";
+    my $message = to_json($json_hash);
+
+    my $req = HTTP::Request->new( 'PUT', $url );
+    $req->content_type('application/json');
+    $req->content($message);
+
+    my $response = $browser->request( $req );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
-    die "Hey, I was expecting XML, not ", $response->content_type
-      unless $response->content_type eq 'text/xml';
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
 
-    print $response->content;
+    my $data = from_json( $response->content );
+    print "$data->{distro}  :  $data->{action} $data->{result} \n";
 
     return 0;
 }
@@ -486,17 +526,19 @@ sub verify() {
             &help( $opts, $cmds, $verb );
     }
 
-    my $url = "http://$baseurl:$port/source/$verb/$distro";
+    my $url = "http://$baseurl:$port/$apiver/source/$verb/$distro";
 
-    my $response = $browser->get( $url );
+    my $req = HTTP::Request->new( 'GET', $url );
+    $req->header( 'Accept' => 'application/json' );
+
+    my $response = $browser->request( $req );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
-    die "Hey, I was expecting XML, not ", $response->content_type
-      unless $response->content_type eq 'text/xml';
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
 
-    my $xml = new XML::Simple;
-    my $data = $xml->XMLin( $response->content );
+    my $data = from_json( $response->content );
 
     printf "%-14s $data->{target}\n", "Target:";
     printf "%-14s $data->{creation}\n", "Created:";
@@ -540,16 +582,34 @@ sub detail() {
             &help( $opts, $cmds, $verb );
     }
 
-    my $url = "http://$baseurl:$port/source/$verb/$distro";
+    my $url = "http://$baseurl:$port/$apiver/source/$verb/$distro";
 
-    my $response = $browser->get( $url );
+    my $req = HTTP::Request->new( 'GET', $url );
+    $req->header( 'Accept' => 'application/json' );
+
+    my $response = $browser->request( $req );
     die "Can't get $url -- ", $response->status_line
       unless $response->is_success;
 
-    die "Hey, I was expecting XML, not ", $response->content_type
-      unless $response->content_type eq 'text/xml';
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
 
-    print $response->content;
+    my $data = from_json( $response->content );
+
+    print "\nDetails for" . $data->{distro} . "\n";
+    print "With current status '$data->{status}'\n";
+    if ( defined $data->{requires} ) {
+        print "Add-on product extending $data->{basedist}\n";
+    } else {
+        print "Base product";
+        if ( $data->{extensions} ) {
+            print " supporting extension(s):  " . $data->{extensions} . "\n";
+        }
+    }
+
+    print "Based on product(s):  " . $data->{product} . "\n";
+    print "Detail for " . $data->{product} . "\n";
+    printf "  %s $data->{iso}  =>  %s $data->{builds}\n", $data->{isoexist}, $data->{direxist};
 
     return 0;
 }
@@ -575,7 +635,7 @@ Options
 sub list() {
 
     my $verb = "list";
-    my $filter;
+    my $filter = "enabled";
 
     @ARGV = @_;
 

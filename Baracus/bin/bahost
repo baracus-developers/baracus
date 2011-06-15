@@ -248,7 +248,6 @@ sub remove()
 {
 
     my $verb = 'remove';
-
     my $mac;
     my $hostname;
 

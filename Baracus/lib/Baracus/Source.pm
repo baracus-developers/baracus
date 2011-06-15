@@ -1704,7 +1704,7 @@ then try this basource command again.
                 $state = &sqlfs_fetch( $opts, "$tdir/$stname" );
                 if ( ( $state == 1 ) or ( $state == 2 ) ) {
                     # file found and written out for compare
-                    my $result = system("diff $fh->{file} $tdir/$stname >& /dev/null");
+                    my $result = system("sudo diff $fh->{file} $tdir/$stname >& /dev/null");
                     if ( $result == 0 ) { # same as what we'd add
                         debug "found $stname in file database\n" if $opts->{verbose};
                     } else {
@@ -1770,11 +1770,11 @@ then try this basource command again.
                     debug "cp from $bh->{baseinitrd} to $tdir/initrd.gz\n" if ( $opts->{debug} > 1 );
                     copy($bh->{baseinitrd},"$tdir/initrd.gz") or die;
                     if ( $distro =~ /sles-11/ ) {
-                        system("gunzip", "$tdir/initrd.gz") == 0 or die;
+                        system("sudo", "gunzip", "$tdir/initrd.gz") == 0 or die;
                         copy("$baDir{data}/gpghome/.gnupg/my-key.gpg", "$tdir/my-key.gpg") or die;
                         my $result = `cd $tdir; find my-key.gpg | cpio --quiet -o -A -F initrd -H newc >> /dev/null`;
                         unlink( "$tdir/my-key.gpg" ) or die;
-                        system("gzip", "$tdir/initrd") == 0 or die;
+                        system("sudo", "gzip", "$tdir/initrd") == 0 or die;
                     }
                     debug "cp from $tdir/initrd.gz to $tdir/initrd.$basedist\n" if ( $opts->{debug} > 1 );
                     copy("$tdir/initrd.gz", "$tdir/initrd.$basedist") or die;
@@ -1899,7 +1899,7 @@ sub add_build_service
                         ## NFSv4 workaround
                         $share = &solaris_nfs_waround( $opts, $share ) if ( $distro =~ /solaris/ );
                         debug "exportfs -o ro,not_root_squash,insecure,sync,no_subtree_check *:$share\n" if ( $opts->{debug} > 1 );
-                        system("exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$share") == 0 or die;
+                        system("sudo exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$share") == 0 or die;
                     }
 
                     if ($sharetype eq "http") {
@@ -1978,8 +1978,8 @@ sub remove_build_service
     my $distro = shift;
     my $extras = shift;
     my $sharetype = $baVar{sharetype};
-    my $status = 1;
-
+    my $status = 0;
+debug "DEBUG: sharetype=$sharetype and distro=$distro \n";
     my $dh = &baxml_distro_gethash( $opts, $distro );
 
     my $sql;
@@ -1998,7 +1998,7 @@ sub remove_build_service
     } else {
         $sharetype = $dh->{'sharetype'} if ( defined $dh->{'sharetype'} );
     }
-
+debug "DEBUG: sharetype=$sharetype \n";
     eval {
         # unlike http or cifs we pre-load nfs so we can manipulate
         if ($sharetype eq "nfs") {
@@ -2009,14 +2009,14 @@ sub remove_build_service
         foreach my $da ( @dalist ) {
 
             foreach my $prod ( &baxml_products_getlist( $opts, $da ) ) {
-
+debug "DEBUG: prod=$prod \n";
                 my ($file, $confdir, $template, $share, $state) =
                     &check_service_product( $opts, $da, $prod, $sharetype );
-
+debug "DEBUG: file=$file confdir=$confdir template=$template share=$share state=$state \n";
                 $share = $dh->{'distpath'}."/".$dh->{'sharepath'} if defined ( $dh->{'sharepath'} );
-
+debug "DEBUG: share now=$share \n";
                 if ( not $state ) {
-                    debug "$sharetype file $file found no longer shared for $da\n" if $opts->{verbose};
+                    debug "$sharetype file $file found no longer shared for $da\n";
                 } else {
                     debug "modifying $file removing $share\n" if ( $opts->{debug} );
 
@@ -2025,7 +2025,7 @@ sub remove_build_service
                         if ( $distro =~ /solaris/ ) {
                             $share = "/var/lib/nfs/v4-root/" .  $share;
                         }
-                        system("exportfs -u *:$share") == 0 or die;
+                        system("sudo exportfs -u *:$share") == 0 or die;
                     }
 
                     if ($sharetype eq "http") {
@@ -2061,8 +2061,9 @@ sub remove_build_service
     if ( $@ ) {
         $opts->{LASTERROR} = subroutine_name." : ".$@;
         error $opts->{LASTERROR};
-        $status = 0;
+        $status = 1;
     }
+debug "DEBUG: crap returning status=$status \n";
     return $status;
 }
 
@@ -2120,7 +2121,7 @@ sub init_mounter
                 $isoloc = $iso_location_hashref->{ $href->{'iso'} }[0];
             }
             debug "mounting $isoloc at $href->{'mntpoint'} \n" if ( $opts->{verbose} );
-            system("mount -o loop $isoloc $href->{'mntpoint'}") == 0 or die;
+            system("sudo mount -o loop $isoloc $href->{'mntpoint'}") == 0 or die;
         }
     };
     if ( $@ ) {
@@ -2181,7 +2182,7 @@ sub init_exporter
                 $href->{'mntpoint'} = &solaris_nfs_waround( $opts, $href->{'mntpoint'} ) if ( $href->{distroid} =~ /solaris/ );
 
                 debug "exporting $href->{'mntpoint'} \n" if ( $opts->{verbose} );
-                system("exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$href->{'mntpoint'}") == 0 or die;
+                system("sudo exportfs -o ro,root_squash,insecure,sync,no_subtree_check *:$href->{'mntpoint'}") == 0 or die;
 
             } while ( $href = $sth->fetchrow_hashref() );
         }
@@ -2208,14 +2209,14 @@ sub solaris_nfs_waround
             mkdir $nfsroot, 0755 or die;
         }
 
-        my $not_exported = system("showmount -e localhost | grep \"$nfsroot \" >& /dev/null");
+        my $not_exported = system("sudo showmount -e localhost | grep \"$nfsroot \" >& /dev/null");
         if ( $not_exported ) {
-            system("exportfs -o fsid=root,nohide *:$nfsroot") == 0 or die;
+            system("sudo exportfs -o fsid=root,nohide *:$nfsroot") == 0 or die;
         }
 
         $nfsdir = $nfsroot . $share;
         mkpath( $nfsdir, { verbose => 0, mode => 0755} ) or die;
-        system("mount -o bind,nfsexp $share $nfsdir") == 0 or die;
+        system("sudo mount -o bind,nfsexp $share $nfsdir") == 0 or die;
     };
     if ( $@ ) {
         $opts->{LASTERROR} = subroutine_name." : ".$@;
@@ -2588,28 +2589,27 @@ sub check_distro
     my $opts   = shift;
     my $distro = shift;
 
-    #    unless ( $distro ) {
-    #        print "\nMissing arg: <distro>\n";
-    #        &help();
-    #    }
-
     my $dh = &baxml_distro_gethash( $opts, $distro );
 
     unless ( $dh ) {
+debug "In here 1 \n";
         error "Unknown distribution specified: $distro\n";
         error "Please use one of the following:\n";
         foreach my $dist ( reverse sort &baxml_distros_getlist( $opts ) ) {
             my $href = &baxml_distro_gethash( $opts, $dist );
             error "\t" . $dist . "\n" if ( $href->{type} eq $badistroType{ BA_SOURCE_BASE } );
         }
-        exit 1;
+        return 1;
     }
 
     if ( $dh->{type} ne $badistroType{ BA_SOURCE_BASE } ) {
+debug "In here 2 \n";
         error "Non-base distribution passed as base $distro\n";
         error "Perhaps try:\n\t\t--distro $dh->{basedist} --$dh->{type} $distro\n";
-        exit 1;
+        return 1;
     }
+
+    return 0;
 }
 
 sub check_extras

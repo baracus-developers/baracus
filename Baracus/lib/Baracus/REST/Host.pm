@@ -483,7 +483,11 @@ sub host_remove() {
 
 }
 
-sub host_admin()
+sub host_admin() {
+    &host_enable_disable(  @_ );
+}
+
+sub host_enable_disable()
 {
     my $command  = request->params->{verb};
     my $mac      = request->params->{mac}      if ( defined request->params->{mac} );
@@ -509,7 +513,7 @@ sub host_admin()
         # this routine checks for mac and hostname args
         # and if hostname passed finds related mac entry
         # returns undef on error (e.g., unable to find hostname)
-        $mac = &get_mac_by_hostname( $opts, $mac, $hostname );
+        $mac = &get_mac_by_hostname( $opts, 'host', $hostname );
         unless ( defined $mac ) {
             $opts->{LASTERROR} = "mac required \n";
             error $opts->{LASTERROR};

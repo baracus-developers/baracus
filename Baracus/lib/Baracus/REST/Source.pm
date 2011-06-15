@@ -4,6 +4,8 @@ use 5.006;
 use strict;
 use warnings;
 
+use File::Path;
+
 use Dancer qw( :syntax);
 
 use Baracus::State  qw( :vars :admin );
@@ -27,11 +29,9 @@ BEGIN {
                 source_list
                 source_add
                 source_remove
-                source_update
                 source_verify
                 source_detail
-                source_enable
-                source_disable
+                source_admin
          )],
          );
 
@@ -47,7 +47,7 @@ our $VERSION = '0.01';
 sub source_list() {
 
     my $filter = params->{filter};
-debug "DEBUG: filter=$filter \n";
+
     my $opts = vars->{opts};
     unless ( $opts ) {
         status 'error';
@@ -245,33 +245,29 @@ sub source_add() {
 
 sub source_remove() {
 
-    use File::Path;
-
+    my $command = 'remove';
     my $distro = params->{distro};
-
+debug "DEBUG: VERY LATEST distro=$distro \n";
+    my $extras = params->{extra} if ( defined params->{extra} );
+debug "DEBUG: extras=$extras \n";
     my $opts = vars->{opts};
     unless ( $opts ) {
         $opts->{LASTERROR} = "'vars' not properly initialized";
         error $opts->{LASTERROR};
     }
 
-    my $distroList = "";
-    my @distroArray;
-
-    my $command = "remove";
-    my $extras = "";
     my @extras;
     my $shares;
     my $is_loopback = "";
     my $ret = 0;
 
+    my %returnHash;
+
     @ARGV = @_;
 
-    # Build up extras
-#    $extras = $extras . " $multiarg{ 'addons' }" if ( defined $multiarg{ 'addons' } );
-#    $extras = $extras . " $multiarg{ 'sdks' }" if ( defined $multiarg{ 'sdks' } );
-#    $extras = $extras . " $multiarg{ 'duds' }" if ( defined $multiarg{ 'duds' } );
-#    $extras =~ s/^\s+// if ( defined $extras );
+    # Build up extras (ie. addons, sdks and duds)
+    $extras = "" unless ( defined $extras );
+    $extras =~ s/^\s+//;
 
     my $is_extra_passed;
     $is_extra_passed = 1 if ( $extras );
@@ -279,14 +275,16 @@ sub source_remove() {
     ## Test if selection is valid
     ##
     $distro = lc $distro;
-    unless ( &check_distro( $opts, $distro ) )  {
+    if ( &check_distro( $opts, $distro ) )  {
+debug "DEBUG: day 2 again ... failed here - damn again \n";
         status 'error';
         error $opts->{LASTERROR};
     }
 
     my $dh =  &baxml_distro_gethash( $opts, $distro );
 
-    if ( $distro eq "all" ) {
+    if ( $extras eq "all" ) {
+        $extras = "";
         @extras = @{$dh->{basedisthash}->{addons}} if (defined $dh->{basedisthash}->{addons} );
         foreach my $item ( @extras ) {
             if ( &is_source_installed( $opts, $item ) ) {
@@ -299,18 +297,19 @@ sub source_remove() {
 
     ## Are there any extras not removed dependant on base
     if ( ( ! $extras ) and ( defined $distro ) ) {
+debug "DEBUG: day 2 and this is a strange one here \n";
         my @extchk = &list_installed_extras( $opts, $distro );
         foreach my $extchk (@extchk) {
             if ( $extchk eq &get_distro_includes( $opts, $distro ) ) { next; }
             if ( ! exists {map { $_ => 1 } @extras}->{$extchk} ) {
                 $opts->{LASTERROR} =  "cannot remove $distro:\n\t$extchk installed and depends on $distro\n";
-                error $opts->{LASTERROR};;
+                error $opts->{LASTERROR};
             }
         }
     }
 
     # do we include anything in this distros
-    unless ( ( $is_extra_passed ) and ( ! $opts->{all} ) ) {
+    unless ( ( $is_extra_passed ) and ( $extras ne "all" ) ) {
         my $includes = &get_distro_includes( $opts, $distro );
         if ( ( defined $includes ) and
              ( ! grep $includes, @extras ) ) {
@@ -323,21 +322,23 @@ sub source_remove() {
     }
     undef @extras;
     @extras = split( /\s+/, $extras );
-
+debug "DEBUG: day 2 and here are my extras after include check=$extras \n";
     ## only check extras passed if not removing all
     if ( scalar @extras ) {
-        debug "Calling routine to verify extra(s) passed\n" if $opts->{verbose};
-        return 1 if &check_extras( $opts, $distro, $extras );
+        debug "Calling routine to verify extra(s) passed\n";
+        if ( &check_extras( $opts, $distro, $extras ) ) {
+            error "failed in check_extras \n";
+        }
     }
 
     ## Remove all extras
     if ( scalar @extras ) {
         foreach my $extra ( @extras ) {
             if ( &is_extra_dependant( $opts, $distro, $extra ) ) {
-                debug "Leaving $extra - required for other installed distro\n" if $opts->{verbose};
+                debug "Leaving $extra - required for other installed distro\n";
             } else {
                 if ( &is_source_installed( $opts, $extra ) ) {
-                    debug "Removing extra $extra\n" if $opts->{verbose};
+                    debug "Removing extra $extra\n";
                     ($shares, undef) = &get_distro_share( $opts, $extra );
                     $is_loopback = &is_loopback( $opts, @$shares[0] );
                     if ( &remove_build_service( $opts, "", $extra ) ) {
@@ -370,51 +371,79 @@ sub source_remove() {
     }
 
     ## Remove base distro
-    unless ( ( $is_extra_passed ) and ( ! $opts->{all} ) ) {
+    unless ( ( $is_extra_passed ) and ( $extras ne "all" ) ) {
         ($shares,undef) = &get_distro_share( $opts, $distro );
         if ( &remove_build_service( $opts, $distro, "" ) ) {
+debug "DEBUG: damn here it is 1 \n";
             debug "$opts->{LASTERROR}\n";
             $opts->{LASTERROR} = "";
         }
         foreach my $share ( @$shares ) {
+debug "DEBUG: day 2 ... share=$share \n";
             $is_loopback = &is_loopback( $opts, $share );
-            debug "$share ... removing\n" if $opts->{verbose};
+            debug "$share ... removing\n";
             if ( $is_loopback ) {
-                my $mntchk = `mount | grep $share| grep -v ^$share`;
+                my $mntchk = `sudo mount | grep $share| grep -v ^$share`;
                 $mntchk = (split / /, $mntchk)[2];
                 if ( ( defined $mntchk ) and
                      ( $mntchk eq $share ) ) {
                     $ret = system("sudo umount $share");
                     if ( $ret > 0 ) {
+debug "DEBUG: day2 ... damn this failed here? \n";
                         $opts->{LASTERROR} = "loopback unmount failed\n";
                         error $opts->{LASTERROR};
                     }
                 }
-                rmdir($share);
+               rmdir($share);
             }
         }
         &remove_bootloader_files( $opts, $distro );
         &source_register( $opts, $command, $distro);
     }
+#
+#    $returnHash{distro} = $distro;
+#    $returnHash{extras} = $extras;
+#    $returnHash{action} = $command;
+    $returnHash{result} = '0';
 
-    if ( request->{accept} =~ m|text/html| ) {
-        return "Removed $distro<br>"
-    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
-        my @returnArray = ("Removed", "$distro");
-        return \@returnArray;
+    if ( ( request->{accept} eq 'text/xml' )
+      or ( request->{accept} eq 'application/json' )
+      or ( request->{accept} =~ m|text/html| ) ) {
+#debug "DEBUG: request->accept=" . request->{accept} . "\n";
+#debug "DEBUG: should be returning distro=$returnHash{distro} extra=$returnHash{extras} and command=$returnHash{action} while result=$returnHash{result} \n";
+        return \%returnHash;
     } else {
-        status 'error';
-        return $opts->{LASTERROR};
+#debug "DEBUG: hello, this stinks ... less obvious error \n";
+#        status 'error';
+#        return $opts->{LASTERROR};
     }
+
 }
+
+sub source_admin() {
+    if ( request->params->{verb} eq "update" ) {
+debug "DEBUG: Calling source_update \n";
+        &source_update(  @_ );
+    } elsif ( request->params->{verb} eq "enable" ) {
+debug "DEBUG: Calling source_enable \n";
+        &source_enable(  @_ );
+    } elsif ( request->params->{verb} eq "disable" ) {
+debug "DEBUG: Calling source_disable \n";
+        &source_disable(  @_ );
+    } else {
+        status '406';
+        error "distro required for source_add";
+        return { code => "26", error => "missing required argument" };
+    }
+}       
 
 sub source_update() {
 
-    my $distro = params->{distro};
-    my $sharetype = params->{sharetype};
-    my $shareip = params->{shareip};
+    my $command = 'update';
+    my $distro    = params->{distro};
+    my $sharetype = params->{sharetype} if ( defined params->{sharetype} );
+    my $shareip   = params->{shareip}   if ( defined params->{shareip} );
 
-    my $returnString = "";
     my %returnHash;
 
     my $opts = vars->{opts};
@@ -516,11 +545,11 @@ sub source_update() {
                     debug "$opts->{LASTERROR}\n";
                     $opts->{LASTERROR} = "";
                 }
-                debug "$sharetype ... Updated\n" if $opts->{verbose};
+                debug "$sharetype ... Updated\n";
             }
             if ( $shareip ne "" ) {
                 &update_db_source_entry( $opts, "", $shareip, $extra);
-                debug "$shareip ... Updated\n" if $opts->{verbose};
+                debug "$shareip ... Updated\n";
             }
         }
     }
@@ -551,11 +580,16 @@ sub source_update() {
         }
     }
 
-    if ( request->{accept} =~ m|text/html| ) {
-        return "Updated $distro<br>"
-    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
-        my @returnArray = ("Updated", "$distro");
-        return \@returnArray;
+    $returnHash{distro}    = $distro;
+    $returnHash{action}    = $command;
+    $returnHash{shareip}   = $shareip   if ( defined $shareip );
+    $returnHash{sharetype} = $sharetype if ( defined $sharetype );
+    $returnHash{result}    = '0';
+
+    if ( ( request->{accept} eq 'text/xml' )
+      or ( request->{accept} eq 'application/json' )
+      or ( request->{accept} =~ m|text/html| ) ) {
+        return \%returnHash;
     } else {
         status 'error';
         return $opts->{LASTERROR};
@@ -573,9 +607,6 @@ sub source_verify() {
         return "internal 'vars' not properly initialized";
     }
 
-    # my $rtype = vars->{rtype};
-
-    my $returnString = "";
     my %returnHash;
 
     my $dbref = &get_db_source_entry( $opts, $distro );
@@ -587,16 +618,9 @@ sub source_verify() {
         return 1;
     }
 
-    $returnString .= "Target: $dbref->{distroid}<br>";
     $returnHash{target} = $dbref->{distroid};
-
-    $returnString .= "Created: $dbref->{creation}<br>";
     $returnHash{creation} = $dbref->{creation};
-
-    $returnString .= "Modified: $dbref->{change}<br>" if defined $dbref->{change};
     $returnHash{change} = $dbref->{change} if defined $dbref->{change};
-
-    $returnString .= "Status: $baState{$dbref->{status}}<br>";
     $returnHash{status} = $dbref->{status};
 
     my $service_status = "";
@@ -606,13 +630,8 @@ sub source_verify() {
         $service_status = "ok";
     }
     $returnHash{servicestatus} = $service_status;
-
-    $returnString .= "Service: $dbref->{sharetype} $service_status<br>";
     $returnHash{sharetype} = $dbref->{sharetype};
-
-    $returnString .= "Share IP: $dbref->{shareip}<br>";
     $returnHash{shareip} = $dbref->{shareip};
-
 
     my $oldshare = "";
     foreach my $prod ( &baxml_products_getlist( $opts, $distro ) ) {
@@ -629,7 +648,6 @@ sub source_verify() {
                 $share_status = "ok";
             }
             $returnHash{sharestatus} = $share_status;
-            $returnString .= "Share: $netcfg $share_status<br>";
             $returnHash{share} = $netcfg;
 
             my $path_status = "";
@@ -639,7 +657,6 @@ sub source_verify() {
                 $path_status = "ok";
             }
             $returnHash{pathstatus} = $path_status;
-            $returnString .= "Path: $share $path_status<br>";
             $returnHash{path} = $share;
         }
     }
@@ -659,7 +676,6 @@ sub source_verify() {
         }
     }
     $returnHash{kernelstatus} = $kernel_status;
-    $returnString .= "Kernel: linux.$base $kernel_status<br>";
     $returnHash{kernel} = "linux.$base";
 
     $state = &sqlfs_getstate( $opts, "initrd.$base" );
@@ -674,15 +690,15 @@ sub source_verify() {
         }
     }
     $returnHash{ramdiskstatus} = $ramdisk_status;
-    $returnString .= "Ramdisk: initrd.$base $ramdisk_status<br>";
     $returnHash{initrd} = "initrd.$base";
 
-    if ( request->{accept} =~ m|text/html| ) {
-        return $returnString;
-    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
+    if ( ( request->{accept} eq 'text/xml' )
+      or ( request->{accept} eq 'application/json' )
+      or ( request->{accept} =~ m|text/html| ) ) {
         return \%returnHash;
     } else {
-        return "error";
+        status 'error';
+        return $opts->{LASTERROR};
     }
 
 }
@@ -700,9 +716,6 @@ sub source_detail() {
         return "internal 'vars' not properly initialized";
     }
 
-    # my $rtype = vars->{rtype};
-
-    my $returnString = "";
     my %returnHash;
 
     $distro = lc $distro;
@@ -736,57 +749,49 @@ sub source_detail() {
             },
            $baDir{isos} );
 
-    $returnString = "Details for $distro<br>";
     $returnHash{distro} = $distro;
-    $returnString .= "With current status '$status'<br>";
     $returnHash{status} = $status;
     if ($dh->{requires}) {
-        $returnString .=  "Add-on product extending $dh->{basedist}<br>";
         $returnHash{basedist} = $dh->{basedist};
     } else {
-        $returnString .= "Base product";
         if ( $bh->{addons} and scalar @{$bh->{addons}} ) {
-            $returnString .= " supporting extension(s):  " .
                 join (", ", (sort @{$bh->{addons}} ) );
             $returnHash{extensions} = join (", ", (sort @{$bh->{addons}} ) );
         }
-        $returnString .= "\n";
     }
 
-        $returnString .= "Based on product(s):  " .
         join (", ", ( sort &baxml_products_getlist( $opts, $distro ) ) ) . "<br>";
     foreach my $product ( sort &baxml_products_getlist( $opts,  $distro ) ) {
-        $returnString .= "Detail for $product<br>";
         my $ph = &baxml_product_gethash( $opts, $distro, $product );
         foreach my $iso ( sort &baxml_isos_getlist( $opts, $distro, $product ) ) {
             my $ih = &baxml_iso_gethash( $opts, $distro, $product, $iso );
             my $builds = $ih->{isopath};
-            my $isoexist = "-";
-            my $direxist = "-";
-            $isoexist = "+" if ( $iodhash{$iso} );
-            $direxist = "+" if ( -d $builds );
+            $returnHash{isoexist} = "-";
+            $returnHash{direxist} = "-";
+            $returnHash{isoexist} = "+" if ( $iodhash{$iso} );
+            $returnHash{direxist} = "+" if ( -d $builds );
 
             $builds =~ s|$baDir{builds}/||og;
-            $returnString .=  " + $iso  =>  + $builds<br>", $isoexist, $direxist;
             $returnHash{product} = $product;
             $returnHash{iso} = $iso;
             $returnHash{builds} = $builds;
-            $returnHash{mntdir} = $direxist;
         }
     }
 
-    if ( request->{accept} =~ m|text/html| ) {
-        return $returnString;
-    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
+    if ( ( request->{accept} eq 'text/xml' )
+      or ( request->{accept} eq 'application/json' )
+      or ( request->{accept} =~ m|text/html| ) ) {
         return \%returnHash;
     } else {
-        error;
+        status 'error';
+        return $opts->{LASTERROR};
     }
 
 }
 
 sub source_enable() {
 
+    my $command = 'disable';
     my $distro = params->{distro};
 
     my $opts = vars->{opts};
@@ -795,7 +800,7 @@ sub source_enable() {
         return "internal 'vars' not properly initialized";
     }
 
-    # my $rtype = vars->{rtype};
+    my %returnHash;
 
     my $dbref = &get_db_source_entry( $opts, $distro );
     unless ( defined $dbref->{distroid} and
@@ -818,21 +823,25 @@ sub source_enable() {
 
     &source_register( $opts, 'enable', $distro );
 
-    if ( request->{accept} =~ m|text/html| ) {
-        return "Enabled $distro<br>"
-    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
-        my @returnArray = ("Enabled", "$distro");
-        return \@returnArray;
+    $returnHash{distro}    = $distro;
+    $returnHash{action}    = $command;
+    $returnHash{result}    = '0';
+
+    if ( ( request->{accept} eq 'text/xml' )
+      or ( request->{accept} eq 'application/json' )
+      or ( request->{accept} =~ m|text/html| ) ) {
+        return \%returnHash;
     } else {
-        return "error";
+        status 'error';
+        return $opts->{LASTERROR};
     }
 
 }
 
 sub source_disable() {
 
-    my $distro = params->{distro};
-    #    $distro = &normalize_verb( $distro );
+    my $command = 'enable';
+    my $distro  = request->params->{distro};
 
     my $opts = vars->{opts};
     unless ( $opts ) {
@@ -840,7 +849,7 @@ sub source_disable() {
         return "internal 'vars' not properly initialized";
     }
 
-   # my $rtype = vars->{rtype};
+    my %returnHash;
 
     my $dbref = &get_db_source_entry( $opts, $distro );
     unless ( defined $dbref->{distroid} and
@@ -863,13 +872,17 @@ sub source_disable() {
 
     &source_register( $opts, 'disable', $distro);
 
-    if ( request->{accept} =~ m|text/html| ) {
-        return "Disabled $distro<br>"
-    } elsif ( ( request->{accept} eq 'text/xml' ) or ( request->{accept} eq 'application/json' ) ) {
-        my @returnArray = ("Disabled", "$distro");
-        return \@returnArray;
+    $returnHash{distro}    = $distro;
+    $returnHash{action}    = $command;
+    $returnHash{result}    = '0';
+
+    if ( ( request->{accept} eq 'text/xml' )
+      or ( request->{accept} eq 'application/json' )
+      or ( request->{accept} =~ m|text/html| ) ) {
+        return \%returnHash;
     } else {
-        return "error";
+        status 'error';
+        return $opts->{LASTERROR};
     }
 
 }
