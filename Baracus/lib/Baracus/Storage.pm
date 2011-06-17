@@ -28,10 +28,13 @@ use 5.006;
 use strict;
 use warnings;
 
-use Baracus::Sql   qw( :subs :vars );
-use Baracus::State qw( :vars );
-use Baracus::Core  qw( :subs );
-use Baracus::Config qw( :subs :vars );
+use Dancer qw( :syntax );
+use Dancer::Plugin::Database;
+
+use Baracus::Sql     qw( :subs :vars );
+use Baracus::State   qw( :vars );
+use Baracus::Core    qw( :subs );
+use Baracus::Config  qw( :subs :vars );
 
 =pod
 
@@ -128,7 +131,7 @@ sub get_db_storage_uri
     eval {
         my $sth = database->prepare( $sql );
         $sth->execute;
-        my $href = $sth->fetchrow_hashref();
+        $href = $sth->fetchrow_hashref();
         $sth->finish;
     };
     if ($@) {

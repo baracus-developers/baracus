@@ -50,6 +50,7 @@ BEGIN {
               pon
               pcycle
               pstatus
+              get_power_mac_by_hostname
               get_bmc
               get_bmcref_req_args
           )]
@@ -374,14 +375,14 @@ sub bazvmpower() {
 # helper subroutines
 #
 ###########################################################################
-sub get_mac() {
+sub get_power_mac_by_hostname() {
 
     my $opts     = shift;
-    my $deviceid = shift;
+    my $hostname= shift;
 
     my $sql = qq| SELECT mac
                   FROM power
-                  WHERE hostname = '$deviceid'
+                  WHERE hostname = '$hostname'
                 |;
 
     my $href;

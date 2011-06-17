@@ -81,7 +81,7 @@ sub power_admin() {
 
     my $mac;
     if ( request->params->{hostname} ) {
-        $mac = &get_mac_by_hostname( $opts, 'host', request->params->{hostname} );
+        $mac = &get_power_mac_by_hostname( $opts, request->params->{hostname} );
     } else {
         $mac = request->params->{mac};
     }
@@ -150,7 +150,7 @@ sub power_status() {
     # convert parama->{node} to mac address
     my $mac;
     if ( $type eq "host" ) {
-        $mac = &get_mac_by_hostname( $opts, $type, $node );
+        $mac = &get_power_mac_by_hostname( $opts, $node );
     } else {
         $mac = $node;
     }
@@ -209,7 +209,7 @@ sub power_remove() {
     # convert parama->{node} to mac address
     my $mac;
     if ( $type eq "host" ) {
-        $mac = &get_mac_by_hostname( $opts, $type, $node );
+        $mac = &get_power_mac_by_hostname( $opts, $node );
     } else {
         $mac = $node;
     }

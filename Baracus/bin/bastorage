@@ -24,25 +24,22 @@
 #
 ###########################################################################
 
+
 use strict;
-use warnings;
 
 use Getopt::Long qw( :config pass_through );
 use Pod::Usage;
+use LWP;
+use HTTP::Cookies;
+use Term::ReadKey;
+use XML::Simple;
 
-use lib "/usr/share/baracus/perl";
+use lib "/home/cruejones/git/baracus/Baracus/lib";
 
-use SqlFS;
-
-use BaracusDB;
-use BaracusCore qw( :subs  );
-use BaracusConfig qw( :vars :subs );
-use BaracusAux qw( :subs  );
-use BaracusSql qw( :vars :subs );
-use BaracusStorage qw( :vars :subs );
-
-
-#     update    <...>  Update a storage name or description
+use Dancer qw( :syntax);
+use Baracus::Core    qw( :subs );
+use Baracus::Config  qw( :vars :subs );
+use Baracus::Storage qw( :vars );
 
 =pod
 
@@ -80,12 +77,9 @@ This tool allows for the identification of disserperate network storage (Network
 
 =cut
 
-my $man      = 0;
-my $help     = 0;
-my $tbl      = "storage";
-
-# no add / remove here - all cmds add or update as needed
-# to 'mac', 'build', and 'templateid' tables
+my $apiver = "api/v1";
+my $man  = 0;
+my $help = 0;
 
 my $cmds = {
             'add'           => \&add,
@@ -100,8 +94,6 @@ my $cmds = {
 my $opts = {
             verbose    => 0,
             quiet      => 0,
-#            all        => 0,
-#            nolabels   => 0,
             debug      => 0,
             execname   => "",
             LASTERROR  => "",
@@ -110,13 +102,10 @@ my $opts = {
 # Build command line for help, historical reference and point-in-time rebuilding
 $opts->{execname} = $0;
 $opts->{execname} = $1 if ( $0 =~ m|^.*/([^/].+)| );
-my $cmdline = join '::', $opts->{execname}, @ARGV;
 
 GetOptions(
            'verbose'   => \$opts->{verbose},
            'quiet'     => \$opts->{quiet},
-#           'all'       => \$opts->{all},
-#           'nolabels'  => \$opts->{nolabels},
            'debug+'    => \$opts->{debug},
            'man'       => \$man,
            'help|?'    => \$help,
@@ -128,32 +117,71 @@ GetOptions(
 if ($ARGV[0] eq "man"  ) { &man(); }
 if ($ARGV[0] eq "help" ) { shift @ARGV; &help( $opts, $cmds, @ARGV ); }
 
-my $dbname = "baracus";
-my $dbrole = $dbname;
+## Setup base URL and PORT
+my $port = undef;
+if ( $baVar{port} ) {
+    $port = $baVar{port};
+} else {
+    $port = "80";
+}
 
-print "setting uid to $dbrole\n" if ($opts->{debug} > 2);
+my $baseurl = undef;
+if ( $baVar{url} ) {
+    $baseurl = $baVar{url};
+} elsif ( $baVar{serverip} ) {
+    $baseurl = $baVar{serverip};
+} else {
+    print "Edit /etc/sysconfig/baracus to include a ServerIP or URL\n";
+    exit 1;
+}
 
-my $uid = BaracusDB::su_user( $dbrole );
-die BaracusDB::errstr unless ( defined $uid );
+print "Using: $baseurl \n" if ($opts->{debug});
+print "Using: $port\n" if ($opts->{debug});
 
-my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
-die BaracusDB::errstr unless( $dbh );
+# Setup LWP
+my $browser = LWP::UserAgent->new( );
+$browser->cookie_jar( {} );
+$browser->agent('baracus');
+$browser->default_header('Accept' => 'application/json');
+
+## Authenticate request
+my $username = "";
+my $password = "";
+if ( -f "$ENV{HOME}/.barc") {
+    print "We have a file\n" if ($opts->{debug});
+    open(FILE, "<$ENV{HOME}/.barc");
+    while (<FILE>) {
+        if (/username/) { chomp ( $username = (split /=/, $_)[1] ); }
+        if (/password/) { chomp ( $password = (split /=/, $_)[1] ); }
+    }
+} else {
+    print "enter username: ";
+    chomp($username = ReadLine 0);
+
+    print "enter password: ";
+    ReadMode 'noecho';
+    chomp($password = ReadLine 0);
+    ReadMode 'normal';
+    print "\n";
+}
+my $login_url = "http://$baseurl:$port/login?username=$username&password=$password";
+my $login_response = $browser->post( $login_url );
 
 my $status = &main( $opts, $cmds, @ARGV );
 
-die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
-
-print $opts->{LASTERROR} if $status;
+my $logout_url = "http://$baseurl:$port/logout";
+my $logout_response = $browser->get( $logout_url );
+print $logout_response->content;
 
 exit $status;
 
-die "DOES NOT EXECUTE";
+die "DOES NOT EXECUTE\n";
 
-
-###############################################################################
+###########################################################################
 ##
 ## commands
 ##
+
 
 =head1 COMMANDS
 
@@ -178,116 +206,77 @@ And options
 
 =cut
 
-sub add
-{
-    my $command = "add";
 
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
+sub add() {
 
-    my $sref = {};
-    my $cols = lc get_cols( $baTbls{ $tbl });
-    foreach my $key (split(/[,\s*]/, $cols )) {
-        $sref->{$key} = '';
-    }
+    my $verb = 'add';
 
-    my $chkref;
+    my $storageid; 
+    my $storageip;
+    my $storage;
+    my $type;
+    my $username;
+    my $passwd;
+    my $description;
+    my $size;
 
     @ARGV = @_;
 
     GetOptions
         (
-         'name=s'        => \$sref->{'storageid'},
-         'ip=s'          => \$sref->{'storageip'},
-         'storage=s'     => \$sref->{'storage'},
-         'type=s'        => \$sref->{'type'},     # in as string & store as int
-         'username=s'    => \$sref->{'username'},
-         'passwd=s'      => \$sref->{'passwd'},
-         'description=s' => \$sref->{'description'},
-         'size=s'        => \$sref->{'size'},
+         'name=s'        => \$storageid,
+         'ip=s'          => \$storageip,
+         'storage=s'     => \$storage,
+         'type=s'        => \$type,     # in as string & store as int
+         'username=s'    => \$username,
+         'passwd=s'      => \$passwd,
+         'description=s' => \$description,
+         'size=s'        => \$size,
          );
 
+    unless ( ( defined $storageid ) ) {
+        print "--name <name> required to add new storage entry\n";
+        return 1;
+    }
+
     if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
     }
 
-    if ( defined $baStorageType{ $sref->{type} } ) {
-        $sref->{type} = $baStorageType{ $sref->{type} };
-    } else {
-        $opts->{LASTERROR} = "Incorrect --type: $sref->{type}\n";
-        return 1;
-    }
+    my $json_hash = {};
+    $json_hash->{storageid}   = $storageid   if ( defined $storageid );
+    $json_hash->{storageip}   = $storageip   if ( defined $storageip );
+    $json_hash->{storage}     = $storage     if ( defined $storage );
+    $json_hash->{type}        = $type        if ( defined $type );
+    $json_hash->{username}    = $username    if ( defined $username );
+    $json_hash->{passwd}      = $passwd      if ( defined $passwd );
+    $json_hash->{description} = $description if ( defined $description );
+    $json_hash->{size}        = $size        if ( defined $size );
 
-    ## Verify Mandatory parameters
-    ##
-    if ( $sref->{'storageid'} eq "" ) {
-        $opts->{LASTERROR} = "Missing  --name\n";
-        return 1;
-    }
-    if ( ( $sref->{storageip} eq "" ) and
-         ( $sref->{type} != BA_STORAGE_IMAGE ) and
-         ( $sref->{type} != BA_STORAGE_CLONE ) ) {
-        $opts->{LASTERROR} = "Missing  --ip\n";
-        return 1;
-    }
-    if ( $sref->{storage} eq "" ) {
-        $opts->{LASTERROR} = "Missing --storage\n";
-        return 1;
-    }
 
-    # exits on error
-    &check_ip( $sref->{storageip} ) if ( $sref->{storageip} ne "" );
+    my $url = "http://$baseurl:$port/$apiver/storage";
+    my $message = to_json($json_hash);
 
-    # check for pre-exsisting name
-    $chkref = &get_db_data( $dbh, $tbl, $sref->{storageid} );
-    if ( defined $chkref ) {
-        $opts->{LASTERROR} = "storage name already exists: $sref->{storageid}\n";
-        return 1;
-    }
+    my $req = HTTP::Request->new(POST => $url);
+    $req->content_type('application/json');
+    $req->content($message);
 
-    if ( $sref->{type} eq BA_STORAGE_IMAGE ) {
-        # make sure either storage or storage.gz exists
-        # and generate md5sum for tamper checking
-        if ( -f "$baDir{images}/$sref->{storage}" ) {
-            ; # no-op
-        } elsif ( $sref->{storage} !~ m/^.*\.gz$/ and
-                  -f "$baDir{images}/$sref->{storage}.gz" ) {
-            # user didn't spec .gz but it's there so use it
-            $sref->{storage} = "$sref->{storage}.gz";
-        } else {
-            $opts->{LASTERROR} = "file not found in $baDir{images}: $sref->{storage}\n";
-            return 1;
-        }
-        print "md5sum $sref->{storage} ...\n" if $opts->{verbose};
-        $sref->{md5sum} = &get_md5sum( "$baDir{images}/$sref->{storage}" );
+    my $response = $browser->request( $req );
 
-    } elsif ( $sref->{type} eq BA_STORAGE_CLONE ) {
-        # make sure neither storage nor storage.gz exists
-        if ( -f "$baDir{images}/$sref->{storage}" ) {
-            $opts->{LASTERROR} = "\t$baDir{images}/$sref->{storage}\n";
-        }
-        if ( $sref->{storage} !~ m/^.*\.gz$/ ) {
-            # clone generated .gz images so use the extension
-            $sref->{storage} = "$sref->{storage}.gz";
-            if ( -f "$baDir{images}/$sref->{storage}" ) {
-                $opts->{LASTERROR} .= "\t$baDir{images}/$sref->{storage}\n";
-            }
-        }
-        if ( $opts->{LASTERROR} ne "" ) {
-            $opts->{LASTERROR} = "file(s) already found in $baDir{images}:\n" . $opts->{LASTERROR};
-            return 1;
-        }
-    }
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
 
-    # done with all checking
-    &add_db_data( $dbh, $tbl, $sref );
-    printf "storage added: $sref->{storageid}\n" if ( $opts->{verbose} );
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    my $data = from_json( $response->content );
+
+    print "$data->{storageid}  :  $data->{action} $data->{result} \n";
 
     return 0;
-}
 
+}
 
 =head2 remove --name <storageid>
 
@@ -297,33 +286,48 @@ Also note this does not remove any existing relations of this share with existin
 
 =cut
 
-sub remove
+sub remove()
 {
-    my $command = "remove";
 
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $name;
-    my $chkref;
+    my $verb = 'remove';
+    my $storageid;
 
     @ARGV = @_;
 
     GetOptions(
-               'name=s' => \$name,
+               'name=s' => \$storageid,
                );
 
-    if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+    unless ( defined $storageid ) {
+        print "--name <name> required\n";
         return 1;
     }
 
-    $chkref = &get_db_data( $dbh, $tbl, $name );
-    if ( defined $chkref ) {
-        &remove_db_data( $dbh, $tbl, $name );
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
     }
+
+    my $url = "http://$baseurl:$port/$apiver/storage/$storageid";
+
+    my $req = HTTP::Request->new(DELETE => $url);
+    $req->content_type('application/json');
+
+    my $response = $browser->request( $req );
+
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    my $data = from_json( $response->content );
+
+    print "$data->{storageid}  :  $data->{action} $data->{result} \n";
+
+
     return 0;
+
 }
 
 =head2 list [ --filter <name|storage>::<partial*|specific> ] [ --uri ]
@@ -341,78 +345,48 @@ Option
 
 sub list
 {
-    my $command = "list";
-
-    my $filter = "";
-    my $uri = "";
+    my $verb = "list";
+    my $filter = "*";
 
     @ARGV = @_;
 
     GetOptions(
-               'filter=s'   => \$filter,
-               'uri'        => \$uri,
-              );
+               'filter=s'  => \$filter,
+               );
 
     if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
     }
 
-    # manipulate filter before calling list_start_data
-    if ( $filter =~ m|::| ) {
-        my ( $fkey, $fval ) = split( /::/, $filter, 2 );
-        if ( $fkey eq "name" ) {
-            $fkey = "storageid";
-        }
-        elsif( $fkey eq "ip" ) {
-            $fkey = "storageip";
-        }
-        elsif ( $fkey eq "type" ) {
-            unless ( $baStorageType{ $fval } ) {
-                $opts->{LASTERROR} = "Invalid type: $fval\n";
-                return 1;
-            }
-            $fval = $baStorageType{ $fval };
-        }
-        $filter = "${fkey}::${fval}";
-    }
+    my $url = "http://$baseurl:$port/$apiver/storage/$filter";
 
-    my $sth = &list_start_data ( $opts, $dbh, 'storage', $filter );
+    my $req = HTTP::Request->new( 'GET', $url );
+    $req->header( 'Accept' => 'application/json' );
 
-    unless( defined $sth ) {
-        # list_start error
-        return 1;
-    }
+    my $response = $browser->request( $req );
 
-    if ( $uri ) {
-        unless ($opts->{quiet}) {
-        print "----------------------------------------------------------------------------------------------\n";
-        printf "%-26s %-56s\n", "name", "uri";
-        print "----------------------------------------------------------------------------------------------\n";
-        }
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
 
-        my $dbref;
-        my $curi;
-        while ( $dbref = &list_next_data( $sth ) ) {
-            $curi = &get_db_storage_uri( $dbh, $dbref->{storageid} );
-            printf "%-26s %-56s\n",
-                $dbref->{storageid}, $curi;
-        }
-    } else {
-        unless ($opts->{quiet}) {
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    my $data = from_json( $response->content );
+
+    unless ($opts->{quiet}) {
         print "----------------------------------------------------------------------------------------------\n";
         printf "%-26s %-7s %-18s %-30s\n", "name", "type", "ip", "storage";
         print "----------------------------------------------------------------------------------------------\n";
-        }
-
-        my $dbref;
-        while ( $dbref = &list_next_data( $sth ) ) {
-            printf "%-26s %-7s %-18s %-30s\n",
-                $dbref->{storageid}, $baStorageType{ $dbref->{type} }, $dbref->{storageip}, $dbref->{storage};
-        }
     }
 
-    return 0;
+    for my $node ( sort keys %$data ) {
+        printf "%-26s %-7s %-18s %-30s\n",
+               "$data->{$node}->{storageid}", "$data->{$node}->{type}",
+               "$data->{$node}->{storageip}", "$data->{$node}->{storage}";
+    }
+
+    return 0;  
 }
 
 =head2 detail --name <storageid>
@@ -423,52 +397,59 @@ Show details for specified network storage device
 
 sub detail
 {
-    my $command = "detail";
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $sref;
-    my $name = "";
+    my $verb = "detail";
+    my $storageid;
 
     @ARGV = @_;
 
     GetOptions(
-               'name=s' => \$name,
+               'name=s' => \$storageid,
                );
 
     if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help( $opts, $verb );
+    }
+
+    unless ( defined $storageid ) {
+        print "--name <name> required\n";
         return 1;
     }
 
-    $sref = &get_db_data( $dbh, $tbl, $name );
-    unless ( defined $sref ) {
-        $opts->{LASTERROR} = "No storage found with storage id: $name\n";
-        return 1;
+    my $url = "http://$baseurl:$port/$apiver/storage/detail/$storageid";
+
+    my $req = HTTP::Request->new( 'GET', $url );
+    $req->header( 'Accept' => 'application/json' );
+
+    my $response = $browser->request( $req );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    my $data = from_json( $response->content );
+
+    printf "%-14s %s\n", "Storage ID",   $data->{storageid};
+    printf "%-14s %s\n", "Storage Type", $data->{type};
+    printf "%-14s %s\n", "Storage IP",   $data->{storageip} ;
+    printf "%-14s %s\n", "Storage",      $data->{storage} ;
+    printf "%-14s %s\n", "Storage URI",  $data->{uri} ;
+    if ( defined $data->{size} and $data->{size} ne "" ) {
+        printf "%-14s %s\n", "Size", $data->{size} ;
+    }
+    if ( defined $data->{description} and $data->{description} ne "" ) {
+        printf "%-14s %s\n", "Description", $data->{description} ;
+    }
+    if ( defined $data->{username} and $data->{username} ne "" ) {
+        printf "%-14s %s\n", "Username", $data->{username} ;
     }
 
-    printf "%-12s %s\n", "Storage ID",   $sref->{'storageid'} ;
-    printf "%-12s %s\n", "Storage Type", $baStorageType{ $sref->{'type'} } ;
-    printf "%-12s %s\n", "Storage IP",   $sref->{'storageip'} ;
-    printf "%-12s %s\n", "Storage",      $sref->{'storage'} ;
-    printf "%-12s %s\n", "Storage URI",  &get_db_storage_uri( $dbh, $sref->{'storageid'} ) ;
-    if ( defined $sref->{'size'} and $sref->{'size'} ne "" ) {
-        printf "%-12s %s\n", "Size", $sref->{'size'} ;
-    }
-    if ( defined $sref->{'description'} and $sref->{'description'} ne "" ) {
-        printf "%-12s %s\n", "Description", $sref->{'description'} ;
-    }
-    if ( defined $sref->{'username'} and $sref->{'username'} ne "" ) {
-        printf "%-12s %s\n", "Username", $sref->{'username'} ;
-    }
-    if ( defined $sref->{'passwd'} and $sref->{'passwd'} ne "" ) {
-        printf "%-12s %s\n", "Password", "*****" ;
-    }
     return 0;
+
 }
 
+######################################################################
 
 die "ABSOLUTELY DOES NOT EXECUTE";
 

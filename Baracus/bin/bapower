@@ -35,7 +35,6 @@ use Term::ReadKey;
 use XML::Simple;
 
 use lib "/home/cruejones/git/baracus/Baracus/lib";
-use lib "/home/cruejones/git/baracus/Baracus/lib";
 
 use Dancer qw( :syntax);
 use Baracus::Core   qw( :subs );
@@ -152,7 +151,7 @@ print "Using: $port\n" if ($opts->{debug});
 my $browser = LWP::UserAgent->new( );
 $browser->cookie_jar( {} );
 $browser->agent('baracus');
-$browser->default_header('Accept' => 'text/xml');
+$browser->default_header('Accept' => 'text/json');
 
 ## Authenticate request
 my $username = "";
@@ -234,8 +233,8 @@ sub add() {
                'other=s'    => \$other,
                );
 
-    unless ( ( defined $mac ) or ( defined $hostname ) ) {
-        print "--mac <mac> or --hostname <hostname> required\n";
+    unless ( ( defined $mac ) ) {
+        print "--mac <mac> required to add new power entry\n";
         return 1;
     }
 

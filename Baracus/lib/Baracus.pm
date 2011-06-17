@@ -15,9 +15,11 @@ use Dancer::Logger::Syslog;
 use Baracus::REST::Source  qw( :subs );
 use Baracus::REST::User    qw( :subs );
 use Baracus::REST::Host    qw( :subs );
-#use Baracus::REST::Do      qw( :subs );
 use Baracus::REST::Power   qw( :subs );
-#use Baracus::REST::Storage qw( :subs );
+use Baracus::REST::Storage qw( :subs );
+#use Baracus::REST::Config  qw( :subs );
+#use Baracus::REST::Macast  qw( :subs );
+#use Baracus::REST::Do      qw( :subs );
 #use Baracus::REST::Auth    qw( :subs );
 
 set serializer => 'Mutable';
@@ -146,10 +148,6 @@ del  "$apiver/host/by-mac/:mac"           => sub { var bytype => "mac"; &host_wr
 del  "$apiver/host/by-host/:host"         => sub { var bytype => "host"; &host_wrapper( "remove" );  };
 put  "$apiver/host"                       => sub { &host_wrapper( "admin" );                         };
 
-#get  '/host/add'             => sub { &host_wrapper( "add", "host_add" );         };
-#get  '/host/remove'          => sub { &host_wrapper( "remove", "host_remove" );   };
-#get  '/host/enable'          => sub { &host_wrapper( "enable", "host_enable" );   };
-#get  '/host/disable'         => sub { &host_wrapper( "disable", "host_disable" ); };
 
 ###########################################################################
 ##
@@ -242,12 +240,26 @@ my $storage_verbs = {
                      'detail'  => \&storage_detail,
                     };
 
+sub storage_wrapper() {
+    my $verb = shift;
+    my $method = request->method;
 
+    if ( request->{accept} eq 'text/xml' ) {
+        header('Content-Type' => 'text/xml');
+        $storage_verbs->{$verb}( @_ );
+    } elsif ( request->{accept} eq 'application/json' ) {
+        header('Content-Type' => 'application/json');
+        $storage_verbs->{$verb}( @_ );
+    } else {
+        layout 'main';
+        template "baracus_mesg", { user => session('user') };
+    }
+}
 
-get '/storage/add/:host'    => sub { $storage_verbs->{'add'}( @_ );     };
-get '/storage/remove/:host' => sub { $storage_verbs->{'remove'}( @_ );  };
-get '/storage/list/:host'   => sub { $storage_verbs->{'list'}( @_ );    };
-get '/storage/detail/:host' => sub { $storage_verbs->{'detail'}( @_ );  };
+post "$apiver/storage"                   => sub { $storage_verbs->{'add'}( @_ );     };
+del  "$apiver/storage/:storageid"        => sub { $storage_verbs->{'remove'}( @_ );  };
+get  "$apiver/storage/:filter"           => sub { $storage_verbs->{'list'}( @_ );    };
+get  "$apiver/storage/detail/:storageid" => sub { $storage_verbs->{'detail'}( @_ );  };
 
 ###########################################################################
 ##

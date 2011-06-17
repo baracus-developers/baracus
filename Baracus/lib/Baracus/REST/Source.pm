@@ -467,7 +467,7 @@ sub source_update() {
     $is_extra_passed = 1 if ( $extras );	
 
     ## Check if extras installed and not updated
-    if ( ( ! $is_extra_passed ) and ( ! $opts->{all} ) ) {
+    if ( ( ! $is_extra_passed ) and ( $extras ne "all" ) ) {
         my @extchk = &list_installed_extras( $opts, $distro );
         if ( scalar @extchk > 1 ) {
             $opts->{LASTERROR} = "Update these extras before updating $distro (or use --all)\n\t" . join ("\n\t", @extchk ) . "\n";
@@ -476,7 +476,7 @@ sub source_update() {
     }
 
     if ( $extras ) {
-        debug "Calling routine to verify additional source(s) passed\n" if $opts->{verbose};
+        debug "Calling routine to verify additional source(s) passed\n";
         if ( &check_extras( $opts, $distro, $extras ) ) {
             error "extra is not valid\n";
         }
@@ -487,11 +487,6 @@ sub source_update() {
         error $opts->{LASTERROR};
     }
 
-
-    if ( $opts->{all} and $extras ) {
-            $opts->{LASTERROR} = "Unsafe mix of all and addon\n";
-            error 1;
-    }
 
     if ( $sharetype ne "") {
         unless (( $sharetype eq "nfs" ) || ( $sharetype eq "http" )) {
@@ -510,7 +505,7 @@ sub source_update() {
             }
         }
         $extras =~ s/^\s+//;
-        debug "working with 'all': $extras\n" if $opts->{debug};
+        debug "working with 'all': $extras\n";
     }
 
     # do we include anything in this distros
@@ -755,12 +750,10 @@ sub source_detail() {
         $returnHash{basedist} = $dh->{basedist};
     } else {
         if ( $bh->{addons} and scalar @{$bh->{addons}} ) {
-                join (", ", (sort @{$bh->{addons}} ) );
             $returnHash{extensions} = join (", ", (sort @{$bh->{addons}} ) );
         }
     }
 
-        join (", ", ( sort &baxml_products_getlist( $opts, $distro ) ) ) . "<br>";
     foreach my $product ( sort &baxml_products_getlist( $opts,  $distro ) ) {
         my $ph = &baxml_product_gethash( $opts, $distro, $product );
         foreach my $iso ( sort &baxml_isos_getlist( $opts, $distro, $product ) ) {
