@@ -973,7 +973,7 @@ sub readFH
     my $name = shift;
 
     my $sth;
-debug "DEBUG: hello, here I am name=$name \n";
+
     if (not defined ( $sth = $self->setupFetch( $name ) ) ) {
         return undef;
     }
@@ -1007,7 +1007,6 @@ sub setupFetch
     my $sth;
 
     unless ( $self->find( $name ) ) {
-debug "DEBUG: did not find $name here \n";
         $LASTERROR = "$name not found in the db for retrevial\n";
         return undef;
     }

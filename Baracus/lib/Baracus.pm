@@ -19,7 +19,7 @@ use Baracus::REST::Power   qw( :subs );
 use Baracus::REST::Storage qw( :subs );
 #use Baracus::REST::Config  qw( :subs );
 #use Baracus::REST::Macast  qw( :subs );
-#use Baracus::REST::Do      qw( :subs );
+use Baracus::REST::Do      qw( :subs );
 #use Baracus::REST::Auth    qw( :subs );
 
 set serializer => 'Mutable';
@@ -154,24 +154,26 @@ put  "$apiver/host"                       => sub { &host_wrapper( "admin" );    
 ## Do Routing
 
 my $do_verbs = {
-                'build'      => \&do_build,
-                'empty'      => \&do_empty,
-                'inventory'  => \&do_inventory,
-                'localboot'  => \&do_localboot,
-                'netboot'    => \&do_netboot,
-                'norescue'   => \&do_norescue,
-                'rescue'     => \&do_rescue,
-                'wipe'       => \&do_wipe,
+                'admin'      => \&do_admin,
+#                'build'      => \&do_build,
+#                'empty'      => \&do_empty,
+#                'inventory'  => \&do_inventory,
+#                'localboot'  => \&do_localboot,
+#                'netboot'    => \&do_netboot,
+#                'norescue'   => \&do_norescue,
+#                'rescue'     => \&do_rescue,
+#                'wipe'       => \&do_wipe,
                };
 
-get '/do/build/:host'     => sub { $do_verbs->{'build'}( @_ );          };
-get '/do/empty/:host'     => sub { $do_verbs->{'empty'}( @_ );          };
-get '/do/inventory/:host' => sub { $do_verbs->{'inventory'}( @_ );      };
-get '/do/localboot/:host' => sub { $do_verbs->{'localboot'}( @_ );      };
-get '/do/netboot/:host'   => sub { $do_verbs->{'netboot'}( @_ );        };
-get '/do/norescue/:host'  => sub { $do_verbs->{'norescue'}( @_ );       };
-get '/do/rescue/:host'    => sub { $do_verbs->{'rescue'}( @_ );         };
-get '/do/wipe/:host'      => sub { $do_verbs->{'wipe'}( @_ );           };
+put "$apiver/do"           => sub { $do_verbs->{'admin'}( @_ );           };
+#get '/do/build/:host'     => sub { $do_verbs->{'build'}( @_ );          };
+#get '/do/empty/:host'     => sub { $do_verbs->{'empty'}( @_ );          };
+#get '/do/inventory/:host' => sub { $do_verbs->{'inventory'}( @_ );      };
+#get '/do/localboot/:host' => sub { $do_verbs->{'localboot'}( @_ );      };
+#get '/do/netboot/:host'   => sub { $do_verbs->{'netboot'}( @_ );        };
+#get '/do/norescue/:host'  => sub { $do_verbs->{'norescue'}( @_ );       };
+#get '/do/rescue/:host'    => sub { $do_verbs->{'rescue'}( @_ );         };
+#get '/do/wipe/:host'      => sub { $do_verbs->{'wipe'}( @_ );           };
 
 ###########################################################################
 ##

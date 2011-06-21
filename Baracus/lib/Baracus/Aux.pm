@@ -364,10 +364,9 @@ sub load_storage
 sub load_distro
 {
     my $opts = shift;
-    my $dbh  = shift;
     my $aref = shift;
 
-    my $found = &get_distro( $opts, $dbh, $aref );
+    my $found = &get_distro( $opts, $aref );
     unless ( defined $found ) {
         $opts->{LASTERROR} = "Unable to find distro entry for $aref->{distro}\n";
         return 1;
@@ -389,7 +388,6 @@ sub load_distro
 sub load_addons
 {
     my $opts = shift;
-    my $dbh  = shift;
     my $aref = shift;
 
     unless ( $aref->{addons} ) {
@@ -413,7 +411,7 @@ sub load_addons
     foreach my $name ( @addonlist ) {
 #        print "load_addons: working with $name\n" if ($opts->{debug} > 1);
         my $tref = { distro => "$name" };
-        my $found = &get_distro( $opts, $dbh, $tref );
+        my $found = &get_distro( $opts, $tref );
         if ( defined $found ) {
             my $addonbase = "$found->{os}-$found->{release}-$found->{arch}";
             if ( $aref->{distro} ne $addonbase ) {
@@ -659,7 +657,6 @@ sub get_autobuild_expanded
     use File::Temp qw/ tempdir /;
 
     my $opts = shift;
-    my $dbh  = shift;
     my $aref = shift;
 
     my $name = $aref->{autobuild};
@@ -667,7 +664,7 @@ sub get_autobuild_expanded
 
 #    print "get_autobuild_expanded name $name ver $vers\n" if ($opts->{debug} > 1);
 
-    my $abhref = &get_autobuild( $opts, $dbh, $aref, $vers );
+    my $abhref = &get_autobuild( $opts, $aref, $vers );
 
     unless ( defined $abhref && $abhref->{data} ne "" ) {
         $opts->{LASTERROR} .= "\nUnable to find autobuild template $aref->{autobuild}\n View available templates with 'baconfig list autobuild'\n";

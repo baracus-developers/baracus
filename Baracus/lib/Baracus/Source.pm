@@ -1979,7 +1979,7 @@ sub remove_build_service
     my $extras = shift;
     my $sharetype = $baVar{sharetype};
     my $status = 0;
-debug "DEBUG: sharetype=$sharetype and distro=$distro \n";
+
     my $dh = &baxml_distro_gethash( $opts, $distro );
 
     my $sql;
@@ -1998,7 +1998,7 @@ debug "DEBUG: sharetype=$sharetype and distro=$distro \n";
     } else {
         $sharetype = $dh->{'sharetype'} if ( defined $dh->{'sharetype'} );
     }
-debug "DEBUG: sharetype=$sharetype \n";
+
     eval {
         # unlike http or cifs we pre-load nfs so we can manipulate
         if ($sharetype eq "nfs") {
@@ -2009,12 +2009,9 @@ debug "DEBUG: sharetype=$sharetype \n";
         foreach my $da ( @dalist ) {
 
             foreach my $prod ( &baxml_products_getlist( $opts, $da ) ) {
-debug "DEBUG: prod=$prod \n";
                 my ($file, $confdir, $template, $share, $state) =
                     &check_service_product( $opts, $da, $prod, $sharetype );
-debug "DEBUG: file=$file confdir=$confdir template=$template share=$share state=$state \n";
                 $share = $dh->{'distpath'}."/".$dh->{'sharepath'} if defined ( $dh->{'sharepath'} );
-debug "DEBUG: share now=$share \n";
                 if ( not $state ) {
                     debug "$sharetype file $file found no longer shared for $da\n";
                 } else {
@@ -2063,7 +2060,7 @@ debug "DEBUG: share now=$share \n";
         error $opts->{LASTERROR};
         $status = 1;
     }
-debug "DEBUG: crap returning status=$status \n";
+
     return $status;
 }
 

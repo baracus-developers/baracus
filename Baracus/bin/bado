@@ -25,24 +25,20 @@
 ###########################################################################
 
 use strict;
-use warnings;
 
 use Getopt::Long qw( :config pass_through );
 use Pod::Usage;
+use LWP;
+use HTTP::Cookies;
+use Term::ReadKey;
+use XML::Simple;
 
-use lib "/usr/share/baracus/perl";
+use lib "/home/cruejones/git/baracus/Baracus/lib";
 
-use SqlFS;
-
-use BaracusDB;
-use BaracusSql qw( :subs :vars );
-use BaracusCore qw( :subs  );
-use BaracusConfig qw( :vars :subs );
-use BaracusHost qw( :subs );
-use BaracusSource qw( :vars :subs );
-use BaracusState qw( :admin :actions :subs :vars );
-use BaracusAux qw( :subs );
-use BaracusStorage qw( :vars :subs );
+use Dancer qw( :syntax);
+use Baracus::Core    qw( :subs );
+use Baracus::Config  qw( :vars :subs );
+use Baracus::Storage qw( :vars );
 
 =pod
 
@@ -91,11 +87,9 @@ This tool allows for specifying actions for hosts.  For example, virtual machine
 
 =cut
 
-my $man      = 0;
-my $help     = 0;
-
-# no add / remove here - all cmds add or update as needed
-# to 'mac', 'build', and 'templateid' tables
+my $apiver = "api/v1";
+my $man  = 0;
+my $help = 0;
 
 my $cmds = {
             'build'         => \&build,
@@ -103,7 +97,7 @@ my $cmds = {
             'clone'         => \&clone,
             'empty'         => \&empty,
             'inventory'     => \&inventory,
-	    'migrate'       => \&migrate,
+            'migrate'       => \&migrate,
             'localboot'     => \&localboot,
             'netboot'       => \&netboot,
             'pxewait'       => \&pxewait,
@@ -119,8 +113,6 @@ my $cmds = {
 my $opts = {
             verbose    => 0,
             quiet      => 0,
-#            all        => 0,
-            nolabels   => 0,
             debug      => 0,
             execname   => "",
             LASTERROR  => "",
@@ -129,13 +121,10 @@ my $opts = {
 # Build command line for help, historical reference and point-in-time rebuilding
 $opts->{execname} = $0;
 $opts->{execname} = $1 if ( $0 =~ m|^.*/([^/].+)| );
-my $cmdline = join '::', $opts->{execname}, @ARGV;
 
 GetOptions(
            'verbose'   => \$opts->{verbose},
            'quiet'     => \$opts->{quiet},
-#           'all'       => \$opts->{all},
-           'nolabels'  => \$opts->{nolabels},
            'debug+'    => \$opts->{debug},
            'man'       => \$man,
            'help|?'    => \$help,
@@ -147,29 +136,67 @@ GetOptions(
 if ($ARGV[0] eq "man"  ) { &man(); }
 if ($ARGV[0] eq "help" ) { shift @ARGV; &help( $opts, $cmds, @ARGV ); }
 
-my $dbname = "baracus";
-my $dbrole = $dbname;
+## Setup base URL and PORT
+my $port = undef;
+if ( $baVar{port} ) {
+    $port = $baVar{port};
+} else {
+    $port = "80";
+}
 
-print "setting uid to $dbrole\n" if ($opts->{debug} > 2);
+my $baseurl = undef;
+if ( $baVar{url} ) {
+    $baseurl = $baVar{url};
+} elsif ( $baVar{serverip} ) {
+    $baseurl = $baVar{serverip};
+} else {
+    print "Edit /etc/sysconfig/baracus to include a ServerIP or URL\n";
+    exit 1;
+}
 
-my $uid = BaracusDB::su_user( $dbrole );
-die BaracusDB::errstr unless ( defined $uid );
+print "Using: $baseurl \n" if ($opts->{debug});
+print "Using: $port\n" if ($opts->{debug});
 
-my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
-die BaracusDB::errstr unless( $dbh );
+# Setup LWP
+my $browser = LWP::UserAgent->new( );
+$browser->cookie_jar( {} );
+$browser->agent('baracus');
+$browser->default_header('Accept' => 'application/json');
+
+## Authenticate request
+my $username = "";
+my $password = "";
+if ( -f "$ENV{HOME}/.barc") {
+    print "We have a file\n" if ($opts->{debug});
+    open(FILE, "<$ENV{HOME}/.barc");
+    while (<FILE>) {
+        if (/username/) { chomp ( $username = (split /=/, $_)[1] ); }
+        if (/password/) { chomp ( $password = (split /=/, $_)[1] ); }
+    }
+} else {
+    print "enter username: ";
+    chomp($username = ReadLine 0);
+
+    print "enter password: ";
+    ReadMode 'noecho';
+    chomp($password = ReadLine 0);
+    ReadMode 'normal';
+    print "\n";
+}
+my $login_url = "http://$baseurl:$port/login?username=$username&password=$password";
+my $login_response = $browser->post( $login_url );
 
 my $status = &main( $opts, $cmds, @ARGV );
 
-die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
-
-print $opts->{LASTERROR} if $status;
+my $logout_url = "http://$baseurl:$port/logout";
+my $logout_response = $browser->get( $logout_url );
+print $logout_response->content;
 
 exit $status;
 
-die "DOES NOT EXECUTE";
+die "DOES NOT EXECUTE\n";
 
-
-###############################################################################
+###########################################################################
 ##
 ## commands
 ##
@@ -218,7 +245,6 @@ Other required parameters, which may be specified on the command-line or in a pr
                            system install for this build client.  May
                            be a list or specified multiple times.
 
-
   --hardware <hwteplate>   Hardware template that describes build client
                              > baconfig list hardware
 
@@ -244,7 +270,6 @@ And further <...> optional parameters include
   --partition <num>        Partition number to boot [ default 0 (first)]
 
   --storageid <storageid>  The storage id for a network root build
-  --migrate                build on local disk then migrate to network root
 
   --usevnc                 allow vnc build access
   --vncpass                defines vnc password for remote access
@@ -263,51 +288,43 @@ And further <...> optional parameters include
 
 =cut
 
-sub build
-{
-    my $command = "build";
 
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
+sub build() {
 
-    my $chkref;
-    my $macref;
-    my $hostref;
-    my $actref;
+    my $verb = 'build';
 
-    my $usevnc="";
-    my $vncpass="";
-    my $usessh="";
-    my $sshpass="";
-    my $serialtty="";
-    my $serialbaud="";
-    my $disk      = "0";
-    my $partition = "0";
-    my $migrate   = "0";
-
-    my %entry;
-    my $cols = lc get_cols( $baTbls{ action });
-    foreach my $key (split(/[,\s*]/, $cols )) {
-        $entry{$key} = '';
-    }
-
-    #Make dhcp the default for ip
-    $entry{ip} = 'dhcp';
-    $entry{storageid} = '0';
+    my $mac;
+    my $hostname;
+    my $ip;
+    my $distro;
+    my $hardware;
+    my $profile;
+    my $autobuild;
+    my $storageid;
+    my $addon;
+    my $vars;
+    my $module;
+    my $usevnc;
+    my $usessh;
+    my $sshpass;
+    my $vncpass;
+    my $serialtty;
+    my $serialbaud;
+    my $disk;
+    my $partition;
 
     @ARGV = @_;
 
     GetOptions
         (
-         'mac=s'         => \$entry{mac},
-         'hostname=s'    => \$entry{hostname},
-         'ip=s'          => \$entry{ip},
-         'distro=s'      => \$entry{distro},
-         'hardware=s'    => \$entry{hardware},
-         'profile=s'     => \$entry{profile},
-         'autobuild=s'   => \$entry{autobuild},
-         'storageid=s'   => \$entry{storageid},
+         'mac=s'         => \$mac,
+         'hostname=s'    => \$hostname,
+         'ip=s'          => \$ip,
+         'distro=s'      => \$distro,
+         'hardware=s'    => \$hardware,
+         'profile=s'     => \$profile,
+         'autobuild=s'   => \$autobuild,
+         'storageid=s'   => \$storageid,
          'addon=s'       => \&multiarg_handler,
          'vars=s'        => \&multiarg_handler,
          'module=s'      => \&multiarg_handler,
@@ -319,2289 +336,236 @@ sub build
          'serialbaud=s'  => \$serialbaud,
          'disk=s'        => \$disk,
          'partition=s'   => \$partition,
-         'migrate!'      => \$migrate,
          );
 
+    unless ( ( defined $mac ) or ( defined $hostname ) ) {
+        print "--mac <mac> or --hostname <hostname> required to add new storage entry\n";
+        return 1;
+    }
+
     if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
     }
 
-    $entry{addons}  = $multiarg{ 'addon'  } if (defined $multiarg{ 'addon'  });
-    $entry{vars}    = $multiarg{ 'vars'   } if (defined $multiarg{ 'vars'   });
-    $entry{modules} = $multiarg{ 'module' } if (defined $multiarg{ 'module' });
-
-    if ( &check_host_action ( $opts, $dbh, \%entry, $chkref, $actref )) {
-        return 1;
-    }
-
-    # get the ip from the existing entry if any
-    if ( $entry{ip} eq "" and
-         defined $chkref and
-         $chkref->{ip} ne ""
-        )
-    {
-        $entry{ip}=$chkref->{ip};
-    }
-
-    $entry{ip} = lc $entry{ip};
-    &check_ip( $entry{ip} );
-
-    if ( $entry{ip} eq "" ) {
-        $opts->{LASTERROR} = "Missing  --ip\n";
-        return 1;
-    }
-
-    # done with all checking of hostname/mac/ip
-    # begin loading of hash used for remainder of processing command
-    undef $actref;
-
-    $actref = {};
-    $actref->{storageid} = "";  # default to wiping the storageid info
-
-    # baDir and baVar into actref
-    &load_baracusconfig( $opts, $actref );
-
-    unless ( defined $entry{profile} and $entry{profile} ne "" ) {
-        print "--profile <prof> unspecified. Using 'default'\n";
-        $entry{profile} = "default";
-    }
-
-    # breakout possible compound ver:name with call get back ( name, ver/undef )
-    ( $actref->{profile}, $actref->{profile_ver} ) =
-        &get_name_version( $entry{profile} );
-    print "profile $actref->{profile}\n" if ($opts->{debug});
-    print "profile version $actref->{profile_ver}\n" if (defined $actref->{profile_ver} and $opts->{debug});
-
-    return 1 if ( &load_profile( $opts, $dbh, $actref ) );
-    if ($opts->{debug} > 1) {
-        foreach my $key ( sort ( keys %{$actref} )) {
-            print "add post-profile:  $key => $actref->{$key}\n";
-        }
-    }
-
-    # storageid may be in profile and specified on the command line
-    # command line wins over profile entry
-    # also note that cmdline --storageid="" will clear the initial '0' value
-    # so that an empty string can be passed to "null" the storageid from a profile
-    $actref->{storageid} = $entry{storageid} if ($entry{storageid} ne "0");
-
-    # storageid may not be specified at all
-    if ( defined $actref->{storageid} and $actref->{storageid} ne "" ) {
-        return 1 if ( &load_storage( $opts, $dbh, $actref ) );
-        if ($opts->{debug} > 1) {
-            foreach my $key ( sort ( keys %{$actref} )) {
-                print "add post-storage:  $key => $actref->{$key}\n";
-            }
-        }
-    }
-    $actref->{automigrate} = $migrate;
-    if (($migrate) and ( $actref->{storageid} eq "" )) {
-           die "Need --storageid to run migrating build.\n"
-    }
-
-    # distro file may be in profile *and* on command line
-    # command line wins over profile entry
-    $actref->{'distro'} = $entry{distro} if ($entry{distro});
-
-    die "Need --distro via commandline or distro= in profile.\n"
-        unless ($actref->{'distro'});
-
-    return 1 if ( &load_distro( $opts, $dbh, $actref ) );
-    if ($opts->{debug} > 1) {
-        foreach my $key ( sort ( keys %{$actref} )) {
-            print "add post-distro:  $key => $actref->{$key}\n";
-        }
-    }
-
-    # now that we know what distro we're using verify the profile is cert for it
-    #    return 1 if ( &check_cert( $opts, $dbh, $actref->{'distro'}, "profile", $actref->{'profile'}) );
-
-    my $addons_in;
-    # addons may have been specified in profile
-    $addons_in = $actref->{'addons'} if ( defined $actref->{addons} );
-    # command line wins over profile entry
-    $addons_in = $entry{addons} if ($entry{addons});
-
-    if ( my $dinc = get_distro_includes( $opts, $actref->{distro} ) ) {
-        print "lumping in sdk addon $dinc for $actref->{distro}\n"
-            if ( $opts->{debug} );
-
-        if ( $addons_in ) {
-            $addons_in = "$dinc " . $addons_in;
-        } else {
-            $addons_in = $dinc;
-        }
-    }
-    # we're going to store this list of addons in the db
-    $actref->{addons} = $addons_in;
-
-    # if actref->{'addon'} was set by reading a profile addon= line
-    # we need to clear it from $hash as that is for the __ADDON__ autobuild
-    $actref->{'addon'} = '';
-    if ( defined $addons_in and $addons_in ne "" ) {
-        print "add pre-addons:  $addons_in\n" if ($opts->{debug} > 1);
-        return 1 if ( &load_addons( $opts, $dbh, $actref ) );
-    }
-    if ($opts->{debug} > 1) {
-        foreach my $key ( sort ( keys %{$actref} )) {
-            print "add post-addons:  $key => $actref->{$key}\n";
-        }
-    }
-
-    # hardware file may be in profile *and* on command line
-    # command line wins over profile entry
-    $actref->{'hardware'}= $entry{hardware} if ($entry{hardware});
-
-    die "Need --hardware via commandline or hardware= in profile.\n"
-        unless ($actref->{'hardware'});
-
-    # breakout possible compound ver:name with call get back ( name, ver/undef )
-    ( $actref->{hardware}, $actref->{hardware_ver} ) =
-        &get_name_version( $actref->{hardware} );
-    print "hardware $actref->{hardware}\n" if ($opts->{debug});
-    print "hardware version $actref->{hardware_ver}\n" if (defined $actref->{hardware_ver} and $opts->{debug});
-
-
-    return 1 if ( &load_hardware( $opts, $dbh, $actref ) );
-    return 1 if ( &check_cert( $opts, $dbh, $actref->{'distro'}, "hardware", $actref->{'hardware'}) );
-    if ($opts->{debug} > 1) {
-        foreach my $key ( sort ( keys %{$actref} )) {
-            print "add post-hardware:  $key => $actref->{$key}\n";
-        }
-    }
-
-    my $modules_in;
-    # modules may have been specified in profile
-    $modules_in = $actref->{'modules'} if ( defined $actref->{'modules'} );
-    # command line wins over profile entry
-    $modules_in = $entry{modules} if ($entry{modules});
-
-    # Check for and add mandatory modules
-    my $mandatory_in = &get_mandatory_modules( $opts, $dbh, $actref->{distro} );
-    if ( defined $mandatory_in ) {
-        print "lumping in mandatory module(s) for $actref->{distro}\n  $mandatory_in\n"
-            if ( $opts->{debug} );
-
-        if ( $modules_in ) {
-            $modules_in = "$mandatory_in " . $modules_in;
-        } else {
-            $modules_in = $mandatory_in;
-        }
-    }
-
-    # we're going to store this list of modules in a join table
-    $actref->{modules} = $modules_in;
-
-    # if hash{'module'} was set by reading a profile module= line
-    # we need to clear it from $hash as that is for the __MODULE__ autobuild
-    $actref->{'module'} = '';
-
-    # modules are optional do not attempt to load if none specified
-    if ( defined $modules_in and $modules_in ne "" ) {
-        print "add pre-modules: $modules_in\n" if ( $opts->{debug} );
-        return 1 if ( &load_modules( $opts, $dbh, $actref ) );
-        return 1 if ( &check_cert( $opts, $dbh, $actref->{distro}, "module", $modules_in ));
-    }
-    if ($opts->{debug} > 1) {
-        foreach my $key ( sort ( keys %{$actref} )) {
-            print "add post-modules:  $key => $actref->{$key}\n";
-        }
-    }
-
-
-    # autobuild may be in profile *and* on command line
-    # command line wins over profile entry
-    $actref->{'autobuild'} = $entry{autobuild} if ($entry{autobuild});
-
-    unless ($actref->{'autobuild'}) {
-        $actref->{'autobuild'} = "none";
-        print "Without --autobuild <abuild> installer is defaulting to interactive\n"
-    }
-
-    # breakout possible compound ver:name with call get back ( name, ver/undef )
-    ( $actref->{'autobuild'}, $actref->{'autobuild_ver'} ) =
-        &get_name_version( $actref->{autobuild} );
-    print "autobuild $actref->{autobuild}\n" if ($opts->{debug});
-    print "autobuild version $actref->{autobuild_ver}\n" if (defined $actref->{autobuild_ver} and $opts->{debug});
-
-    if ( $actref->{'autobuild'} ne "none" ) {
-        return 1 if ( &load_autobuild( $opts, $dbh, $actref ));
-        return 1 if ( &check_cert( $opts, $dbh, $actref->{'distro'}, 'autobuild', $actref->{'autobuild'} ));
-    }
-
-    # Remote Access configurations
-    my @raccess;
-    # vnc remote access may be specified in profile *and* on command line
-    # command line wins over profile entry
-    if (($vncpass) and !($usevnc)) {
-        die "--vncpass requires --usevnc\n";
-    } elsif (!($vncpass) and ($usevnc)) {
-        die "--usevnc requires --vncpass\n";
-    }
-
-    if ($vncpass) {
-        if ( length( $vncpass) < 8 ) {
-            $opts->{LASTERROR} = "minimum password length of 8 chars required\n";
-            return 1;
-        }
-        $vncpass =~ s/$vncpass/vncpassword=$vncpass/;
-        if ( $actref->{os} =~ m|rhel|   or
-             $actref->{os} =~ m|esx|    or
-             $actref->{os} =~ m|fedora| or
-             $actref->{os} =~ m|centos| ) {
-            push(@raccess, "vnc", $vncpass);
-        } else {
-            push(@raccess, "vnc=1", $vncpass);
-        }
-    }
-
-    # ssh remote access may be specified in profile *and* on command line
-    # command line wins over profile entry
-    if (($sshpass) or ($usessh)) {
-        if ( $actref->{os} =~ m|rhel|   or
-             $actref->{os} =~ m|esx|    or
-             $actref->{os} =~ m|fedora| or
-             $actref->{os} =~ m|centos| ) {
-            $opts->{LASTERROR} = "RHEL, ESX, Fedora, CentOS do not support ssh install\n";
-            return 1;
-        }
-    }
-    if (($sshpass) and !($usessh)) {
-        die "--sshpass requires --usessh\n";
-    } elsif (!($sshpass) and ($usessh)) {
-        die "--usessh requires --sshpass\n";
-    }
-
-    if ($usessh) {
-        $sshpass =~ s/$sshpass/sshpassword=$sshpass/;
-        push(@raccess, "usessh=1", $sshpass);
-    }
-
-    # serial remote access may be specified in profile *and* on command line
-    # command line wins over profile entry
-    $actref->{console} = "";
-    if (($serialtty) and !($serialbaud)) {
-        die "--serialtty requires --serialbaud\n";
-    } elsif (!($serialtty) and ($serialbaud)) {
-        die "--serialbaud requires --serialtty\n";
-    }
-
-    if (($serialbaud) and ($serialtty)) {
-        if ( $actref->{os} =~ m|rhel|   or
-             $actref->{os} =~ m|esx|    or
-             $actref->{os} =~ m|fedora| or
-             $actref->{os} =~ m|centos| or
-             $actref->{distro} =~ m|sles-9| ) {
-            ##
-            ##  INCLUDE SLES9 FOR MINIMAL CMD LINE TXT
-            ##
-            my $serialopts = "console=tty0 console=$serialtty,$serialbaud";
-            push(@raccess, $serialopts);
-            $actref->{console} = $serialopts;
-        } else {
-            my $serialopts = "console=tty0 console=$serialtty,$serialbaud";
-            $serialopts .= " earlyprintk=serial,$serialtty,$serialbaud";
-            push(@raccess, $serialopts);
-            $actref->{console} = $serialopts;
-        }
-    }
-
-
-    # Join all raccess args
-    $actref->{'raccess'} = join " ", @raccess;
-
-    ## Commandline options
-    ##   - comes after reading profile
-    ##   - harware, distro override profile values
-    ##   - cmdline values override any file values
-
-    ## If passed on command line via vars, then honor those
-    ##
-    if ($entry{vars}) {
-        $actref->{vars} = $entry{vars};
-        &load_vars( $opts, $actref );
-    }
-
-    # do not want any setting to override these values
-
-    $actref->{'cmdline'} = $cmdline;
-    $actref->{'hostname'} = $entry{hostname};
-    $actref->{'ip'} = $entry{ip};
-    $actref->{'mac'} = $entry{mac};
-    $actref->{'uuid'} = &get_uuid;
-    $actref->{'autoinst'} = &automac( $entry{mac} );
-    $actref->{'basedist'} = "$actref->{os}-$actref->{release}-$actref->{arch}";
-    $actref->{'initrd'} = "initrd.$actref->{'basedist'}";
-    $actref->{'kernel'} = "linux.$actref->{'basedist'}";
-
-    $actref->{'admin'}   = BA_ADMIN_ENABLED;
-    $actref->{'oper'}    = BA_ADMIN_ADDED;
-    $actref->{'pxecurr'} = BA_ACTION_INVENTORY;
-    $actref->{'pxenext'} = BA_ACTION_BUILD;
-
-    $actref->{'autonuke'} = 0;
-
-    if ( $baVar{remote_logging} eq "yes" ) {
-        if ( $actref->{os} =~ m|rhel|   or
-             $actref->{os} =~ m|esx|    or
-             $actref->{os} =~ m|fedora| or
-             $actref->{os} =~ m|centos| ) {
-            $actref->{'loghost'} = "syslog=$actref->{serverip}";
-        } elsif ( $actref->{os} =~ m|ubuntu| ) {
-            $actref->{'loghost'} = "log_host=$actref->{serverip}";
-        } else {
-            $actref->{'loghost'} = "loghost=$actref->{serverip}";
-        }
-    } else {
-        $actref->{'loghost'} = ""
-    }
-
-    # Check if broadcast address is set
-    &check_broadcast( $opts, $actref );
-
-    if ($opts->{debug}) {
-        print "settings to use:\n";
-        foreach my $key ( sort keys %{$actref} ) {
-            printf "actref:  $key => %s\n",
-                defined $actref->{$key} ? $actref->{$key} : "";
-        }
-    }
-
-    unless ( $disk =~ /^\d+$/ ) {
-        $opts->{LASTERROR} = "--disk needs to be an integer\n";
-        return 1;
-    }
-
-    unless ( $partition =~ /\d+$/ ) {
-        $opts->{LASTERROR} = "--partition needs to be an integer\n";
-        return 1;
-    }
-
-    $actref->{disk} = $disk;
-    $actref->{partition} = $partition;
-
-    $macref = &check_add_db_mac( $opts, $dbh, $macref, $actref->{mac} );
-
-    $hostref = &get_db_data( $dbh, 'host', $entry{hostname} );
-    unless ( defined $hostref ) {
-        &add_db_data( $dbh, 'host', $actref );
-    }
-
-    # reset action_module join table list
-    # now that modules have been checked and loaded
-    # create the action_module entries and store ver
-
-    &action_state_change( $dbh, BA_ACTION_BUILD, $actref );
-
-    &update_db_mac_state ( $dbh, $actref->{mac}, BA_ACTION_BUILD);
-
-    # find existing action relation and update it or create if not found
-    # avoid overwrite of the carefully constructed $actref hash
-    my $tmpref = &get_db_data( $dbh, 'action', $actref->{mac} );
-    if ( defined $tmpref ) {
-        # here's a rather involved check
-        # to make sure we're not updating a dup
-        my $gotdiff = 0;
-        while ( my ($key, $val) = each %{$tmpref} ) {
-            next if $key eq "uuid"; # changes every invocation
-            next if $key eq "creation";
-            next if $key eq "change";
-            next if $key eq "cmdline"; # order diff and -d -v -q don't matter
-
-	    ## If a key was specified on the command line, we have to see if 
-	    ## that same key is already defined, if it is, and they don't match, we
-	    ## have to update the DB.  If one of the keys exists and the other one
-	    ## doesn't, we consider them not equal and have to update the DB.  If 
-	    ## both keys do not exist, we just skip to the next key.
-            if ( defined $actref->{$key} ) {
-		if ( !defined $val or
-		     (defined $val and $actref->{$key} ne $val) ) {
-		    if ($opts->{debug}) {
-			if ( defined $val) {
-			    print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val '$val'\n";
-			} else {
-			    print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val <undefined> '\n";
-			}
-		    }
-		    $gotdiff = 1;
-		    last;
-		}
-
-	    } elsif ( defined $val ) {
-		print "cmp $key \n\tin actref <undefined> \n\twith val '$val'\n" if ($opts->{debug});
-		$gotdiff = 1;
-		last;
-	    } else {
-                    next;
-	    }
-        }
-        if ( $gotdiff != 0 ) {
-            &update_db_data( $dbh, 'action', $actref);
-        }
-    } else {
-        &add_db_data( $dbh, 'action', $actref);
-    }
-
-    return 1 if ( &remove_db_data_by( $dbh, 'actmod', $actref->{mac}, 'mac' ) );
-
-    # prep action_module entry
-    my $actmodref->{mac} = $actref->{mac};
-    if ( $actref->{modules} ) {
-        foreach my $mod ( split( /[,\s*]/, $actref->{modules} ) ) {
-            my ( $mname, $mvers ) = &get_name_version( $mod );
-            my $mfound = get_version_or_enabled( $opts, $dbh, "module", $mname, $mvers );
-            return 1 unless ( defined $mfound );
-
-            $actmodref->{module} = $mname;
-            $actmodref->{module_ver} = $mfound->{version};
-            return 1 if ( &add_action_modules( $dbh, $actmodref ) );
-        }
-    }
-
-    return 1 if ( &remove_db_data( $dbh, 'actabld', $actref->{mac} ) );
-
-    unless ( $actref->{'autobuild'} eq "none" ) {
-        # get_autobuild_expanded here is to make sure we have all
-        # the 'ingredients' collected to generate a 'recipe'
-        my $abfile = &get_autobuild_expanded( $opts, $dbh, $actref );
-        return 1 unless ( defined $abfile );
-
-        # prep action_autobuild entry
-        my $actabref =
-        {
-         mac           => $actref->{mac},
-         autobuild     => $actref->{autobuild},
-         autobuild_ver => $actref->{autobuild_ver},
-         };
-
-        return 1 if ( &add_action_autobuild( $dbh, $actabref ) );
-
-        print $abfile if ( $opts->{debug} > 2 );
-    }
-
-    if ( $opts->{verbose} ) {
-        printf "Build recipe set.\nNext pxeboot of $entry{hostname} will start install cycle.\n";
-    }
+    my $json_hash = {};
+    $json_hash->{verb}       = $verb;
+    $json_hash->{mac}        = $mac if ( defined $mac );
+    $json_hash->{hostname}   = $hostname if ( defined $hostname );
+    $json_hash->{ip}         = $ip if ( defined $ip );
+    $json_hash->{distro}     = $distro if ( defined $distro );
+    $json_hash->{hardware}   = $hardware if ( defined $hardware );
+    $json_hash->{profile}    = $profile if ( defined $profile );
+    $json_hash->{autobuild}  = $autobuild if ( defined $autobuild );
+    $json_hash->{storageid}  = $storageid if ( defined $storageid );
+    $json_hash->{addon}      = $addon if ( defined $addon );
+    $json_hash->{vars}       = $vars if ( defined $vars );
+    $json_hash->{module}     = $module if ( defined $module );
+    $json_hash->{usevnc}     = $usevnc if ( defined $usevnc );
+    $json_hash->{vncpass}    = $vncpass if ( defined $vncpass );
+    $json_hash->{usessh}     = $usessh if ( defined $usessh );
+    $json_hash->{sshpass}    = $sshpass if ( defined $sshpass );
+    $json_hash->{serialtty}  = $serialtty if ( defined $serialtty );
+    $json_hash->{serialbaud} = $serialbaud if ( defined $serialbaud );
+    $json_hash->{disk}       = $disk if ( defined $disk );
+    $json_hash->{partition}  = $partition if ( defined $partition );
+
+
+    my $url = "http://$baseurl:$port/$apiver/do";
+    my $message = to_json($json_hash);
+
+    my $req = HTTP::Request->new(PUT => $url);
+    $req->content_type('application/json');
+    $req->content($message);
+
+    my $response = $browser->request( $req );
+
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    my $data = from_json( $response->content );
+
+    print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
 
     return 0;
-}
-
-=head2 image --mac <macaddr> --hostname <name> --hardware <hw> { --storageid <store> | --mcastid <chan> }
-
-Deploy an image file to a remote system disk
-
-Arguments
-
-  --mac <macaddr>          Network interface card physical address
-                           (in hexidecimal xx:xx:xx:xx:xx:xx format).
-  --hostname <name>        Hostname (conforming to DNS without domainname)
-                           to identify the box containing the network
-                           interface card with the specified <macaddr>.
-
-  --hardware <hw>          Hardware template that describes build client
-                           as SuSE family would for bootargs and rootdisk.
-                             > baconfig list hardware
-
-  --storageid <storageid>  Image to be deployed, as registered with bastorage.
-
-                           This file should be present in ~baracus/images,
-                           but specified here by reference to its related
-                           bastorage table entry.
-
-  --mcastid <chan>         Image via multicast. Provide the <chanid> here,
-
-                           There should be a corresponding server, as registered
-                           and maintained with the "bamcast" tool.
-
-=cut
-
-sub image
-{
-
-    my $command = "image";
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $chkref;
-    my $macref;
-    my $hostref;
-    my $actref;
-    my $sref;
-
-    my $mcast = "";
-    my $disk = "0";
-    my $partition = "0";
-
-    my %entry;
-    my $cols = lc get_cols( $baTbls{ action });
-    foreach my $key (split(/[,\s*]/, $cols )) {
-        $entry{$key} = '';
-    }
-
-    @ARGV = @_;
-
-    GetOptions
-        (
-         'mac=s'        => \$entry{mac},
-         'hostname=s'   => \$entry{hostname},
-         'storageid=s'  => \$entry{storageid},
-         'mcastid=s'    => \$entry{mcastid},
-         'hardware=s'   => \$entry{hardware},
-         'disk=s'       => \$entry{disk},
-         'partition=s'  => \$entry{partition},
-         );
-
-    if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
-    }
-
-    if ( $entry{mcastid} ne "" and $entry{storageid} ne "" ) {
-        $opts->{LASTERROR} = "\nEither --storageid or --mcastid, not both.\n";
-        return 1;
-    } elsif ( $entry{mcastid} ne "" ) {
-        ;
-        # need to write mcastid checker
-        # &check_mcastid( $entry{mcastid} );
-    } elsif ( $entry{storageid} ne "" ) {
-        # get and check for image based on id
-        $sref = &get_db_data( $dbh, 'storage', $entry{storageid} );
-        unless ( defined $sref ) {
-            $opts->{LASTERROR} = "storageid does not exist: $entry{storageid}\n";
-            return 1;
-        }
-        if ( $sref->{type} != BA_STORAGE_IMAGE ) {
-            $opts->{LASTERROR} = "Storage specified has non-image type: $baStorageType{ $sref->{type} }\n";
-            return 1;
-        }
-        unless ( -f "$baDir{images}/$sref->{storage}" ) {
-            $opts->{LASTERROR} = "Unable to find specified image:  $baDir{images}/$sref->{storage}\n";
-            return 1;
-        }
-    } else {
-        $opts->{LASTERROR} = "Neither --storageid nor --mcastid provided\n";
-        return 1;
-    }
-
-    if ( &check_host_action ( $opts, $dbh, \%entry, $chkref, $actref )) {
-        return 1;
-    }
-
-    # hardware file may be in profile *and* on command line
-    # command line wins over profile entry
-    $actref->{'hardware'}= $entry{hardware} if ($entry{hardware});
-
-    die "Need --hardware via commandline\n"
-        unless ($actref->{'hardware'});
-
-    # breakout possible compound ver:name with call get back ( name, ver/undef )
-    ( $actref->{hardware}, $actref->{hardware_ver} ) =
-        &get_name_version( $actref->{hardware} );
-    print "hardware $actref->{hardware}\n" if ($opts->{debug});
-    print "hardware version $actref->{hardware_ver}\n" if (defined $actref->{hardware_ver} and $opts->{debug});
-
-
-    return 1 if ( &load_hardware( $opts, $dbh, $actref ) );
-#    return 1 if ( &check_cert( $opts, $dbh, $actref->{'distro'}, "hardware", $actref->{'hardware'}) );
-    if ($opts->{debug} > 1) {
-        foreach my $key ( sort ( keys %{$actref} )) {
-            print "add post-hardware:  $key => $actref->{$key}\n";
-        }
-    }
-
-    unless ( $disk =~ /^\d+$/ ) {
-        $opts->{LASTERROR} = "--disk needs to be an integer\n";
-        return 1;
-    }
-
-    unless ( $partition =~ /\d+$/ ) {
-        $opts->{LASTERROR} = "--partition needs to be an integer\n";
-        return 1;
-    }
-
-    $actref->{disk} = $disk;
-    $actref->{partition} = $partition;
-    $actref->{storageid} = "";  # wipe the storageid info
-
-    # do not want any setting to override these values
-
-    $actref->{'cmdline'} = $cmdline;
-    $actref->{'hostname'} = $entry{hostname} if (defined $entry{hostname} and $entry{hostname}  ne "");
-    $actref->{'ip'} = $entry{ip};
-    $actref->{'mac'} = $entry{mac};
-    $actref->{'uuid'} = &get_uuid;
-    $actref->{'storageid'} = $entry{storageid} if ( defined $entry{storageid} );
-    $actref->{'mcastid'} = $entry{mcastid} if ( defined $entry{mcastid} );
-
-    if ($opts->{debug}) {
-        print "settings to use:\n";
-        foreach my $key ( sort keys %{$actref} ) {
-            printf "actref:  $key => %s\n",
-                defined $actref->{$key} ? $actref->{$key} : "";
-        }
-    }
-
-    $macref = &check_add_db_mac( $opts, $dbh, $macref, $actref->{mac} );
-
-    $hostref = &get_db_data_by( $dbh, 'host', $actref->{mac}, 'mac' );
-    unless ( defined $hostref ) {
-        &add_db_data( $dbh, 'host', $actref );
-    }
-
-    # reset action_module join table list
-    # now that modules have been checked and loaded
-    # create the action_module entries and store ver
-
-    my $action = $entry{mcastid} ? BA_ACTION_MCAST : BA_ACTION_IMAGE ;
-
-    &action_state_change( $dbh, $action, $actref );
-
-    &update_db_mac_state ( $dbh, $actref->{mac}, $action );
-
-    # find existing action relation and update it or create if not found
-    # avoid overwrite of the carefully constructed $actref hash
-    my $tmpref = get_db_data( $dbh, 'action', $actref->{mac} );
-    if ( defined $tmpref ) {
-        # here's a rather involved check
-        # to make sure we're not updating a dup
-        my $gotdiff = 0;
-        while ( my ($key, $val) = each %{$tmpref} ) {
-            next if $key eq "uuid"; # changes every invocation
-            next if $key eq "creation";
-            next if $key eq "change";
-            next if $key eq "cmdline"; # order diff and -d -v -q don't matter
-
-	    ## If a key was specified on the command line, we have to see if 
-	    ## that same key is already defined, if it is, and they don't match, we
-	    ## have to update the DB.  If one of the keys exists and the other one
-	    ## doesn't, we consider them not equal and have to update the DB.  If 
-	    ## both keys do not exist, we just skip to the next key.
-            if ( defined $actref->{$key} ) {
-		if ( !defined $val or
-		     (defined $val and $actref->{$key} ne $val) ) {
-		    if ($opts->{debug}) {
-			if ( defined $val) {
-			    print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val '$val'\n";
-			} else {
-			    print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val <undefined> '\n";
-			}
-		    }
-		    $gotdiff = 1;
-		    last;
-		}
-
-	    } elsif ( defined $val ) {
-		print "cmp $key \n\tin actref <undefined> \n\twith val '$val'\n" if ($opts->{debug});
-		$gotdiff = 1;
-		last;
-	    } else {
-                    next;
-	    }
-        }
-        if ( $gotdiff != 0 ) {
-            &update_db_data( $dbh, 'action', $actref);
-        }
-    } else {
-        &add_db_data( $dbh, 'action', $actref);
-    }
-
-    if ( $opts->{verbose} ) {
-        printf "Image assigned.\nNext pxeboot of $entry{mac} will start image install cycle.\n";
-    }
 
 }
 
-=head2 clone --mac <macaddr> --hostname <name> --hardware <hw> --image <file>
+=head2 remove --name <storageid>
 
-Deploy an image file to a remote system disk
+This command does not remove any data from the network storage device. Instead this only removes the info from Baracus so that it cannot easily be assigned to a host.
 
-Arguments
-
-  --mac <macaddr>          Network interface card physical address
-                           (in hexidecimal xx:xx:xx:xx:xx:xx format).
-  --hostname <name>        Hostname (conforming to DNS without domainname)
-                           to identify the box containing the network
-                           interface card with the specified <macaddr>.
-
-  --hardware <hw>          Hardware template that describes build client
-                           as SuSE family would for bootargs and rootdisk.
-                             > baconfig list hardware
-                           The rootdisk will be cloned.
-
-  --storageid <store>      Image file bastorage reference of type 'clone'.
-
-                           Related file to be created by the clone workload.
-                           will store in ~baracus/images/.
+Also note this does not remove any existing relations of this share with existing host entries.
 
 =cut
 
-sub clone
+sub remove()
 {
 
-    my $command = "clone";
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $chkref;
-    my $macref;
-    my $hostref;
-    my $actref;
-    my $sref;
-
-    my %entry;
-    my $cols = lc get_cols( $baTbls{ action });
-    foreach my $key (split(/[,\s*]/, $cols )) {
-        $entry{$key} = '';
-    }
-    $entry{autoclone} = 0;
-    $entry{storageid} = "";
-
-    @ARGV = @_;
-
-    # overloading imageid here should be
-    # bastorage (rename baimage) URI for iscsi and image store
-
-    GetOptions
-        (
-         'mac=s'        => \$entry{mac},
-         'hostname=s'   => \$entry{hostname},
-         'storageid=s'  => \$entry{storageid},
-         'hardware=s'   => \$entry{hardware},
-         'autoclone!'   => \$entry{autoclone},
-         );
-
-    if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
-    }
-
-    if ( $entry{storageid} eq "" ) {
-        $opts->{LASTERROR} = "Missing --storageid\n";
-        return 1;
-    }
-
-    # get and check for image based on id
-    $sref = &get_db_data( $dbh, 'storage', $entry{storageid} );
-    unless ( defined $sref ) {
-        $opts->{LASTERROR} = "storageid does not exist: $entry{storageid}\n";
-        return 1;
-    }
-    if ( $sref->{type} != BA_STORAGE_CLONE ) {
-        $opts->{LASTERROR} = "Storage specified has non-clone type: $baStorageType{ $sref->{type} }\n";
-        return 1;
-    }
-    my $file = "$baDir{images}/$sref->{storage}";
-    $file =~ s|\.gz$||;
-    if ( -f $file or -f "${file}.gz" ) {
-        $opts->{LASTERROR} = "Clone placeholder and/or worker already filled. Make sure you want to replace this image and then remove to continue\n\t$file\n\t${file}.gz\n";
-        return 1;
-    }
-
-    if ( &check_host_action ( $opts, $dbh, \%entry, $chkref, $actref )) {
-        return 1;
-    }
-
-    # hardware file may be in profile *and* on command line
-    # command line wins over profile entry
-    $actref->{'hardware'}= $entry{hardware} if ($entry{hardware});
-
-    die "Need --hardware via commandline\n"
-        unless ($actref->{'hardware'});
-
-    # breakout possible compound ver:name with call get back ( name, ver/undef )
-    ( $actref->{hardware}, $actref->{hardware_ver} ) =
-        &get_name_version( $actref->{hardware} );
-    print "hardware $actref->{hardware}\n" if ($opts->{debug});
-    print "hardware version $actref->{hardware_ver}\n" if (defined $actref->{hardware_ver} and $opts->{debug});
-
-
-    return 1 if ( &load_hardware( $opts, $dbh, $actref ) );
-#    return 1 if ( &check_cert( $opts, $dbh, $actref->{'distro'}, "hardware", $actref->{'hardware'}) );
-    if ($opts->{debug} > 1) {
-        foreach my $key ( sort ( keys %{$actref} )) {
-            print "add post-hardware:  $key => $actref->{$key}\n";
-        }
-    }
-
-    $actref->{autoclone} = $entry{autoclone};
-
-    $actref->{disk} = 0;
-    $actref->{partition} = 0;
-
-    # do not want any setting to override these values
-
-    $actref->{'cmdline'} = $cmdline;
-    $actref->{'hostname'} = $entry{hostname} if (defined $entry{hostname} and $entry{hostname}  ne "");
-    $actref->{'ip'} = $entry{ip};
-    $actref->{'mac'} = $entry{mac};
-    $actref->{'uuid'} = &get_uuid;
-    $actref->{'storageid'} = $entry{storageid};
-
-    if ($opts->{debug}) {
-        print "settings to use:\n";
-        foreach my $key ( sort keys %{$actref} ) {
-            printf "actref:  $key => %s\n",
-                defined $actref->{$key} ? $actref->{$key} : "";
-        }
-    }
-
-    $macref = &check_add_db_mac( $opts, $dbh, $macref, $actref->{mac} );
-
-    $hostref = &get_db_data_by( $dbh, 'host', $actref->{mac}, 'mac' );
-    unless ( defined $hostref ) {
-        &add_db_data( $dbh, 'host', $actref );
-    }
-
-    # reset action_module join table list
-    # now that modules have been checked and loaded
-    # create the action_module entries and store ver
-
-    &action_state_change( $dbh, BA_ACTION_CLONE, $actref );
-
-    &update_db_mac_state ( $dbh, $actref->{mac}, BA_ACTION_CLONE);
-
-    # find existing action relation and update it or create if not found
-    # avoid overwrite of the carefully constructed $actref hash
-    my $tmpref = &get_db_data( $dbh, 'action', $actref->{mac} );
-    if ( defined $tmpref ) {
-        # here's a rather involved check
-        # to make sure we're not updating a dup
-        my $gotdiff = 0;
-        while ( my ($key, $val) = each %{$tmpref} ) {
-            next if $key eq "uuid"; # changes every invocation
-            next if $key eq "creation";
-            next if $key eq "change";
-            next if $key eq "cmdline"; # order diff and -d -v -q don't matter
-
-	    ## If a key was specified on the command line, we have to see if 
-	    ## that same key is already defined, if it is, and they don't match, we
-	    ## have to update the DB.  If one of the keys exists and the other one
-	    ## doesn't, we consider them not equal and have to update the DB.  If 
-	    ## both keys do not exist, we just skip to the next key.
-            if ( defined $actref->{$key} ) {
-		if ( !defined $val or
-		     (defined $val and $actref->{$key} ne $val) ) {
-		    if ($opts->{debug}) {
-			if ( defined $val) {
-			    print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val '$val'\n";
-			} else {
-			    print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val <undefined> '\n";
-			}
-		    }
-		    $gotdiff = 1;
-		    last;
-		}
-
-	    } elsif ( defined $val ) {
-		print "cmp $key \n\tin actref <undefined> \n\twith val '$val'\n" if ($opts->{debug});
-		$gotdiff = 1;
-		last;
-	    } else {
-                    next;
-	    }
-        }
-        if ( $gotdiff != 0 ) {
-            &update_db_data( $dbh, 'action', $actref);
-        }
-    } else {
-        &add_db_data( $dbh, 'action', $actref);
-    }
-
-    if ( $opts->{verbose} ) {
-        printf "Clone command processed.\nNext pxeboot of $entry{mac} will start image clone of node.\n";
-    }
-
-}
-
-=head2 empty { --mac <macaddr>  --hostname <name> }
-
-When a device has been completely decommisioned, or an actionalbe entry for it is no longer desired, this command will remove all build and boot relations.
-
-This command does not delete the mac address itself but instead marks the device doing pxeboot with that mac to wait and boot no further.
-
-Arguments
-
-     --mac <macaddr>     specify device by mac address
-     --hostname <name>   specify device by hostname ( if available )
-
-=cut
-
-sub empty
-{
-    my $command = "empty";
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $mac="";
-    my $hostname="";
-
-    my $macref;
-    my $actref;
-    my $chkref;
+    my $verb = 'remove';
+    my $storageid;
 
     @ARGV = @_;
 
     GetOptions(
-               'mac=s'          => \$mac,
-               'hostname=s'     => \$hostname,
+               'name=s' => \$storageid,
+               );
+
+    unless ( defined $storageid ) {
+        print "--name <name> required\n";
+        return 1;
+    }
+
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
+    }
+
+    my $url = "http://$baseurl:$port/$apiver/storage/$storageid";
+
+    my $req = HTTP::Request->new(DELETE => $url);
+    $req->content_type('application/json');
+
+    my $response = $browser->request( $req );
+
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    my $data = from_json( $response->content );
+
+    print "$data->{storageid}  :  $data->{action} $data->{result} \n";
+
+
+    return 0;
+
+}
+
+=head2 list [ --filter <name|storage>::<partial*|specific> ] [ --uri ]
+
+List the network storage for which Baracus has information.
+
+Option
+
+     --uri                    list with uri output
+
+     --filter name::'partial*'   filter results based on wildcard
+     --filter storage::specific  filter for a single match
+
+=cut
+
+sub list
+{
+    my $verb = "list";
+    my $filter = "*";
+
+    @ARGV = @_;
+
+    GetOptions(
+               'filter=s'  => \$filter,
                );
 
     if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
     }
 
-    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
-    unless ( defined $mac ) {
-        # $opts->{LASTERROR} set in subroutine
-        return 1;
+    my $url = "http://$baseurl:$port/$apiver/storage/$filter";
+
+    my $req = HTTP::Request->new( 'GET', $url );
+    $req->header( 'Accept' => 'application/json' );
+
+    my $response = $browser->request( $req );
+
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    my $data = from_json( $response->content );
+
+    unless ($opts->{quiet}) {
+        print "----------------------------------------------------------------------------------------------\n";
+        printf "%-26s %-7s %-18s %-30s\n", "name", "type", "ip", "storage";
+        print "----------------------------------------------------------------------------------------------\n";
     }
 
-    $macref = &check_add_db_mac( $opts, $dbh, $macref, $mac );
-
-    if ( $opts->{debug} > 1 ) {
-        while ( my ($key, $val) = each %{$macref} ) {
-            printf "macref:  $key => %s\n", defined ${val} ? ${val} : "";
-        }
+    for my $node ( sort keys %$data ) {
+        printf "%-26s %-7s %-18s %-30s\n",
+               "$data->{$node}->{storageid}", "$data->{$node}->{type}",
+               "$data->{$node}->{storageip}", "$data->{$node}->{storage}";
     }
 
-    $chkref = &get_db_data( $dbh, 'action', $mac );
-    if ( defined $chkref ) {
-        if ( $opts->{debug} > 1 ) {
-            while ( my ($key, $val) = each %{$chkref} ) {
-                printf "actref:  $key => %s\n", defined ${val} ? ${val} : "";
-            }
-        }
-        # store a copy of the ref found for modification
-        $actref = $chkref;
-    }
-
-    if ( $macref->{state} == BA_ACTION_NONE ) {
-        $opts->{LASTERROR} = "baracus already cleared of host info.\n";
-        return 1;
-    }
-
-    ##
-    ## ALL CHECKS DONE - DO MODS
-
-    $actref->{cmdline} = $cmdline;
-    $actref->{hostname} = $hostname if ( $hostname ne "" );
-    $actref->{mac} = $mac;
-
-    &action_state_change( $dbh, BA_ACTION_NONE, $actref );
-
-    &update_db_mac_state( $dbh, $mac, BA_ACTION_NONE );
-
-    # for proper command history update we update
-    if ( defined $chkref ) {
-        &update_db_data( $dbh, 'action', $actref );
-    }
-    else {
-        &add_db_data( $dbh, 'action', $actref );
-    }
-
-    # delete the host and action entries
-    &remove_db_data( $dbh, 'action', $mac );
-    &remove_db_data_by($dbh, 'host', $mac, 'mac' );
-
-    if ( $opts->{verbose} )
-    {
-        printf "Clear complete.\nNext pxeboot of %s will rediscover host.\n",
-            $hostname ne "" ? $hostname : $mac;
-    }
-
-    return 0;
+    return 0;  
 }
 
-=head2 pxewait { --mac <macaddr | --hostname <name> }
+=head2 detail --name <storageid>
 
-Set a device to go into pxewait state on the next pxeboot cycle.
-
-Arguments
-
-     --mac <macaddr>     specify device by mac address
-     --hostname <name>   specify device by hostname ( if available )
+Show details for specified network storage device
 
 =cut
 
-sub pxewait
+sub detail
 {
-    my $command = "pxewait";
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $mac="";
-    my $hostname="";
-
-    my $macref;
-    my $actref;
-    my $chkref;
+    my $verb = "detail";
+    my $storageid;
 
     @ARGV = @_;
 
     GetOptions(
-               'mac=s'          => \$mac,
-               'hostname=s'     => \$hostname,
+               'name=s' => \$storageid,
                );
 
     if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        &help( $opts, $verb );
+    }
+
+    unless ( defined $storageid ) {
+        print "--name <name> required\n";
         return 1;
     }
 
-    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
-    unless ( defined $mac ) {
-        # $opts->{LASTERROR} set in subroutine
-        return 1;
+    my $url = "http://$baseurl:$port/$apiver/storage/detail/$storageid";
+
+    my $req = HTTP::Request->new( 'GET', $url );
+    $req->header( 'Accept' => 'application/json' );
+
+    my $response = $browser->request( $req );
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    my $data = from_json( $response->content );
+
+    printf "%-14s %s\n", "Storage ID",   $data->{storageid};
+    printf "%-14s %s\n", "Storage Type", $data->{type};
+    printf "%-14s %s\n", "Storage IP",   $data->{storageip} ;
+    printf "%-14s %s\n", "Storage",      $data->{storage} ;
+    printf "%-14s %s\n", "Storage URI",  $data->{uri} ;
+    if ( defined $data->{size} and $data->{size} ne "" ) {
+        printf "%-14s %s\n", "Size", $data->{size} ;
     }
-
-    $macref = &check_add_db_mac( $opts, $dbh, $macref, $mac );
-
-    if ( $opts->{debug} > 1 ) {
-        while ( my ($key, $val) = each %{$macref} ) {
-            printf "macref:  $key => %s\n", defined ${val} ? ${val} : "";
-        }
+    if ( defined $data->{description} and $data->{description} ne "" ) {
+        printf "%-14s %s\n", "Description", $data->{description} ;
     }
-
-    $chkref = &get_db_data( $dbh, 'action', $mac );
-    if ( defined $chkref ) {
-        if ( $opts->{debug} > 1 ) {
-            while ( my ($key, $val) = each %{$chkref} ) {
-                printf "actref:  $key => %s\n", defined ${val} ? ${val} : "";
-            }
-        }
-        # store a copy of the ref found for modification
-        $actref = $chkref;
-    }
-
-    if ( defined $chkref and
-         $chkref->{pxenext} eq BA_ACTION_PXEWAIT ) {
-        $opts->{LASTERROR} = "device already set to $command.\n";
-        return 1;
-    }
-
-    ##
-    ## ALL CHECKS DONE - DO MODS
-
-    $actref->{cmdline} = $cmdline;
-    $actref->{mac} = $mac;
-
-    # if passed both mac and hostname create a host table entry
-    if ( $hostname ne "" ) {
-        $actref->{hostname} = $hostname;
-        unless ( &get_db_data( $dbh, 'host', $hostname ) ) {
-            &add_db_data( $dbh, 'host', $actref );
-        }
-    }
-
-    &action_state_change( $dbh, BA_ACTION_PXEWAIT, $actref );
-
-    &update_db_mac_state( $dbh, $mac, BA_ACTION_PXEWAIT );
-
-    # for proper command history update we update
-    if ( defined $chkref ) {
-        &update_db_data( $dbh, 'action', $actref );
-    } else {
-        &add_db_data( $dbh, 'action', $actref );
-    }
-
-    if ( $opts->{verbose} )
-    {
-        printf "Inventory set\nNext pxeboot of %s will pxewait.\n",
-            $hostname ne "" ? $hostname : $mac;
+    if ( defined $data->{username} and $data->{username} ne "" ) {
+        printf "%-14s %s\n", "Username", $data->{username} ;
     }
 
     return 0;
+
 }
 
-=head2 inventory { --mac <macaddr> | --hostname <name> }
-
-Set a device so that it collect basic inventory information on the next pxeboot cycle.
-
-Arguments
-
-     --mac <macaddr>     specify device by mac address
-     --hostname <name>   specify device by hostname ( if available )
-
-=cut
-
-sub inventory
-{
-    my $command = "inventory";
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $mac="";
-    my $hostname="";
-
-    my $macref;
-    my $actref;
-    my $chkref;
-
-    @ARGV = @_;
-
-    GetOptions(
-               'mac=s'          => \$mac,
-               'hostname=s'     => \$hostname,
-               );
-
-    if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
-    }
-
-    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
-    unless ( defined $mac ) {
-        # $opts->{LASTERROR} set in subroutine
-        return 1;
-    }
-
-    $macref = &check_add_db_mac( $opts, $dbh, $macref, $mac );
-
-    if ( $opts->{debug} > 1 ) {
-        while ( my ($key, $val) = each %{$macref} ) {
-            printf "macref:  $key => %s\n", defined ${val} ? ${val} : "";
-        }
-    }
-
-    $chkref = &get_db_data( $dbh, 'action', $mac );
-    if ( defined $chkref ) {
-        if ( $opts->{debug} > 1 ) {
-            while ( my ($key, $val) = each %{$chkref} ) {
-                printf "actref:  $key => %s\n", defined ${val} ? ${val} : "";
-            }
-        }
-        # store a copy of the ref found for modification
-        $actref = $chkref;
-    }
-
-    if ( defined $chkref and
-         $chkref->{pxenext} eq BA_ACTION_INVENTORY ) {
-        $opts->{LASTERROR} = "device already set to inventory.\n";
-        return 1;
-    }
-
-    ##
-    ## ALL CHECKS DONE - DO MODS
-
-    $actref->{cmdline} = $cmdline;
-    $actref->{mac} = $mac;
-
-    # if passed both mac and hostname create a host table entry
-    if ( $hostname ne "" ) {
-        $actref->{hostname} = $hostname;
-        unless ( &get_db_data( $dbh, 'host', $hostname ) ) {
-            &add_db_data( $dbh, 'host', $actref );
-        }
-    }
-
-    &action_state_change( $dbh, BA_ACTION_INVENTORY, $actref );
-
-    &update_db_mac_state( $dbh, $mac, BA_ACTION_INVENTORY );
-
-    # for proper command history update we update
-    if ( defined $chkref ) {
-        &update_db_data( $dbh, 'action', $actref );
-    } else {
-        &add_db_data( $dbh, 'action', $actref );
-    }
-
-    if ( $opts->{verbose} )
-    {
-        printf "Inventory set\nNext pxeboot of %s will collect inventory.\n",
-            $hostname ne "" ? $hostname : $mac;
-    }
-
-    return 0;
-}
-
-
-=head2 migrate { --mac <macaddr> | --hostname <name> } --storageid <storage> [ --device <device> --vfstype <vfstype> ]
-
-Set a device to migrate its local root file system to network storage.
-Migration takes place on the next pxeboot cycle.
-
-Arguments
-
-  --mac <macaddr>        specify device by mac address
-  --hostname <name>      specify device by hostname ( if available )
-
-  --hardware <hwteplate>   Hardware template that describes build client
-                             > baconfig list hardware
-
-  --storageid <netroot>  specify network storage id 
-
-  --disk <num>           Disk number to migrate [ default 0 (first)]
-  --partition <num>      Partition number to migrate [ default 0 (first)]
-
-  --vfstype <type>	   File system type [ default autodetect ]
-
-=cut
-
-sub migrate
-{
-    my $command = "migrate";
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $chkref;
-    my $macref;
-    my $hostref;
-    my $actref;
-    my $sref;
-
-    my %entry;
-    my $cols = lc get_cols( $baTbls{ action });
-    foreach my $key (split(/[,\s*]/, $cols )) {
-        $entry{$key} = '';
-#	print "Key: $key\n";
-    }
-    $entry{automigrate} = 0;
-    $entry{storageid} = "";
-    $entry{vfstype} = "";
-
-    @ARGV = @_;
-
-    GetOptions(
-               'mac=s'          => \$entry{mac},
-               'hostname=s'     => \$entry{hostname},
-               'storageid=s'    => \$entry{storageid},
-               'hardware=s'     => \$entry{hardware},
-               'automigrate'    => \$entry{automigrate},
-               'disk=s'         => \$entry{disk},
-               'partition=s'    => \$entry{partition},
-               'vfstype=s'      => \$entry{vfstype},
-               );
-
-    if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
-    }
-
-    if ( $entry{storageid} eq "" ) {
-        $opts->{LASTERROR} = "Missing required --storageid\n";
-        return 1;
-    }
-
-    $sref = &get_db_data( $dbh, 'storage', $entry{storageid} );
-    unless ( defined $sref ) {
-            $opts->{LASTERROR} = "storageid does not exist: $entry{storageid}\n";
-            return 1;
-    }
-    if ( $sref->{type} != BA_STORAGE_NFS ) {
-        $opts->{LASTERROR} = "Storage specified has non-nfs type: $baStorageType{ $sref->{type} }\n";
-        return 1;
-    }
-
-    if ( &check_host_action ( $opts, $dbh, \%entry, $chkref, $actref )) {
-        return 1;
-    }
-
-    # hardware file may be in profile *and* on command line
-    # command line wins over profile entry
-    $actref->{'hardware'}= $entry{hardware} if ($entry{hardware});
-
-    die "Need --hardware via commandline\n"
-        unless ($actref->{'hardware'});
-
-    # breakout possible compound ver:name with call get back ( name, ver/undef )
-    ( $actref->{hardware}, $actref->{hardware_ver} ) =
-        &get_name_version( $actref->{hardware} );
-    print "hardware $actref->{hardware}\n" if ($opts->{debug});
-    print "hardware version $actref->{hardware_ver}\n" if (defined $actref->{hardware_ver} and $opts->{debug});
-
-
-    return 1 if ( &load_hardware( $opts, $dbh, $actref ) );
-#    return 1 if ( &check_cert( $opts, $dbh, $actref->{'distro'}, "hardware", $actref->{'hardware'}) );
-    if ($opts->{debug} > 1) {
-        foreach my $key ( sort ( keys %{$actref} )) {
-            print "add post-hardware:  $key => $actref->{$key}\n";
-        }
-    }
-
-    unless ( $entry{disk} =~ /^\d+$/ ) {
-        $opts->{LASTERROR} = "--disk needs to be an integer\n";
-        return 1;
-    }
-
-    unless ( $entry{partition} =~ /\d+$/ ) {
-        $opts->{LASTERROR} = "--partition needs to be an integer\n";
-        return 1;
-    }
-
-    $actref->{automigrate} = $entry{automigrate};
-    $actref->{disk} = $entry{disk};
-    $actref->{partition} = $entry{partition};
-
-    # do not want any setting to override these values
-
-    $actref->{'cmdline'} = $cmdline;
-    $actref->{'hostname'} = $entry{hostname} if (defined $entry{hostname} and $entry{hostname}  ne "");
-    $actref->{'ip'} = $entry{ip};
-    $actref->{'mac'} = $entry{mac};
-    $actref->{'uuid'} = &get_uuid;
-    $actref->{'storageid'} = $entry{storageid};
-    
-    if ($opts->{debug}) {
-        print "settings to use:\n";
-        foreach my $key ( sort keys %{$actref} ) {
-            printf "actref:  $key => %s\n",
-                defined $actref->{$key} ? $actref->{$key} : "";
-        }
-    }
-
-    $macref = &check_add_db_mac( $opts, $dbh, $macref, $actref->{mac} );
-
-    $hostref = &get_db_data_by( $dbh, 'host', $actref->{mac}, 'mac' );
-    unless ( defined $hostref ) {
-        $opts->{LASTERROR} = "host not found\n";
-        return 1;
-    }
-
-    # reset action_module join table list
-    # now that modules have been checked and loaded
-    # create the action_module entries and store ver
-    &action_state_change( $dbh, BA_ACTION_MIGRATE, $actref );
-
-    &update_db_mac_state ( $dbh, $actref->{mac}, BA_ACTION_MIGRATE);
-
-    ##
-    ## ALL CHECKS DONE - DO MODS
-
-    &update_db_data( $dbh, 'action', $actref );
-
-    if ( $opts->{verbose} )
-    {
-        printf "Migrate set\nNext pxeboot of %s will migrate file system\n",
-            $entry{hostname} ne "" ? $entry{hostname} : $entry{mac};
-    }
-
-    return 0;
-}
-
-
-=head2 wipe { --mac <macaddr> | --hostname <name> } [ --autowipe | --noautowipe ]
-
-At the end of the life cycle for a build client this command is used to erase the harddrives on the host.
-
-After running this command, the pxeboot entry for the host is enabled, and when that host PXE boots again it will download and run the disk wipe program.
-
-Arguments
-
-  --mac <macaddr>          Specify device by mac address
-  --hostname <name>        Specify device by hostname ( if available )
-
-Options
-
-  --autowipe               Use with EXTREAM caution. Not for network storage.
-
-                           If --autowipe is used on PXE boot
-                           the host will IMMEDIATELY begin to erase
-                           (write 0s and 1s multiple times)
-                           ALL CONNECTED STORAGE MEDIA.
-
-                           *** Including SANS and iSCSI ***
-
-  --noautowipe             If --noautowipe is used on PXE boot the user
-                           is presented a menu to select the devices to
-                           irrecoverably erase. [default --noautowipe]
-
-=cut
-
-sub wipe
-{
-    use File::Temp qw/ tempdir /;
-
-    my $command = "wipe";
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $mac="";
-    my $hostname="";
-    my $autowipe = 0;
-
-    my $macref;
-    my $actref;
-    my $chkref;
-
-    @ARGV = @_;
-
-    GetOptions(
-               'mac=s'          => \$mac,
-               'hostname=s'     => \$hostname,
-               'autowipe!'      => \$autowipe,
-               );
-
-    if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
-    }
-
-    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
-    unless ( defined $mac ) {
-        # $opts->{LASTERROR} set in subroutine
-        return 1;
-    }
-
-    $macref = &check_add_db_mac( $opts, $dbh, $macref, $mac );
-
-    if ( $opts->{debug} > 1 ) {
-        while ( my ($key, $val) = each %{$macref} ) {
-            printf "macref:  $key => %s\n", defined ${val} ? ${val} : "";
-        }
-    }
-
-    $chkref = &get_db_data( $dbh, 'action', $mac );
-    if ( defined $chkref ) {
-        if ( $opts->{debug} > 1 ) {
-            while ( my ($key, $val) = each %{$chkref} ) {
-                printf "actref:  $key => %s\n", defined ${val} ? ${val} : "";
-            }
-        }
-        # store a copy of the ref found for modification
-        $actref = $chkref;
-    }
-
-    my $autostring = $autowipe ? "auto" : "";
-
-    if ( defined $chkref and
-         (defined $chkref->{autonuke} and $chkref->{autonuke} eq $autowipe ) and
-         (defined $chkref->{pxenext}  and $chkref->{pxenext}  eq BA_ACTION_DISKWIPE ) ) {
-        $opts->{LASTERROR} = "device already set to ${autostring}wipe disk.\n";
-        return 1;
-    }
-
-    ##
-    ## ALL CHECKS DONE - DO MODS
-
-    $actref->{autonuke} = $autowipe;
-
-    $actref->{cmdline} = $cmdline;
-    $actref->{mac} = $mac;
-    $actref->{storageid} = "";  # wipe the storageid info
-
-    # if passed both mac and hostname create a host table entry
-    if ( $hostname ne "" ) {
-        $actref->{hostname} = $hostname;
-        unless ( &get_db_data( $dbh, 'host', $hostname ) ) {
-            &add_db_data( $dbh, 'host', $actref );
-        }
-    }
-
-    &action_state_change( $dbh, BA_ACTION_DISKWIPE, $actref );
-
-    &update_db_mac_state( $dbh, $mac, BA_ACTION_DISKWIPE );
-
-    # for proper command history update we update
-    if ( defined $chkref ) {
-        &update_db_data( $dbh, 'action', $actref );
-    } else {
-        &add_db_data( $dbh, 'action', $actref );
-    }
-
-
-    if ( $opts->{verbose} )
-    {
-        printf "Wipe set.\nNext pxeboot of %s and the hardrive will be ${autostring}wiped.\n",
-            $hostname ne "" ? $hostname : $mac;
-    }
-
-    return 0;
-}
-
-
-=head2 localboot { --mac <macaddr> | --hostname <name> } [ --disk <num> --partition <num> ]
-
-Boot from localdisk on the next pxeboot of the specified device.
-
-Options
-
-  --mac <macaddr>          Specify device by mac address
-  --hostname <name>        Specify device by hostname ( if available )
-
-  --disk <num>             Disk number (zero-based) to boot [ default 0 (first)]
-  --partition <num>        Partition number to boot [ default 0 (first)]
-
-=cut
-
-sub localboot
-{
-    my $command = "localboot";
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $mac       = "";
-    my $hostname  = "";
-
-    my $disk      = "0";
-    my $partition = "0";
-
-    my $macref;
-    my $actref;
-    my $chkref;
-
-
-    @ARGV = @_;
-
-    GetOptions(
-               'mac=s'          => \$mac,
-               'hostname=s'     => \$hostname,
-               'disk=s'         => \$disk,
-               'partition=s'    => \$partition,
-              );
-
-    if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
-    }
-
-    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
-    unless ( defined $mac ) {
-        # $opts->{LASTERROR} set in subroutine
-        return 1;
-    }
-
-    unless ( $disk =~ /^\d+$/ ) {
-        $opts->{LASTERROR} = "--disk needs to be an integer\n";
-        return 1;
-    }
-
-    unless ( $partition =~ /\d+$/ ) {
-        $opts->{LASTERROR} = "--partition needs to be an integer\n";
-        return 1;
-    }
-
-    $macref = &check_add_db_mac( $opts, $dbh, $macref, $mac );
-
-    if ( $opts->{debug} > 1 ) {
-        while ( my ($key, $val) = each %{$macref} ) {
-            printf "macref:  $key => %s\n", defined ${val} ? ${val} : "";
-        }
-    }
-
-    $chkref = &get_db_data( $dbh, 'action', $mac );
-    if ( defined $chkref ) {
-        if ( $opts->{debug} > 1 ) {
-            while ( my ($key, $val) = each %{$chkref} ) {
-                printf "actref:  $key => %s\n", defined ${val} ? ${val} : "";
-            }
-        }
-        # store a copy of the ref found for modification
-        $actref = $chkref;
-    }
-
-    if ( defined $chkref and
-        $chkref->{pxenext} eq BA_ACTION_LOCALBOOT and
-        $chkref->{disk} eq $disk and
-        $chkref->{partition} eq $partition ) {
-        $opts->{LASTERROR} = "device already in matching localboot state\n";
-        return 1;
-    }
-
-    ##
-    ## ALL CHECKS DONE - DO MODS
-
-    $actref->{cmdline} = $cmdline;
-    $actref->{mac} = $mac;
-    $actref->{disk} = $disk;
-    $actref->{partition} = $partition;
-    $actref->{storageid} = "";  # wipe the storageid info
-
-    # if passed both mac and hostname create a host table entry
-    if ( $hostname ne "" ) {
-        $actref->{hostname} = $hostname;
-        unless ( &get_db_data( $dbh, 'host', $hostname ) ) {
-            &add_db_data( $dbh, 'host', $actref );
-        }
-    }
-
-    &action_state_change( $dbh, BA_ACTION_LOCALBOOT, $actref );
-
-    &update_db_mac_state( $dbh, $mac, BA_ACTION_LOCALBOOT );
-
-    # for proper command history update we update
-    if ( defined $chkref ) {
-        &update_db_data( $dbh, 'action', $actref );
-    } else {
-        &add_db_data( $dbh, 'action', $actref );
-    }
-
-    if ( $opts->{verbose} ) {
-        printf "Localboot set.\nNext pxeboot of %s will use local disk.\n",
-            $hostname ne "" ? $hostname : $mac;
-    }
-
-    return 0;
-}
-
-
-=head2 netboot { --mac <macaddr> | --hostname <name> } --storageid <storageid>
-
-After running this command, the pxeboot entry for the host is enabled, and when that host PXE boots again it will use the network storage device target.
-
-Arguments
-
-  --mac <macaddr>          Specify device by mac address
-  --hostname <name>        Specify device by hostname ( if available )
-
-  --storageid <storageid>  Storage ID for bastorage bootable disk entry
-
-=cut
-
-sub netboot
-{
-    my $command = "netboot";
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $mac      = "";
-    my $hostname = "";
-    my $storageid  = "";
-
-    my $macref;
-    my $actref;
-    my $chkref;
-
-    @ARGV = @_;
-
-    GetOptions(
-               'mac=s'      => \$mac,
-               'hostname=s' => \$hostname,
-               'storageid=s'  => \$storageid,
-              );
-
-    if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
-    }
-
-    $mac = &get_mac_by_hostname( $opts, $dbh, $mac, $hostname );
-    unless ( defined $mac ) {
-        # $opts->{LASTERROR} set in subroutine
-        return 1;
-    }
-
-    if ( $storageid eq "" ) {
-        $opts->{LASTERROR} = "Storage id --storageid needed for netboot\n";
-        return 1;
-    }
-
-    $macref = &check_add_db_mac( $opts, $dbh, $macref, $mac );
-
-    if ( $opts->{debug} > 1 ) {
-        while ( my ($key, $val) = each( %$macref ) ) {
-            printf "macref:  $key => %s\n", defined ${val} ? ${val} : "";
-        }
-    }
-
-    $chkref = &get_db_data( $dbh, 'action', $mac );
-    if ( defined $chkref ) {
-        if ( $opts->{debug} > 1 ) {
-            while ( my ($key, $val) = each( %$chkref ) ) {
-                printf "actref:  $key => %s\n", defined ${val} ? ${val} : "";
-            }
-        }
-
-        if ( ( $chkref->{pxenext} eq BA_ACTION_NETBOOT ) and
-             ( $chkref->{storageid} eq $storageid )
-            ) {
-            $opts->{LASTERROR} = "device in NETBOOT state using $chkref->{storageid}\n";
-            return 1;
-        }
-
-        # store a copy of the ref found for modification
-        $actref = $chkref;
-    }
-
-    $actref->{cmdline} = $cmdline;
-    $actref->{mac}     = $mac;
-    $actref->{storageid} = $storageid;
-
-    return 1 if ( &load_storage( $opts, $dbh, $actref ) );
-
-    ##
-    ## ALL CHECKS DONE - DO MODS
-
-    # if passed both mac and hostname create a host table entry
-    if ( $hostname ne "" ) {
-        $actref->{hostname} = $hostname;
-        unless ( &get_db_data( $dbh, 'host', $hostname ) ) {
-            &add_db_data( $dbh, 'host', $actref );
-        }
-    }
-
-    &action_state_change( $dbh, BA_ACTION_NETBOOT, $actref );
-
-    &update_db_mac_state( $dbh, $mac, BA_ACTION_NETBOOT );
-
-    # for proper command history update we update
-    if ( defined $chkref ) {
-        &update_db_data( $dbh, 'action', $actref );
-    } else {
-        &add_db_data( $dbh, 'action', $actref );
-    }
-
-    if ( $opts->{verbose} ) {
-        printf "Netboot set.\nNext pxeboot of %s will use remote storageid %s \n",
-            $hostname ne "" ? $hostname : $mac, $storageid;
-    }
-
-    return 0;
-}
-
-
-=head2 rescue { --mac <mac> | --hostname <name> }
-
-Rescue boot on the next pxeboot of the specified device.
-
-Where
-
-  --mac <macaddr>          Network interface card physical address
-                           (in hexidecimal xx:xx:xx:xx:xx:xx format).
-  --hostname <name>        Hostname (conforming to DNS without domainname)
-                           to identify the box containing the network
-                           interface card with the specified <macaddr>.
-  --ip <ipaddr>            Client static, or dhcp bound, IP address.
-                           Use string 'dhcp' if dynamically assigned.
-
-
-A profile can be used to accumlate all the other parameters for a similar collection of hosts and can contain networking, distro, and hardware information.
-
-  --profile <pfile>        File with networking and/or other template
-                           parameters.  To see content of the 'default'
-                           profile use
-                             > baconfig detail profile default
-
-Other required parameters, which may be specified on the command-line or in a profile are:
-
-  --distro <os-rev-arch>   Operating system to install on build client.
-                           To be sure network install server has distro
-                           specified availiable for use
-                             > basource add --distro <base-arch>
-
-                           See possible distros to use with
-                             > baconfig list distro
-                           and
-                             > basource list [--distro='*match*']
-
-  --hardware <hwteplate>   Hardware template that describes build client
-                             > baconfig list hardware
-
-And further <...> optional parameters include
-
-  --usevnc                 allow vnc build access
-  --vncpass                defines vnc password for remote access
-
-  --usessh                 allow ssh build access
-  --sshpass                defines ssh password for remote access
-                           These ssh options are only valid for SuSE distros.
-
-  --serialtty              configure serial tty for remote access
-  --serialbaud             configure serial line rate for remote access
-
-=cut
-
-sub rescue
-{
-    my $command = "rescue";
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $macref;
-    my $actref;
-    my $hostref;
-    my $chkref;
-
-    my $usevnc="";
-    my $vncpass="";
-    my $usessh="";
-    my $sshpass="";
-    my $serialtty="";
-    my $serialbaud="";
-
-    my %entry =
-    (
-         'mac'           => '',
-         'hostname'      => '',
-         'ip'            => 'dhcp',
-         'distro'        => '',
-         'hardware'      => '',
-         'profile'       => '',
-         'vars'          => '',
-         'storageid'     => '',
-     );
-
-    @ARGV = @_;
-
-    GetOptions
-        (
-         'mac=s'         => \$entry{mac},
-         'hostname=s'    => \$entry{hostname},
-         'ip=s'          => \$entry{ip},
-         'distro=s'      => \$entry{distro},
-         'hardware=s'    => \$entry{hardware},
-         'profile=s'     => \$entry{profile},
-         'vars=s'        => \&multiarg_handler,
-         'usevnc!'        => \$usevnc,
-         'vncpass=s'      => \$vncpass,
-         'usessh!'        => \$usessh,
-         'sshpass=s'      => \$sshpass,
-         'serialtty=s'    => \$serialtty,
-         'serialbaud=s'   => \$serialbaud,
-         );
-
-    if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
-    }
-
-    $entry{vars}    = $multiarg{ 'vars'   } if (defined $multiarg{ 'vars'   });
-
-    if ( &check_host_action ( $opts, $dbh, \%entry, $chkref, $actref )) {
-        return 1;
-    }
-
-    # get the ip from the existing entry if any
-    if ( $entry{ip} eq "" and
-         defined $chkref and
-         $chkref->{ip} ne ""
-        )
-    {
-        $entry{ip}=$chkref->{ip};
-    }
-
-    if ( $entry{ip} eq "" ) {
-        $opts->{LASTERROR} = "Missing  --ip\n";
-        return 1;
-    }
-
-    $entry{ip} = lc $entry{ip};
-    &check_ip( $entry{ip} );
-
-    # done with all checking of hostname/mac/ip
-    # begin loading of hash used for remainder of processing command
-    undef $actref;
-
-    $actref = {};
-    # baDir and baVar into actref
-    &load_baracusconfig( $opts, $actref );
-
-    unless ( defined $entry{profile} and $entry{profile} ne "" ) {
-        print "--profile <prof> unspecified. Using 'default'\n";
-        $entry{profile} = "default";
-    }
-
-    # breakout possible compound ver:name with call get back ( name, ver/undef )
-    ( $actref->{profile}, $actref->{profile_ver} ) =
-        &get_name_version( $entry{profile} );
-    print "profile $actref->{profile}\n" if ($opts->{debug});
-    print "profile version $actref->{profile_ver}\n" if (defined $actref->{profile_ver} and $opts->{debug});
-
-    return 1 if ( &load_profile( $opts, $dbh, $actref ) );
-    if ($opts->{debug} > 1) {
-        foreach my $key ( sort ( keys %{$actref} )) {
-            print "add post-profile:  $key => $actref->{$key}\n";
-        }
-    }
-
-    # distro file may be in profile *and* on command line
-    # command line wins over profile entry
-    $actref->{'distro'} = $entry{distro} if ($entry{distro});
-
-    die "Need --distro via commandline or distro= in profile.\n"
-        unless ($actref->{'distro'});
-
-    return 1 if ( &load_distro( $opts, $dbh, $actref ) );
-    if ($opts->{debug} > 1) {
-        foreach my $key ( sort ( keys %{$actref} )) {
-            print "add post-distro:  $key => $actref->{$key}\n";
-        }
-    }
-
-    # now that we know what distro we're using verify the profile is cert for it
-    #    return 1 if ( &check_cert( $opts, $dbh, $actref->{'distro'}, "profile", $actref->{'profile'}) );
-
-    # hardware file may be in profile *and* on command line
-    # command line wins over profile entry
-    $actref->{'hardware'}= $entry{hardware} if ($entry{hardware});
-
-    die "Need --hardware via commandline or hardware= in profile.\n"
-        unless ($actref->{'hardware'});
-
-    # breakout possible compound ver:name with call get back ( name, ver/undef )
-    ( $actref->{hardware}, $actref->{hardware_ver} ) =
-        &get_name_version( $actref->{hardware} );
-    print "hardware $actref->{hardware}\n" if ($opts->{debug});
-    print "hardware version $actref->{hardware_ver}\n" if (defined $actref->{hardware_ver} and $opts->{debug});
-
-
-    return 1 if ( &load_hardware( $opts, $dbh, $actref ) );
-    return 1 if ( &check_cert( $opts, $dbh, $actref->{'distro'}, "hardware", $actref->{'hardware'}) );
-    if ($opts->{debug} > 1) {
-        foreach my $key ( sort ( keys %{$actref} )) {
-            print "add post-hardware:  $key => $actref->{$key}\n";
-        }
-    }
-
-    # Remote Access configurations
-    my @raccess;
-    # vnc remote access may be specified in profile *and* on command line
-    # command line wins over profile entry
-    if (($vncpass) and !($usevnc)) {
-        die "--vncpass requires --usevnc\n";
-    } elsif (!($vncpass) and ($usevnc)) {
-        die "--usevnc requires --vncpass\n";
-    }
-
-    if ($vncpass) {
-        if ( length( $vncpass) < 8 ) {
-            $opts->{LASTERROR} = "minimum password length of 8 chars required\n";
-            return 1;
-        }
-        $vncpass =~ s/$vncpass/vncpassword=$vncpass/;
-        if ( $actref->{os} =~ m|rhel|   or
-             $actref->{os} =~ m|esx|    or
-             $actref->{os} =~ m|fedora| or
-             $actref->{os} =~ m|centos| ) {
-            push(@raccess, "vnc", $vncpass);
-        } else {
-            push(@raccess, "vnc=1", $vncpass);
-        }
-    }
-
-    # ssh remote access may be specified in profile *and* on command line
-    # command line wins over profile entry
-    if (($sshpass) or ($usessh)) {
-        if ( $actref->{os} =~ m|rhel|   or
-             $actref->{os} =~ m|esx|    or
-             $actref->{os} =~ m|fedora| or
-             $actref->{os} =~ m|centos| ) {
-            $opts->{LASTERROR} = "RHEL, ESX, Fedora, CentOS do not support ssh install\n";
-            return 1;
-        }
-    }
-    if (($sshpass) and !($usessh)) {
-        die "--sshpass requires --usessh\n";
-    } elsif (!($sshpass) and ($usessh)) {
-        die "--usessh requires --sshpass\n";
-    }
-
-    if ($usessh) {
-        $sshpass =~ s/$sshpass/sshpassword=$sshpass/;
-        push(@raccess, "usessh=1", $sshpass);
-    }
-
-    # serial remote access may be specified in profile *and* on command line
-    # command line wins over profile entry
-    $actref->{console} = "";
-    if (($serialtty) and !($serialbaud)) {
-            die "--serialtty requires --serialbaud\n";
-    } elsif (!($serialtty) and ($serialbaud)) {
-            die "--serialbaud requires --serialtty\n";
-    }
-
-    if (($serialbaud) and ($serialtty)) {
-        if ( $actref->{os} =~ m|rhel|   or
-             $actref->{os} =~ m|esx|    or
-             $actref->{os} =~ m|fedora| or
-             $actref->{os} =~ m|centos| or
-             $actref->{distro} =~ m|sles-9| ) {
-            ##
-            ##  INCLUDE SLES9 FOR MINIMAL CMD LINE TXT
-            ##
-            my $serialopts = "console=tty0 console=$serialtty,$serialbaud";
-            push(@raccess, $serialopts);
-            $actref->{console} = $serialopts;
-        }
-        else {
-            my $serialopts = "console=tty0 console=$serialtty,$serialbaud";
-            $serialopts .= " earlyprintk=serial,$serialtty,$serialbaud";
-            push(@raccess, $serialopts);
-            $actref->{console} = $serialopts;
-        }
-    }
-
-    # Join all raccess args
-    $actref->{'raccess'} = join " ", @raccess;
-
-    ## Commandline options
-    ##   - comes after reading profile
-    ##   - harware, distro override profile values
-    ##   - cmdline values override any file values
-
-    ## If passed on command line via vars, then honor those
-    ##
-    if ($entry{vars}) {
-        $actref->{vars} = $entry{vars};
-        &load_vars( $opts, $actref );
-    }
-
-    # do not want any setting to override these values
-
-    $actref->{cmdline} = $cmdline;
-    $actref->{'hostname'} = $entry{hostname};
-    $actref->{'ip'} = $entry{ip};
-    $actref->{'mac'} = $entry{mac};
-
-    $actref->{basedist} = "$actref->{os}-$actref->{release}-$actref->{arch}";
-    $actref->{initrd} = "initrd.$actref->{basedist}";
-    $actref->{kernel} = "linux.$actref->{basedist}";
-
-    if ( $baVar{remote_logging} eq "yes" ) {
-        if ( $actref->{os} =~ m|rhel|   or
-             $actref->{os} =~ m|esx|    or
-             $actref->{os} =~ m|fedora| or
-             $actref->{os} =~ m|centos| ) {
-            $actref->{'loghost'} = "syslog=$actref->{serverip}";
-        } elsif ( $actref->{os} =~ m|ubuntu| ) {
-            $actref->{'loghost'} = "log_host=$actref->{serverip}";
-        } else {
-            $actref->{'loghost'} = "loghost=$actref->{serverip}";
-        }
-    } else {
-        $actref->{'loghost'} = ""
-    }
-
-    if ($opts->{debug}) {
-        print "settings to use:\n";
-        foreach my $key ( sort keys %{$actref} ) {
-            printf "actref:  $key => %s\n",
-                defined $actref->{$key} ? $actref->{$key} : "";
-        }
-    }
-
-    $macref = &check_add_db_mac( $opts, $dbh, $macref, $actref->{mac} );
-
-    $hostref = &get_db_data( $dbh, 'host', $actref->{hostname} );
-    unless ( defined $hostref ) {
-        &add_db_data( $dbh, 'host', $actref );
-    }
-
-    &action_state_change( $dbh, BA_ACTION_RESCUE, $actref );
-
-    &update_db_mac_state( $dbh, $actref->{mac}, BA_ACTION_RESCUE );
-
-    # find existing action relation and update it or create if not found
-    # avoid overwrite of the carefully constructed $actref hash
-    my $tmpref = get_db_data( $dbh, 'action', $actref->{mac} );
-    if ( defined $tmpref ) {
-        # here's a rather involved check
-        # to make sure we're not updating a dup
-        my $gotdiff = 0;
-        while ( my ($key, $val) = each %{$tmpref} ) {
-            next if $key eq "uuid"; # changes every invocation
-            next if $key eq "creation";
-            next if $key eq "change";
-            next if $key eq "cmdline"; # order diff and -d -v -q don't matter
-
-	    ## If a key was specified on the command line, we have to see if 
-	    ## that same key is already defined, if it is, and they don't match, we
-	    ## have to update the DB.  If one of the keys exists and the other one
-	    ## doesn't, we consider them not equal and have to update the DB.  If 
-	    ## both keys do not exist, we just skip to the next key.
-            if ( defined $actref->{$key} ) {
-		if ( !defined $val or
-		     (defined $val and $actref->{$key} ne $val) ) {
-		    if ($opts->{debug}) {
-			if ( defined $val) {
-			    print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val '$val'\n";
-			} else {
-			    print "cmp $key \n\tin actref '$actref->{$key}' \n\twith val <undefined> '\n";
-			}
-		    }
-		    $gotdiff = 1;
-		    last;
-		}
-
-	    } elsif ( defined $val ) {
-		print "cmp $key \n\tin actref <undefined> \n\twith val '$val'\n" if ($opts->{debug});
-		$gotdiff = 1;
-		last;
-	    } else {
-                    next;
-	    }
-        }
-        if ( $gotdiff != 0 ) {
-            &update_db_data( $dbh, 'action', $actref);
-        }
-    } else {
-        &add_db_data( $dbh, 'action', $actref);
-    }
-
-    if ( $opts->{verbose} ) {
-        printf "Set complete. State of %s modified to support rescue mode on next boot.\n",
-            $actref->{hostname} ne "" ? $actref->{hostname} : $actref->{mac};
-    }
-
-    return 0;
-}
-
-
-=head2 list [--mac <macaddr> | --hostname <name>]
-
-List the mac and actiion relations
-
-=cut
-
-sub list()
-{
-    my $command = "list";
-
-    my $argref = {
-                  'mac'      => "",
-                  'hostname' => "",
-                  };
-    @ARGV = @_;
-
-    GetOptions(
-               'mac=s'      => \$argref->{'mac'},
-               'hostname=s' => \$argref->{'hostname'},
-              );
-
-    if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
-    }
-
-    if ( $opts->{debug} ) {
-        while ( my ($key, $val) = each %{$argref} ) {
-            printf "argref:  $key => %s\n", defined ${val} ? ${val} : "";
-        }
-    }
-
-    my $type = "mac";
-    my $name = "";
-
-    if ( defined $argref->{hostname} and $argref->{hostname} ) {
-        $type = "hostname";
-        $name = $argref->{hostname};
-    }
-    elsif ( defined $argref->{mac} and $argref->{mac} ) {
-        $name = $argref->{mac};
-    }
-
-    my $sth = &list_start( $type, $name );
-
-    unless( defined $sth ) {
-        # $opts->{LASTERROR} returned from db_list_start
-        return 1;
-    }
-
-    unless ( $opts->{quiet} || $opts->{nolabels} ) {
-    print "--------------------------------------------------------------------------------------\n";
-    printf "%-18s %-9s %-16s %-9s %-9s %-9s %-9s\n", "mac", "state", "hostname", "pxecurr", "pxenext", "oper", "admin";
-    print "--------------------------------------------------------------------------------------\n";
-    }
-
-    my $actref;
-    my $hostname;
-    my $curr;
-    my $next;
-    my $oper;
-    my $admin;
-
-    while ( $actref = &list_next( $sth ) ) {
-        $hostname = defined $actref->{hostname} ? $actref->{hostname} : "";
-
-        $curr  = defined $actref->{pxecurr} ? $baState{$actref->{pxecurr}} : "";
-        $next  = defined $actref->{pxenext} ? $baState{$actref->{pxenext}} : "";
-        $oper  = defined $actref->{oper}    ? $baState{$actref->{oper}}    : "";
-        $admin = defined $actref->{admin}   ? $baState{$actref->{admin}}   : "";
-
-        printf "%-18s ", $actref->{'mac'};
-        unless ( $opts->{quiet} ) {
-            printf "%-9s %-16s %-9s %-9s %-9s %-9s",
-                $baState{$actref->{state}}, $hostname,
-                $curr, $next, $oper, $admin ;
-        }
-        print "\n";
-    }
-
-    &list_finish( $sth );
-
-    return 0;
-}
-
-
-###############################################################################
-##
-## helper subroutines
-##
-
-sub list_start
-{
-    my $type  = shift;
-    my $name  = shift;
-
-    if ( $type ne "hostname" and  $type ne "mac" ) {
-        $opts->{LASTERROR} = "somehow the list type is off. should be 'hostname' or 'mac'\n";
-        return 1;
-    }
-
-    $type = "hostname" if $type eq "hostname";
-
-    if (defined $name) {
-        $name =~ s|.*/||;       # only the short name for the lookup
-        $name = "%" . $name . "%";
-    } else {
-        $name = "%";
-    }
-
-    my $cols = lc get_cols( 'action' );
-    $cols =~ s/[ \t]*//g;
-
-    $cols = join(',', (map { "action." . $_ } split(',', $cols)));
-    my $maccols = join(',', (map { "mac." . $_ } ( 'mac', 'state' ) ));
-
-    my $sql = qq|SELECT $cols, $maccols
-                 FROM mac LEFT OUTER JOIN action
-                 ON ( mac.mac = action.mac )
-                 WHERE action.$type LIKE '$name'
-                 ORDER BY mac.mac|;
-
-    print $sql, "\n" if $opts->{debug};
-    my $sth;
-    die "$!\n$dbh->errstr" unless ( $sth = $dbh->prepare( $sql ) );
-    die "$!$sth->err\n" unless ( $sth->execute( ) );
-
-    return $sth;
-}
-
-sub list_next
-{
-    my $sth = shift;
-
-    return $sth->fetchrow_hashref();
-}
-
-sub list_finish
-{
-    my $sth = shift;
-    $sth->finish;
-    undef $sth;
-}
-
+######################################################################
 
 die "ABSOLUTELY DOES NOT EXECUTE";
 

@@ -137,11 +137,13 @@ sub check_host_action
     my $chkref = shift;
     my $actref = shift;
 
-    $eref->{mac} = &get_mac_by_hostname( $opts,
-                                         $eref->{mac},
-                                         $eref->{hostname} );
-    # $opts->{LASTERROR} set in subroutine
-    return 1 unless ( defined $eref->{mac} );
+    unless ( defined $eref->{mac} ) {
+        $eref->{mac} = &get_mac_by_hostname( $opts,
+                                             'host',
+                                             $eref->{hostname} );
+        # $opts->{LASTERROR} set in subroutine
+        return 1 unless ( defined $eref->{mac} );
+    }
 
     # hosts <=> mac relations checked in get_mac_by_hostname above
     # now get any existing action db entry
@@ -176,6 +178,7 @@ sub check_host_action
             error $opts->{LASTERROR};
         }
     }
+
     return 0;
 }
 

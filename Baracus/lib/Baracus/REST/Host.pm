@@ -484,7 +484,7 @@ sub host_remove() {
 }
 
 sub host_admin() {
-    &host_enable_disable(  @_ );
+    &host_enable_disable( @_ );
 }
 
 sub host_enable_disable()

@@ -247,9 +247,8 @@ sub source_remove() {
 
     my $command = 'remove';
     my $distro = params->{distro};
-debug "DEBUG: VERY LATEST distro=$distro \n";
     my $extras = params->{extra} if ( defined params->{extra} );
-debug "DEBUG: extras=$extras \n";
+
     my $opts = vars->{opts};
     unless ( $opts ) {
         $opts->{LASTERROR} = "'vars' not properly initialized";
@@ -276,7 +275,6 @@ debug "DEBUG: extras=$extras \n";
     ##
     $distro = lc $distro;
     if ( &check_distro( $opts, $distro ) )  {
-debug "DEBUG: day 2 again ... failed here - damn again \n";
         status 'error';
         error $opts->{LASTERROR};
     }
@@ -297,7 +295,6 @@ debug "DEBUG: day 2 again ... failed here - damn again \n";
 
     ## Are there any extras not removed dependant on base
     if ( ( ! $extras ) and ( defined $distro ) ) {
-debug "DEBUG: day 2 and this is a strange one here \n";
         my @extchk = &list_installed_extras( $opts, $distro );
         foreach my $extchk (@extchk) {
             if ( $extchk eq &get_distro_includes( $opts, $distro ) ) { next; }
@@ -322,7 +319,7 @@ debug "DEBUG: day 2 and this is a strange one here \n";
     }
     undef @extras;
     @extras = split( /\s+/, $extras );
-debug "DEBUG: day 2 and here are my extras after include check=$extras \n";
+
     ## only check extras passed if not removing all
     if ( scalar @extras ) {
         debug "Calling routine to verify extra(s) passed\n";
@@ -374,12 +371,10 @@ debug "DEBUG: day 2 and here are my extras after include check=$extras \n";
     unless ( ( $is_extra_passed ) and ( $extras ne "all" ) ) {
         ($shares,undef) = &get_distro_share( $opts, $distro );
         if ( &remove_build_service( $opts, $distro, "" ) ) {
-debug "DEBUG: damn here it is 1 \n";
             debug "$opts->{LASTERROR}\n";
             $opts->{LASTERROR} = "";
         }
         foreach my $share ( @$shares ) {
-debug "DEBUG: day 2 ... share=$share \n";
             $is_loopback = &is_loopback( $opts, $share );
             debug "$share ... removing\n";
             if ( $is_loopback ) {
@@ -389,7 +384,6 @@ debug "DEBUG: day 2 ... share=$share \n";
                      ( $mntchk eq $share ) ) {
                     $ret = system("sudo umount $share");
                     if ( $ret > 0 ) {
-debug "DEBUG: day2 ... damn this failed here? \n";
                         $opts->{LASTERROR} = "loopback unmount failed\n";
                         error $opts->{LASTERROR};
                     }
@@ -400,35 +394,27 @@ debug "DEBUG: day2 ... damn this failed here? \n";
         &remove_bootloader_files( $opts, $distro );
         &source_register( $opts, $command, $distro);
     }
-#
-#    $returnHash{distro} = $distro;
-#    $returnHash{extras} = $extras;
-#    $returnHash{action} = $command;
+
+    $returnHash{distro} = $distro;
+    $returnHash{extras} = $extras if ( defined $extras );;
+    $returnHash{action} = $command;
     $returnHash{result} = '0';
 
     if ( ( request->{accept} eq 'text/xml' )
       or ( request->{accept} eq 'application/json' )
       or ( request->{accept} =~ m|text/html| ) ) {
-#debug "DEBUG: request->accept=" . request->{accept} . "\n";
-#debug "DEBUG: should be returning distro=$returnHash{distro} extra=$returnHash{extras} and command=$returnHash{action} while result=$returnHash{result} \n";
         return \%returnHash;
     } else {
-#debug "DEBUG: hello, this stinks ... less obvious error \n";
-#        status 'error';
-#        return $opts->{LASTERROR};
     }
 
 }
 
 sub source_admin() {
     if ( request->params->{verb} eq "update" ) {
-debug "DEBUG: Calling source_update \n";
         &source_update(  @_ );
     } elsif ( request->params->{verb} eq "enable" ) {
-debug "DEBUG: Calling source_enable \n";
         &source_enable(  @_ );
     } elsif ( request->params->{verb} eq "disable" ) {
-debug "DEBUG: Calling source_disable \n";
         &source_disable(  @_ );
     } else {
         status '406';
