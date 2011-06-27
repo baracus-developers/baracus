@@ -155,25 +155,25 @@ put  "$apiver/host"                       => sub { &host_wrapper( "admin" );    
 
 my $do_verbs = {
                 'admin'      => \&do_admin,
-#                'build'      => \&do_build,
-#                'empty'      => \&do_empty,
-#                'inventory'  => \&do_inventory,
-#                'localboot'  => \&do_localboot,
-#                'netboot'    => \&do_netboot,
-#                'norescue'   => \&do_norescue,
-#                'rescue'     => \&do_rescue,
-#                'wipe'       => \&do_wipe,
                };
 
-put "$apiver/do"           => sub { $do_verbs->{'admin'}( @_ );           };
-#get '/do/build/:host'     => sub { $do_verbs->{'build'}( @_ );          };
-#get '/do/empty/:host'     => sub { $do_verbs->{'empty'}( @_ );          };
-#get '/do/inventory/:host' => sub { $do_verbs->{'inventory'}( @_ );      };
-#get '/do/localboot/:host' => sub { $do_verbs->{'localboot'}( @_ );      };
-#get '/do/netboot/:host'   => sub { $do_verbs->{'netboot'}( @_ );        };
-#get '/do/norescue/:host'  => sub { $do_verbs->{'norescue'}( @_ );       };
-#get '/do/rescue/:host'    => sub { $do_verbs->{'rescue'}( @_ );         };
-#get '/do/wipe/:host'      => sub { $do_verbs->{'wipe'}( @_ );           };
+sub do_wrapper() {
+    my $verb   = shift;
+    my $method = request->method;
+               
+    if ( request->{accept} eq 'text/xml' ) {
+        header('Content-Type' => 'text/xml');
+        $do_verbs->{$verb}( @_ );
+    } elsif ( request->{accept} eq 'application/json' ) {
+        header('Content-Type' => 'application/json');
+        $do_verbs->{$verb}( @_ );
+    } else {
+        layout 'main';
+        template "baracus_mesg", { user => session('user') };
+    }
+}
+
+put "$apiver/do"  => sub { &do_wrapper( "admin" ); };
 
 ###########################################################################
 ##

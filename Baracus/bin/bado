@@ -394,28 +394,59 @@ sub build() {
 
 }
 
-=head2 remove --name <storageid>
+=head2 image --mac <macaddr> --hostname <name> --hardware <hw> { --storageid <store> | --mcastid <chan> }
 
-This command does not remove any data from the network storage device. Instead this only removes the info from Baracus so that it cannot easily be assigned to a host.
+Deploy an image file to a remote system disk
 
-Also note this does not remove any existing relations of this share with existing host entries.
+Arguments
+
+  --mac <macaddr>          Network interface card physical address
+                           (in hexidecimal xx:xx:xx:xx:xx:xx format).
+  --hostname <name>        Hostname (conforming to DNS without domainname)
+                           to identify the box containing the network
+                           interface card with the specified <macaddr>.
+
+  --hardware <hw>          Hardware template that describes build client
+                           as SuSE family would for bootargs and rootdisk.
+                             > baconfig list hardware
+
+  --storageid <storageid>  Image to be deployed, as registered with bastorage.
+
+                           This file should be present in ~baracus/images,
+                           but specified here by reference to its related
+                           bastorage table entry.
+
+  --mcastid <chan>         Image via multicast. Provide the <chanid> here,
+
+                           There should be a corresponding server, as registered
+                           and maintained with the "bamcast" tool.
 
 =cut
 
-sub remove()
+sub image()
 {
 
-    my $verb = 'remove';
+    my $verb = 'image';
+
+    my $mac;
+    my $hostname;
+    my $hardware;
     my $storageid;
+    my $mcastid;
 
     @ARGV = @_;
 
-    GetOptions(
-               'name=s' => \$storageid,
-               );
+    GetOptions
+        (
+         'mac=s'         => \$mac,
+         'hostname=s'    => \$hostname,
+         'hardware=s'    => \$hardware,
+         'storageid=s'   => \$storageid,
+         'mcastid=s'     => \$mcastid,
+         );
 
-    unless ( defined $storageid ) {
-        print "--name <name> required\n";
+    unless ( ( defined $mac ) or ( defined $hostname ) ) {
+        print "--mac <mac> or --hostname <hostname> required to add new storage entry\n";
         return 1;
     }
 
@@ -424,10 +455,21 @@ sub remove()
             &help( $opts, $cmds, $verb );
     }
 
-    my $url = "http://$baseurl:$port/$apiver/storage/$storageid";
+    my $json_hash = {};
+    $json_hash->{verb}       = $verb;
+    $json_hash->{mac}        = $mac if ( defined $mac );
+    $json_hash->{hostname}   = $hostname if ( defined $hostname );
+    $json_hash->{hardware}   = $hardware if ( defined $hardware );
+    $json_hash->{storageid}  = $storageid if ( defined $storageid );
+    $json_hash->{mcastid}    = $mcastid if ( defined $mcastid );
 
-    my $req = HTTP::Request->new(DELETE => $url);
+
+    my $url = "http://$baseurl:$port/$apiver/do";
+    my $message = to_json($json_hash);
+
+    my $req = HTTP::Request->new(PUT => $url);
     $req->content_type('application/json');
+    $req->content($message);
 
     my $response = $browser->request( $req );
 
@@ -439,46 +481,218 @@ sub remove()
 
     my $data = from_json( $response->content );
 
-    print "$data->{storageid}  :  $data->{action} $data->{result} \n";
+    print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
 
+    return 0;
+
+
+}
+
+=head2 pxewait { --mac <macaddr | --hostname <name> }
+
+Set a device to go into pxewait state on the next pxeboot cycle.
+
+Arguments
+
+     --mac <macaddr>     specify device by mac address
+     --hostname <name>   specify device by hostname ( if available )
+
+=cut
+
+sub pxewait 
+{
+
+    my $verb = 'pxewait';
+
+    my $mac;
+    my $hostname;
+
+    @ARGV = @_;
+
+    GetOptions
+        (
+         'mac=s'         => \$mac,
+         'hostname=s'    => \$hostname,
+         );
+
+    unless ( ( defined $mac ) or ( defined $hostname ) ) {
+        print "--mac <mac> or --hostname <hostname> required to set pxewait \n";
+        return 1;
+    }
+
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
+    }
+
+    my $json_hash = {};
+    $json_hash->{verb}       = $verb;
+    $json_hash->{mac}        = $mac if ( defined $mac );
+    $json_hash->{hostname}   = $hostname if ( defined $hostname );
+
+    my $url = "http://$baseurl:$port/$apiver/do";
+    my $message = to_json($json_hash);
+
+    my $req = HTTP::Request->new(PUT => $url);
+    $req->content_type('application/json');
+    $req->content($message);
+
+    my $response = $browser->request( $req );
+
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    my $data = from_json( $response->content );
+
+    print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
+
+    return 0;
+}
+
+=head2 netboot { --mac <macaddr> | --hostname <name> } --storageid <storageid>
+
+After running this command, the pxeboot entry for the host is enabled, and when that host PXE boots again it will use the network storage device target.
+
+Arguments
+
+  --mac <macaddr>          Specify device by mac address
+  --hostname <name>        Specify device by hostname ( if available )
+
+  --storageid <storageid>  Storage ID for bastorage bootable disk entry
+
+=cut
+
+sub netboot 
+{
+    my $verb = "netboot";
+
+    my $mac;
+    my $hostname;
+    my $storageid;
+
+    @ARGV = @_;
+
+    GetOptions
+        (
+         'mac=s'         => \$mac,
+         'hostname=s'    => \$hostname,
+         'storageid=s'   => \$storageid,
+         );
+
+    unless ( ( defined $mac ) or ( defined $hostname ) ) {
+        print "--mac <mac> or --hostname <hostname> required to set netboot\n";
+        return 1;
+    }
+
+    unless ( defined $storageid )  {
+        print "--storageid required to set netboot\n";
+        return 1;
+    }
+
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
+    }
+
+    my $json_hash = {};
+    $json_hash->{verb}       = $verb;
+    $json_hash->{mac}        = $mac if ( defined $mac );
+    $json_hash->{hostname}   = $hostname if ( defined $hostname );
+    $json_hash->{storageid}  = $storageid if ( defined $storageid );
+
+        my $url = "http://$baseurl:$port/$apiver/do";
+    my $message = to_json($json_hash);
+
+    my $req = HTTP::Request->new(PUT => $url);
+    $req->content_type('application/json');
+    $req->content($message);
+
+    my $response = $browser->request( $req );
+
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    my $data = from_json( $response->content );
+
+    print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
 
     return 0;
 
 }
 
-=head2 list [ --filter <name|storage>::<partial*|specific> ] [ --uri ]
+=head2 wipe { --mac <macaddr> | --hostname <name> } [ --autowipe | --noautowipe ]
 
-List the network storage for which Baracus has information.
+At the end of the life cycle for a build client this command is used to erase the harddrives on the host.
 
-Option
+After running this command, the pxeboot entry for the host is enabled, and when that host PXE boots again it will download and run the disk wipe program.
 
-     --uri                    list with uri output
+Arguments
 
-     --filter name::'partial*'   filter results based on wildcard
-     --filter storage::specific  filter for a single match
+  --mac <macaddr>          Specify device by mac address
+  --hostname <name>        Specify device by hostname ( if available )
+
+Options
+
+  --autowipe               Use with EXTREAM caution. Not for network storage.
+
+                           If --autowipe is used on PXE boot
+                           the host will IMMEDIATELY begin to erase
+                           (write 0s and 1s multiple times)
+                           ALL CONNECTED STORAGE MEDIA.
+
+                           *** Including SANS and iSCSI ***
+
+  --noautowipe             If --noautowipe is used on PXE boot the user
+                           is presented a menu to select the devices to
+                           irrecoverably erase. [default --noautowipe]
 
 =cut
 
-sub list
+sub wipe 
 {
-    my $verb = "list";
-    my $filter = "*";
+    my $verb = "wipe";
+
+    my $mac;
+    my $hostname;
+    my $autowipe=0;
 
     @ARGV = @_;
 
-    GetOptions(
-               'filter=s'  => \$filter,
-               );
+    GetOptions
+        (
+         'mac=s'         => \$mac,
+         'hostname=s'    => \$hostname,
+         'autowipe!'     => \$autowipe,
+         );
+
+    unless ( ( defined $mac ) or ( defined $hostname ) ) {
+        print "--mac <mac> or --hostname <hostname> required to set wipe\n";
+        return 1;
+    }
 
     if ( scalar @ARGV ) {
             printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
             &help( $opts, $cmds, $verb );
     }
 
-    my $url = "http://$baseurl:$port/$apiver/storage/$filter";
+    my $json_hash = {};
+    $json_hash->{verb}       = $verb;
+    $json_hash->{mac}        = $mac if ( defined $mac );
+    $json_hash->{hostname}   = $hostname if ( defined $hostname );
+    $json_hash->{autowipe}   = $autowipe if ( defined $autowipe );
 
-    my $req = HTTP::Request->new( 'GET', $url );
-    $req->header( 'Accept' => 'application/json' );
+    my $url = "http://$baseurl:$port/$apiver/do";
+    my $message = to_json($json_hash);
+
+    my $req = HTTP::Request->new(PUT => $url);
+    $req->content_type('application/json');
+    $req->content($message);
 
     my $response = $browser->request( $req );
 
@@ -490,76 +704,7 @@ sub list
 
     my $data = from_json( $response->content );
 
-    unless ($opts->{quiet}) {
-        print "----------------------------------------------------------------------------------------------\n";
-        printf "%-26s %-7s %-18s %-30s\n", "name", "type", "ip", "storage";
-        print "----------------------------------------------------------------------------------------------\n";
-    }
-
-    for my $node ( sort keys %$data ) {
-        printf "%-26s %-7s %-18s %-30s\n",
-               "$data->{$node}->{storageid}", "$data->{$node}->{type}",
-               "$data->{$node}->{storageip}", "$data->{$node}->{storage}";
-    }
-
-    return 0;  
-}
-
-=head2 detail --name <storageid>
-
-Show details for specified network storage device
-
-=cut
-
-sub detail
-{
-    my $verb = "detail";
-    my $storageid;
-
-    @ARGV = @_;
-
-    GetOptions(
-               'name=s' => \$storageid,
-               );
-
-    if ( scalar @ARGV ) {
-        printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        &help( $opts, $verb );
-    }
-
-    unless ( defined $storageid ) {
-        print "--name <name> required\n";
-        return 1;
-    }
-
-    my $url = "http://$baseurl:$port/$apiver/storage/detail/$storageid";
-
-    my $req = HTTP::Request->new( 'GET', $url );
-    $req->header( 'Accept' => 'application/json' );
-
-    my $response = $browser->request( $req );
-    die "Can't get $url -- ", $response->status_line
-      unless $response->is_success;
-
-    die "Hey, I was expecting JSON, not ", $response->content_type
-      unless $response->content_type eq 'application/json';
-
-    my $data = from_json( $response->content );
-
-    printf "%-14s %s\n", "Storage ID",   $data->{storageid};
-    printf "%-14s %s\n", "Storage Type", $data->{type};
-    printf "%-14s %s\n", "Storage IP",   $data->{storageip} ;
-    printf "%-14s %s\n", "Storage",      $data->{storage} ;
-    printf "%-14s %s\n", "Storage URI",  $data->{uri} ;
-    if ( defined $data->{size} and $data->{size} ne "" ) {
-        printf "%-14s %s\n", "Size", $data->{size} ;
-    }
-    if ( defined $data->{description} and $data->{description} ne "" ) {
-        printf "%-14s %s\n", "Description", $data->{description} ;
-    }
-    if ( defined $data->{username} and $data->{username} ne "" ) {
-        printf "%-14s %s\n", "Username", $data->{username} ;
-    }
+    print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
 
     return 0;
 

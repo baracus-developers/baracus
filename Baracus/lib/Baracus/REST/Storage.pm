@@ -76,7 +76,7 @@ sub storage_add() {
     $sref->{storageid}   = request->params->{storageid};
     $sref->{storage}     = request->params->{storage};
     $sref->{type}        = request->params->{type};
-    $sref->{storageip}   = request->params->{storageip}   if ( defined request->params->{storageip} );
+    $sref->{storageip}   = "";
     $sref->{username}    = request->params->{username}    if ( defined request->params->{username} );
     $sref->{passwd}      = request->params->{passwd}      if ( defined request->params->{passwd} );
     $sref->{description} = request->params->{description} if ( defined request->params->{description} );

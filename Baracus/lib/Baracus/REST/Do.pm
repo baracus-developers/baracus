@@ -235,9 +235,6 @@ sub do_build() {
         debug "add post-distro:  $key => $actref->{$key}\n";
     }
 
-    # now that we know what distro we're using verify the profile is cert for it
-    #    return 1 if ( &check_cert( $opts, $actref->{'distro'}, "profile", $actref->{'profile'}) );
-
     my $addons_in;
     # addons may have been specified in profile
     $addons_in = $actref->{'addons'} if ( defined $actref->{addons} );
@@ -673,6 +670,218 @@ sub do_build() {
 
 sub do_image() {
 
+    my $command = "image";
+debug "DEBUG: in start of command=$command \n";
+
+    my $opts = vars->{opts};
+    unless ( $opts ) {
+        status 'error';
+        return "internal 'vars' not properly initialized";
+    } 
+debug "DEBUG: well got here ";
+    my %entry;
+    my $cols = lc get_cols( $baTbls{ action });
+    foreach my $key (split(/[,\s*]/, $cols )) {
+        $entry{$key} = '';
+    }
+debug "DEBUG: well got here 0 ";
+    my $mcast = "";
+    my $disk = "0";
+    my $partition = "0";
+
+    $entry{mac}       = request->params->{mac}       if ( defined request->params->{mac} );
+    $entry{hostname}  = request->params->{hostname}  if ( defined request->params->{hostname} );
+    $entry{storageid} = request->params->{storageid} if ( defined request->params->{storageid} ); 
+    $entry{mcastid}   = request->params->{mcastid}   if ( defined request->params->{mcastid} );
+    $entry{hardware}  = request->params->{hardware}  if ( defined request->params->{hardware} );
+    $entry{disk}      = request->params->{disk}      if ( defined request->params->{disk} );
+    $entry{partition} = request->params->{partition} if ( defined request->params->{partition} );
+
+    my %returnHash;
+
+    my $chkref;
+    my $macref;
+    my $hostref;
+    my $actref;
+    my $sref;
+
+    if ( $entry{mcastid} ne "" and $entry{storageid} ne "" ) {
+        status '406';
+        error "Either --storageid or --mcastid, not both";
+        return { code => "40", error => "Either --storageid or --mcastid, not both" };
+    } elsif ( $entry{mcastid} ne "" ) {
+        ;
+        # need to write mcastid checker
+        # &check_mcastid( $entry{mcastid} );
+    } elsif ( $entry{storageid} ne "" ) {
+        # get and check for image based on id
+        $sref = &get_db_data( $opts, 'storage', $entry{storageid} );
+        unless ( defined $sref ) {
+            status '406';
+            error "storageid does not exist: $entry{storageid}";
+            return { code => "40", error => "storageid does not exist: $entry{storageid}" };
+        }
+        if ( $sref->{type} != BA_STORAGE_IMAGE ) {
+            status '406';
+            error "Storage specified has non-image type: $baStorageType{ $sref->{type} }";
+            return { code => "40", error => "Storage specified has non-image type: $baStorageType{ $sref->{type} } " };
+        }
+        unless ( -f "$baDir{images}/$sref->{storage}" ) {
+            status '406';
+            error "Unable to find specified image:  $baDir{images}/$sref->{storage}";
+            return { code => "40", error => "Unable to find specified image:  $baDir{images}/$sref->{storage} " };
+        }
+    } else {
+        status '406';
+        error "Neither --storageid nor --mcastid provided";
+        return { code => "40", error => "Neither --storageid nor --mcastid provided" };
+    }
+debug "DEBUG: well got here 1 ";
+    if ( &check_host_action ( $opts, \%entry, $chkref, $actref )) {
+        status '406';
+        error "check_host_action failed";
+        return { code => "40", error => "check_host_action failed" };
+    }
+
+    # hardware file may be in profile *and* on command line
+    # command line wins over profile entry
+    $actref->{'hardware'} = $entry{hardware} if ($entry{hardware});
+
+    unless ($actref->{'hardware'}) {
+        status '406';
+        error "Need hardware specified";
+        return { code => "40", error => "Need hardware specified" };
+    }
+
+    # breakout possible compound ver:name with call get back ( name, ver/undef )
+    ( $actref->{hardware}, $actref->{hardware_ver} ) =
+        &get_name_version( $actref->{hardware} );
+    debug "hardware $actref->{hardware}\n";
+    debug "hardware version $actref->{hardware_ver}\n" if ( defined $actref->{hardware_ver} );
+
+
+    if ( &load_hardware( $opts, $actref ) ) {
+        status '406';
+        error "load_hardware failed";
+        return { code => "40", error => "load_hardware failed" };
+    }
+
+    foreach my $key ( sort ( keys %{$actref} )) {
+        debug "add post-hardware:  $key => $actref->{$key}\n";
+    }
+
+    unless ( $disk =~ /^\d+$/ ) {
+        status '406';
+        error "disk needs to be an integer";
+        return { code => "40", error => "disk needs to be an integer" };
+    }
+
+    unless ( $partition =~ /\d+$/ ) {
+        status '406';
+        error "partition needs to be an integer";
+        return { code => "40", error => "partition needs to be an integer" };
+    }
+
+    $actref->{disk} = $disk;
+    $actref->{partition} = $partition;
+    $actref->{storageid} = "";  # wipe the storageid info
+
+    # do not want any setting to override these values
+
+   # $actref->{'cmdline'} = $cmdline;
+    $actref->{'cmdline'} = "wham";
+    $actref->{'hostname'} = $entry{hostname} if (defined $entry{hostname} and $entry{hostname}  ne "");
+    $actref->{'ip'} = $entry{ip};
+    $actref->{'mac'} = $entry{mac};
+    $actref->{'uuid'} = &get_uuid;
+    $actref->{'storageid'} = $entry{storageid} if ( defined $entry{storageid} );
+    $actref->{'mcastid'} = $entry{mcastid} if ( defined $entry{mcastid} );
+
+    debug "settings to use:\n";
+    foreach my $key ( sort keys %{$actref} ) {
+        debug "actref:  $key => %s\n",
+            defined $actref->{$key} ? $actref->{$key} : "";
+    }
+
+    $macref = &check_add_db_mac( $opts, $macref, $actref->{mac} );
+
+    $hostref = &get_db_data_by( $opts, 'host', $actref->{mac}, 'mac' );
+    unless ( defined $hostref ) {
+        &add_db_data( $opts, 'host', $actref );
+    }
+
+    # reset action_module join table list
+    # now that modules have been checked and loaded
+    # create the action_module entries and store ver
+
+    my $action = $entry{mcastid} ? BA_ACTION_MCAST : BA_ACTION_IMAGE ;
+
+    &action_state_change( $opts, $action, $actref );
+
+    &update_db_mac_state ( $opts, $actref->{mac}, $action );
+
+    # find existing action relation and update it or create if not found
+    # avoid overwrite of the carefully constructed $actref hash
+    my $tmpref = get_db_data( $opts, 'action', $actref->{mac} );
+    if ( defined $tmpref ) {
+        # here's a rather involved check
+        # to make sure we're not updating a dup
+        my $gotdiff = 0;
+        while ( my ($key, $val) = each %{$tmpref} ) {
+            next if $key eq "uuid"; # changes every invocation
+            next if $key eq "creation";
+            next if $key eq "change";
+            next if $key eq "cmdline"; # order diff and -d -v -q don't matter
+
+            ## If a key was specified on the command line, we have to see if 
+            ## that same key is already defined, if it is, and they don't match, we
+            ## have to update the DB.  If one of the keys exists and the other one
+            ## doesn't, we consider them not equal and have to update the DB.  If 
+            ## both keys do not exist, we just skip to the next key.
+            if ( defined $actref->{$key} ) {
+                if ( !defined $val or
+                     (defined $val and $actref->{$key} ne $val) ) {
+                    if ( defined $val) {
+                        debug "cmp $key \n\tin actref '$actref->{$key}' \n\twith val '$val'\n";
+                    } else {
+                        debug "cmp $key \n\tin actref '$actref->{$key}' \n\twith val <undefined> '\n";
+                    }
+                    $gotdiff = 1;
+                    last;
+                }
+
+            } elsif ( defined $val ) {
+                debug "cmp $key \n\tin actref <undefined> \n\twith val '$val'\n" if ($opts->{debug});
+                $gotdiff = 1;
+                last;
+            } else {
+                    next;
+            }
+        }
+        if ( $gotdiff != 0 ) {
+            &update_db_data( $opts, 'action', $actref);
+        }
+    } else {
+        &add_db_data( $opts, 'action', $actref);
+    }
+
+    debug "Image assigned. Next pxeboot of $entry{mac} will start image install cycle.";
+
+    $returnHash{mac} = $entry{mac};
+    $returnHash{hostname} = $entry{hostname};
+    $returnHash{action} = $command;
+    $returnHash{result}   = '0';
+
+    if ( ( request->{accept} eq 'text/xml' )
+      or ( request->{accept} eq 'application/json' )
+      or ( request->{accept} =~ m|text/html| ) ) {
+        return \%returnHash;
+    } else {
+        status '406';
+        error "generic return error";
+        return { code => "40", error => "generic return error" };
+    }
+
 }
 
 sub do_clone() {
@@ -697,10 +906,213 @@ sub do_localboot() {
 
 sub do_netboot() {
 
+    my $command = "netboot";
+debug "DEBUG: in start of command=$command \n";
+
+    my $opts = vars->{opts};
+    unless ( $opts ) {
+        status 'error';
+        return "internal 'vars' not properly initialized";
+    }
+
+    my $mac="";
+    my $hostname="";
+    my $storageid  = "";
+
+    $mac       = request->params->{mac}        if ( defined request->params->{mac} );
+    $hostname  = request->params->{hostname}   if ( defined request->params->{hostname} );
+    $storageid = request->params->{storageid}  if ( defined request->params->{storageid} );
+
+    my %returnHash;
+    my $chkref;
+    my $macref;
+    my $actref;
+
+    $mac = &get_mac_by_hostname( $opts, 'host', $hostname );
+    unless ( defined $mac ) {
+        status '406';
+        error "error mac undefined";
+        return { code => "40", error => "error mac undefined" };
+    }
+
+    if ( $storageid eq "" ) {
+        status '406';
+        error "storageid needed for netboot";
+        return { code => "40", error => "storageid needed for netboot" };
+    }
+
+    $macref = &check_add_db_mac( $opts, $macref, $mac );
+
+    while ( my ($key, $val) = each( %$macref ) ) {
+        debug "macref:  $key => %s\n", defined ${val} ? ${val} : "";
+    }
+
+    $chkref = &get_db_data( $opts, 'action', $mac );
+    if ( defined $chkref ) {
+        while ( my ($key, $val) = each( %$chkref ) ) {
+            debug "actref:  $key => %s\n", defined ${val} ? ${val} : "";
+        }
+
+        if ( ( $chkref->{pxenext} eq BA_ACTION_NETBOOT ) and
+             ( $chkref->{storageid} eq $storageid )
+            ) {
+            status '406';
+            error "device in NETBOOT state using $chkref->{storageid}";
+            return { code => "40", error => "device in NETBOOT state using $chkref->{storageid}" };
+        }
+
+        # store a copy of the ref found for modification
+        $actref = $chkref;
+    }
+
+    #$actref->{cmdline} = $cmdline;
+    $actref->{cmdline} = "yikes";
+    $actref->{mac}     = $mac;
+    $actref->{storageid} = $storageid;
+
+    if ( &load_storage( $opts, $actref ) ) {
+        status '406';
+        error "loading storageid $storageid failed";
+        return { code => "40", error => "loading storageid $storageid failed" };
+    }
+
+    ##
+    ## ALL CHECKS DONE - DO MODS
+
+    # if passed both mac and hostname create a host table entry
+    if ( $hostname ne "" ) {
+        $actref->{hostname} = $hostname;
+        unless ( &get_db_data( $opts, 'host', $hostname ) ) {
+            &add_db_data( $opts, 'host', $actref );
+        }
+    }
+
+    &action_state_change( $opts, BA_ACTION_NETBOOT, $actref );
+
+    &update_db_mac_state( $opts, $mac, BA_ACTION_NETBOOT );
+
+    # for proper command history update we update
+    if ( defined $chkref ) {
+        &update_db_data( $opts, 'action', $actref );
+    } else {
+        &add_db_data( $opts, 'action', $actref );
+    }
+
+    debug "Netboot set -nNext pxeboot of %s will use remote storageid $mac";
+
+    my %returnHash;
+
+    $returnHash{mac} = $mac;
+    $returnHash{hostname} = $hostname;
+    $returnHash{action} = $command;
+    $returnHash{result}   = '0';
+
+    if ( ( request->{accept} eq 'text/xml' )
+      or ( request->{accept} eq 'application/json' )
+      or ( request->{accept} =~ m|text/html| ) ) {
+        return \%returnHash;
+    } else {
+        status '406';
+        error "generic return error";
+        return { code => "40", error => "generic return error" };
+    }
+
 }
 
 sub do_pxewait() {
 
+    my $command = "pxewait";
+debug "DEBUG: in start of command=$command \n";
+
+    my $opts = vars->{opts};
+    unless ( $opts ) {
+        status 'error';
+        return "internal 'vars' not properly initialized";
+    }
+
+    my $mac="";
+    my $hostname="";
+
+    $mac      = request->params->{mac}       if ( defined request->params->{mac} );
+    $hostname = request->params->{hostname}  if ( defined request->params->{hostname} );
+
+    my %returnHash;
+
+    my $macref;
+    my $actref;
+    my $chkref;
+
+    $mac = &get_mac_by_hostname( $opts, 'host', $hostname );
+    unless ( defined $mac ) {
+        status '406';
+        error "generic return error";
+        return { code => "40", error => "generic return error" };
+    }
+
+    $macref = &check_add_db_mac( $opts, $macref, $mac );
+
+    while ( my ($key, $val) = each %{$macref} ) {
+        debug "macref:  $key => %s\n", defined ${val} ? ${val} : "";
+    }
+
+    $chkref = &get_db_data( $opts, 'action', $mac );
+    if ( defined $chkref ) {
+        while ( my ($key, $val) = each %{$chkref} ) {
+            debug "actref:  $key => %s\n", defined ${val} ? ${val} : "";
+        }
+        # store a copy of the ref found for modification
+        $actref = $chkref;
+    }
+
+    if ( defined $chkref and $chkref->{pxenext} eq BA_ACTION_PXEWAIT ) {
+        status '406';
+        error "device already set to $command";
+        return { code => "40", error => "device already set to $command." };
+    }
+
+    ##
+    ## ALL CHECKS DONE - DO MODS
+
+#    $actref->{cmdline} = $cmdline;
+    $actref->{cmdline} = "zoinks";
+    $actref->{mac} = $mac;
+
+    # if passed both mac and hostname create a host table entry
+    if ( $hostname ne "" ) {
+        $actref->{hostname} = $hostname;
+        unless ( &get_db_data( $opts, 'host', $hostname ) ) {
+            &add_db_data( $opts, 'host', $actref );
+        }
+    }
+
+    &action_state_change( $opts, BA_ACTION_PXEWAIT, $actref );
+
+    &update_db_mac_state( $opts, $mac, BA_ACTION_PXEWAIT );
+
+    # for proper command history update we update
+    if ( defined $chkref ) {
+        &update_db_data( $opts, 'action', $actref );
+    } else {
+        &add_db_data( $opts, 'action', $actref );
+    }
+
+    debug "Inventory set\nNext pxeboot of %s will pxewait.\n",
+        $hostname ne "" ? $hostname : $mac;
+
+    $returnHash{mac} = $mac;
+    $returnHash{hostname} = $hostname;
+    $returnHash{action} = $command;
+    $returnHash{result}   = '0';
+
+    if ( ( request->{accept} eq 'text/xml' )
+      or ( request->{accept} eq 'application/json' )
+      or ( request->{accept} =~ m|text/html| ) ) {
+        return \%returnHash;
+    } else {
+        status '406';
+        error "generic return error";
+        return { code => "40", error => "generic return error" };
+    }
 }
 
 sub do_norescue() {
@@ -712,6 +1124,106 @@ sub do_rescue() {
 }
 
 sub do_wipe() {
+
+    my $command = "wipe";
+debug "DEBUG: in start of command=$command \n";
+
+    my $opts = vars->{opts};
+    unless ( $opts ) {
+        status 'error';
+        return "internal 'vars' not properly initialized";
+    }
+
+    my $mac="";
+    my $hostname="";
+    my $autowipe = 0;
+
+    $mac      = request->params->{mac}       if ( defined request->params->{mac} );
+    $hostname = request->params->{hostname}  if ( defined request->params->{hostname} );
+    $autowipe = request->params->{autowipe}  if ( defined request->params->{autowipe} );
+
+    my %returnHash;
+    my $macref;
+    my $actref;
+    my $chkref;
+
+    $mac = &get_mac_by_hostname( $opts, 'host', $hostname );
+    unless ( defined $mac ) {
+        status '406';
+        error "mac undefined";
+        return { code => "40", error => "mac undefined" };
+    }
+
+    $macref = &check_add_db_mac( $opts, $macref, $mac );
+
+    while ( my ($key, $val) = each %{$macref} ) {
+        debug "macref:  $key => %s\n", defined ${val} ? ${val} : "";
+    }
+
+    $chkref = &get_db_data( $opts, 'action', $mac );
+    if ( defined $chkref ) {
+        while ( my ($key, $val) = each %{$chkref} ) {
+            debug "actref:  $key => %s\n", defined ${val} ? ${val} : "";
+        }
+        # store a copy of the ref found for modification
+        $actref = $chkref;
+    }
+
+    my $autostring = $autowipe ? "auto" : "";
+
+    if ( defined $chkref and
+         (defined $chkref->{autonuke} and $chkref->{autonuke} eq $autowipe ) and
+         (defined $chkref->{pxenext}  and $chkref->{pxenext}  eq BA_ACTION_DISKWIPE ) ) {
+        status '406';
+        error "device already set to wipe disk";
+        return { code => "40", error => "device already set to wipe disk" };
+    }
+
+    ##
+    ## ALL CHECKS DONE - DO MODS
+
+    $actref->{autonuke} = $autowipe;
+
+    #$actref->{cmdline} = $cmdline;
+    $actref->{cmdline} = "doh";
+    $actref->{mac} = $mac;
+    $actref->{storageid} = "";  # wipe the storageid info
+
+    # if passed both mac and hostname create a host table entry
+    if ( $hostname ne "" ) {
+        $actref->{hostname} = $hostname;
+        unless ( &get_db_data( $opts, 'host', $hostname ) ) {
+            &add_db_data( $opts, 'host', $actref );
+        }
+    }
+
+    &action_state_change( $opts, BA_ACTION_DISKWIPE, $actref );
+
+    &update_db_mac_state( $opts, $mac, BA_ACTION_DISKWIPE );
+
+    # for proper command history update we update
+    if ( defined $chkref ) {
+        &update_db_data( $opts, 'action', $actref );
+    } else {
+        &add_db_data( $opts, 'action', $actref );
+    }
+
+    debug "Wipe set.\nNext pxeboot the hardrive will be wiped.\n";
+
+    $returnHash{mac} = $mac;
+    $returnHash{hostname} = $hostname;
+    $returnHash{action} = $command;
+    $returnHash{result}   = '0';
+
+    if ( ( request->{accept} eq 'text/xml' )
+      or ( request->{accept} eq 'application/json' )
+      or ( request->{accept} =~ m|text/html| ) ) {
+        return \%returnHash;
+    } else {
+        status '406';
+        error "generic return error";
+        return { code => "40", error => "generic return error" };
+    }
 
 }
 
