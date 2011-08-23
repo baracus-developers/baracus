@@ -28,6 +28,9 @@ use 5.006;
 use strict;
 use warnings;
 
+use Dancer qw( :syntax );
+use Dancer::Plugin::Database;
+
 use Baracus::Sql   qw( :subs :vars );
 use Baracus::State qw( :vars );
 use Baracus::Core  qw( :subs );
@@ -56,11 +59,11 @@ BEGIN {
         (
          subs   =>
          [qw(
-                bamstart
-                bamstop
                 get_free_mcast_port
                 start_mchannel
                 stop_mchannel
+                bamstart
+                bamstop
             )],
          );
     Exporter::export_ok_tags('subs');
@@ -71,55 +74,6 @@ our $VERSION = '0.01';
 my $tbl = 'mcast';
 
 # Subs
-
-#
-# bamstart ( $opts, $tbl, $idx )
-#
-
-sub bamstart
-{
-    my $opts = shift;
-    my $tbl  = shift;
-    my $idx  = shift;
-
-    my $sth = &list_start_data ( $opts, $tbl, $idx );
-    while ( my $dbref = &list_next_data( $sth ) ) {
-        if ( $dbref->{status} ) {
-            ## start the mchannel
-            if ( $opts->{verbose} ) {
-                print "Starting mchannel id: $dbref->{mcastid} \n";
-            }
-            my $mcastref = &get_db_data( $opts, $tbl, $dbref->{mcastid} );
-            $mcastref->{pid} = &start_mchannel( $opts, $dbref->{mcastid} );
-            &update_db_data( $opts, $tbl, $mcastref);
-        }
-    }
-    &list_finish_data( $sth );
-    return 0;
-}
-
-sub bamstop
-{
-    my $opts = shift;
-    my $tbl  = shift;
-    my $idx  = shift;
-
-    my $sth = &list_start_data ( $opts, $tbl, "" );
-    while ( my $dbref = &list_next_data( $sth ) ) {
-        if ( $dbref->{status} ) {
-            ## start the mchannel
-            if ( $opts->{verbose} ) {
-                print "Stopping mchannel id: $dbref->{mcastid} \n";
-            }
-            my $ret = &stop_mchannel( $opts, $dbref->{mcastid} );
-            if ( $ret == 1 ) {
-                $opts->{LASTERROR} = "error stopping $dbref->{mcastid}\n";
-                return 1;
-             }
-        }
-    }
-    return 0;
-}
 
 #
 # get_free_mcast_port ( $opts, 
@@ -179,7 +133,7 @@ sub start_mchannel
         warn "resource not available \n";
     } elsif ( $pid == 0 ) {
         open STDERR, '>', '/dev/null' or die "Cannot open STDERR\n";
-        exec("$udpsender", "--file=$baDir{images}/$imgref->{storage}", "--min-receivers=$mcastref->{mrecv}", "--full-duplex",
+        exec("sudo", "$udpsender", "--file=$baDir{images}/$imgref->{storage}", "--min-receivers=$mcastref->{mrecv}", "--full-duplex",
                            "--mcast-data-address=$mcastref->{dataip}", "--mcast-rdv-address=$mcastref->{rdvip}",
                            "--interface=$mcastref->{interface}", "--portbase=$mcastref->{port}",
                            "--max-bitrate=$mcastref->{ratemx}", "--daemon", "--nokbd");
@@ -205,13 +159,49 @@ sub stop_mchannel
 
     my $mcastref = &get_db_data( $opts, $tbl, $mcastid ); 
     if ( defined $mcastref->{pid} ) {
-        my $ret = `kill $mcastref->{pid}`;
+        my $ret = `sudo kill $mcastref->{pid}`;
     } else {
-        print "error stopping mcast channel id: $mcastid\n";
-        return 1;
+        status '406';
+        error "error stopping mcast channel id: $mcastid";
+        return { code => "6", error => "error stopping mcast channel id: $mcastid" };
     }
 
     return 0;
+}
+
+sub bamstart
+{
+    my $opts = shift;
+
+    my $sth = &list_start_data ( $opts, 'mcast', "*" );
+    while ( my $dbref = &list_next_data( $sth ) ) {
+        if ( $dbref->{status} ) {
+            ## start the mchannel
+            debug "Starting mchannel id: $dbref->{mcastid} \n";
+            my $mcastref = &get_db_data( $opts, 'mcast', $dbref->{mcastid} );
+            $mcastref->{pid} = &start_mchannel( $opts, $dbref->{mcastid} );
+            &update_db_data( $opts, 'mcast', $mcastref);
+        }
+    }
+}
+
+sub bamstop
+{
+    my $opts = shift;
+
+    my $sth = &list_start_data ( $opts, 'mcast', "*" );
+    while ( my $dbref = &list_next_data( $sth ) ) {
+        if ( $dbref->{status} ) {
+            ## start the mchannel
+            debug "Stopping mchannel id: $dbref->{mcastid} \n";
+            my $ret = &stop_mchannel( $opts, $dbref->{mcastid} );
+            if ( $ret == 1 ) {
+                status '406';
+                error "error stopping $dbref->{mcastid}";
+                return { code => "6", error => "error stopping $dbref->{mcastid}" };
+             }
+        }
+    }
 }
 
 1;

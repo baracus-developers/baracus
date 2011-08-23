@@ -29,16 +29,16 @@ use warnings;
 
 use Getopt::Long qw( :config pass_through );
 use Pod::Usage;
+use LWP;
+use HTTP::Cookies;
+use Term::ReadKey;
 
-use lib "/usr/share/baracus/perl";
+use lib "/home/cruejones/git/baracus/Baracus/lib";
 
-use BaracusDB;
-use BaracusCore   qw( :subs  );
-use BaracusConfig qw( :vars :subs );
-use BaracusAux    qw( :subs  );
-use BaracusMcast  qw( :subs );
-use BaracusStorage qw( :vars );
-
+use Dancer qw( :syntax);
+use Baracus::Core   qw( :subs  );
+use Baracus::Config qw( :vars :subs );
+use Baracus::Aux    qw( :subs  );
 
 =pod
 
@@ -60,6 +60,9 @@ Where E<lt>commandE<gt> is
     enable    Enable multicast channel
     disable   Disables multicast channel
 
+    init      Starts all enabled channels
+    destroy   Destroys all running channels
+
     help      This 'Usage' summary message.
     man       Detailed man page.
 
@@ -79,10 +82,9 @@ This tool registeres and maintains Baracus multicast channels for use in multica
 
 =cut
 
+my $apiver = "api/v1";
 my $man      = 0;
 my $help     = 0;
-my $tbl      = "mcast";
-
 
 my $cmds = {
             'add'           => \&add,
@@ -109,7 +111,6 @@ my $opts = {
 # Build command line for help, historical reference and point-in-time rebuilding
 $opts->{execname} = $0;
 $opts->{execname} = $1 if ( $0 =~ m|^.*/([^/].+)| );
-my $cmdline = join '::', $opts->{execname}, @ARGV;
 
 GetOptions(
            'verbose'   => \$opts->{verbose},
@@ -125,23 +126,61 @@ GetOptions(
 if ($ARGV[0] eq "man"  ) { &man(); }
 if ($ARGV[0] eq "help" ) { shift @ARGV; &help( $opts, $cmds, @ARGV ); }
 
-my $dbname = "baracus";
-my $dbrole = $dbname;
+## Setup base URL and PORT
+my $port = undef;
+if ( $baVar{port} ) {
+    $port = $baVar{port};
+} else {
+    $port = "80";
+}
 
-print "setting uid to $dbrole\n" if ($opts->{debug} > 2);
+my $baseurl = undef;
+if ( $baVar{url} ) {
+    $baseurl = $baVar{url};
+} elsif ( $baVar{serverip} ) {
+    $baseurl = $baVar{serverip};
+} else {
+    print "Edit /etc/sysconfig/baracus to include a ServerIP or URL\n";
+    exit 1;
+}
 
-my $uid = BaracusDB::su_user( $dbrole );
-die BaracusDB::errstr unless ( defined $uid );
+print "Using: $baseurl \n" if ($opts->{debug});
+print "Using: $port\n" if ($opts->{debug});
 
-my $dbh = BaracusDB::connect_db( $dbname, $dbrole );
-die BaracusDB::errstr unless( $dbh );
+# Setup LWP
+my $browser = LWP::UserAgent->new( );
+$browser->cookie_jar( {} );
+$browser->agent('baracus');
+$browser->default_header('Accept' => 'application/json');
+
+## Authenticate request
+my $username = "";
+my $password = "";
+if ( -f "$ENV{HOME}/.barc") {
+    print "We have a file\n" if ($opts->{debug});
+    open(FILE, "<$ENV{HOME}/.barc");
+    while (<FILE>) {
+        if (/username/) { chomp ( $username = (split /=/, $_)[1] ); }
+        if (/password/) { chomp ( $password = (split /=/, $_)[1] ); }
+    }
+} else {
+    print "enter username: ";
+    chomp($username = ReadLine 0);
+
+    print "enter password: ";
+    ReadMode 'noecho';
+    chomp($password = ReadLine 0);
+    ReadMode 'normal';
+    print "\n";
+}
+my $login_url = "http://$baseurl:$port/login?username=$username&password=$password";
+my $login_response = $browser->post( $login_url );
 
 my $status = &main( $opts, $cmds, @ARGV );
 
-die BaracusDB::errstr unless BaracusDB::disconnect_db( $dbh );
-
-print $opts->{LASTERROR} if $status;
-
+my $logout_url = "http://$baseurl:$port/logout";
+my $logout_response = $browser->get( $logout_url );
+print $logout_response->content;
 exit $status;
 
 die "DOES NOT EXECUTE";
@@ -170,25 +209,30 @@ Where
 
 sub add
 {
-    my $command = "add";
+    my $verb = "add";
 
     unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
+        &help( $opts, $cmds, $verb );
     }
-
-    my $mcastref;
-    my $imgref;
 
     @ARGV = @_;
 
+    my $mcastid   = "";
+    my $storageid = "";
+    my $dataip    = "";
+    my $rdvip     = "";
+    my $interface = "";
+    my $ratemx    = "";
+    my $mrecv     = "";
+
     GetOptions(
-               'name=s'        => \$mcastref->{'mcastid'},
-               'storageid=s'   => \$mcastref->{'storageid'},
-               'dataip=s'      => \$mcastref->{'dataip'},
-               'rdvip=s'       => \$mcastref->{'rdvip'},
-               'interface=s'   => \$mcastref->{'interface'},
-               'ratemx=s'      => \$mcastref->{'ratemx'},
-               'mrecv=s'       => \$mcastref->{'mrecv'},
+               'name=s'        => \$mcastid,
+               'storageid=s'   => \$storageid,
+               'dataip=s'      => \$dataip,
+               'rdvip=s'       => \$rdvip,
+               'interface=s'   => \$interface,
+               'ratemx=s'      => \$ratemx,
+               'mrecv=s'       => \$mrecv,
               );
 
     if ( scalar @ARGV ) {
@@ -196,65 +240,40 @@ sub add
         return 1;
     }
 
-    ## Verify Mandatory parameters
-    ##
-    for my $key ( keys %$mcastref ) {
-        if ( $mcastref->{$key} eq "" ) {
-            $opts->{LASTERROR} = "Missing  --$key\n";
-            return 1;
+    my $json_hash = {};
+    $json_hash->{mcastid} = $mcastid;
+    $json_hash->{storageid} = $storageid;
+    $json_hash->{dataip} = $dataip;
+    $json_hash->{rdvip} = $rdvip;
+    $json_hash->{interface} = $interface;
+    $json_hash->{ratemx} = $ratemx;
+    $json_hash->{mrecv} = $mrecv;
+
+    my $url = "http://$baseurl:$port/$apiver/mcast";
+    my $message = to_json($json_hash);
+
+    my $req = HTTP::Request->new( 'POST', $url );
+    $req->content_type('application/json');
+    $req->content($message);
+
+    my $response = $browser->request( $req );
+
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    unless ( $response->is_success ) {
+        if ( $response->status_line =~ m|406 Not Acceptable| ) {
+            die $response->content;
+        } else {
+            die "Can't get $url -- ", $response->status_line;
         }
     }
 
-    my $chkref = &get_db_data( $dbh, $tbl, $mcastref->{mcastid} );
-    if ( defined $chkref ) {
-        $opts->{LASTERROR} = "$mcastref->{mcastid} already exists\n";
-        return 1;
-    }
-    
-    &check_ip( $mcastref->{dataip} );  # exits on error
-    &check_ip( $mcastref->{rdvip} ); # exits on error
+    my $data = from_json( $response->content );
+    print "( $data->{mcastid} ) :  $data->{action} $data->{result} \n";
 
-    # check for pre-exsisting id
-    $imgref = &get_db_data( $dbh, 'storage', $mcastref->{storageid} );
-    unless ( defined $imgref ) {
-        $opts->{LASTERROR} = "$mcastref->{storageid} does not exist\n";
-        return 1;
-    }
-    if ( $imgref->{type} != BA_STORAGE_IMAGE ) {
-        $opts->{LASTERROR} = "$mcastref->{storageid} not of type image\n";
-        return 1;
-    }
+    return 0
 
-    # test if image exists 
-    unless ( -e "$baDir{images}/$imgref->{storage}" ) {
-        $opts->{LASTERROR} = "image: $imgref->{target} does not exist in image directory\n";
-        return 1;
-    }
-
-    # Get next available port
-    $mcastref->{port} = &get_free_mcast_port( $opts, $dbh );
-
-    # done with all checking
-    # begin loading of hash used for remainder of processing command
-
-    # set status to enabled
-    &add_db_data( $dbh, $tbl, $mcastref );
-    my $pid = &start_mchannel( $dbh, $mcastref->{mcastid} );
-    if ( $pid == 1 ) { 
-        $mcastref->{status} = 0;
-        $mcastref->{pid} = "0";
-    } else {
-        $mcastref->{status} = 1;
-        $mcastref->{pid} = $pid;
-    }
-    &update_db_data( $dbh, $tbl, $mcastref );
-
-    if ( $opts->{verbose} )
-    {
-        printf "mcast: $mcastref->{targetid} added\n";
-    }
-
-    return 0;
 }
 
 =head2 remove --name <name>
@@ -265,18 +284,14 @@ Removes the multicast channel associated with specified mcastid.
 
 sub remove
 {
-    my $command = "remove";
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
+    my $verb = "remove";
     my $mcastid="";
 
-    my $chkref;
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $verb );
+    }
 
     @ARGV = @_;
-
     GetOptions(
                'name=s' => \$mcastid,
                );
@@ -286,124 +301,28 @@ sub remove
         return 1;
     }
 
-    $chkref = &get_db_data( $dbh, $tbl, $mcastid );
-    if ( defined $chkref ) {
-       if ( &stop_mchannel( $dbh, $mcastid ) == 0 ) {
-            &remove_db_data( $dbh, $tbl, $mcastid );
-       } else {
-           $opts->{LASTERROR} = print "unable to remove mchannel, error stopping $mcastid\n";
-           return 1;     
-       }
-    } else {
-        $opts->{LASTERROR} = print "mcastid: $mcastid no registered\n";
-        return 1;
+    my $url = "http://$baseurl:$port/$apiver/mcast/$mcastid";
+
+    my $req = HTTP::Request->new( 'DELETE', $url );
+    $req->content_type('application/json');
+
+    my $response = $browser->request( $req );
+
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    unless ( $response->is_success ) {
+        if ( $response->status_line =~ m|406 Not Acceptable| ) {
+            die $response->content;
+        } else {
+            die "Can't get $url -- ", $response->status_line;
+        }
     }
+
+    my $data = from_json( $response->content );
+    print "( $data->{mcastid} )  :  $data->{action} $data->{result} \n";
 
     return 0;
-}
-
-=head2 enable --name <name>
-
-Enable the multicast channel associated with specified mcastid.
-
-=cut
-
-sub enable
-{
-    my $command = "enable";
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $mcastid="";
-    my $chkref;
-
-    @ARGV = @_;
-
-    GetOptions(
-               'name=s' => \$mcastid,
-               );
-
-    if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
-    }
-
-    my $mcastref = &get_db_data( $dbh, $tbl, $mcastid );
-    if ( defined $mcastref ) {
-        if ( $mcastref->{status} == 0 ) {
-            ## start channel
-            my $pid = &start_mchannel( $dbh, $mcastid );
-            if ( $pid != 1 ) {
-                $mcastref->{status} = 1;
-                $mcastref->{pid} = $pid;
-                &update_db_data( $dbh, $tbl, $mcastref);
-            } else {
-                print "status not updated \n";
-            }
-        } elsif (  $mcastref->{status} == 0 ) {
-            $opts->{LASTERROR} = print "mcastid: $mcastid already enabled\n";
-            return 1;
-        } else {
-            # something is screwed up with status
-            $opts->{LASTERROR} = print "mcastid: $mcastid status error\n";
-            return 1;
-        }
-     } else {
-        $opts->{LASTERROR} = print "mcastid: $mcastid no registered\n";
-        return 1;
-    }
-
-}
-
-=head2 disable --name <name>
-
-Enable the multicast channel associated with specified mcastid.
-
-=cut
-sub disable
-{
-    my $command = "disable";
-
-    unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
-    }
-
-    my $mcastid="";
-    my $chkref;
-
-    @ARGV = @_;
-
-    GetOptions(
-               'name=s' => \$mcastid,
-               );
-
-    if ( scalar @ARGV ) {
-        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
-        return 1;
-    }
-
-    my $mcastref = &get_db_data( $dbh, $tbl, $mcastid );
-    if ( defined $mcastref ) {
-        if ( $mcastref->{status} == 1 ) {
-            if ( &stop_mchannel( $dbh, $mcastid ) == 0 ) {
-                $mcastref->{status} = 0;
-                $mcastref->{pid} = "0";
-                &update_db_data( $dbh, $tbl, $mcastref);
-            }
-        } elsif ( $mcastref->{status} == 0 ) {
-            $opts->{LASTERROR} = print "mcastid: $mcastid already disabled\n";
-            return 1;
-        } else {
-            # something is screwed up with status
-            $opts->{LASTERROR} = print "mcastid: $mcastid status error\n";
-            return 1;
-        }
-     } else {
-        $opts->{LASTERROR} = print "mcastid: $mcastid no registered\n";
-        return 1;
-    }
 
 }
 
@@ -420,9 +339,9 @@ Option
 
 sub list
 {
-    my $command = "list";
+    my $verb = "list";
 
-    my $filter = "";
+    my $filter = "*";
     my %mcastStatus = (
                         0   => 'disabled',
                         1   => 'enabled',
@@ -439,12 +358,25 @@ sub list
         return 1;
     }
 
-    my $sth = &list_start_data ( $opts, $dbh, $tbl, $filter );
+    my $url = "http://$baseurl:$port/$apiver/mcast/$filter";
 
-    unless( defined $sth ) {
-        # list_start error
-        return 1;
+    my $req = HTTP::Request->new( 'GET', $url );
+    $req->header( 'Accept' => 'application/json' );
+
+    my $response = $browser->request( $req );
+
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    unless ( $response->is_success ) {
+        if ( $response->status_line =~ m|406 Not Acceptable| ) {
+            die $response->content;
+        } else {
+            die "Can't get $url -- ", $response->status_line;
+        }
     }
+
+    my $data = from_json( $response->content );
 
     unless ($opts->{quiet}) {
         print "----------------------------------------------------------------------\n";
@@ -452,10 +384,8 @@ sub list
         print "----------------------------------------------------------------------\n";
     }
 
-    my $dbref;
-    while ( $dbref = &list_next_data( $sth ) ) {
-        printf "%-26s %-26s %-8s\n",
-            $dbref->{mcastid}, $dbref->{storageid}, $mcastStatus{ $dbref->{status} };
+    for my $node ( sort keys %$data ) {
+        printf "%-26s %-26s %-8s \n", "$data->{$node}->{mcastid}", "$data->{$node}->{storageid}", "$data->{$node}->{status}";
     }
 
     return 0;
@@ -469,17 +399,82 @@ Show details for specified multicast channels
 
 sub detail
 {
-    my $command = "detail";
+    my $verb = "detail";
+    my $name = "";
 
     unless ( scalar @_ ) {
-        &help( $opts, $cmds, $command );
+        &help( $opts, $cmds, $verb );
     }
 
-    my $mcastref;
-    my $mcastid = "";
+    @ARGV = @_;
+    GetOptions(
+               'name=s' => \$name,
+               );
+
+    if ( scalar @ARGV ) {
+        $opts->{LASTERROR} = sprintf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+        return 1;
+    }
+
+    my $url = "http://$baseurl:$port/$apiver/mcast/$verb/$name";
+
+    my $req = HTTP::Request->new( 'GET', $url );
+    $req->header( 'Accept' => 'application/json' );
+
+    my $response = $browser->request( $req );
+
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    unless ( $response->is_success ) {
+        if ( $response->status_line =~ m|406 Not Acceptable| ) { 
+            die $response->content;
+        } else {
+            die "Can't get $url -- ", $response->status_line;
+        }
+    }
+
+    my $data = from_json( $response->content );
+
+    printf "%-12s %s\n", "mcastID:",     $data->{mcastid} ;
+    printf "%-12s %s\n", "storageID:",   $data->{storageid} ;
+    printf "%-12s %s\n", "dataIP:",      $data->{dataip} ;
+    printf "%-12s %s\n", "rdvIP:",       $data->{rdvip} ;
+    printf "%-12s %s\n", "interface:",   $data->{interface} ;
+    printf "%-12s %s\n", "ratemx:",      $data->{ratemx} ;
+    printf "%-12s %s\n", "mrecv:",       $data->{mrecv} ;
+    printf "%-12s %s\n", "status:",      $data->{status} ;
+    if ( $data->{status} == 1 ) { printf "%-12s %s\n", "pid:", $data->{pid}; }
+
+    return 0;
+}
+
+=head2 enable --name <name>
+
+Enable the multicast channel associated with specified mcastid.
+
+=cut
+
+=head2 disable --name <name>
+
+Enable the multicast channel associated with specified mcastid.
+
+=cut
+
+sub enable  { &_enable_disable_( "enable",  @_ );}
+sub disable { &_enable_disable_( "disable", @_ );}
+
+sub _enable_disable_
+{
+    my $verb = shift;
+
+    unless ( scalar @_ ) {
+        &help( $opts, $cmds, $verb );
+    }
+
+    my $mcastid="";
 
     @ARGV = @_;
-
     GetOptions(
                'name=s' => \$mcastid,
                );
@@ -489,33 +484,87 @@ sub detail
         return 1;
     }
 
-    $mcastref = &get_db_data( $dbh, $tbl, $mcastid );
-    unless ( defined $mcastref ) {
-        $opts->{LASTERROR} = "No multicast channel found with id: $mcastid\n";
-        return 1;
+    my $json_hash = {};
+    $json_hash->{verb}    = $verb;
+    $json_hash->{mcastid} = $mcastid;
+
+    my $url = "http://$baseurl:$port/$apiver/mcast";
+    my $message = to_json($json_hash);
+
+    my $req = HTTP::Request->new( 'PUT', $url );
+    $req->content_type('application/json');
+    $req->content($message);
+
+    my $response = $browser->request( $req );
+
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    unless ( $response->is_success ) {
+        if ( $response->status_line =~ m|406 Not Acceptable| ) {
+            die $response->content;
+        } else {
+            die "Can't get $url -- ", $response->status_line;
+        }
     }
 
-    printf "%-12s %s\n", "mcastID:",     $mcastref->{mcastid} ;
-    printf "%-12s %s\n", "storageID:",   $mcastref->{storageid} ;
-    printf "%-12s %s\n", "dataIP:",      $mcastref->{dataip} ;
-    printf "%-12s %s\n", "rdvIP:",       $mcastref->{rdvip} ;
-    printf "%-12s %s\n", "interface:",   $mcastref->{interface} ;
-    printf "%-12s %s\n", "ratemx:",      $mcastref->{ratemx} ;
-    printf "%-12s %s\n", "mrecv:",       $mcastref->{mrecv} ;
-    printf "%-12s %s\n", "status:",      $mcastref->{status} ;
-    if ( $mcastref->{status} == 1 ) { printf "%-12s %s\n", "pid:",         $mcastref->{pid}; }
+    my $data = from_json( $response->content );
+    print "$data->{mcastid}  :  $data->{action} $data->{result} \n";
 
     return 0;
+
 }
 
-sub init {
-    &baminit( $opts, $dbh, $tbl, "");
-}
+=head2 init
 
-sub destroy {
-    &bamstop( $opts, $dbh, $tbl, "" );
-}
+Initialize all enabled multicast channels
 
+=cut
+
+=head2 destroy
+
+Stops all enabled multicast channels
+
+=cut
+
+
+sub init    { &_init_destroy_( "init",  @_ );}
+sub destroy { &_init_destroy_( "destroy", @_ );}
+
+sub _init_destroy_
+{
+    my $verb = shift;
+
+    my $json_hash = {};
+    $json_hash->{verb} = $verb;
+    
+
+    my $url = "http://$baseurl:$port/$apiver/mcast";
+    my $message = to_json($json_hash);
+
+    my $req = HTTP::Request->new( 'PUT', $url );
+    $req->content_type('application/json');
+    $req->content($message);
+
+    my $response = $browser->request( $req );
+
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    unless ( $response->is_success ) {
+        if ( $response->status_line =~ m|406 Not Acceptable| ) {
+            die $response->content;
+        } else {
+            die "Can't get $url -- ", $response->status_line;
+        }
+    }
+
+    my $data = from_json( $response->content );
+    print "$data->{action} $data->{result} \n";
+
+    return 0;
+
+}
 
 die "ABSOLUTELY DOES NOT EXECUTE";
 

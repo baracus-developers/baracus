@@ -710,6 +710,153 @@ sub wipe
 
 }
 
+=head2 rescue { --mac <mac> | --hostname <name> }
+
+Rescue boot on the next pxeboot of the specified device.
+
+Where
+
+  --mac <macaddr>          Network interface card physical address
+                           (in hexidecimal xx:xx:xx:xx:xx:xx format).
+  --hostname <name>        Hostname (conforming to DNS without domainname)
+                           to identify the box containing the network
+                           interface card with the specified <macaddr>.
+  --ip <ipaddr>            Client static, or dhcp bound, IP address.
+                           Use string 'dhcp' if dynamically assigned.
+
+
+A profile can be used to accumlate all the other parameters for a similar collection of hosts and can contain networking, distro, and hardware information.
+
+  --profile <pfile>        File with networking and/or other template
+                           parameters.  To see content of the 'default'
+                           profile use
+                             > baconfig detail profile default
+
+Other required parameters, which may be specified on the command-line or in a profile are:
+
+  --distro <os-rev-arch>   Operating system to install on build client.
+                           To be sure network install server has distro
+                           specified availiable for use
+                             > basource add --distro <base-arch>
+
+                           See possible distros to use with
+                             > baconfig list distro
+                           and
+                             > basource list [--distro='*match*']
+
+  --hardware <hwteplate>   Hardware template that describes build client
+                             > baconfig list hardware
+
+And further <...> optional parameters include
+
+  --usevnc                 allow vnc build access
+  --vncpass                defines vnc password for remote access
+
+  --usessh                 allow ssh build access
+  --sshpass                defines ssh password for remote access
+                           These ssh options are only valid for SuSE distros.
+
+  --serialtty              configure serial tty for remote access
+  --serialbaud             configure serial line rate for remote access
+
+=cut
+
+sub rescue 
+{
+    my $verb = "rescue";
+
+    my $mac;
+    my $hostname;
+    my $ip;
+    my $distro;
+    my $hardware;
+    my $profile;
+    my $vars;
+    my $usevnc;
+    my $vncpass;
+    my $usessh;
+    my $sshpass;
+    my $serialtty;
+    my $serialbaud;
+
+    @ARGV = @_;
+
+    GetOptions
+        (
+         'mac=s'         => \$mac,
+         'hostname=s'    => \$hostname,
+         'ip=s'          => \$ip,
+         'distro=s'      => \$distro,
+         'hardware=s'    => \$hardware,
+         'profile=s'     => \$profile,
+         'vars=s'        => \$vars,
+         'usevnc!'       => \$usevnc,
+         'vncpass=s'     => \$vncpass,
+         'usessh!'       => \$usessh,
+         'sshpass=s'     => \$sshpass,
+         'serialtty=s'   => \$serialtty,
+         'serialbaud=s'  => \$serialbaud,
+         );
+
+    unless ( ( defined $mac ) or ( defined $hostname ) ) {
+        print "--mac <mac> or --hostname <hostname> required to set rescue\n";
+        return 1;
+    }
+
+    unless ( defined $distro ) {
+        print "--distro <distro> required to set rescue\n";
+        return 1;
+    }
+
+    unless ( defined $hardware ) {
+        print "--hardware <hardware> required to set rescue\n";
+        return 1;
+    }
+
+    if ( scalar @ARGV ) {
+            printf "\nUnknown arg(s): %s\n", join(" ", @ARGV);
+            &help( $opts, $cmds, $verb );
+    }
+
+    my $json_hash = {};
+    $json_hash->{verb}       = $verb;
+    $json_hash->{mac}        = $mac if ( defined $mac );
+    $json_hash->{hostname}   = $hostname if ( defined $hostname );
+    $json_hash->{ip}         = $ip if ( defined $ip );
+    $json_hash->{distro}     = $distro if ( defined $distro );
+    $json_hash->{hardware}   = $hardware if ( defined $hardware );
+    $json_hash->{profile}    = $profile if ( defined $profile );
+    $json_hash->{vars}       = $vars if ( defined $vars );
+    $json_hash->{usevnc}     = $usevnc if ( defined $usevnc );
+    $json_hash->{vncpass}    = $vncpass if ( defined $vncpass );
+    $json_hash->{usessh}     = $usessh if ( defined $usessh );
+    $json_hash->{sshpass}    = $sshpass if ( defined $sshpass );
+    $json_hash->{serialtty}  = $serialtty if ( defined $serialtty );
+    $json_hash->{serialbaud} = $serialbaud if ( defined $serialbaud ); 
+
+    my $url = "http://$baseurl:$port/$apiver/do";
+    my $message = to_json($json_hash);
+
+    my $req = HTTP::Request->new(PUT => $url);
+    $req->content_type('application/json');
+    $req->content($message);
+
+    my $response = $browser->request( $req );
+
+    die "Can't get $url -- ", $response->status_line
+      unless $response->is_success;
+
+    die "Hey, I was expecting JSON, not ", $response->content_type
+      unless $response->content_type eq 'application/json';
+
+    my $data = from_json( $response->content );
+
+    print "( $data->{mac} ) $data->{hostname}  :  $data->{action} $data->{result} \n";
+
+    return 0;
+
+}
+
 ######################################################################
 
 die "ABSOLUTELY DOES NOT EXECUTE";

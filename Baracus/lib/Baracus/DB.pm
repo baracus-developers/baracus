@@ -119,7 +119,7 @@ sub startup {
             $status = Baracus::Source::prepdbwithxml( $opts );
             error "$opts->{LASTERROR} : prep xml failure\n" if ( $status == 0 ) and die $!;
 
-            $status = Baracus::Mcast::bamstart( $opts, "mcast", "" );
+            $status = Baracus::Mcast::bamstart();
             error "$opts->{LASTERROR} : mcast init failure\n" if ( $status != 0 ) and die $!;
 
 #            system ( "$baDir{data}/scripts//baconfig_load_autobuild" ) == 0 or die;

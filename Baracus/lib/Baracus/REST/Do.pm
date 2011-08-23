@@ -89,8 +89,8 @@ sub do_admin() {
         $action_to_take{ request->params->{verb} }( @_ )  ;
     } else {
         status '406';
-        error "invalid host action";
-        return { code => "41", error => "invalid host action" };
+        error "invalid do action";
+        return { code => "41", error => "invalid do action" };
     }
 }
 
@@ -1000,8 +1000,6 @@ debug "DEBUG: in start of command=$command \n";
 
     debug "Netboot set -nNext pxeboot of %s will use remote storageid $mac";
 
-    my %returnHash;
-
     $returnHash{mac} = $mac;
     $returnHash{hostname} = $hostname;
     $returnHash{action} = $command;
@@ -1115,11 +1113,362 @@ debug "DEBUG: in start of command=$command \n";
     }
 }
 
-sub do_norescue() {
-
-}
-
 sub do_rescue() {
+
+    my $command = "rescue";
+debug "DEBUG: in start of command=$command \n";
+
+    my $opts = vars->{opts};
+    unless ( $opts ) {
+        status 'error';
+        return "internal 'vars' not properly initialized";
+    }
+
+    my %entry;
+    my $vars       = "";
+    my $usevnc     = "";
+    my $vncpass    = "";
+    my $usessh     = "";
+    my $sshpass    = "";
+    my $serialtty  = "";
+    my $serialbaud = "";
+
+    $entry{mac}      = request->params->{mac}        if ( defined request->params->{mac} );
+    $entry{hostname} = request->params->{hostname}   if ( defined request->params->{hostname} );
+    $entry{ip}       = request->params->{ip}         if ( defined request->params->{ip} );
+    $entry{distro}   = request->params->{distro}     if ( defined request->params->{distro} );
+    $entry{hardware} = request->params->{hardware}   if ( defined request->params->{hardware} );
+    $entry{profile}  = request->params->{profile}    if ( defined request->params->{profile} );
+    $vars            = request->params->{vars}       if ( defined request->params->{vars} );
+    $usevnc          = request->params->{usevnc}     if ( defined request->params->{usevnc} );
+    $vncpass         = request->params->{vncpass}    if ( defined request->params->{vncpass} );
+    $usessh          = request->params->{usessh}     if ( defined request->params->{usessh} );
+    $sshpass         = request->params->{sshpass}    if ( defined request->params->{sshpass} );
+    $serialtty       = request->params->{serialtty}  if ( defined request->params->{serialtty} );
+    $serialbaud      = request->params->{serialbaud} if ( defined request->params->{serialbaud} );
+
+    my %returnHash;
+
+    my $macref;
+    my $actref;
+    my $hostref;
+    my $chkref;
+
+    $entry{vars}    = $multiarg{ 'vars'   } if (defined $multiarg{ 'vars'   });
+
+    if ( &check_host_action ( $opts, \%entry, $chkref, $actref )) {
+        return 1;
+    }
+
+    # get the ip from the existing entry if any
+    if ( $entry{ip} eq "" and
+         defined $chkref and
+         $chkref->{ip} ne ""
+        )
+    {
+        $entry{ip}=$chkref->{ip};
+    }
+
+    if ( $entry{ip} eq "" ) {
+        status '406';
+        error "missing required ip";
+        return { code => "40", error => "missing required ip" };
+    }
+
+    $entry{ip} = lc $entry{ip};
+    &check_ip( $entry{ip} );
+
+    # done with all checking of hostname/mac/ip
+    # begin loading of hash used for remainder of processing command
+    undef $actref;
+
+    $actref = {};
+    # baDir and baVar into actref
+    &load_baracusconfig( $opts, $actref );
+
+    unless ( defined $entry{profile} and $entry{profile} ne "" ) {
+        debug "--profile <prof> unspecified. Using 'default'\n";
+        $entry{profile} = "default";
+    }
+
+    # breakout possible compound ver:name with call get back ( name, ver/undef )
+    ( $actref->{profile}, $actref->{profile_ver} ) =
+        &get_name_version( $entry{profile} );
+    debug "profile $actref->{profile}\n";
+    debug "profile version $actref->{profile_ver}\n" if ( defined $actref->{profile_ver} );
+
+    return 1 if ( &load_profile( $opts, $actref ) );
+    foreach my $key ( sort ( keys %{$actref} )) {
+        debug "add post-profile:  $key => $actref->{$key}\n";
+    }
+
+    # distro file may be in profile *and* on command line
+    # command line wins over profile entry
+    $actref->{'distro'} = $entry{distro} if ($entry{distro});
+
+    unless ($actref->{'distro'}) {
+        status '406';
+        error "distro not defined";
+        return { code => "40", error => "distro not defined" };
+    }
+
+    if ( &load_distro( $opts, $actref ) ) {
+        status '406';
+        error "load distro failed";
+        return { code => "40", error => "load distro failed" };
+    }
+
+    foreach my $key ( sort ( keys %{$actref} )) {
+        debug "add post-distro:  $key => $actref->{$key}\n";
+    }
+
+    # now that we know what distro we're using verify the profile is cert for it
+    #    return 1 if ( &check_cert( $opts, $actref->{'distro'}, "profile", $actref->{'profile'}) );
+
+    # hardware file may be in profile *and* on command line
+    # command line wins over profile entry
+    $actref->{'hardware'}= $entry{hardware} if ($entry{hardware});
+
+    unless ($actref->{'hardware'}) {
+        status '406';
+        error "hardware not defined";
+        return { code => "40", error => "hardware not defined" };
+    }
+
+    # breakout possible compound ver:name with call get back ( name, ver/undef )
+    ( $actref->{hardware}, $actref->{hardware_ver} ) =
+        &get_name_version( $actref->{hardware} );
+    debug "hardware $actref->{hardware}\n";
+    debug "hardware version $actref->{hardware_ver}\n" if (defined $actref->{hardware_ver});
+
+
+    if ( &load_hardware( $opts, $actref ) ) {
+        status '406';
+        error "load hardware failed";
+        return { code => "40", error => "load hardware failed" };
+    }
+    if ( &check_cert( $opts, $actref->{'distro'}, "hardware", $actref->{'hardware'}) ) {
+        status '406';
+        error "cert check failed";
+        return { code => "40", error => "cert check failed" };
+    }
+
+    foreach my $key ( sort ( keys %{$actref} )) {
+        debug "add post-hardware:  $key => $actref->{$key}\n";
+    }
+
+    # Remote Access configurations
+    my @raccess;
+    # vnc remote access may be specified in profile *and* on command line
+    # command line wins over profile entry
+    if (($vncpass) and !($usevnc)) {
+        status '406';
+        error "vncpass requires usevnc";
+        return { code => "40", error => "vncpass requires usevnc" };
+    } elsif (!($vncpass) and ($usevnc)) {
+        status '406';
+        error "usevnc requires vncpass";
+        return { code => "40", error => "usevnc requires vncpass" };
+    }
+
+    if ($vncpass) {
+        if ( length( $vncpass) < 8 ) {
+            status '406';
+            error "minimum password length of 8 chars required";
+            return { code => "40", error => "minimum password length of 8 chars required" };
+        }
+        $vncpass =~ s/$vncpass/vncpassword=$vncpass/;
+        if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|esx|    or
+             $actref->{os} =~ m|fedora| or
+             $actref->{os} =~ m|centos| ) {
+            push(@raccess, "vnc", $vncpass);
+        } else {
+            push(@raccess, "vnc=1", $vncpass);
+        }
+    }
+
+    # ssh remote access may be specified in profile *and* on command line
+    # command line wins over profile entry
+    if (($sshpass) or ($usessh)) {
+        if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|esx|    or
+             $actref->{os} =~ m|fedora| or
+             $actref->{os} =~ m|centos| ) {
+            status '406';
+            error "RHEL, ESX, Fedora, CentOS do not support ssh install";
+            return { code => "40", error => "RHEL, ESX, Fedora, CentOS do not support ssh install" };
+        }
+    }
+    if (($sshpass) and !($usessh)) {
+        status '406';
+        error "sshpass requires usessh";
+        return { code => "40", error => "sshpass requires usessh" };
+    } elsif (!($sshpass) and ($usessh)) {
+        status '406';
+        error "usessh requires sshpass";
+        return { code => "40", error => "usessh requires sshpass" };
+    }
+
+    if ($usessh) {
+        $sshpass =~ s/$sshpass/sshpassword=$sshpass/;
+        push(@raccess, "usessh=1", $sshpass);
+    }
+
+    # serial remote access may be specified in profile *and* on command line
+    # command line wins over profile entry
+    $actref->{console} = "";
+    if (($serialtty) and !($serialbaud)) {
+        status '406';
+        error "serialtty requires serialbaud";
+        return { code => "40", error => "serialtty requires serialbaud" };
+    } elsif (!($serialtty) and ($serialbaud)) {
+        status '406';
+        error "serialbaud requires serialtty";
+        return { code => "40", error => "serialbaud requires serialtty" };
+    }
+
+        if (($serialbaud) and ($serialtty)) {
+        if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|esx|    or
+             $actref->{os} =~ m|fedora| or
+             $actref->{os} =~ m|centos| or
+             $actref->{distro} =~ m|sles-9| ) {
+            ##
+            ##  INCLUDE SLES9 FOR MINIMAL CMD LINE TXT
+            ##
+            my $serialopts = "console=tty0 console=$serialtty,$serialbaud";
+            push(@raccess, $serialopts);
+            $actref->{console} = $serialopts;
+        }
+        else {
+            my $serialopts = "console=tty0 console=$serialtty,$serialbaud";
+            $serialopts .= " earlyprintk=serial,$serialtty,$serialbaud";
+            push(@raccess, $serialopts);
+            $actref->{console} = $serialopts;
+        }
+    }
+
+    # Join all raccess args
+    $actref->{'raccess'} = join " ", @raccess;
+
+    ## Commandline options
+    ##   - comes after reading profile
+    ##   - harware, distro override profile values
+    ##   - cmdline values override any file values
+
+    ## If passed on command line via vars, then honor those
+    ##
+    if ($entry{vars}) {
+        $actref->{vars} = $entry{vars};
+        &load_vars( $opts, $actref );
+    }
+
+    # do not want any setting to override these values
+
+    #$actref->{cmdline} = $cmdline;
+    $actref->{cmdline} = "double zoinks";
+    $actref->{'hostname'} = $entry{hostname};
+    $actref->{'ip'} = $entry{ip};
+    $actref->{'mac'} = $entry{mac};
+
+    $actref->{basedist} = "$actref->{os}-$actref->{release}-$actref->{arch}";
+    $actref->{initrd} = "initrd.$actref->{basedist}";
+    $actref->{kernel} = "linux.$actref->{basedist}";
+
+    if ( $baVar{remote_logging} eq "yes" ) {
+        if ( $actref->{os} =~ m|rhel|   or
+             $actref->{os} =~ m|esx|    or
+             $actref->{os} =~ m|fedora| or
+             $actref->{os} =~ m|centos| ) {
+            $actref->{'loghost'} = "syslog=$actref->{serverip}";
+        } elsif ( $actref->{os} =~ m|ubuntu| ) {
+            $actref->{'loghost'} = "log_host=$actref->{serverip}";
+        } else {
+            $actref->{'loghost'} = "loghost=$actref->{serverip}";
+        }
+    } else {
+        $actref->{'loghost'} = ""
+    }
+
+    debug "settings to use:\n";
+    foreach my $key ( sort keys %{$actref} ) {
+        debug "actref:  $key => %s\n",
+            defined $actref->{$key} ? $actref->{$key} : "";
+    }
+
+    $macref = &check_add_db_mac( $opts, $macref, $actref->{mac} );
+
+    $hostref = &get_db_data( $opts, 'host', $actref->{hostname} );
+    unless ( defined $hostref ) {
+        &add_db_data( $opts, 'host', $actref );
+    }
+
+    &action_state_change( $opts, BA_ACTION_RESCUE, $actref );
+
+    &update_db_mac_state( $opts, $actref->{mac}, BA_ACTION_RESCUE );
+
+        # find existing action relation and update it or create if not found
+    # avoid overwrite of the carefully constructed $actref hash
+    my $tmpref = get_db_data( $opts, 'action', $actref->{mac} );
+    if ( defined $tmpref ) {
+        # here's a rather involved check
+        # to make sure we're not updating a dup
+        my $gotdiff = 0;
+        while ( my ($key, $val) = each %{$tmpref} ) {
+            next if $key eq "uuid"; # changes every invocation
+            next if $key eq "creation";
+            next if $key eq "change";
+            next if $key eq "cmdline"; # order diff and -d -v -q don't matter
+
+            ## If a key was specified on the command line, we have to see if 
+            ## that same key is already defined, if it is, and they don't match, we
+            ## have to update the DB.  If one of the keys exists and the other one
+            ## doesn't, we consider them not equal and have to update the DB.  If 
+            ## both keys do not exist, we just skip to the next key.
+            if ( defined $actref->{$key} ) {
+                if ( !defined $val or
+                     (defined $val and $actref->{$key} ne $val) ) {
+                    if ( defined $val) {
+                        debug "cmp $key \n\tin actref '$actref->{$key}' \n\twith val '$val'\n";
+                    } else {
+                        debug "cmp $key \n\tin actref '$actref->{$key}' \n\twith val <undefined> '\n";
+                    }
+                    $gotdiff = 1;
+                    last;
+                }
+
+            } elsif ( defined $val ) {
+                debug "cmp $key \n\tin actref <undefined> \n\twith val '$val'\n";
+                $gotdiff = 1;
+                last;
+            } else {
+                    next;
+            }
+        }
+        if ( $gotdiff != 0 ) {
+            &update_db_data( $opts, 'action', $actref);
+        }
+    } else {
+        &add_db_data( $opts, 'action', $actref);
+    }
+
+    debug "Set complete. State modified to support rescue mode on next boot.\n",
+
+    $returnHash{mac} = $entry{mac};
+    $returnHash{hostname} = $entry{hostname};
+    $returnHash{action} = $command;
+    $returnHash{result}   = '0';
+
+    if ( ( request->{accept} eq 'text/xml' )
+      or ( request->{accept} eq 'application/json' )
+      or ( request->{accept} =~ m|text/html| ) ) {
+        return \%returnHash;
+    } else {
+        status '406';
+        error "generic return error";
+        return { code => "40", error => "generic return error" };
+    }
 
 }
 

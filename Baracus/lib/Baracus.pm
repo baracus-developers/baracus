@@ -18,7 +18,7 @@ use Baracus::REST::Host    qw( :subs );
 use Baracus::REST::Power   qw( :subs );
 use Baracus::REST::Storage qw( :subs );
 #use Baracus::REST::Config  qw( :subs );
-#use Baracus::REST::Macast  qw( :subs );
+use Baracus::REST::Mcast   qw( :subs );
 use Baracus::REST::Do      qw( :subs );
 #use Baracus::REST::Auth    qw( :subs );
 
@@ -129,7 +129,6 @@ sub host_wrapper() {
         $host_verbs->{$verb}( @_ );
     } elsif ( request->{accept} eq 'application/json' ) {
         header('Content-Type' => 'application/json');
-#status 406; return { error => "Here's an error", code => "27" };
         $host_verbs->{$verb}( @_ );
     } else {
         layout 'main';
@@ -233,6 +232,41 @@ del  "$apiver/power/by-host/:host"        => sub { var bytype => "host"; &power_
 
 ###########################################################################
 ##
+## Mcast Routing
+
+my $mcast_verbs = {
+                  'add'    => \&mcast_add,
+                  'remove' => \&mcast_remove,
+                  'list'   => \&mcast_list,
+                  'detail' => \&mcast_detail,
+                  'admin'  => \&mcast_admin,
+                 };
+
+sub mcast_wrapper() {
+debug "DEBUG: hello there \n";
+    my $verb   = shift;
+    my $method = request->method;
+
+    if ( request->{accept} eq 'text/xml' ) {
+        header('Content-Type' => 'text/xml');
+        $mcast_verbs->{$verb}( @_ );
+    } elsif ( request->{accept} eq 'application/json' ) {
+        header('Content-Type' => 'application/json');
+        $mcast_verbs->{$verb}( @_ );
+    } else {
+        layout 'main';
+        template "baracus_mesg", { user => session('user') };
+    }
+}
+
+post "$apiver/mcast"                 => sub { &mcast_wrapper( "add" ); };
+del  "$apiver/mcast/:mcastid"        => sub { &mcast_wrapper( "remove" ); };
+get  "$apiver/mcast/:filter"         => sub { &mcast_wrapper( "list" );   };
+get  "$apiver/mcast/detail/:mcastid" => sub { &mcast_wrapper( "detail" ); };
+put  "$apiver/mcast"                 => sub { &mcast_wrapper( "admin" );  };
+
+###########################################################################
+##
 ## Storage Routing
 
 my $storage_verbs = {
@@ -287,7 +321,7 @@ get '/repo/detail/:repo' => sub { $repo_verbs->{'detail'}( @_ );      };
 
 ###########################################################################
 ##
-## Repo Routing
+## Log Routing
 
 my $log_verbs = {
                  'list'  => \&repo_list,
@@ -313,41 +347,41 @@ get '/inventory/remove/:mac' => sub { $inventory_verbs->{'remove'}( @_ ); };
 ##
 ## GPXE Routing
 
-my $gpxe_verbs = {
-                  'env'            => \&gpxe_env,
-                  'auto'           => \&gpxe_auto,
-                  'boot'           => \&gpxe_boot,
-                  'chain'          => \&gpxe_chain,
-                  'built'          => \&gpxe_built,
-                  'initrd'         => \&gpxe_initrd,
-                  'initrd.baracus' => \&gpxe_initrd_baracus,
-                  'inventory'      => \&gpxe_inventory,
-                  'linux'          => \&gpxe_linux,
-                  'linux.baracus'  => \&gpxe_linux_baracus,
-                  'parm'           => \&gpxe_parm,
-                  'pxelinux.0'     => \&gpxe_pxelinux_0,
-                  'sanboot.c32'    => \&gpxe_sanboot_c32,
-                  'startrom.0'     => \&gpxe_startrom_0,
-                  'winst'          => \&gpxe_winst,
-                  'wipe'           => \&gpxe_wipe,
-                 };
+#my $gpxe_verbs = {
+#                  'env'            => \&gpxe_env,
+#                  'auto'           => \&gpxe_auto,
+#                  'boot'           => \&gpxe_boot,
+#                  'chain'          => \&gpxe_chain,
+#                  'built'          => \&gpxe_built,
+#                  'initrd'         => \&gpxe_initrd,
+#                  'initrd.baracus' => \&gpxe_initrd_baracus,
+#                  'inventory'      => \&gpxe_inventory,
+#                  'linux'          => \&gpxe_linux,
+#                  'linux.baracus'  => \&gpxe_linux_baracus,
+#                  'parm'           => \&gpxe_parm,
+#                  'pxelinux.0'     => \&gpxe_pxelinux_0,
+#                  'sanboot.c32'    => \&gpxe_sanboot_c32,
+#                  'startrom.0'     => \&gpxe_startrom_0,
+#                  'winst'          => \&gpxe_winst,
+#                  'wipe'           => \&gpxe_wipe,
+#                 };
 
-get  '/ba/env'            => sub { $gpxe_verbs->{'env'}           };
-post '/ba/auto'           => sub { $gpxe_verbs->{'auto'}           };
-post '/ba/boot'           => sub { $gpxe_verbs->{'boot'}           };
-post '/ba/chain'          => sub { $gpxe_verbs->{'chain'}          };
-post '/ba/built'          => sub { $gpxe_verbs->{'built'}          };
-post '/ba/initrd'         => sub { $gpxe_verbs->{'initrd'}         };
-post '/ba/initrd.baracus' => sub { $gpxe_verbs->{'initrd_baracus'} };
-put  '/ba/inventory'      => sub { $gpxe_verbs->{'inventory'}      };
-post '/ba/linux'          => sub { $gpxe_verbs->{'linux'}          };
-post '/ba/linux.baracus'  => sub { $gpxe_verbs->{'linux_baracus'}  };
-post '/ba/parm'           => sub { $gpxe_verbs->{'parm'}           };
-post '/ba/pxelinux.0'     => sub { $gpxe_verbs->{'pxelinux_0'}     };
-post '/ba/sanboot.c32'    => sub { $gpxe_verbs->{'sanboot_c32'}    };
-post '/ba/startrom.0'     => sub { $gpxe_verbs->{'startrom_0'}     };
-post '/ba/winst'          => sub { $gpxe_verbs->{'winst'}          };
-post '/ba/wipe'           => sub { $gpxe_verbs->{'wipe'}           };
+#get  '/ba/env'            => sub { $gpxe_verbs->{'env'}           };
+#post '/ba/auto'           => sub { $gpxe_verbs->{'auto'}           };
+#post '/ba/boot'           => sub { $gpxe_verbs->{'boot'}           };
+#post '/ba/chain'          => sub { $gpxe_verbs->{'chain'}          };
+#post '/ba/built'          => sub { $gpxe_verbs->{'built'}          };
+#post '/ba/initrd'         => sub { $gpxe_verbs->{'initrd'}         };
+#post '/ba/initrd.baracus' => sub { $gpxe_verbs->{'initrd_baracus'} };
+#put  '/ba/inventory'      => sub { $gpxe_verbs->{'inventory'}      };
+#post '/ba/linux'          => sub { $gpxe_verbs->{'linux'}          };
+#post '/ba/linux.baracus'  => sub { $gpxe_verbs->{'linux_baracus'}  };
+#post '/ba/parm'           => sub { $gpxe_verbs->{'parm'}           };
+#post '/ba/pxelinux.0'     => sub { $gpxe_verbs->{'pxelinux_0'}     };
+#post '/ba/sanboot.c32'    => sub { $gpxe_verbs->{'sanboot_c32'}    };
+#post '/ba/startrom.0'     => sub { $gpxe_verbs->{'startrom_0'}     };
+#post '/ba/winst'          => sub { $gpxe_verbs->{'winst'}          };
+#post '/ba/wipe'           => sub { $gpxe_verbs->{'wipe'}           };
 
 ###########################################################################
 ##
@@ -478,8 +512,8 @@ any qr{.*'} => sub {
 ##
 ## Global before processing
 
-##
-## Authentication Validation
+#
+# Authentication Validation
 before sub {
 
     init_baracus_vars();
