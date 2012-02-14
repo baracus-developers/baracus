@@ -1436,7 +1436,7 @@ sub redundant_data
         if (
             ( ( $type eq "hardware" ) and
               (
-               ( $href->{'hwdriver'} eq $data->{'hwdriver'} ) and
+               ( $href->{'driverupdate'} eq $data->{'driverupdate'} ) and
                ( $href->{'bootargs'} eq $data->{'bootargs'} ) and
                ( $href->{'rootdisk'} eq $data->{'rootdisk'} ) and
                ( $href->{'rootpart'} eq $data->{'rootpart'} )

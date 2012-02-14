@@ -1194,7 +1194,7 @@ sub get_iso_locations
 
     find ({ wanted =>
             sub {
-                if ($_ =~ /.*\.iso$/) {
+                 if ($_ =~ /.*\.(iso|img)$/) {
                     print "found $File::Find::name\n" if ( $opts->{debug} > 2 );
                     push @{ $isohash{ $_ } }, $File::Find::name;
                   #  $isohash{ $_ } = $File::Find::name ;
@@ -1320,6 +1320,7 @@ sub verify_iso
 sub make_paths
 {
     my $opts     = shift;
+    my $dbh      = shift;
     my $distro   = shift;
     my $extras   = shift;
     my $daisohr  = shift;
@@ -1364,7 +1365,21 @@ sub make_paths
         foreach my $isofile ( @{$daisohr->{ $da }->{list}} ) {
             my $iname = basename( $isofile );
             print "$isofile and $iname\n" if ( $opts->{debug} > 1 );
-            my $idir  = $daisohr->{ $da }->{info}->{$iname}->{path};
+            my $idir = $daisohr->{ $da }->{info}->{$iname}->{path};
+            my $imgdir = dirname($idir) . "/img";
+
+            ## If this is a DUD then copy image to export directory
+            my $eh = &get_db_data( $dbh, 'distro', $da );
+            if ( $eh->{type} == BA_SOURCE_DUD ) {
+                unless ( -d $imgdir ) {
+                    unless ( mkpath $imgdir ) {
+                        $opts->{LASTERROR} .= "Unable to create directory $imgdir $!";
+                    }
+                }
+                print "Copying DUD ($isofile) to export path ($imgdir) \n" if $opts->{verbose};
+                copy( $isofile, $imgdir ) or die "Copy failed: $!";
+            }
+
             if ( $loopback ) {
                 unless ( -d $idir ) {
                     unless ( mkpath $idir ) {
@@ -1407,7 +1422,7 @@ sub add_dud_initrd
     my $base  = shift;
     my $dud   = shift;
 
-    print "+++++ add_bootloader_dud__files\n" if ( $opts->{debug} > 1 );
+    print "+++++ add_bootloader_dud_files\n" if ( $opts->{debug} > 1 );
 
     my $bh = &baxml_distro_gethash( $opts, $base );
     my $basedist = $bh->{basedist};
@@ -1432,16 +1447,16 @@ sub add_dud_initrd
     mkdir $tdir, 0755 || die ("Cannot create directory\n");
     chmod 0777, $tdir || die "$!\n";
 
-    print "extract base distro initrd from db to $tdir/initrd.gz\n" if ( $opts->{debug} > 1 );
+    print "extract base distro initrd ( $bh->{baseinitrd} ) from db to $tdir/initrd.gz\n" if ( $opts->{debug} > 1 );
     copy($bh->{baseinitrd},"$tdir/initrd.gz") or die "Copy failed: $!";
 
     # unzip the initrd
     system("cd $tdir; zcat $tdir/initrd.gz | cpio --quiet -id");
 
     # unsquash if opensuse 11.2 or sles 11 sp1 or higher
-    if ( ( $bh->{os} eq "sles" and $bh->{release} > 11 ) or
+    if ( ( $bh->{os} eq "sles" and $bh->{release} > 11.1 ) or
          ( $bh->{os} eq "opensuse" and $bh->{release} >= 11.2 ) ) {
-        system("cd $tdir; unsquashfs $tdir/parts/00_lib");
+            system("cd $tdir; unsquashfs $tdir/parts/00_lib");
     }
 
     # Find all relevant kernel drivers
@@ -1496,7 +1511,7 @@ sub add_dud_initrd
     # Determine driver path in initrd
     my $drvpath;
     my $kernel;
-    if ( $bh->{os} eq "sles" and $bh->{release} eq "11.1" ) {
+    if ( $bh->{os} eq "sles" and $bh->{release} eq "11.2" ) {
         opendir(IMD, "$tdir/parts/squashfs-root/lib/modules") || die("Cannot open directory");
         my @dfiles = readdir(IMD);
         closedir(IMD);
@@ -1506,7 +1521,8 @@ sub add_dud_initrd
             }
         }
         $drvpath = "/parts/squashfs-root/lib/modules/$kernel/initrd/";
-    } elsif ( $bh->{os} eq "sles" and $bh->{release} eq "11" ) {
+    } elsif ( ( $bh->{os} eq "sles" and $bh->{release} eq "11" ) or
+              ( $bh->{os} eq "sles" and $bh->{release} eq "11.1" ) ) {
         opendir(IMD, "$tdir/lib/modules") || die("Cannot open directory");
         my @dfiles = readdir(IMD);
         closedir(IMD);
@@ -1530,9 +1546,10 @@ sub add_dud_initrd
     }
 
     # Create depmod files
-    if ( $bh->{os} eq "sles" and $bh->{release} eq "11.1" ) {
+    if ( $bh->{os} eq "sles" and $bh->{release} eq "11.2" ) {
         system("depmod", "-a", "--basedir", "$tdir/parts/squashfs-root", "$kernel");
-    } elsif ( $bh->{os} eq "sles" and $bh->{release} eq "11" ) {
+    } elsif ( ( $bh->{os} eq "sles" and $bh->{release} eq "11" ) or
+            ( $bh->{os} eq "sles" and $bh->{release} eq "11.1" ) ) {
         system("depmod", "-a", "--basedir", "$tdir", "$kernel");
     } else {
         $opts->{LASTERROR} = "$base does not yet have dud support in baracus \n";
@@ -1778,6 +1795,12 @@ sub add_build_service
                 &check_service_product( $opts, $da, $prod, $sharetype );
 
             $share = $dh->{'distpath'}."/".$dh->{'sharepath'} if defined ( $dh->{'sharepath'} );
+
+            my $eh = &get_db_data( $dbh, 'distro', $da );
+            if ( $eh->{type} == BA_SOURCE_DUD ) {
+                use File::Basename;
+                $share = dirname($share);
+            }
 
             if ( $state ) {
                 print "$sharetype file $file found added for $da\n" if $opts->{verbose};

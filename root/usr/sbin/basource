@@ -299,7 +299,7 @@ sub add() {
     my $daisohr = &verify_iso( $opts, $distro, $extras, $isos, $check, $checkhr );
 
     print "Calling routines to generate build tree\n" if $opts->{verbose};
-    if ( &make_paths( $opts, $distro, $extras, $daisohr, $loopback ) ) {
+    if ( &make_paths( $opts, $dbh, $distro, $extras, $daisohr, $loopback ) ) {
         print "$opts->{LASTERROR}\n";
         $opts->{LASTERROR} = "";
     }
@@ -572,6 +572,8 @@ sub remove() {
 
     my $command = 'remove';
 
+    use File::Basename;
+
     unless ( scalar @_ ) {
         &help( $opts, $cmds, $command );
     }
@@ -714,6 +716,9 @@ sub remove() {
                     }
                     my $dudh = &get_db_data( $dbh, 'distro', $extra );
                     if ( $dudh->{type} == BA_SOURCE_DUD ) {
+                        my $imgpath = dirname(@$shares[0]) . "/img";
+                        print "$imgpath ... removing\n" if $opts->{verbose};
+                        rmtree($imgpath);
                         &remove_dud_initrd( $opts, $extra )
                     }
                     &source_register( $opts, $command, $extra );
