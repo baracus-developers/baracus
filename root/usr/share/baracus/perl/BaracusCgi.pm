@@ -98,7 +98,7 @@ sub get_inventory() {
     my $baVar = shift;
     my $input = shift;
     my $args  = shift;
-    $args = "acpi=off selinux=0 apm=off" unless ( defined $args && "$args" ne "" );
+    $args = "acpi=off selinux=0 apm=off nosmp" unless ( defined $args && "$args" ne "" );
     $args .= " ipmi=true" if ( $baVar{ipmi} eq "true" );
     $args .= " ipmilan=true" if ( $baVar{ipmilan} eq "true" );
 

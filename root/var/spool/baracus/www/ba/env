@@ -187,8 +187,6 @@ if ( $ENV{REQUEST_METHOD} eq "HEAD" ) {
             exit 0;
         }
 
-        $actref->{serverip} = $baVar{serverip};
-
         # the mac and action might have been produced with an inventory req
 
         my $actauto = &get_db_data( $dbh, 'actabld', $input->{mac} );
@@ -232,7 +230,7 @@ if ( $ENV{REQUEST_METHOD} eq "HEAD" ) {
         my $autobuild = &get_autobuild_expanded( $opts, $dbh, $actref );
         my $rules = "any              -               -     profile  finish\n";
         my $rulesok = "any - - profile finish\n# version=2 checksum=num";
-        my $finish = "profetch \"http://$actref->{serverip}/ba/built?uuid=$actref->{uuid}&hostname=$actref->{hostname}\"";
+        my $finish = "profetch \"http://\${next-server}/ba/built?uuid=$actref->{uuid}&hostname=$actref->{hostname}\"";
 
         my $jmac = $actref->{mac};
         $jmac =~ s/://g;
@@ -291,7 +289,7 @@ if ( $ENV{REQUEST_METHOD} eq "HEAD" ) {
     ## Handle the uploading of files via "http PUT"
     ##
     ##   curl -b "mac=<mac>;status=<status>" -T <file> \
-    ##       http://$baVar{serverip}/ba/inventory
+    ##       http://$ENV{SERVER_ADDR}/ba/inventory
     ##
 
     unless ( $CGI::VERSION > 3.43 ) {
@@ -561,7 +559,7 @@ if ( $ENV{REQUEST_METHOD} eq "HEAD" ) {
     ## Handle HTTP GET requests with or without CGI parameters
     ##
     ##   curl -s -o /tmp/pxemenu \
-    ##       http://$baVar{serverip}/ba/boot?mac=<mac>&ip=<ip>
+    ##       http://$ENV{SERVER_ADDR}/ba/boot?mac=<mac>&ip=<ip>
     ##
 
     foreach my $key ( $cgi->param() ) {
@@ -640,10 +638,10 @@ if ( $ENV{REQUEST_METHOD} eq "HEAD" ) {
         die "Missing 'mac=' in URL\n" unless ( defined $input->{mac} );
 
         my $default = qq|#!gpxe
-dhcp net0
-set net0/210:string http://$baVar{serverip}/ba/
-set net0/209:string boot?mac=\${mac}&ip=\${ip}
-chain http://$baVar{serverip}/ba/pxelinux.0?mac=\${mac}
+set use-cached 1
+set net0/210:string http://\${next-server}/ba/
+set net0/209:string boot?mac=\${net0/mac}&ip=\${net0/ip}
+chain http://\${next-server}/ba/pxelinux.0?mac=\${net0/mac}
 |;
 
         $input->{mac} = &check_mac($input->{mac});
@@ -675,13 +673,15 @@ chain http://$baVar{serverip}/ba/pxelinux.0?mac=\${mac}
             if ( $distref->{os} =~ m/solaris/i ) {
 
                 $output = qq|#!gpxe
-chain tftp://$baVar{serverip}/pxegrub
-#chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
+set use-cached 1
+chain tftp://\${next-server}/pxegrub
+#chain http://\${next-server}/ba/boot?mac=$input->{mac}
 |;
             } elsif ( $distref->{os} =~ m/win/i ) {
 
                 $output = qq|#!gpxe
-chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
+set use-cached 1
+chain http://\${next-server}/ba/boot?mac=$input->{mac}
 |;
 
             } else {
@@ -737,6 +737,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 &add_db_data( $dbh, 'action', $actref );
             }
 
+            $baVar{serverip} = $ENV{SERVER_ADDR} if (defined $ENV{SERVER_ADDR});
             &get_inventory( $cgi, \%baVar, $input ); # routine exits
         }
 
@@ -790,7 +791,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             }
             &load_storage( $opts, $dbh, $actref );
 
-            &do_netboot( $cgi, $actref, $baVar{serverip} );
+            &do_netboot( $cgi, $actref, $ENV{SERVER_ADDR} );
             # do_netboot exits
         }
 
@@ -819,21 +820,20 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             my $args;
             my $rescue;
 
-            if ( $distref->{os} eq "opensuse" or
-                 $distref->{os} eq "sles"     or
-                 $distref->{os} eq "sled"   ) {
-                $rescue = qq|rescue=$distref->{sharetype}://$distref->{shareip}$distref->{basepath} rescue=1 textmode=1 |;
+            if ( $distref->{os} =~ /\bopensuse\b/ or
+                 $distref->{os} =~ /\bsle(s|d)\b/ ) {
+                $rescue = qq|rescue=$distref->{sharetype}://$ENV{SERVER_ADDR}/$distref->{basepath} rescue=1 textmode=1 |;
 
             } elsif ( $distref->{os} eq "fedora" or
                       $distref->{os} eq "centos" or
                       $distref->{os} eq "esx"    or
                       $distref->{os} eq "rhel" ) {
-                $rescue = qq|text rescue ks=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
+                $rescue = qq|text rescue ks=http://$ENV{SERVER_ADDR}/ba/auto?mac=$input->{mac}|;
             }
 
             $args = "$hardref->{bootargs} $actref->{raccess} $actref->{loghost}";
 
-            &do_rescue( $cgi, $input->{mac}, $baVar{serverip}, "$args $rescue" );
+            &do_rescue( $cgi, $input->{mac}, $ENV{SERVER_ADDR}, "$args $rescue" );
             # do_rescue exits
         }
 
@@ -845,6 +845,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
             ##
             ## INVENTORY - have 'mac' but still missing inventory
             ##
+            #my $args = "acpi=off pci=noacpi console=tty0 console=ttyS1,57600 ";
             my $args = "";
 
             $args .= "$actref->{raccess} " if (defined $actref->{raccess});
@@ -866,6 +867,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 &update_db_data( $dbh, 'action', $actref );
             }
 
+            $baVar{serverip} = $ENV{SERVER_ADDR} if (defined $ENV{SERVER_ADDR});
             &get_inventory( $cgi, \%baVar, $input, $args );
             # get_inventory call exits
         }
@@ -887,7 +889,7 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 &update_db_data( $dbh, 'action', $actref );
             }
 
-            &do_localboot( $cgi, $actref, $baVar{serverip} );
+            &do_localboot( $cgi, $actref, $ENV{SERVER_ADDR} );
             # do_localboot exits
         }
 
@@ -923,12 +925,11 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 $actref->{autobuild} = "none";
             }
 
-            if ( $distref->{os} eq "opensuse" or
-                 $distref->{os} eq "sles"     or
-                 $distref->{os} eq "sled"   ) {
-                $args = qq|textmode=1 install=$distref->{sharetype}://$distref->{shareip}$distref->{basepath}|;
+            if ( $distref->{os} =~ /\bopensuse\b/ or
+                 $distref->{os} =~ /\bsle(s|d)\b/ ) {
+                $args = qq|textmode=1 install=$distref->{sharetype}://$ENV{SERVER_ADDR}/$distref->{basepath}|;
                 if ( $actref->{autobuild} ne "none" ) {
-                    $args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
+                    $args .= qq| autoyast=http://$ENV{SERVER_ADDR}/ba/auto?mac=$input->{mac}|;
                 }
                 if ( defined $actref->{type} and $actref->{type} == BA_STORAGE_NFS ) {
                     $args .= qq| nfsroot=$actref->{storageuri} root=/dev/nfs insmod=nfs|;
@@ -936,18 +937,23 @@ chain http://$baVar{serverip}/ba/boot?mac=$input->{mac}
                 if ( defined $hardref->{driverupdate} ) {
                     my $dudref = get_db_data( $dbh, 'distro', $hardref->{driverupdate} );
                     if ( defined $dudref ) {
-                        $args .= qq| dud=$dudref->{sharetype}://$dudref->{shareip}$dudref->{basepath}/|;
+                        $args .= qq| dud=$dudref->{sharetype}://$ENV{SERVER_ADDR}/$dudref->{basepath}/|;
                     }
                 }
                 my $lcmac = lc $input->{mac};
-
+                my $serial = "";
+                if ($actref->{raccess} =~ m/ttyS(\d),(\d+)/) {
+                    $serial = "SERIAL $1 $2";
+                } 
                 $output = qq|DEFAULT label_$actref->{hostname}
+$serial
 PROMPT 0
 TIMEOUT 0
 
 LABEL label_$actref->{hostname}
-    kernel http://$baVar{serverip}/ba/linux?mac=$input->{mac}
-    append initrd=http://$baVar{serverip}/ba/initrd?mac=$input->{mac} $hardref->{bootargs} $actref->{raccess} $args $actref->{loghost} netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+    kernel http://$ENV{SERVER_ADDR}/ba/linux?mac=$input->{mac}
+    append initrd=http://$ENV{SERVER_ADDR}/ba/initrd?mac=$input->{mac} $hardref->{bootargs} $actref->{raccess} $args $actref->{loghost} netwait=60 netdevice=eth1 udev.rule="mac=$lcmac,name=eth1" dhcptimeout=60
+    IPAPPEND 3
 |;
 
             } elsif ( $distref->{os} eq "fedora" or
@@ -956,7 +962,7 @@ LABEL label_$actref->{hostname}
                       $distref->{os} eq "rhel" ) {
                 $args = qq|text|;
                 if ( $actref->{autobuild} ne "none" ) {
-                    $args .= qq| ks=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
+                    $args .= qq| ksdevice=$input->{mac} ks=http://$ENV{SERVER_ADDR}/ba/auto?mac=$input->{mac}|;
                 }
 
                 $output = qq|DEFAULT label_$actref->{hostname}
@@ -964,14 +970,14 @@ PROMPT 0
 TIMEOUT 0
 
 LABEL label_$actref->{hostname}
-    kernel http://$baVar{serverip}/ba/linux?mac=$input->{mac}
-    append initrd=http://$baVar{serverip}/ba/initrd?mac=$input->{mac} $hardref->{bootargs} $actref->{raccess} $args $actref->{loghost}
+    kernel http://$ENV{SERVER_ADDR}/ba/linux?mac=$input->{mac}
+    append initrd=http://$ENV{SERVER_ADDR}/ba/initrd?mac=$input->{mac} $hardref->{bootargs} $actref->{raccess} $args $actref->{loghost}
 |;
 
             } elsif ( $distref->{os} =~ m/ubuntu/ ) {
                 $args = qq|hostname=unassigned-hostname locale=$actref->{lang} console-setup/ask_detect=$actref->{consoleaskdetect} console-setup/layoutcode=$actref->{consolelayoutcode} keyboard-configuration/layoutcode=$actref->{keymap}|;
                 if ( $actref->{autobuild} ne "none" ) {
-                    $args .= qq| url=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
+                    $args .= qq| url=http://$ENV{SERVER_ADDR}/ba/auto?mac=$input->{mac}|;
                 } else {
                     $args .= qq| tasks=standard pkgsel/language-pack-patterns= pkgsel/install-language-support=false priority=low|;
                 }
@@ -982,14 +988,14 @@ PROMPT 0
 TIMEOUT 0
 
 LABEL label_$actref->{hostname}
-    kernel http://$baVar{serverip}/ba/linux?mac=$input->{mac}
-    append initrd=http://$baVar{serverip}/ba/initrd?mac=$input->{mac} $hardref->{bootargs} $actref->{raccess} $args $actref->{loghost}
+    kernel http://$ENV{SERVER_ADDR}/ba/linux?mac=$input->{mac}
+    append initrd=http://$ENV{SERVER_ADDR}/ba/initrd?mac=$input->{mac} $hardref->{bootargs} $actref->{raccess} $args $actref->{loghost}
 |;
 
             } elsif ( $distref->{os} =~ m/debian/i) {
                 $args = qq|hostname=unassigned-hostname domain=unassigned-domain locale=$actref->{lang} console-setup/ask_detect=$actref->{consoleaskdetect} console-setup/layoutcode=$actref->{consolelayoutcode} debian-installer/allow_unauthenticated=true |;
                 if ( $actref->{autobuild} ne "none" ) {
-                    $args .= qq|preseed/url=http://$baVar{serverip}/ba/auto?mac=$input->{mac} console-keymaps-at/keymap=$actref->{keymap}|;
+                    $args .= qq|preseed/url=http://$ENV{SERVER_ADDR}/ba/auto?mac=$input->{mac} console-keymaps-at/keymap=$actref->{keymap}|;
                 } else {
                     $args .= qq|tasks=standard pkgsel/language-pack-patterns= pkgsel/install-language-support=false priority=low debian-installer/allow_unauthenticated=true|;
                 }
@@ -1000,16 +1006,16 @@ PROMPT 0
 TIMEOUT 0
 
 LABEL label_$actref->{hostname}
-    kernel http://$baVar{serverip}/ba/linux?mac=$input->{mac}
-    append initrd=http://$baVar{serverip}/ba/initrd?mac=$input->{mac} $hardref->{bootargs} $actref->{raccess} $args $actref->{loghost}
+    kernel http://$ENV{SERVER_ADDR}/ba/linux?mac=$input->{mac}
+    append initrd=http://$ENV{SERVER_ADDR}/ba/initrd?mac=$input->{mac} $hardref->{bootargs} $actref->{raccess} $args $actref->{loghost}
 |;
 
             } elsif ( $distref->{os} =~ m/xenserver/i ) {
-                $args = qq|--- tftp://$baVar{serverip}/vmlinuz|;
+                $args = qq|--- tftp://$ENV{SERVER_ADDR}/vmlinuz|;
                 if ( $actref->{autobuild} ne "none" ) {
-                    $args .= qq| $hardref->{bootargs} $actref->{raccess} answerfile=http://$baVar{serverip}/ba/auto?mac=$input->{mac} install --- tftp://$baVar{serverip}/install.img|;
+                    $args .= qq| $hardref->{bootargs} $actref->{raccess} answerfile=http://$ENV{SERVER_ADDR}/ba/auto?mac=$input->{mac} install --- tftp://$ENV{SERVER_ADDR}/install.img|;
                 } else {
-                    $args .= qq| $hardref->{bootargs} $actref->{raccess} --- tftp://$baVar{serverip}/install.img|;
+                    $args .= qq| $hardref->{bootargs} $actref->{raccess} --- tftp://$ENV{SERVER_ADDR}/install.img|;
                 }
 
                 $output = qq|DEFAULT label_$actref->{hostname}
@@ -1017,13 +1023,14 @@ PROMPT 0
 TIMEOUT 0
 
 LABEL label_$actref->{hostname}
-    kernel tftp://$baVar{serverip}/mboot.c32
-    append tftp://$baVar{serverip}/xen.gz $args
+    kernel tftp://$ENV{SERVER_ADDR}/mboot.c32
+    append tftp://$ENV{SERVER_ADDR}/xen.gz $args
 |;
 
             } elsif ( $distref->{os} =~ m/solaris/i ) {
                 $output = qq|#!gpxe
-chain tftp://$baVar{serverip}/pxegrub
+set use-cached 1
+chain tftp://\${next-server}/pxegrub
 |;
 
             } elsif ( $distref->{os} =~ m/win/i ) {
@@ -1032,13 +1039,15 @@ chain tftp://$baVar{serverip}/pxegrub
 
                 if ( $actref->{storageid} ) {
                     $output = qq|#!gpxe
+set use-cached 1
 set keep-san-nb 1
 sanboot  $actref->{storageuri}
-chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
+chain tftp://\${next-server}/$distref->{arch}/startrom.0
 |;
                 } else {
                     $output = qq|#!gpxe
-chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
+set use-cached 1
+chain tftp://\${next-server}/$distref->{arch}/startrom.0
 |;
 
                 }
@@ -1079,8 +1088,8 @@ chain tftp://$baVar{serverip}/$distref->{arch}/startrom.0
 PROMPT 0
 TIMEOUT 0
 LABEL image
-        kernel http://$baVar{serverip}/ba/$linux_wrkld
-        append initrd=http://$baVar{serverip}/ba/$initrd_wrkld root=/dev/ram0 install=exec:/usr/bin/baracus.image baimagedst="$hardref->{rootdisk}" baimagesrc="$imgref->{storage}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60 nosmp
+        kernel http://$ENV{SERVER_ADDR}/ba/$linux_wrkld
+        append initrd=http://$ENV{SERVER_ADDR}/ba/$initrd_wrkld root=/dev/ram0 install=exec:/usr/bin/baracus.image baimagedst="$hardref->{rootdisk}" baimagesrc="$imgref->{storage}" baracus=$ENV{SERVER_ADDR} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60 nosmp
 |;
             } elsif ( $pxenext eq BA_ACTION_MCAST ) {
                 printlog "$input->{mac} - serving mcasting workload\n";
@@ -1095,8 +1104,8 @@ LABEL image
 PROMPT 0
 TIMEOUT 0
 LABEL mcast
-        kernel http://$baVar{serverip}/ba/$linux_wrkld
-        append initrd=http://$baVar{serverip}/ba/$initrd_wrkld root=/dev/ram0 install=exec:/usr/bin/baracus.mcast baimagedst="$hardref->{rootdisk}" bardvaddr="$mcastref->{rdvip}" baracus=$baVar{serverip} mac=$input->{mac} portbase=$mcastref->{port} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60 nosmp
+        kernel http://$ENV{SERVER_ADDR}/ba/$linux_wrkld
+        append initrd=http://$ENV{SERVER_ADDR}/ba/$initrd_wrkld root=/dev/ram0 install=exec:/usr/bin/baracus.mcast baimagedst="$hardref->{rootdisk}" bardvaddr="$mcastref->{rdvip}" baracus=$ENV{SERVER_ADDR} mac=$input->{mac} portbase=$mcastref->{port} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60 nosmp
 |;
             } elsif ( $pxenext eq BA_ACTION_CLONE ) {
                 printlog "$input->{mac} - serving cloning workload\n";
@@ -1111,8 +1120,8 @@ LABEL mcast
 PROMPT 0
 TIMEOUT 0
 LABEL clone
-        kernel http://$baVar{serverip}/ba/$linux_wrkld
-        append initrd=http://$baVar{serverip}/ba/$initrd_wrkld root=/dev/ram0 install=exec:/usr/bin/baracus.clone baimagedst="$imgref->{storage}" baimagesrc="$hardref->{rootdisk}" autoclone=$actref->{autoclone} baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60 nosmp
+        kernel http://$ENV{SERVER_ADDR}/ba/$linux_wrkld
+        append initrd=http://$ENV{SERVER_ADDR}/ba/$initrd_wrkld root=/dev/ram0 install=exec:/usr/bin/baracus.clone baimagedst="$imgref->{storage}" baimagesrc="$hardref->{rootdisk}" autoclone=$actref->{autoclone} baracus=$ENV{SERVER_ADDR} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60 nosmp
 |;
             } elsif ( $pxenext eq BA_ACTION_MIGRATE ) {
                 printlog "$input->{mac} - serving migrate workload\n";
@@ -1129,8 +1138,8 @@ LABEL clone
 PROMPT 0
 TIMEOUT 0
 LABEL migrate
-        kernel http://$baVar{serverip}/ba/$linux_wrkld
-        append initrd=http://$baVar{serverip}/ba/$initrd_wrkld root=/dev/ram0 install=exec:/usr/bin/baracus.migrate badstfs="$dstref->{storageip}:$dstref->{storage}" basrcfs="$hardref->{rootdisk}$actref->{partition}" automigrate=$actref->{automigrate} baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
+        kernel http://$ENV{SERVER_ADDR}/ba/$linux_wrkld
+        append initrd=http://$ENV{SERVER_ADDR}/ba/$initrd_wrkld root=/dev/ram0 install=exec:/usr/bin/baracus.migrate badstfs="$dstref->{storageip}:$dstref->{storage}" basrcfs="$hardref->{rootdisk}$actref->{partition}" automigrate=$actref->{automigrate} baracus=$ENV{SERVER_ADDR} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60
 |;
             }
 
@@ -1178,8 +1187,8 @@ LABEL migrate
 PROMPT 0
 TIMEOUT 0
 LABEL wipe
-        kernel http://$baVar{serverip}/ba/$linux_nuk
-        append initrd=http://$baVar{serverip}/ba/$initrd_nuk root=/dev/ram0 install=exec:/usr/bin/baracus.dban nuke="dwipe${autonuke}" baracus=$baVar{serverip} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60 nosmp
+        kernel http://$ENV{SERVER_ADDR}/ba/$linux_nuk
+        append initrd=http://$ENV{SERVER_ADDR}/ba/$initrd_nuk root=/dev/ram0 install=exec:/usr/bin/baracus.dban nuke="dwipe${autonuke}" baracus=$ENV{SERVER_ADDR} mac=$input->{mac} $args netwait=60 netdevice=eth0 udev.rule="mac=$lcmac,name=eth0" dhcptimeout=60 nosmp
 |;
 
         }
@@ -1205,8 +1214,8 @@ LABEL wipe
         my $actauto = &get_db_data( $dbh, 'actabld', $input->{mac} );
         if ( defined $actauto->{autobuild} ) {
             $output .= qq|\@echo off
-\@echo curl.exe -G http://$baVar{serverip}/ba/auto?mac=$input->{mac} -o X:\\Autounattend.xml
-curl.exe -G http://$baVar{serverip}/ba/auto?mac=$input->{mac} -o X:\\Autounattend.xml
+\@echo curl.exe -G http://$ENV{SERVER_ADDR}/ba/auto?mac=$input->{mac} -o X:\\Autounattend.xml
+curl.exe -G http://$ENV{SERVER_ADDR}/ba/auto?mac=$input->{mac} -o X:\\Autounattend.xml
 
 net use n: \\\\$distref->{shareip}\\$actref->{distro}
 n:\\setup.exe /unattend:X:\\Autounattend.xml
@@ -1290,7 +1299,7 @@ n:\\setup.exe
             $output = qq|ramdisk_size=65536 root=/dev/ram1 ro init=/linuxrc
 $actref->{bootargs}
 Hostname=$actref->{hostname}.$actref->{dnsdomain}
-Install=$actref->{sharetype}://$actref->{shareip}$actref->{basepath}
+Install=$actref->{sharetype}://$ENV{SERVER_ADDR}/$actref->{basepath}
 linuxrcstderr=/dev/console
 |;
 
@@ -1342,7 +1351,7 @@ Nameserver=$actref->{dns1}
             if ( defined $actauto->{autobuild} ) {
                 $actref->{autobuild} = $actauto->{autobuild};
                 $actref->{autobuild_ver} = $actauto->{autobuild_ver};
-                $args .= qq| autoyast=http://$baVar{serverip}/ba/auto?mac=$input->{mac}|;
+                $args .= qq| autoyast=http://$ENV{SERVER_ADDR}/ba/auto?mac=$input->{mac}|;
             } else {
                 $actref->{autobuild} = "none";
             }
@@ -1487,8 +1496,6 @@ Address 'CMS' 'PURGE RDR ALL'
             exit 0;
         }
 
-        $actref->{serverip} = $baVar{serverip};
-
         # the mac and action might have been produced with an inventory req
 
         my $actauto = &get_db_data( $dbh, 'actabld', $input->{mac} );
@@ -1582,7 +1589,7 @@ Address 'CMS' 'PURGE RDR ALL'
         $actref->{cmdline} = "# pxeboot directing to network install";
         &update_db_data( $dbh, 'action', $actref );
 
-        &do_menu_lst( $cgi, $actref, $baVar{serverip}, $isoref->{mntpoint} );
+        &do_menu_lst( $cgi, $actref, $ENV{SERVER_ADDR}, $isoref->{mntpoint} );
 
     } elsif ( $ENV{REQUEST_URI} =~ m{^\s*/ba/(jumpstart.tar)\?.*\s*$} ) {
         my $file = $1;

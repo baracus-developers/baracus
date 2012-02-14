@@ -244,7 +244,7 @@ And further <...> optional parameters include
   --partition <num>        Partition number to boot [ default 0 (first)]
 
   --storageid <storageid>  The storage id for a network root build
-  --migrate		   build on local disk then migrate to network root
+  --migrate                build on local disk then migrate to network root
 
   --usevnc                 allow vnc build access
   --vncpass                defines vnc password for remote access
@@ -319,7 +319,7 @@ sub build
          'serialbaud=s'  => \$serialbaud,
          'disk=s'        => \$disk,
          'partition=s'   => \$partition,
-	 'migrate!'      => \$migrate,
+         'migrate!'      => \$migrate,
          );
 
     if ( scalar @ARGV ) {
@@ -1584,7 +1584,7 @@ sub migrate
                'automigrate'    => \$entry{automigrate},
                'disk=s'         => \$entry{disk},
                'partition=s'    => \$entry{partition},
-               'vfstype=s'	=> \$entry{vfstype},
+               'vfstype=s'      => \$entry{vfstype},
                );
 
     if ( scalar @ARGV ) {
